@@ -96,7 +96,7 @@ export function Modal({
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
         className={`animate-fade-up max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-surface p-6 shadow-2xl sm:rounded-3xl ${
-          wide ? "sm:max-w-2xl" : "sm:max-w-lg"
+          wide ? "sm:max-w-xl" : "sm:max-w-md"
         }`}
       >
         <div className="mb-5 flex items-center justify-between">

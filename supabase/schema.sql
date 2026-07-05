@@ -29,5 +29,6 @@ create policy "Users update own snapshot"
 -- If you already ran an older version of this schema, add the profile column:
 -- alter table public.wardrobe_snapshots add column if not exists profile jsonb not null default '{}'::jsonb;
 
--- Enable anonymous sign-in in Supabase Dashboard:
--- Authentication → Providers → Anonymous sign-ins → Enable
+-- Enable email/password auth in Supabase Dashboard:
+-- Authentication → Providers → Email → Enable
+-- Authentication → Providers → Email → Confirm email → OFF (no verification yet)

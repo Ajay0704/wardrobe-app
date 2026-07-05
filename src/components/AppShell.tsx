@@ -1,11 +1,13 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useWardrobe, type View } from "@/lib/store";
+import { AuthModal, type AuthMode } from "./AuthModal";
+import { AuthProvider } from "./AuthProvider";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ShareLinkLoader } from "./ShareLinkLoader";
-import { SupabaseSync } from "./SupabaseSync";
+import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
 import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
@@ -20,7 +22,6 @@ const NAV: { view: View; label: string }[] = [
   { view: "wishlist", label: "Wishlist" },
 ];
 
-/** Forbes / Medium-style publication masthead */
 function BrandWordmark({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -35,8 +36,9 @@ function BrandWordmark({ onClick }: { onClick: () => void }) {
   );
 }
 
-export function AppShell() {
-  const { view, setView, theme, setTheme, profile } = useWardrobe();
+function AppShellInner() {
+  const { view, setView, theme, setTheme, profile, authUser } = useWardrobe();
+  const [authModal, setAuthModal] = useState<AuthMode | null>(null);
 
   return (
     <>
@@ -45,10 +47,8 @@ export function AppShell() {
 
       <header className="sticky top-0 z-40 border-b border-line bg-background">
         <div className="mx-auto flex max-w-7xl items-end justify-between gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-5">
-          {/* Left — publication wordmark */}
           <BrandWordmark onClick={() => setView("wardrobe")} />
 
-          {/* Right — nav + utilities (Forbes / Medium layout) */}
           <div className="flex min-w-0 flex-1 items-end justify-end gap-4 sm:gap-6">
             <nav
               className="flex items-end gap-4 overflow-x-auto sm:gap-7"
@@ -63,14 +63,35 @@ export function AppShell() {
 
             <div className="flex shrink-0 items-center gap-2 border-l border-line pl-3 sm:pl-4">
               <div className="hidden md:block">
-                <SupabaseSync />
+                <SyncBadge />
               </div>
-              <ProfileAvatar
-                profile={profile}
-                size={34}
-                active={view === "settings"}
-                onClick={() => setView("settings")}
-              />
+
+              {authUser ? (
+                <ProfileAvatar
+                  profile={profile}
+                  size={34}
+                  active={view === "settings"}
+                  onClick={() => setView("settings")}
+                />
+              ) : (
+                <div className="flex items-center gap-2 pb-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setAuthModal("login")}
+                    className="text-sm font-medium text-muted transition-colors hover:text-foreground"
+                  >
+                    Log in
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAuthModal("signup")}
+                    className="rounded-full bg-accent px-3 py-1.5 text-xs font-medium text-accent-foreground transition-opacity hover:opacity-90"
+                  >
+                    Sign up
+                  </button>
+                </div>
+              )}
+
               <button
                 type="button"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -97,9 +118,23 @@ export function AppShell() {
       </main>
 
       <footer className="border-t border-line py-6 text-center text-xs text-muted">
-        Your wardrobe lives in this browser — ready to sync to Supabase later.
+        {authUser
+          ? `Signed in as ${authUser.email} — wardrobe synced to the cloud.`
+          : "Use the app locally, or sign up to sync your wardrobe across devices."}
       </footer>
+
+      {authModal && (
+        <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
+      )}
     </>
+  );
+}
+
+export function AppShell() {
+  return (
+    <AuthProvider>
+      <AppShellInner />
+    </AuthProvider>
   );
 }
 

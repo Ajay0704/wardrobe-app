@@ -2,18 +2,19 @@
 
 import { useState, type ReactNode } from "react";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
+import { ProfileFields } from "./ProfileFields";
 import { Button, Field, inputClass } from "./ui";
 import { useWardrobe, type ThemeMode } from "@/lib/store";
+import { signOut } from "@/lib/supabase/auth";
 import {
   SETTINGS_SECTIONS,
   type SettingsSection,
-  type UserProfile,
 } from "@/lib/profile";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 
 export function SettingsView() {
   const [section, setSection] = useState<SettingsSection>("profile");
-  const { profile, updateProfile, theme, setTheme, items, outfits } =
+  const { profile, updateProfile, theme, setTheme, items, outfits, authUser, setAuthUser, setSyncStatus } =
     useWardrobe();
 
   const handleAvatarUpload = (file: File) => {
@@ -74,13 +75,19 @@ export function SettingsView() {
             <SettingsPanel title="Account details">
               <Field label="Email">
                 <input
-                  className={inputClass}
+                  className={`${inputClass} ${authUser ? "opacity-70" : ""}`}
                   type="email"
                   value={profile.email}
                   onChange={(e) => updateProfile({ email: e.target.value })}
                   placeholder="you@example.com"
+                  readOnly={Boolean(authUser)}
                 />
               </Field>
+              {authUser && (
+                <p className="text-xs text-muted">
+                  Email is managed by your login account.
+                </p>
+              )}
               <Field label="Phone (optional)">
                 <input
                   className={inputClass}
@@ -102,6 +109,18 @@ export function SettingsView() {
                   }
                 />
               </Field>
+              {authUser && (
+                <Button
+                  variant="outline"
+                  onClick={async () => {
+                    await signOut();
+                    setAuthUser(null);
+                    setSyncStatus("offline");
+                  }}
+                >
+                  Log out
+                </Button>
+              )}
             </SettingsPanel>
           )}
 
@@ -182,79 +201,6 @@ function SettingsPanel({
       <h2 className="heading text-lg">{title}</h2>
       <div className="space-y-5">{children}</div>
     </section>
-  );
-}
-
-function ProfileFields({
-  profile,
-  onChange,
-}: {
-  profile: UserProfile;
-  onChange: (patch: Partial<UserProfile>) => void;
-}) {
-  return (
-    <>
-      <Field label="Display name">
-        <input
-          className={inputClass}
-          value={profile.displayName}
-          onChange={(e) => onChange({ displayName: e.target.value })}
-          placeholder="Ajay"
-        />
-      </Field>
-      <Field label="Username">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">
-            @
-          </span>
-          <input
-            className={`${inputClass} !pl-8`}
-            value={profile.username}
-            onChange={(e) =>
-              onChange({
-                username: e.target.value.replace(/^@/, "").replace(/\s/g, ""),
-              })
-            }
-            placeholder="username"
-          />
-        </div>
-      </Field>
-      <Field label="Bio">
-        <textarea
-          className={`${inputClass} min-h-24 resize-y`}
-          value={profile.bio ?? ""}
-          onChange={(e) => onChange({ bio: e.target.value || undefined })}
-          placeholder="A few words about your style…"
-          maxLength={160}
-        />
-        <span className="mt-1 block text-right text-xs text-muted">
-          {(profile.bio ?? "").length}/160
-        </span>
-      </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Field label="Location (optional)">
-          <input
-            className={inputClass}
-            value={profile.location ?? ""}
-            onChange={(e) =>
-              onChange({ location: e.target.value || undefined })
-            }
-            placeholder="New York, NY"
-          />
-        </Field>
-        <Field label="Website (optional)">
-          <input
-            className={inputClass}
-            type="url"
-            value={profile.website ?? ""}
-            onChange={(e) =>
-              onChange({ website: e.target.value || undefined })
-            }
-            placeholder="https://yoursite.com"
-          />
-        </Field>
-      </div>
-    </>
   );
 }
 

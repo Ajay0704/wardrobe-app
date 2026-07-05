@@ -11,7 +11,8 @@ import { persist } from "zustand/middleware";
 import type { Category, Outfit, Season, SlotKey, WardrobeItem } from "./types";
 import { SLOT_CONFIG, slotForCategory } from "./types";
 import { demoItems } from "./demo-data";
-import { DEFAULT_PROFILE, type UserProfile } from "./profile";
+import { DEFAULT_PROFILE, type AuthUser, type UserProfile } from "./profile";
+import type { SyncStatus } from "./supabase/sync";
 
 export type ThemeMode = "light" | "dark";
 export type View = "wardrobe" | "builder" | "outfits" | "wishlist" | "settings";
@@ -36,6 +37,8 @@ interface WardrobeState {
   items: WardrobeItem[];
   outfits: Outfit[];
   profile: UserProfile;
+  authUser: AuthUser | null;
+  syncStatus: SyncStatus;
   theme: ThemeMode;
   view: View;
   filters: Filters;
@@ -52,6 +55,8 @@ interface WardrobeState {
 
   updateProfile: (patch: Partial<UserProfile>) => void;
   resetAll: () => void;
+  setAuthUser: (user: AuthUser | null) => void;
+  setSyncStatus: (status: SyncStatus) => void;
 
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
@@ -82,6 +87,8 @@ export const useWardrobe = create<WardrobeState>()(
       items: demoItems,
       outfits: [],
       profile: { ...DEFAULT_PROFILE },
+      authUser: null,
+      syncStatus: "offline" as SyncStatus,
       theme: "light",
       view: "wardrobe",
       filters: { search: "", category: "all", season: "all", tag: "all" },
@@ -150,6 +157,9 @@ export const useWardrobe = create<WardrobeState>()(
           draft: emptyDraft(),
           theme: "light",
         }),
+
+      setAuthUser: (authUser) => set({ authUser }),
+      setSyncStatus: (syncStatus) => set({ syncStatus }),
 
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),

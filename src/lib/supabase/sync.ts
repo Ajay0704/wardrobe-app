@@ -1,8 +1,6 @@
 /**
  * Bidirectional sync between the Zustand store and Supabase.
- *
- * Uses anonymous auth (one wardrobe per browser session). Upgrade to email
- * auth later for cross-device sync — the schema stays the same.
+ * Requires email/password sign-in — no anonymous sessions.
  */
 
 import type { ThemeMode } from "../store";
@@ -19,19 +17,6 @@ export interface WardrobeSnapshot {
   theme: ThemeMode;
   draft: Record<SlotKey, string[]>;
   updated_at?: string;
-}
-
-/** Ensure the user has an anonymous Supabase session. */
-export async function ensureAuth(): Promise<string | null> {
-  const supabase = getSupabase();
-  if (!supabase) return null;
-
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user.id) return sessionData.session.user.id;
-
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) return null;
-  return data.user.id;
 }
 
 /** Pull the remote snapshot for the current user. */

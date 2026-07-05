@@ -24,6 +24,12 @@ export const DEFAULT_PROFILE: UserProfile = {
   email: "",
 };
 
+/** Signed-in Supabase user (email/password auth). */
+export interface AuthUser {
+  id: string;
+  email: string;
+}
+
 /** Initials for avatar fallback when no photo is set. */
 export function profileInitials(profile: UserProfile): string {
   const name = profile.displayName.trim();
