@@ -4,7 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useWardrobe, type View } from "@/lib/store";
-import { isSupabaseConfigured } from "@/lib/supabase/client";
+import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -154,8 +154,9 @@ function AppShellInner() {
   // impossible, so we fall back to the ungated app for local/dev use.
   const gated = isSupabaseConfigured();
 
-  // Restoring the session — avoid flashing the login screen for signed-in users.
-  if (gated && !authChecked) {
+  // Only block on the splash when there's actually a stored session to restore.
+  // Logged-out visitors (no token) skip it and see the landing immediately.
+  if (gated && !authChecked && hasStoredSession()) {
     return (
       <>
         <ThemeEffect />

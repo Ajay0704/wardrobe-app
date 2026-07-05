@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         user = await Promise.race([
           getSessionUser(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
         ]);
       } catch {
         user = null;
