@@ -65,6 +65,8 @@ export interface WardrobeItem {
   notes?: string;
   /** Wishlist items are things the user wants to buy, not yet owned. */
   wishlist: boolean;
+  /** Favourited pieces the user loves — independent of wishlist. */
+  favorite?: boolean;
   createdAt: number;
 }
 

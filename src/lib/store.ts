@@ -11,7 +11,12 @@ import { persist } from "zustand/middleware";
 import type { Category, Outfit, Season, SlotKey, WardrobeItem } from "./types";
 import { SLOT_CONFIG, slotForCategory } from "./types";
 import { demoItems } from "./demo-data";
-import { DEFAULT_PROFILE, type AuthUser, type UserProfile } from "./profile";
+import {
+  DEFAULT_PROFILE,
+  type AuthUser,
+  type SettingsSection,
+  type UserProfile,
+} from "./profile";
 import type { SyncStatus } from "./supabase/sync";
 
 export type ThemeMode = "light" | "dark";
@@ -45,6 +50,8 @@ interface WardrobeState {
   passwordRecovery: boolean;
   theme: ThemeMode;
   view: View;
+  /** Which section the Settings view opens to. */
+  settingsSection: SettingsSection;
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
@@ -66,6 +73,7 @@ interface WardrobeState {
 
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
+  setSettingsSection: (s: SettingsSection) => void;
   setFilters: (patch: Partial<Filters>) => void;
 
   addToDraft: (itemId: string) => void;
@@ -111,6 +119,7 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     price: typeof it.price === "number" ? it.price : undefined,
     notes: typeof it.notes === "string" ? it.notes : undefined,
     wishlist: Boolean(it.wishlist),
+    favorite: Boolean(it.favorite),
     createdAt: typeof it.createdAt === "number" ? it.createdAt : Date.now(),
   };
 }
@@ -154,6 +163,7 @@ export const useWardrobe = create<WardrobeState>()(
       passwordRecovery: false,
       theme: "light",
       view: "wardrobe",
+      settingsSection: "profile",
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
 
@@ -228,6 +238,7 @@ export const useWardrobe = create<WardrobeState>()(
 
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),
+      setSettingsSection: (settingsSection) => set({ settingsSection }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
 

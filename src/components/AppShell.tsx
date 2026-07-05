@@ -7,7 +7,7 @@ import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
-import { ProfileAvatar } from "./ProfileAvatar";
+import { ProfileMenu } from "./ProfileMenu";
 import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
@@ -134,16 +134,8 @@ function AuthLanding({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
 }
 
 function AppShellInner() {
-  const {
-    view,
-    setView,
-    theme,
-    setTheme,
-    profile,
-    authUser,
-    authChecked,
-    passwordRecovery,
-  } = useWardrobe();
+  const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
+    useWardrobe();
   const [authModal, setAuthModal] = useState<AuthMode | null>(() => {
     if (typeof window === "undefined") return null;
     const a = new URLSearchParams(window.location.search).get("auth");
@@ -205,12 +197,7 @@ function AppShellInner() {
               </div>
 
               {authUser ? (
-                <ProfileAvatar
-                  profile={profile}
-                  size={34}
-                  active={view === "settings"}
-                  onClick={() => setView("settings")}
-                />
+                <ProfileMenu />
               ) : (
                 <div className="flex items-center gap-2 pb-0.5">
                   <button

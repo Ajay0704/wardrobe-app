@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Heart, Pencil, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -46,7 +46,9 @@ export function ItemCard({
     <div
       draggable
       onDragStart={handleDragStart}
-      className="group animate-fade-up cursor-grab overflow-hidden rounded-2xl border border-line bg-surface transition-shadow active:cursor-grabbing hover:shadow-lg hover:shadow-black/5"
+      onClick={() => (compact ? addAndGo() : onEdit?.(item))}
+      title={compact ? "Add to outfit" : "Edit item"}
+      className="group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface transition-shadow active:cursor-grabbing hover:shadow-lg hover:shadow-black/5"
     >
       {/* Image area */}
       <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
@@ -77,18 +79,13 @@ export function ItemCard({
           <CardAction title="Add to outfit" onClick={addAndGo}>
             <Plus size={15} />
           </CardAction>
-          {onEdit && (
-            <CardAction title="Edit" onClick={() => onEdit(item)}>
-              <Pencil size={14} />
-            </CardAction>
-          )}
           <CardAction
-            title={item.wishlist ? "Move to wardrobe" : "Move to wishlist"}
-            onClick={() => updateItem(item.id, { wishlist: !item.wishlist })}
+            title={item.favorite ? "Remove from favourites" : "Add to favourites"}
+            onClick={() => updateItem(item.id, { favorite: !item.favorite })}
           >
             <Heart
               size={14}
-              className={item.wishlist ? "fill-red-500 text-red-500" : ""}
+              className={item.favorite ? "fill-red-500 text-red-500" : ""}
             />
           </CardAction>
           <CardAction
@@ -130,6 +127,11 @@ export function ItemCard({
             }`}
           >
             Wishlist
+          </div>
+        )}
+        {!compact && item.favorite && (
+          <div className="absolute right-2 top-2 rounded-full bg-black/45 p-1.5 backdrop-blur">
+            <Heart size={12} className="fill-red-500 text-red-500" />
           </div>
         )}
       </div>

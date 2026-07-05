@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, Plus, Search, Sun } from "lucide-react";
+import { Heart, LayoutGrid, Plus, Search, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
@@ -42,9 +42,14 @@ export function WardrobeView() {
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
-  const filtered = useMemo(() => filterItems(owned, filters), [owned, filters]);
+  const scoped = useMemo(
+    () => (favoritesOnly ? owned.filter((it) => it.favorite) : owned),
+    [owned, favoritesOnly],
+  );
+  const filtered = useMemo(() => filterItems(scoped, filters), [scoped, filters]);
 
   // All tags currently in use, for the tag filter dropdown.
   const allTags = useMemo(
@@ -97,6 +102,14 @@ export function WardrobeView() {
           </select>
           <Button
             variant="outline"
+            onClick={() => setFavoritesOnly((v) => !v)}
+            title={favoritesOnly ? "Show all items" : "Show favourites only"}
+            className={favoritesOnly ? "!border-accent !text-accent" : ""}
+          >
+            <Heart size={15} className={favoritesOnly ? "fill-current" : ""} />
+          </Button>
+          <Button
+            variant="outline"
             onClick={() => setSeasonalView(!seasonalView)}
             title={seasonalView ? "Grid view" : "Group by season"}
           >
@@ -114,10 +127,10 @@ export function WardrobeView() {
           active={filters.category === "all"}
           onClick={() => setFilters({ category: "all" })}
         >
-          All ({owned.length})
+          All ({scoped.length})
         </Chip>
         {CATEGORIES.map((c) => {
-          const count = owned.filter((it) => it.category === c.value).length;
+          const count = scoped.filter((it) => it.category === c.value).length;
           if (count === 0) return null;
           return (
             <Chip
@@ -134,11 +147,19 @@ export function WardrobeView() {
       {/* Grid */}
       {filtered.length === 0 ? (
         <EmptyState
-          title={owned.length === 0 ? "Your wardrobe is empty" : "No matches"}
+          title={
+            owned.length === 0
+              ? "Your wardrobe is empty"
+              : favoritesOnly && scoped.length === 0
+                ? "No favourites yet"
+                : "No matches"
+          }
           subtitle={
             owned.length === 0
               ? "Add your first piece — paste an image link from any store."
-              : "Try loosening the search or filters."
+              : favoritesOnly && scoped.length === 0
+                ? "Tap the heart on any item to add it to your favourites."
+                : "Try loosening the search or filters."
           }
           action={
             owned.length === 0 && (

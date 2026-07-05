@@ -10,16 +10,23 @@ import {
   signOut,
   updatePassword,
 } from "@/lib/supabase/auth";
-import {
-  SETTINGS_SECTIONS,
-  type SettingsSection,
-} from "@/lib/profile";
+import { SETTINGS_SECTIONS } from "@/lib/profile";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 
 export function SettingsView() {
-  const [section, setSection] = useState<SettingsSection>("profile");
-  const { profile, updateProfile, theme, setTheme, items, outfits, authUser, setAuthUser, setSyncStatus } =
-    useWardrobe();
+  const {
+    profile,
+    updateProfile,
+    theme,
+    setTheme,
+    items,
+    outfits,
+    authUser,
+    setAuthUser,
+    setSyncStatus,
+    settingsSection: section,
+    setSettingsSection: setSection,
+  } = useWardrobe();
 
   const handleAvatarUpload = (file: File) => {
     const reader = new FileReader();
