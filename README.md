@@ -77,6 +77,24 @@ cp .env.example .env.local
 
 When configured, the app syncs automatically and shows a cloud badge in the header. Without env vars, it stays local-only.
 
+## Deploy to Vercel (recommended)
+
+**GitHub repo:** [github.com/Ajay0704/wardrobe-app](https://github.com/Ajay0704/wardrobe-app)
+
+1. Go to [vercel.com/new](https://vercel.com/new)
+2. Import **Ajay0704/wardrobe-app** from GitHub
+3. Vercel auto-detects Next.js — leave build settings as default:
+   - **Build command:** `npm run build`
+   - **Output:** Next.js default
+4. Click **Deploy**
+
+Optional: add Supabase env vars under **Project → Settings → Environment Variables**:
+
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+Every push to `main` will auto-deploy.
+
 ## Deploy to Netlify
 
 ```bash
