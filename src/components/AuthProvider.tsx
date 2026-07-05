@@ -50,7 +50,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     (async () => {
       setSyncStatus("connecting");
-      const user = await getSessionUser();
+      // Fail open: if the session lookup errors or hangs (e.g. a stale token),
+      // still resolve the gate so the UI never sticks on the loading splash.
+      let user: Awaited<ReturnType<typeof getSessionUser>> = null;
+      try {
+        user = await Promise.race([
+          getSessionUser(),
+          new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+        ]);
+      } catch {
+        user = null;
+      }
       if (cancelled) return;
       if (!user) {
         setAuthUser(null);
@@ -64,7 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       userId.current = user.id;
       updateProfile({ email: user.email });
       setAuthChecked(true);
-      await syncPull(user.id);
+      try {
+        await syncPull(user.id);
+      } catch {
+        setSyncStatus("error");
+      }
     })();
 
     const {
