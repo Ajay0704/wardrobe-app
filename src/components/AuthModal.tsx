@@ -40,7 +40,7 @@ export function AuthModal({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const { items, outfits, theme, draft, updateProfile, setAuthUser, hydrateFromRemote } =
+  const { theme, draft, updateProfile, setAuthUser, hydrateFromRemote } =
     useWardrobe();
 
   const patchProfile = (p: Partial<UserProfile>) =>
@@ -98,10 +98,18 @@ export function AuthModal({
         email.trim(),
         password,
         profile,
-        { items, outfits, theme, draft },
+        { items: [], outfits: [], theme, draft },
       );
       setAuthUser(user);
-      updateProfile({ ...profile, email: user.email });
+      // New accounts start with an empty wardrobe (not the demo items). Clear
+      // the local store to match the freshly-seeded empty cloud snapshot.
+      hydrateFromRemote({
+        items: [],
+        outfits: [],
+        profile: { ...profile, email: user.email },
+        theme,
+        draft,
+      });
       onClose();
     } catch (err) {
       setError(authErrorMessage(err));

@@ -20,6 +20,31 @@ import { ItemCard } from "./ItemCard";
 import { OutfitPreview } from "./OutfitPreview";
 import { Button, Chip, EmptyState, Field, MatchBadge, Modal, inputClass } from "./ui";
 
+/** Copy text to the clipboard, falling back to execCommand on HTTP/denied. */
+async function copyText(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fall through to the legacy path
+  }
+  try {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export function OutfitBuilderView() {
   const {
     items,
@@ -103,15 +128,14 @@ export function OutfitBuilderView() {
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const ids = draftItemIds(draft);
     if (ids.length === 0) return;
     const payload = btoa(JSON.stringify(ids));
     const url = `${window.location.origin}${window.location.pathname}?outfit=${payload}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setShareMsg("Link copied!");
-      setTimeout(() => setShareMsg(""), 2500);
-    });
+    const ok = await copyText(url);
+    setShareMsg(ok ? "Link copied!" : "Couldn't copy — try again.");
+    setTimeout(() => setShareMsg(""), ok ? 2500 : 3500);
   };
 
   const confirmSave = () => {

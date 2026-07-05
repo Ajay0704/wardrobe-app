@@ -4,13 +4,14 @@ import { Pipette, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { useWardrobe } from "@/lib/store";
+import { resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
 
 /**
- * Add / edit item modal. Handles both the URL flow and the file-upload
- * fallback (files are stored as data URLs so everything stays local).
+ * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
+ * (only a small URL is stored), falling back to a data URL otherwise.
  */
 export function ItemForm({
   initial,
@@ -21,7 +22,7 @@ export function ItemForm({
   defaultWishlist?: boolean;
   onClose: () => void;
 }) {
-  const { addItem, updateItem } = useWardrobe();
+  const { addItem, updateItem, authUser } = useWardrobe();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -39,9 +40,11 @@ export function ItemForm({
   );
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
+  const [uploading, setUploading] = useState(false);
 
   const colorName = useMemo(() => nameColor(color), [color]);
-  const canSave = name.trim().length > 0 && imageUrl.trim().length > 0;
+  const canSave =
+    name.trim().length > 0 && imageUrl.trim().length > 0 && !uploading;
 
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -52,10 +55,13 @@ export function ItemForm({
     setTagInput("");
   };
 
-  const handleFile = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => setImageUrl(reader.result as string);
-    reader.readAsDataURL(file);
+  const handleFile = async (file: File) => {
+    setUploading(true);
+    try {
+      setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleExtract = async () => {
@@ -112,11 +118,12 @@ export function ItemForm({
             )}
           </div>
           <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
-            <Upload size={13} /> Upload image
+            <Upload size={13} /> {uploading ? "Uploading…" : "Upload image"}
             <input
               type="file"
               accept="image/*"
               className="hidden"
+              disabled={uploading}
               onChange={(e) =>
                 e.target.files?.[0] && handleFile(e.target.files[0])
               }

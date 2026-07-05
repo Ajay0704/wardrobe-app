@@ -50,13 +50,24 @@ function AuthGateSplash() {
   );
 }
 
-function AuthLanding({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
+function AuthLanding({
+  onAuth,
+  sharedOutfit,
+}: {
+  onAuth: (mode: AuthMode) => void;
+  sharedOutfit?: boolean;
+}) {
   return (
     <div className="relative bg-[#0b0d11] text-white">
       <LandingNav onAuth={onAuth} />
 
       <VideoPanel overlay={0.5} eager poster="/hero-poster.jpg">
         <div className="mx-auto max-w-2xl">
+          {sharedOutfit && (
+            <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur">
+              Someone shared an outfit with you — log in to view it.
+            </div>
+          )}
           <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
             The home for everything you wear
           </h1>
@@ -136,10 +147,19 @@ function AuthLanding({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
 function AppShellInner() {
   const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
     useWardrobe();
+  const [sharedOutfit] = useState(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("outfit"),
+  );
   const [authModal, setAuthModal] = useState<AuthMode | null>(() => {
     if (typeof window === "undefined") return null;
-    const a = new URLSearchParams(window.location.search).get("auth");
-    return a === "login" || a === "signup" ? a : null;
+    const params = new URLSearchParams(window.location.search);
+    const a = params.get("auth");
+    if (a === "login" || a === "signup") return a;
+    // A shared-outfit link → prompt login so it loads after sign-in.
+    if (params.has("outfit")) return "login";
+    return null;
   });
 
   // The app requires an account. Without Supabase configured, login is
@@ -162,7 +182,7 @@ function AppShellInner() {
     return (
       <>
         <ThemeEffect />
-        <AuthLanding onAuth={setAuthModal} />
+        <AuthLanding onAuth={setAuthModal} sharedOutfit={sharedOutfit} />
         {authModal && (
           <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
         )}

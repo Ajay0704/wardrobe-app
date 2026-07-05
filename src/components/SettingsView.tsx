@@ -5,6 +5,7 @@ import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
 import { Button, Field, inputClass } from "./ui";
 import { useWardrobe, type ThemeMode } from "@/lib/store";
+import { resolveImageSource } from "@/lib/supabase/storage";
 import {
   authErrorMessage,
   signOut,
@@ -28,11 +29,10 @@ export function SettingsView() {
     setSettingsSection: setSection,
   } = useWardrobe();
 
-  const handleAvatarUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () =>
-      updateProfile({ avatarUrl: reader.result as string });
-    reader.readAsDataURL(file);
+  const handleAvatarUpload = async (file: File) => {
+    updateProfile({
+      avatarUrl: await resolveImageSource(file, authUser?.id ?? null),
+    });
   };
 
   return (
