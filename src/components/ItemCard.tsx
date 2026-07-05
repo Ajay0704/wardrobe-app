@@ -1,6 +1,6 @@
 "use client";
 
-import { Heart, Pencil, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Heart, Pencil, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -55,7 +55,7 @@ export function ItemCard({
             className="flex h-full w-full items-center justify-center p-4 text-center text-xs text-muted"
             style={{ backgroundColor: `${item.color}22` }}
           >
-            Image unavailable — edit the item to fix the URL or upload a file.
+            Image unavailable — edit the item to upload a new one.
           </div>
         ) : (
           // Plain <img>: URLs come from arbitrary user-provided hosts, which
@@ -137,7 +137,22 @@ export function ItemCard({
       {/* Meta */}
       <div className="space-y-1 p-3">
         <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-sm font-medium">{item.name}</p>
+          {item.productUrl ? (
+            <a
+              href={item.productUrl}
+              target="_blank"
+              rel="noreferrer"
+              draggable={false}
+              onClick={(e) => e.stopPropagation()}
+              title="View product"
+              className="flex min-w-0 items-center gap-1 text-sm font-medium transition-colors hover:text-accent"
+            >
+              <span className="truncate">{item.name}</span>
+              <ExternalLink size={12} className="shrink-0 opacity-60" />
+            </a>
+          ) : (
+            <p className="truncate text-sm font-medium">{item.name}</p>
+          )}
           <ColorDot color={item.color} name={item.colorName} />
         </div>
         <p className="text-xs text-muted">

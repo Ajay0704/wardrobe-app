@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useWardrobe, type View } from "@/lib/store";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -10,6 +11,7 @@ import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
+import { Button } from "./ui";
 import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
 import { OutfitsView } from "./OutfitsView";
@@ -37,10 +39,125 @@ function BrandWordmark({ onClick }: { onClick: () => void }) {
   );
 }
 
+function AuthGateSplash() {
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-2">
+      <span className="brand-wordmark-name text-3xl">Wardrobe</span>
+      <span className="text-xs text-muted">Loading your closet…</span>
+    </div>
+  );
+}
+
+function ThemeToggle({
+  theme,
+  onToggle,
+}: {
+  theme: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-label="Toggle theme"
+      className="p-1.5 text-muted transition-colors hover:text-foreground"
+    >
+      {theme === "dark" ? (
+        <Sun size={18} strokeWidth={1.5} />
+      ) : (
+        <Moon size={18} strokeWidth={1.5} />
+      )}
+    </button>
+  );
+}
+
+function AuthLanding({
+  theme,
+  onToggleTheme,
+  onAuth,
+}: {
+  theme: string;
+  onToggleTheme: () => void;
+  onAuth: (mode: AuthMode) => void;
+}) {
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
+        <BrandWordmark onClick={() => {}} />
+        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
+      </header>
+
+      <main className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="max-w-xl text-center">
+          <h1 className="heading text-4xl leading-tight sm:text-5xl">
+            Your wardrobe, everywhere.
+          </h1>
+          <p className="mx-auto mt-4 max-w-md text-muted">
+            Save your pieces, build outfits, and get color-matched suggestions.
+            Log in to access your closet on any device.
+          </p>
+          <div className="mt-8 flex justify-center gap-3">
+            <Button onClick={() => onAuth("signup")} className="!px-6 !py-2.5">
+              Create account
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => onAuth("login")}
+              className="!px-6 !py-2.5"
+            >
+              Log in
+            </Button>
+          </div>
+        </div>
+      </main>
+
+      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+        Log in or create an account to sync your wardrobe across devices.
+      </footer>
+    </div>
+  );
+}
+
 function AppShellInner() {
-  const { view, setView, theme, setTheme, profile, authUser, passwordRecovery } =
-    useWardrobe();
+  const {
+    view,
+    setView,
+    theme,
+    setTheme,
+    profile,
+    authUser,
+    authChecked,
+    passwordRecovery,
+  } = useWardrobe();
   const [authModal, setAuthModal] = useState<AuthMode | null>(null);
+
+  // The app requires an account. Without Supabase configured, login is
+  // impossible, so we fall back to the ungated app for local/dev use.
+  const gated = isSupabaseConfigured();
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+
+  // Restoring the session — avoid flashing the login screen for signed-in users.
+  if (gated && !authChecked) {
+    return (
+      <>
+        <ThemeEffect />
+        <AuthGateSplash />
+      </>
+    );
+  }
+
+  // Signed out (and not mid password-recovery) — show the sign-in landing.
+  if (gated && !authUser && !passwordRecovery) {
+    return (
+      <>
+        <ThemeEffect />
+        <AuthLanding theme={theme} onToggleTheme={toggleTheme} onAuth={setAuthModal} />
+        {authModal && (
+          <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
+        )}
+      </>
+    );
+  }
 
   return (
     <>

@@ -51,6 +51,8 @@ export interface WardrobeItem {
   name: string;
   /** Direct image URL, or a data: URL when the user uploads a file. */
   imageUrl: string;
+  /** Optional link to the product page (where to buy or view the item). */
+  productUrl?: string;
   category: Category;
   /** Primary color as a hex string, e.g. "#1c1917". */
   color: string;

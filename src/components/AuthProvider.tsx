@@ -12,6 +12,7 @@ import { useWardrobe } from "@/lib/store";
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const {
     setAuthUser,
+    setAuthChecked,
     setSyncStatus,
     hydrateFromRemote,
     updateProfile,
@@ -56,11 +57,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         userId.current = null;
         skipPush.current = true;
         setSyncStatus("offline");
+        setAuthChecked(true);
         return;
       }
       setAuthUser(user);
       userId.current = user.id;
       updateProfile({ email: user.email });
+      setAuthChecked(true);
       await syncPull(user.id);
     })();
 
@@ -81,6 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthUser({ id: session.user.id, email: session.user.email });
         userId.current = session.user.id;
         skipPush.current = true;
+        setAuthChecked(true);
         setPasswordRecovery(true);
         return;
       }
@@ -97,7 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [setAuthUser, setSyncStatus, updateProfile, syncPull, setPasswordRecovery]);
+  }, [
+    setAuthUser,
+    setAuthChecked,
+    setSyncStatus,
+    updateProfile,
+    syncPull,
+    setPasswordRecovery,
+  ]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;

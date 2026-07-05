@@ -38,6 +38,8 @@ interface WardrobeState {
   outfits: Outfit[];
   profile: UserProfile;
   authUser: AuthUser | null;
+  /** False until the initial Supabase session check resolves (gates the UI). */
+  authChecked: boolean;
   syncStatus: SyncStatus;
   /** True while a password-recovery link is active (set-new-password flow). */
   passwordRecovery: boolean;
@@ -58,6 +60,7 @@ interface WardrobeState {
   updateProfile: (patch: Partial<UserProfile>) => void;
   resetAll: () => void;
   setAuthUser: (user: AuthUser | null) => void;
+  setAuthChecked: (checked: boolean) => void;
   setSyncStatus: (status: SyncStatus) => void;
   setPasswordRecovery: (active: boolean) => void;
 
@@ -91,6 +94,7 @@ export const useWardrobe = create<WardrobeState>()(
       outfits: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
+      authChecked: false,
       syncStatus: "offline" as SyncStatus,
       passwordRecovery: false,
       theme: "light",
@@ -163,6 +167,7 @@ export const useWardrobe = create<WardrobeState>()(
         }),
 
       setAuthUser: (authUser) => set({ authUser }),
+      setAuthChecked: (authChecked) => set({ authChecked }),
       setSyncStatus: (syncStatus) => set({ syncStatus }),
       setPasswordRecovery: (passwordRecovery) => set({ passwordRecovery }),
 

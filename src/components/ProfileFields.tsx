@@ -8,11 +8,14 @@ export function ProfileFields({
   profile,
   onChange,
   includeAccountExtras,
+  hideWebsite,
 }: {
   profile: UserProfile;
   onChange: (patch: Partial<UserProfile>) => void;
   /** Phone + birth date (signup & account settings). */
   includeAccountExtras?: boolean;
+  /** Hide the website field (used on the create-profile / signup form). */
+  hideWebsite?: boolean;
 }) {
   return (
     <>
@@ -23,23 +26,6 @@ export function ProfileFields({
           onChange={(e) => onChange({ displayName: e.target.value })}
           placeholder="Ajay"
         />
-      </Field>
-      <Field label="Username">
-        <div className="relative">
-          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">
-            @
-          </span>
-          <input
-            className={`${inputClass} !pl-8`}
-            value={profile.username}
-            onChange={(e) =>
-              onChange({
-                username: e.target.value.replace(/^@/, "").replace(/\s/g, ""),
-              })
-            }
-            placeholder="username"
-          />
-        </div>
       </Field>
       <Field label="Bio">
         <textarea
@@ -53,7 +39,7 @@ export function ProfileFields({
           {(profile.bio ?? "").length}/160
         </span>
       </Field>
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className={hideWebsite ? "" : "grid gap-5 sm:grid-cols-2"}>
         <Field label="Location (optional)">
           <input
             className={inputClass}
@@ -64,17 +50,19 @@ export function ProfileFields({
             placeholder="New York, NY"
           />
         </Field>
-        <Field label="Website (optional)">
-          <input
-            className={inputClass}
-            type="url"
-            value={profile.website ?? ""}
-            onChange={(e) =>
-              onChange({ website: e.target.value || undefined })
-            }
-            placeholder="https://yoursite.com"
-          />
-        </Field>
+        {!hideWebsite && (
+          <Field label="Website (optional)">
+            <input
+              className={inputClass}
+              type="url"
+              value={profile.website ?? ""}
+              onChange={(e) =>
+                onChange({ website: e.target.value || undefined })
+              }
+              placeholder="https://yoursite.com"
+            />
+          </Field>
+        )}
       </div>
       {includeAccountExtras && (
         <div className="grid gap-5 sm:grid-cols-2">

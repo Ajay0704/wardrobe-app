@@ -25,6 +25,7 @@ export function ItemForm({
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
   const [color, setColor] = useState(initial?.color ?? "#a8a29e");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
@@ -75,6 +76,7 @@ export function ItemForm({
     const data = {
       name: name.trim(),
       imageUrl: imageUrl.trim(),
+      productUrl: productUrl.trim() || undefined,
       category,
       color,
       colorName,
@@ -105,7 +107,7 @@ export function ItemForm({
               />
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
-                Paste an image URL or upload a file
+                Upload an image to preview it here
               </div>
             )}
           </div>
@@ -133,12 +135,16 @@ export function ItemForm({
             />
           </Field>
 
-          <Field label="Image URL" hint="Direct image links work best (.jpg, .png, .webp)">
+          <Field
+            label="Product URL (optional)"
+            hint="Link to where this item is from — shown on the item card."
+          >
             <input
               className={inputClass}
-              value={imageUrl.startsWith("data:") ? "(uploaded file)" : imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="https://…"
+              type="url"
+              value={productUrl}
+              onChange={(e) => setProductUrl(e.target.value)}
+              placeholder="https://store.com/product"
             />
           </Field>
 
