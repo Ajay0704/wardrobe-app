@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {
-  DEFAULT_PROFILE,
-  validateUsername,
-  type UserProfile,
-} from "@/lib/profile";
+import { DEFAULT_PROFILE, type UserProfile } from "@/lib/profile";
 import {
   authErrorMessage,
   sendPasswordReset,
@@ -16,7 +12,6 @@ import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { useWardrobe } from "@/lib/store";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
-import { UsernameField } from "./UsernameField";
 import { Button, Field, Modal, inputClass } from "./ui";
 
 export type AuthMode = "login" | "signup";
@@ -39,7 +34,6 @@ export function AuthModal({
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState("");
-  const [loginUsername, setLoginUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [profile, setProfile] = useState<UserProfile>({ ...DEFAULT_PROFILE });
@@ -63,7 +57,7 @@ export function AuthModal({
     setError("");
     setLoading(true);
     try {
-      const { user, snapshot } = await signIn(loginUsername.trim(), password);
+      const { user, snapshot } = await signIn(email.trim(), password);
       setAuthUser(user);
       if (snapshot) {
         hydrateFromRemote({
@@ -88,11 +82,6 @@ export function AuthModal({
     setError("");
     if (!profile.displayName.trim()) {
       setError("Please enter your display name.");
-      return;
-    }
-    const usernameError = validateUsername(profile.username.trim());
-    if (usernameError) {
-      setError(usernameError);
       return;
     }
     if (password.length < 6) {
@@ -192,23 +181,17 @@ export function AuthModal({
             submitLogin();
           }}
         >
-          <Field label="Username">
-            <div className="relative">
-              <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">
-                @
-              </span>
-              <input
-                className={`${inputClass} !pl-8`}
-                type="text"
-                autoComplete="username"
-                value={loginUsername}
-                onChange={(e) => setLoginUsername(e.target.value)}
-                placeholder="username"
-                spellCheck={false}
-                required
-                autoFocus
-              />
-            </div>
+          <Field label="Email">
+            <input
+              className={inputClass}
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+              autoFocus
+            />
           </Field>
           <Field label="Password">
             <input
@@ -269,10 +252,6 @@ export function AuthModal({
                 autoFocus
               />
             </Field>
-            <UsernameField
-              value={profile.username}
-              onChange={(username) => patchProfile({ username })}
-            />
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Password">
                 <input

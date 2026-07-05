@@ -3,13 +3,10 @@
 import { useState, type ReactNode } from "react";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
-import { UsernameField } from "./UsernameField";
 import { Button, Field, inputClass } from "./ui";
 import { useWardrobe, type ThemeMode } from "@/lib/store";
-import { validateUsername } from "@/lib/profile";
 import {
   authErrorMessage,
-  changeUsername,
   signOut,
   updatePassword,
 } from "@/lib/supabase/auth";
@@ -80,29 +77,6 @@ export function SettingsView() {
 
           {section === "account" && (
             <SettingsPanel title="Account details">
-              {authUser ? (
-                <ChangeUsername />
-              ) : (
-                <Field label="Username">
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">
-                      @
-                    </span>
-                    <input
-                      className={`${inputClass} !pl-8`}
-                      value={profile.username}
-                      onChange={(e) =>
-                        updateProfile({
-                          username: e.target.value
-                            .replace(/[^A-Za-z0-9]/g, "")
-                            .slice(0, 20),
-                        })
-                      }
-                      placeholder="username"
-                    />
-                  </div>
-                </Field>
-              )}
               <Field label="Email">
                 <input
                   className={`${inputClass} ${authUser ? "opacity-70" : ""}`}
@@ -247,61 +221,6 @@ function exportData(data: object) {
   a.download = `wardrobe-export-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
-}
-
-function ChangeUsername() {
-  const { profile, authUser, updateProfile } = useWardrobe();
-  const [value, setValue] = useState(profile.username);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
-
-  const dirty = value.trim() !== profile.username;
-
-  const save = async () => {
-    setError("");
-    setDone(false);
-    if (!authUser) return;
-    const name = value.trim();
-    const formatError = validateUsername(name);
-    if (formatError) {
-      setError(formatError);
-      return;
-    }
-    setLoading(true);
-    try {
-      await changeUsername(authUser.id, authUser.email, name);
-      updateProfile({ username: name });
-      setDone(true);
-    } catch (err) {
-      setError(authErrorMessage(err));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-2">
-      <UsernameField
-        value={value}
-        onChange={setValue}
-        currentUsername={profile.username}
-      />
-      {error && (
-        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
-      {done && !dirty && (
-        <p className="text-xs text-emerald-600 dark:text-emerald-400">
-          Username updated.
-        </p>
-      )}
-      <Button variant="outline" onClick={save} disabled={loading || !dirty}>
-        {loading ? "Saving…" : "Save username"}
-      </Button>
-    </div>
-  );
 }
 
 function ChangePassword() {

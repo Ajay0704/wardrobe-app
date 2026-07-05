@@ -14,6 +14,7 @@ export function VideoPanel({
   src = "/bg-video-v2.mp4",
   id,
   eager = false,
+  poster,
 }: {
   children: ReactNode;
   /** 0–1 darkness of the scrim over the video. */
@@ -23,6 +24,8 @@ export function VideoPanel({
   id?: string;
   /** Preload immediately (hero). Off-screen panels stay lazy until scrolled to. */
   eager?: boolean;
+  /** Still image shown instantly while the video streams in. */
+  poster?: string;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -56,6 +59,7 @@ export function VideoPanel({
         muted
         playsInline
         preload={eager ? "auto" : "none"}
+        poster={poster}
         className="absolute inset-0 h-full w-full object-cover"
       >
         <source src={src} type="video/mp4" />

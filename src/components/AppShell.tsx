@@ -55,7 +55,7 @@ function AuthLanding({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
     <div className="relative bg-[#0b0d11] text-white">
       <LandingNav onAuth={onAuth} />
 
-      <VideoPanel overlay={0.5} eager>
+      <VideoPanel overlay={0.5} eager poster="/hero-poster.jpg">
         <div className="mx-auto max-w-2xl">
           <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
             The home for everything you wear

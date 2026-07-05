@@ -15,9 +15,12 @@ const nextConfig: NextConfig = {
     const immutable = [
       { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
     ];
-    return ["/bg-video-v2.mp4", "/bg-onitsuka.mp4", "/bg-goldengoose.mp4"].map(
-      (source) => ({ source, headers: immutable }),
-    );
+    return [
+      "/bg-video-v2.mp4",
+      "/bg-onitsuka.mp4",
+      "/bg-goldengoose.mp4",
+      "/hero-poster.jpg",
+    ].map((source) => ({ source, headers: immutable }));
   },
 };
 
