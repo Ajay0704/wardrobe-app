@@ -13,6 +13,7 @@ export function VideoPanel({
   align = "center",
   src = "/bg-video-v2.mp4",
   id,
+  eager = false,
 }: {
   children: ReactNode;
   /** 0–1 darkness of the scrim over the video. */
@@ -20,6 +21,8 @@ export function VideoPanel({
   align?: "center" | "start";
   src?: string;
   id?: string;
+  /** Preload immediately (hero). Off-screen panels stay lazy until scrolled to. */
+  eager?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -52,7 +55,7 @@ export function VideoPanel({
         loop
         muted
         playsInline
-        preload="auto"
+        preload={eager ? "auto" : "none"}
         className="absolute inset-0 h-full w-full object-cover"
       >
         <source src={src} type="video/mp4" />
