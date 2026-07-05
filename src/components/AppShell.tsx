@@ -245,7 +245,7 @@ function AppShellInner() {
           : "Use the app locally, or sign up to sync your wardrobe across devices."}
       </footer>
 
-      {authModal && !passwordRecovery && (
+      {authModal && !authUser && !passwordRecovery && (
         <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
       )}
 
