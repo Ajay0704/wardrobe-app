@@ -14,7 +14,7 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/bg-video.mp4",
+        source: "/bg-video-v2.mp4",
         headers: [
           {
             key: "Cache-Control",

@@ -30,7 +30,7 @@ export function VideoBackground() {
         preload="auto"
         className="h-full w-full object-cover"
       >
-        <source src="/bg-video.mp4" type="video/mp4" />
+        <source src="/bg-video-v2.mp4" type="video/mp4" />
       </video>
       {/* Readability scrim — tints the video toward the current theme. */}
       <div className="absolute inset-0 bg-background/60" />
