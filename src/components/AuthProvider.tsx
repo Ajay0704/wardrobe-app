@@ -23,21 +23,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const userId = useRef<string | null>(null);
 
   const syncPull = useCallback(async (uid: string) => {
-    const remote = await pullSnapshot(uid);
-    if (remote) {
-      hydrateFromRemote({
-        items: remote.items,
-        outfits: remote.outfits,
-        profile: remote.profile,
-        theme: remote.theme,
-        draft: remote.draft,
-      });
-    } else {
-      const { items, outfits, profile, theme, draft } = useWardrobe.getState();
-      await pushSnapshot(uid, { items, outfits, profile, theme, draft });
+    const run = async () => {
+      const remote = await pullSnapshot(uid);
+      if (remote) {
+        hydrateFromRemote({
+          items: remote.items,
+          outfits: remote.outfits,
+          profile: remote.profile,
+          theme: remote.theme,
+          draft: remote.draft,
+        });
+      } else {
+        const { items, outfits, profile, theme, draft } = useWardrobe.getState();
+        await pushSnapshot(uid, { items, outfits, profile, theme, draft });
+      }
+    };
+    try {
+      // Cap the sync so a slow/large snapshot can't leave the badge stuck on
+      // "connecting". On timeout we keep local data and don't flip skipPush,
+      // so we never clobber the (unread) remote snapshot.
+      await Promise.race([
+        run(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("sync-timeout")), 8000),
+        ),
+      ]);
+      skipPush.current = false;
+      setSyncStatus("synced");
+    } catch {
+      setSyncStatus("error");
     }
-    skipPush.current = false;
-    setSyncStatus("synced");
   }, [hydrateFromRemote, setSyncStatus]);
 
   useEffect(() => {

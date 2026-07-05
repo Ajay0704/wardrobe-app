@@ -125,10 +125,10 @@ export function SettingsView() {
                   <ChangePassword />
                   <Button
                     variant="outline"
-                    onClick={async () => {
-                      await signOut();
+                    onClick={() => {
                       setAuthUser(null);
                       setSyncStatus("offline");
+                      void signOut();
                     }}
                   >
                     Log out

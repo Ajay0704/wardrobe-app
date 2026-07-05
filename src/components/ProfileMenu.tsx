@@ -40,11 +40,12 @@ export function ProfileMenu() {
     setOpen(false);
   };
 
-  const logOut = async () => {
+  const logOut = () => {
+    // Clear local state first so logout is instant even if the network is slow.
     setOpen(false);
-    await signOut();
     setAuthUser(null);
     setSyncStatus("offline");
+    void signOut();
   };
 
   return (

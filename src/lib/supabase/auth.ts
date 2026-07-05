@@ -91,8 +91,13 @@ export async function signIn(email: string, password: string): Promise<{
 export async function signOut(): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) return;
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
+  // Local scope clears the stored session immediately without a network
+  // round-trip, so logout never hangs on a slow connection.
+  try {
+    await supabase.auth.signOut({ scope: "local" });
+  } catch {
+    // Ignore — callers clear local auth state regardless.
+  }
 }
 
 /**
