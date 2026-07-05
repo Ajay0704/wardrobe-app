@@ -48,16 +48,13 @@
 
 html {
   scroll-behavior: smooth;
-  /* Fallback backdrop when the video is absent or still loading. */
-  background: var(--background);
 }
 
 body {
-  /* Transparent so the fixed VideoBackground shows behind all content. */
-  background: transparent;
+  background: var(--background);
   color: var(--foreground);
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  transition: color 200ms ease;
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 /* Publication-style wordmark (Forbes / Medium masthead) */

@@ -11,6 +11,7 @@ import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
+import { VideoBackground } from "./VideoBackground";
 import { Button } from "./ui";
 import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
@@ -81,13 +82,15 @@ function AuthLanding({
   onAuth: (mode: AuthMode) => void;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
-      <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
+    <div className="relative flex min-h-screen flex-col overflow-hidden">
+      <VideoBackground />
+
+      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
         <BrandWordmark onClick={() => {}} />
         <ThemeToggle theme={theme} onToggle={onToggleTheme} />
       </header>
 
-      <main className="flex flex-1 items-center justify-center px-6 py-12">
+      <main className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
         <div className="max-w-xl text-center">
           <h1 className="heading text-4xl leading-tight sm:text-5xl">
             Your wardrobe, everywhere.
@@ -111,7 +114,7 @@ function AuthLanding({
         </div>
       </main>
 
-      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+      <footer className="relative z-10 border-t border-line py-6 text-center text-xs text-muted">
         Log in or create an account to sync your wardrobe across devices.
       </footer>
     </div>

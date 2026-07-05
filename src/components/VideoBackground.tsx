@@ -3,9 +3,9 @@
 import { useEffect, useRef } from "react";
 
 /**
- * Full-screen looping video behind the whole app. Muted + autoplay + inline so
- * mobile browsers allow it; a theme-colored scrim keeps content readable.
- * Sits at -z-10 with a transparent body so it shows behind all views.
+ * Looping video that fills its (relatively positioned) parent — used behind the
+ * landing page only. Muted + autoplay + inline so mobile browsers allow it; a
+ * theme-colored scrim keeps content readable.
  */
 export function VideoBackground() {
   const ref = useRef<HTMLVideoElement>(null);
@@ -20,7 +20,7 @@ export function VideoBackground() {
   }, []);
 
   return (
-    <div className="fixed inset-0 -z-10 overflow-hidden" aria-hidden="true">
+    <div className="absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
       <video
         ref={ref}
         autoPlay

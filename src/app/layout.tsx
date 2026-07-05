@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
-import { VideoBackground } from "@/components/VideoBackground";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,8 +32,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${libreBaskerville.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-transparent text-foreground">
-        <VideoBackground />
+      <body className="min-h-full flex flex-col bg-background text-foreground">
         {children}
       </body>
     </html>
