@@ -94,3 +94,25 @@ export async function signOut(): Promise<void> {
   const { error } = await supabase.auth.signOut();
   if (error) throw error;
 }
+
+/**
+ * Send a password-reset email. The link returns the user to the app with a
+ * recovery session, which fires a PASSWORD_RECOVERY auth event.
+ */
+export async function sendPasswordReset(email: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Cloud sync is not configured.");
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo:
+      typeof window !== "undefined" ? window.location.origin : undefined,
+  });
+  if (error) throw error;
+}
+
+/** Set a new password for the currently authenticated (or recovering) user. */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Cloud sync is not configured.");
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}

@@ -5,7 +5,11 @@ import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
 import { Button, Field, inputClass } from "./ui";
 import { useWardrobe, type ThemeMode } from "@/lib/store";
-import { signOut } from "@/lib/supabase/auth";
+import {
+  authErrorMessage,
+  signOut,
+  updatePassword,
+} from "@/lib/supabase/auth";
 import {
   SETTINGS_SECTIONS,
   type SettingsSection,
@@ -110,16 +114,19 @@ export function SettingsView() {
                 />
               </Field>
               {authUser && (
-                <Button
-                  variant="outline"
-                  onClick={async () => {
-                    await signOut();
-                    setAuthUser(null);
-                    setSyncStatus("offline");
-                  }}
-                >
-                  Log out
-                </Button>
+                <>
+                  <ChangePassword />
+                  <Button
+                    variant="outline"
+                    onClick={async () => {
+                      await signOut();
+                      setAuthUser(null);
+                      setSyncStatus("offline");
+                    }}
+                  >
+                    Log out
+                  </Button>
+                </>
               )}
             </SettingsPanel>
           )}
@@ -214,6 +221,111 @@ function exportData(data: object) {
   a.download = `wardrobe-export-${Date.now()}.json`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+function ChangePassword() {
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const submit = async () => {
+    setError("");
+    setDone(false);
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    setLoading(true);
+    try {
+      await updatePassword(password);
+      setDone(true);
+      setPassword("");
+      setConfirm("");
+      setOpen(false);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div className="space-y-2">
+        <Button variant="outline" onClick={() => setOpen(true)}>
+          Change password
+        </Button>
+        {done && (
+          <p className="text-xs text-emerald-600 dark:text-emerald-400">
+            Password updated.
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="space-y-4 rounded-xl border border-line bg-surface-2/40 p-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <Field label="New password">
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="Min. 6 characters"
+          required
+          minLength={6}
+        />
+      </Field>
+      <Field label="Confirm new password">
+        <input
+          className={inputClass}
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+          placeholder="Repeat password"
+          required
+          minLength={6}
+        />
+      </Field>
+      {error && (
+        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={loading}>
+          {loading ? "Saving…" : "Save password"}
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            setOpen(false);
+            setError("");
+            setPassword("");
+            setConfirm("");
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
 }
 
 function ClearDataButton() {

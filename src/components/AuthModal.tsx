@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DEFAULT_PROFILE, type UserProfile } from "@/lib/profile";
 import {
   authErrorMessage,
+  sendPasswordReset,
   signIn,
   signUp,
 } from "@/lib/supabase/auth";
@@ -31,6 +32,7 @@ export function AuthModal({
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  const [forgot, setForgot] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
@@ -119,6 +121,21 @@ export function AuthModal({
     );
   }
 
+  if (forgot) {
+    return (
+      <Modal title="Reset your password" onClose={onClose}>
+        <ForgotPasswordForm
+          email={email}
+          onEmail={setEmail}
+          onBack={() => {
+            setForgot(false);
+            setError("");
+          }}
+        />
+      </Modal>
+    );
+  }
+
   return (
     <Modal
       title={mode === "login" ? "Log in" : "Create your account"}
@@ -188,6 +205,18 @@ export function AuthModal({
               minLength={6}
             />
           </Field>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => {
+                setForgot(true);
+                setError("");
+              }}
+              className="text-xs font-medium text-muted transition-colors hover:text-foreground"
+            >
+              Forgot password?
+            </button>
+          </div>
           {error && (
             <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
               {error}
@@ -283,5 +312,89 @@ export function AuthModal({
         </form>
       )}
     </Modal>
+  );
+}
+
+function ForgotPasswordForm({
+  email,
+  onEmail,
+  onBack,
+}: {
+  email: string;
+  onEmail: (v: string) => void;
+  onBack: () => void;
+}) {
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const submit = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await sendPasswordReset(email.trim());
+      setSent(true);
+    } catch (err) {
+      setError(authErrorMessage(err));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (sent) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-muted">
+          If an account exists for <span className="font-medium text-foreground">{email.trim()}</span>,
+          we&apos;ve sent a link to reset your password. Open it on this device to
+          choose a new password.
+        </p>
+        <Button variant="outline" onClick={onBack} className="w-full">
+          Back to log in
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        submit();
+      }}
+    >
+      <p className="text-sm text-muted">
+        Enter your account email and we&apos;ll send you a link to reset your
+        password.
+      </p>
+      <Field label="Email">
+        <input
+          className={inputClass}
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => onEmail(e.target.value)}
+          placeholder="you@example.com"
+          required
+          autoFocus
+        />
+      </Field>
+      {error && (
+        <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+      <Button type="submit" disabled={loading} className="w-full">
+        {loading ? "Sending…" : "Send reset link"}
+      </Button>
+      <button
+        type="button"
+        onClick={onBack}
+        className="w-full text-center text-xs font-medium text-muted transition-colors hover:text-foreground"
+      >
+        Back to log in
+      </button>
+    </form>
   );
 }

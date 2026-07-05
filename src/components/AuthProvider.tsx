@@ -10,8 +10,13 @@ import { useWardrobe } from "@/lib/store";
  * Restores session on load, syncs wardrobe when signed in.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const { setAuthUser, setSyncStatus, hydrateFromRemote, updateProfile } =
-    useWardrobe();
+  const {
+    setAuthUser,
+    setSyncStatus,
+    hydrateFromRemote,
+    updateProfile,
+    setPasswordRecovery,
+  } = useWardrobe();
   const skipPush = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = useRef<string | null>(null);
@@ -67,7 +72,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setAuthUser(null);
         userId.current = null;
         skipPush.current = true;
+        setPasswordRecovery(false);
         setSyncStatus("offline");
+        return;
+      }
+      if (event === "PASSWORD_RECOVERY") {
+        // Recovery session: hold sync until the user sets a new password.
+        setAuthUser({ id: session.user.id, email: session.user.email });
+        userId.current = session.user.id;
+        skipPush.current = true;
+        setPasswordRecovery(true);
         return;
       }
       if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
@@ -83,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       subscription.unsubscribe();
     };
-  }, [setAuthUser, setSyncStatus, updateProfile, syncPull]);
+  }, [setAuthUser, setSyncStatus, updateProfile, syncPull, setPasswordRecovery]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;

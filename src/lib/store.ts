@@ -39,6 +39,8 @@ interface WardrobeState {
   profile: UserProfile;
   authUser: AuthUser | null;
   syncStatus: SyncStatus;
+  /** True while a password-recovery link is active (set-new-password flow). */
+  passwordRecovery: boolean;
   theme: ThemeMode;
   view: View;
   filters: Filters;
@@ -57,6 +59,7 @@ interface WardrobeState {
   resetAll: () => void;
   setAuthUser: (user: AuthUser | null) => void;
   setSyncStatus: (status: SyncStatus) => void;
+  setPasswordRecovery: (active: boolean) => void;
 
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
@@ -89,6 +92,7 @@ export const useWardrobe = create<WardrobeState>()(
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
       syncStatus: "offline" as SyncStatus,
+      passwordRecovery: false,
       theme: "light",
       view: "wardrobe",
       filters: { search: "", category: "all", season: "all", tag: "all" },
@@ -160,6 +164,7 @@ export const useWardrobe = create<WardrobeState>()(
 
       setAuthUser: (authUser) => set({ authUser }),
       setSyncStatus: (syncStatus) => set({ syncStatus }),
+      setPasswordRecovery: (passwordRecovery) => set({ passwordRecovery }),
 
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),

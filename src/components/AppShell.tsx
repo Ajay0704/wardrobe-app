@@ -6,6 +6,7 @@ import { useWardrobe, type View } from "@/lib/store";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
@@ -37,7 +38,8 @@ function BrandWordmark({ onClick }: { onClick: () => void }) {
 }
 
 function AppShellInner() {
-  const { view, setView, theme, setTheme, profile, authUser } = useWardrobe();
+  const { view, setView, theme, setTheme, profile, authUser, passwordRecovery } =
+    useWardrobe();
   const [authModal, setAuthModal] = useState<AuthMode | null>(null);
 
   return (
@@ -123,9 +125,11 @@ function AppShellInner() {
           : "Use the app locally, or sign up to sync your wardrobe across devices."}
       </footer>
 
-      {authModal && (
+      {authModal && !passwordRecovery && (
         <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
       )}
+
+      {passwordRecovery && <ResetPasswordModal />}
     </>
   );
 }
