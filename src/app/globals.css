@@ -1,0 +1,113 @@
+@import "tailwindcss";
+
+/* Class-based dark mode: `.dark` on <html> activates the dark: variant */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Design tokens.
+ * Light theme: warm ivory + stone, with a terracotta accent.
+ * Dark theme: deep charcoal with softened contrast.
+ */
+:root {
+  --background: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f1ed;
+  --border: #e7e4de;
+  --foreground: #1c1917;
+  --muted: #79716b;
+  --accent: #b05e3c;
+  --accent-soft: #f6e9e2;
+  --accent-foreground: #ffffff;
+}
+
+.dark {
+  --background: #131211;
+  --surface: #1c1a19;
+  --surface-2: #242220;
+  --border: #302d2a;
+  --foreground: #ece9e4;
+  --muted: #9c948c;
+  --accent: #d98b62;
+  --accent-soft: #3a2a21;
+  --accent-foreground: #1c1210;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-foreground: var(--accent-foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-libre);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+/* Publication-style wordmark (Forbes / Medium masthead) */
+.brand-wordmark {
+  font-family: var(--font-libre), "Libre Baskerville", Georgia, "Times New Roman", serif;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: var(--foreground);
+}
+
+.brand-wordmark-kicker {
+  display: block;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+.brand-wordmark-name {
+  display: block;
+  font-size: clamp(1.35rem, 4vw, 1.85rem);
+}
+
+/* Section headings */
+.heading {
+  font-family: var(--font-libre), Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* Thin, unobtrusive scrollbars to keep the layout gallery-like */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+/* Subtle entrance animation used by cards and modals */
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 260ms ease both;
+}
