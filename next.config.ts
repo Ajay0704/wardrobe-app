@@ -12,17 +12,12 @@ const nextConfig: NextConfig = {
   // background video was re-fetched on every visit. It's static content, so
   // cache it hard. (If the video is ever changed, rename the file to bust it.)
   async headers() {
-    return [
-      {
-        source: "/bg-video-v2.mp4",
-        headers: [
-          {
-            key: "Cache-Control",
-            value: "public, max-age=31536000, immutable",
-          },
-        ],
-      },
+    const immutable = [
+      { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
     ];
+    return ["/bg-video-v2.mp4", "/bg-onitsuka.mp4", "/bg-goldengoose.mp4"].map(
+      (source) => ({ source, headers: immutable }),
+    );
   },
 };
 

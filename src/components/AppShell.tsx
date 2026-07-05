@@ -1,6 +1,7 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useWardrobe, type View } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
@@ -11,8 +12,8 @@ import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
-import { VideoBackground } from "./VideoBackground";
-import { Button } from "./ui";
+import { VideoPanel } from "./VideoPanel";
+import { LandingNav } from "./landing/LandingNav";
 import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
 import { OutfitsView } from "./OutfitsView";
@@ -49,74 +50,85 @@ function AuthGateSplash() {
   );
 }
 
-function ThemeToggle({
-  theme,
-  onToggle,
-}: {
-  theme: string;
-  onToggle: () => void;
-}) {
+function AuthLanding({ onAuth }: { onAuth: (mode: AuthMode) => void }) {
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-label="Toggle theme"
-      className="p-1.5 text-muted transition-colors hover:text-foreground"
-    >
-      {theme === "dark" ? (
-        <Sun size={18} strokeWidth={1.5} />
-      ) : (
-        <Moon size={18} strokeWidth={1.5} />
-      )}
-    </button>
-  );
-}
+    <div className="relative bg-[#0b0d11] text-white">
+      <LandingNav onAuth={onAuth} />
 
-function AuthLanding({
-  theme,
-  onToggleTheme,
-  onAuth,
-}: {
-  theme: string;
-  onToggleTheme: () => void;
-  onAuth: (mode: AuthMode) => void;
-}) {
-  return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden">
-      <VideoBackground />
-
-      <header className="relative z-10 mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 sm:py-5">
-        <BrandWordmark onClick={() => {}} />
-        <ThemeToggle theme={theme} onToggle={onToggleTheme} />
-      </header>
-
-      <main className="relative z-10 flex flex-1 items-center justify-center px-6 py-12">
-        <div className="max-w-xl text-center">
-          <h1 className="heading text-4xl leading-tight sm:text-5xl">
-            Your wardrobe, everywhere.
+      <VideoPanel overlay={0.5}>
+        <div className="mx-auto max-w-2xl">
+          <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            The home for everything you wear
           </h1>
-          <p className="mx-auto mt-4 max-w-md text-muted">
-            Save your pieces, build outfits, and get color-matched suggestions.
-            Log in to access your closet on any device.
+          <p className="mx-auto mt-5 max-w-md text-white/70">
+            Digitize your closet, build outfits, and get color-matched
+            suggestions — synced across every device.
           </p>
           <div className="mt-8 flex justify-center gap-3">
-            <Button onClick={() => onAuth("signup")} className="!px-6 !py-2.5">
+            <button
+              type="button"
+              onClick={() => onAuth("signup")}
+              className="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+            >
               Create account
-            </Button>
-            <Button
-              variant="outline"
+            </button>
+            <button
+              type="button"
               onClick={() => onAuth("login")}
-              className="!px-6 !py-2.5"
+              className="rounded-lg border border-white/25 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
             >
               Log in
-            </Button>
+            </button>
+          </div>
+          <div className="mt-14 text-sm text-white/60">
+            <Link
+              href="/how-it-works"
+              className="transition-colors hover:text-white"
+            >
+              See how it works →
+            </Link>
           </div>
         </div>
-      </main>
+      </VideoPanel>
 
-      <footer className="relative z-10 border-t border-line py-6 text-center text-xs text-muted">
-        Log in or create an account to sync your wardrobe across devices.
-      </footer>
+      <VideoPanel src="/bg-onitsuka.mp4" overlay={0.62} align="start">
+        <div className="max-w-lg">
+          <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-accent">
+            Outfit builder
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            Build outfits visually
+          </h2>
+          <p className="mt-4 max-w-md text-white/70">
+            Drag pieces together, see a live preview, and get a match score so
+            nothing clashes.
+          </p>
+        </div>
+      </VideoPanel>
+
+      <VideoPanel src="/bg-goldengoose.mp4" overlay={0.6}>
+        <div className="mx-auto max-w-xl">
+          <p className="mb-3 text-xs font-medium uppercase tracking-[0.2em] text-white/60">
+            Anywhere, always
+          </p>
+          <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">
+            Your closet, everywhere
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-white/70">
+            Everything syncs to the cloud, so your wardrobe is with you on any
+            device.
+          </p>
+          <div className="mt-8">
+            <button
+              type="button"
+              onClick={() => onAuth("signup")}
+              className="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+            >
+              Create account
+            </button>
+          </div>
+        </div>
+      </VideoPanel>
     </div>
   );
 }
@@ -132,12 +144,15 @@ function AppShellInner() {
     authChecked,
     passwordRecovery,
   } = useWardrobe();
-  const [authModal, setAuthModal] = useState<AuthMode | null>(null);
+  const [authModal, setAuthModal] = useState<AuthMode | null>(() => {
+    if (typeof window === "undefined") return null;
+    const a = new URLSearchParams(window.location.search).get("auth");
+    return a === "login" || a === "signup" ? a : null;
+  });
 
   // The app requires an account. Without Supabase configured, login is
   // impossible, so we fall back to the ungated app for local/dev use.
   const gated = isSupabaseConfigured();
-  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   // Restoring the session — avoid flashing the login screen for signed-in users.
   if (gated && !authChecked) {
@@ -154,7 +169,7 @@ function AppShellInner() {
     return (
       <>
         <ThemeEffect />
-        <AuthLanding theme={theme} onToggleTheme={toggleTheme} onAuth={setAuthModal} />
+        <AuthLanding onAuth={setAuthModal} />
         {authModal && (
           <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
         )}
