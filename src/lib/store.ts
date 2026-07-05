@@ -87,6 +87,61 @@ const uid = () =>
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
+/**
+ * Coerce a possibly-malformed stored item into a valid WardrobeItem. Legacy or
+ * partially-synced data (e.g. a missing `tags` array) must never crash the UI.
+ */
+function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeItem {
+  const it = (raw ?? {}) as Partial<WardrobeItem>;
+  return {
+    id: typeof it.id === "string" ? it.id : uid(),
+    name: typeof it.name === "string" ? it.name : "",
+    imageUrl: typeof it.imageUrl === "string" ? it.imageUrl : "",
+    productUrl: typeof it.productUrl === "string" ? it.productUrl : undefined,
+    category: (it.category ?? "top") as Category,
+    color: typeof it.color === "string" ? it.color : "#a8a29e",
+    colorName: typeof it.colorName === "string" ? it.colorName : undefined,
+    tags: Array.isArray(it.tags)
+      ? it.tags.filter((t): t is string => typeof t === "string")
+      : [],
+    seasons: Array.isArray(it.seasons)
+      ? (it.seasons.filter((s) => typeof s === "string") as Season[])
+      : [],
+    brand: typeof it.brand === "string" ? it.brand : undefined,
+    price: typeof it.price === "number" ? it.price : undefined,
+    notes: typeof it.notes === "string" ? it.notes : undefined,
+    wishlist: Boolean(it.wishlist),
+    createdAt: typeof it.createdAt === "number" ? it.createdAt : Date.now(),
+  };
+}
+
+function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
+  const o = (raw ?? {}) as Partial<Outfit>;
+  return {
+    id: typeof o.id === "string" ? o.id : uid(),
+    name: typeof o.name === "string" ? o.name : "",
+    notes: typeof o.notes === "string" ? o.notes : undefined,
+    itemIds: Array.isArray(o.itemIds)
+      ? o.itemIds.filter((x): x is string => typeof x === "string")
+      : [],
+    createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
+  };
+}
+
+/** Ensure the draft has every slot present as a string array. */
+function normalizeDraft(d: unknown): Record<SlotKey, string[]> {
+  const base = emptyDraft();
+  if (d && typeof d === "object") {
+    for (const key of Object.keys(base) as SlotKey[]) {
+      const arr = (d as Record<string, unknown>)[key];
+      if (Array.isArray(arr)) {
+        base[key] = arr.filter((x): x is string => typeof x === "string");
+      }
+    }
+  }
+  return base;
+}
+
 export const useWardrobe = create<WardrobeState>()(
   persist(
     (set, get) => ({
@@ -212,23 +267,33 @@ export const useWardrobe = create<WardrobeState>()(
 
       hydrateFromRemote: (data) =>
         set({
-          items: data.items,
-          outfits: data.outfits,
+          items: Array.isArray(data.items) ? data.items.map(normalizeItem) : [],
+          outfits: Array.isArray(data.outfits)
+            ? data.outfits.map(normalizeOutfit)
+            : [],
           profile: data.profile ?? get().profile,
-          theme: data.theme,
-          draft: data.draft,
+          theme: data.theme === "dark" ? "dark" : "light",
+          draft: normalizeDraft(data.draft),
         }),
     }),
     {
       name: "wardrobe-store-v1",
-      merge: (persisted, current) => ({
-        ...current,
-        ...(persisted as Partial<WardrobeState>),
-        profile: {
-          ...DEFAULT_PROFILE,
-          ...((persisted as Partial<WardrobeState>)?.profile ?? {}),
-        },
-      }),
+      merge: (persisted, current) => {
+        const p = (persisted ?? {}) as Partial<WardrobeState>;
+        return {
+          ...current,
+          ...p,
+          items: Array.isArray(p.items)
+            ? p.items.map(normalizeItem)
+            : current.items,
+          outfits: Array.isArray(p.outfits)
+            ? p.outfits.map(normalizeOutfit)
+            : current.outfits,
+          draft: normalizeDraft(p.draft),
+          profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
+          theme: p.theme === "dark" ? "dark" : "light",
+        };
+      },
       // Persist data + preferences, not transient UI state like filters.
       partialize: (s) => ({
         items: s.items,
