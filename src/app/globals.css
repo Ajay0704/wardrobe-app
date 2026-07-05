@@ -68,22 +68,28 @@ body {
   letter-spacing: -0.01em;
   line-height: 1.05;
   color: var(--foreground);
+  /* Halo in the theme's background color keeps the wordmark legible over the
+     video background; on solid surfaces (app header) it's effectively
+     invisible since the halo matches the surface. */
+  text-shadow: 0 0 20px var(--background), 0 0 8px var(--background),
+    0 1px 2px var(--background);
 }
 
 .brand-wordmark-kicker {
   display: block;
   font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  font-size: 0.625rem;
-  font-weight: 500;
-  letter-spacing: 0.22em;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 0.15rem;
+  /* Stronger than muted so it reads clearly over the video. */
+  color: color-mix(in srgb, var(--foreground) 80%, var(--background));
+  margin-bottom: 0.2rem;
 }
 
 .brand-wordmark-name {
   display: block;
-  font-size: clamp(1.35rem, 4vw, 1.85rem);
+  font-size: clamp(1.45rem, 4vw, 1.95rem);
 }
 
 /* Section headings */
