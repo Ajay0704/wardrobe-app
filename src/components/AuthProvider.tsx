@@ -48,71 +48,68 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    (async () => {
-      setSyncStatus("connecting");
-      // Fail open: if the session lookup errors or hangs (e.g. a stale token),
-      // still resolve the gate so the UI never sticks on the loading splash.
-      let user: Awaited<ReturnType<typeof getSessionUser>> = null;
-      try {
-        user = await Promise.race([
-          getSessionUser(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-        ]);
-      } catch {
-        user = null;
-      }
-      if (cancelled) return;
-      if (!user) {
-        setAuthUser(null);
-        userId.current = null;
-        skipPush.current = true;
-        setSyncStatus("offline");
-        setAuthChecked(true);
-        return;
-      }
-      setAuthUser(user);
-      userId.current = user.id;
-      updateProfile({ email: user.email });
-      setAuthChecked(true);
-      try {
-        await syncPull(user.id);
-      } catch {
-        setSyncStatus("error");
-      }
-    })();
+    // Safety net: open the gate even if no auth event ever arrives. This never
+    // logs anyone out — it only stops the splash from hanging.
+    const gateTimer = setTimeout(() => {
+      if (!cancelled) setAuthChecked(true);
+    }, 5000);
 
+    // supabase-js fires INITIAL_SESSION on load (from the stored session, then
+    // TOKEN_REFRESHED after a background refresh). Treat that as the single
+    // source of truth so a slow network can never falsely log the user out.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (cancelled) return;
-      if (event === "SIGNED_OUT" || !session?.user?.email) {
+
+      const sessionUser =
+        session?.user?.email
+          ? { id: session.user.id, email: session.user.email }
+          : null;
+
+      // Signed out, or no session on load → show the landing.
+      if (event === "SIGNED_OUT" || !sessionUser) {
         setAuthUser(null);
         userId.current = null;
         skipPush.current = true;
         setPasswordRecovery(false);
         setSyncStatus("offline");
-        return;
-      }
-      if (event === "PASSWORD_RECOVERY") {
-        // Recovery session: hold sync until the user sets a new password.
-        setAuthUser({ id: session.user.id, email: session.user.email });
-        userId.current = session.user.id;
-        skipPush.current = true;
         setAuthChecked(true);
-        setPasswordRecovery(true);
         return;
       }
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-        const user = { id: session.user.id, email: session.user.email! };
-        setAuthUser(user);
-        userId.current = user.id;
+
+      // Recovery link: hold sync until the user sets a new password.
+      if (event === "PASSWORD_RECOVERY") {
+        setAuthUser(sessionUser);
+        userId.current = sessionUser.id;
+        skipPush.current = true;
+        setPasswordRecovery(true);
+        setAuthChecked(true);
+        return;
+      }
+
+      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED w/ session.
+      setAuthUser(sessionUser);
+      setAuthChecked(true);
+
+      // Do the profile touch + cloud pull once per signed-in user — not on
+      // every token refresh, which would overwrite local edits, re-write the
+      // profile, and thrash sync.
+      if (userId.current !== sessionUser.id) {
+        userId.current = sessionUser.id;
+        updateProfile({ email: sessionUser.email });
         setSyncStatus("connecting");
-        await syncPull(user.id);
+        try {
+          await syncPull(sessionUser.id);
+        } catch {
+          setSyncStatus("error");
+        }
       }
     });
 
     return () => {
       cancelled = true;
+      clearTimeout(gateTimer);
       subscription.unsubscribe();
     };
   }, [
