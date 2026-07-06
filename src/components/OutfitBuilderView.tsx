@@ -5,6 +5,7 @@ import {
   Link2,
   RefreshCw,
   Save,
+  Sparkles,
   Trash2,
   X,
 } from "lucide-react";
@@ -56,6 +57,7 @@ export function OutfitBuilderView() {
     clearDraft,
     setDraft,
     saveOutfit,
+    profile,
   } = useWardrobe();
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -67,6 +69,10 @@ export function OutfitBuilderView() {
   const [saveNotes, setSaveNotes] = useState("");
   const [exporting, setExporting] = useState(false);
   const [shareMsg, setShareMsg] = useState("");
+  const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [tryOnLoading, setTryOnLoading] = useState(false);
+  const [tryOnImage, setTryOnImage] = useState<string | null>(null);
+  const [tryOnError, setTryOnError] = useState("");
 
   const buildable = useMemo(() => items, [items]);
   const filtered = useMemo(
@@ -138,6 +144,38 @@ export function OutfitBuilderView() {
     setTimeout(() => setShareMsg(""), ok ? 2500 : 3500);
   };
 
+  const handleTryOn = async () => {
+    const ids = draftItemIds(draft);
+    if (ids.length === 0) return;
+    const garmentImages = ids
+      .map((id) => items.find((it) => it.id === id)?.imageUrl)
+      .filter((u): u is string => Boolean(u));
+    setTryOnOpen(true);
+    setTryOnLoading(true);
+    setTryOnError("");
+    setTryOnImage(null);
+    try {
+      const res = await fetch("/api/tryon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          personImage: profile.avatarUrl ?? null,
+          garmentImages,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.image) {
+        setTryOnError(data.error || "Couldn't generate the image.");
+      } else {
+        setTryOnImage(data.image as string);
+      }
+    } catch {
+      setTryOnError("Something went wrong. Try again.");
+    } finally {
+      setTryOnLoading(false);
+    }
+  };
+
   const confirmSave = () => {
     const ids = draftItemIds(draft);
     if (!saveName.trim() || ids.length === 0) return;
@@ -158,6 +196,14 @@ export function OutfitBuilderView() {
           </div>
 
           <OutfitPreview ref={previewRef} items={draftItems} />
+
+          <Button
+            onClick={handleTryOn}
+            disabled={draftItems.length === 0 || tryOnLoading}
+            className="w-full"
+          >
+            <Sparkles size={15} /> {tryOnLoading ? "Generating…" : "Try it on me"}
+          </Button>
 
           <div className="flex flex-wrap gap-2">
             <Button
@@ -338,6 +384,42 @@ export function OutfitBuilderView() {
               </Button>
             </div>
           </div>
+        </Modal>
+      )}
+
+      {tryOnOpen && (
+        <Modal title="Try it on" onClose={() => setTryOnOpen(false)}>
+          {tryOnLoading ? (
+            <div className="flex flex-col items-center gap-3 py-12 text-sm text-muted">
+              <RefreshCw size={22} className="animate-spin" />
+              Generating your look — this can take a few seconds.
+            </div>
+          ) : tryOnError ? (
+            <div className="space-y-4">
+              <p className="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400">
+                {tryOnError}
+              </p>
+              <Button variant="outline" onClick={handleTryOn} className="w-full">
+                Try again
+              </Button>
+            </div>
+          ) : tryOnImage ? (
+            <div className="space-y-3">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={tryOnImage}
+                alt="AI-generated try-on"
+                className="w-full rounded-xl border border-line"
+              />
+              <p className="text-center text-xs text-muted">
+                AI-generated preview
+                {profile.avatarUrl
+                  ? ""
+                  : " — add a profile photo for a personalized result"}
+                .
+              </p>
+            </div>
+          ) : null}
         </Modal>
       )}
     </div>
