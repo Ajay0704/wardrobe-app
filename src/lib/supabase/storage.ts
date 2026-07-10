@@ -105,12 +105,30 @@ export async function resolveImageSource(
   file: File,
   userId: string | null,
 ): Promise<string> {
+  // HEIC/HEIF from iPhone can't be decoded by most browsers' canvas — compression
+  // is a no-op and a data-URL fallback is ~1MB+, which breaks cloud sync.
+  if (/image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
+    throw new Error(
+      "HEIC photos aren't supported yet — convert to JPEG or PNG in Photos, then upload.",
+    );
+  }
+
   const blob = await compressImage(file);
   if (userId) {
     try {
       return await uploadToStorage(blob, userId);
-    } catch {
-      // Bucket missing / offline — fall back to a (compressed) inline data URL.
+    } catch (err) {
+      const detail =
+        err && typeof err === "object" && "message" in err
+          ? String((err as { message: string }).message)
+          : "";
+      // Prefer failing loudly when signed in — silent base64 fallback is what
+      // caused persistent "Sync error" for oversized snapshots.
+      throw new Error(
+        detail
+          ? `Image upload failed (${detail}). Check the wardrobe-images Storage bucket.`
+          : "Image upload failed. Check the wardrobe-images Storage bucket in Supabase.",
+      );
     }
   }
   return blobToDataUrl(blob);

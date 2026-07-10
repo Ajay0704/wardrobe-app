@@ -18,6 +18,7 @@ import {
   type UserProfile,
 } from "./profile";
 import type { SyncStatus } from "./supabase/sync";
+import { scrubSnapshotImages } from "./heal";
 
 export type ThemeMode = "light" | "dark";
 export type View =
@@ -53,6 +54,8 @@ interface WardrobeState {
   /** False until the initial Supabase session check resolves (gates the UI). */
   authChecked: boolean;
   syncStatus: SyncStatus;
+  /** Last sync failure message — shown on the SyncBadge when status is error. */
+  syncError: string | null;
   /** True while a password-recovery link is active (set-new-password flow). */
   passwordRecovery: boolean;
   theme: ThemeMode;
@@ -79,7 +82,7 @@ interface WardrobeState {
   resetAll: () => void;
   setAuthUser: (user: AuthUser | null) => void;
   setAuthChecked: (checked: boolean) => void;
-  setSyncStatus: (status: SyncStatus) => void;
+  setSyncStatus: (status: SyncStatus, error?: string | null) => void;
   setPasswordRecovery: (active: boolean) => void;
 
   setTheme: (t: ThemeMode) => void;
@@ -188,6 +191,7 @@ export const useWardrobe = create<WardrobeState>()(
       authUser: null,
       authChecked: false,
       syncStatus: "offline" as SyncStatus,
+      syncError: null as string | null,
       passwordRecovery: false,
       theme: "light",
       view: "wardrobe",
@@ -282,7 +286,14 @@ export const useWardrobe = create<WardrobeState>()(
 
       setAuthUser: (authUser) => set({ authUser }),
       setAuthChecked: (authChecked) => set({ authChecked }),
-      setSyncStatus: (syncStatus) => set({ syncStatus }),
+      setSyncStatus: (syncStatus, error) =>
+        set({
+          syncStatus,
+          syncError:
+            syncStatus === "error"
+              ? (error ?? "Sync failed")
+              : null,
+        }),
       setPasswordRecovery: (passwordRecovery) => set({ passwordRecovery }),
 
       setTheme: (theme) => set({ theme }),
@@ -326,24 +337,32 @@ export const useWardrobe = create<WardrobeState>()(
       setDraft: (draft) => set({ draft }),
 
       hydrateFromRemote: (data) =>
-        set({
-          items: Array.isArray(data.items) ? data.items.map(normalizeItem) : [],
-          outfits: Array.isArray(data.outfits)
-            ? data.outfits.map(normalizeOutfit)
-            : [],
-          // Keep local trips if remote omitted them (pre-migration snapshot).
-          trips: Array.isArray(data.trips)
-            ? data.trips.map(normalizeTrip)
-            : get().trips,
-          profile: data.profile ?? get().profile,
-          theme: data.theme === "dark" ? "dark" : "light",
-          draft: normalizeDraft(data.draft),
+        set(() => {
+          const scrubbed = scrubSnapshotImages({
+            items: Array.isArray(data.items)
+              ? data.items.map(normalizeItem)
+              : [],
+            outfits: Array.isArray(data.outfits)
+              ? data.outfits.map(normalizeOutfit)
+              : [],
+            // Keep local trips if remote omitted them (pre-migration snapshot).
+            trips: Array.isArray(data.trips)
+              ? data.trips.map(normalizeTrip)
+              : get().trips,
+            profile: data.profile ?? get().profile,
+            theme: (data.theme === "dark" ? "dark" : "light") as ThemeMode,
+            draft: normalizeDraft(data.draft),
+          });
+          return scrubbed;
         }),
     }),
     {
-      name: "wardrobe-store-v1",
+      // v2: scrub HEIC/oversized data-URLs so poisoned v1 localStorage can't re-break sync.
+      name: "wardrobe-store-v2",
       merge: (persisted, current) => {
-        const p = (persisted ?? {}) as Partial<WardrobeState>;
+        const p = scrubSnapshotImages(
+          (persisted ?? {}) as Partial<WardrobeState>,
+        );
         return {
           ...current,
           ...p,
@@ -362,14 +381,16 @@ export const useWardrobe = create<WardrobeState>()(
         };
       },
       // Persist data + preferences, not transient UI state like filters.
-      partialize: (s) => ({
-        items: s.items,
-        outfits: s.outfits,
-        trips: s.trips,
-        profile: s.profile,
-        theme: s.theme,
-        draft: s.draft,
-      }),
+      // Never write HEIC / multi-MB data-URLs back to localStorage.
+      partialize: (s) =>
+        scrubSnapshotImages({
+          items: s.items,
+          outfits: s.outfits,
+          trips: s.trips,
+          profile: s.profile,
+          theme: s.theme,
+          draft: s.draft,
+        }),
     },
   ),
 );

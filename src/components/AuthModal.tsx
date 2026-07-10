@@ -48,9 +48,17 @@ export function AuthModal({
     setProfile((prev) => ({ ...prev, ...p }));
 
   const handleAvatarUpload = async (file: File) => {
-    // No session yet during signup, so this compresses to a small data URL
-    // (never a multi-MB blob); AuthProvider's heal moves it to Storage on login.
-    patchProfile({ avatarUrl: await resolveImageSource(file, null) });
+    setError("");
+    try {
+      // No session yet during signup, so this compresses to a small data URL
+      // (never a multi-MB blob). HEIC is rejected. After signup, re-upload in
+      // Settings so the photo lives in Storage.
+      patchProfile({ avatarUrl: await resolveImageSource(file, null) });
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't read that photo.",
+      );
+    }
   };
 
   const submitLogin = async () => {
@@ -63,6 +71,7 @@ export function AuthModal({
         hydrateFromRemote({
           items: snapshot.items,
           outfits: snapshot.outfits,
+          trips: snapshot.trips,
           profile: { ...snapshot.profile, email: user.email },
           theme: snapshot.theme,
           draft: snapshot.draft,

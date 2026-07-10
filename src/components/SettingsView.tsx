@@ -30,9 +30,15 @@ export function SettingsView() {
   } = useWardrobe();
 
   const handleAvatarUpload = async (file: File) => {
-    updateProfile({
-      avatarUrl: await resolveImageSource(file, authUser?.id ?? null),
-    });
+    try {
+      updateProfile({
+        avatarUrl: await resolveImageSource(file, authUser?.id ?? null),
+      });
+    } catch (err) {
+      window.alert(
+        err instanceof Error ? err.message : "Couldn't upload that photo.",
+      );
+    }
   };
 
   return (

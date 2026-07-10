@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { pullSnapshot, pushSnapshot } from "@/lib/supabase/sync";
-import { healBase64Snapshot } from "@/lib/heal";
+import { healBase64Snapshot, scrubBloatedInlineImages } from "@/lib/heal";
 import { useWardrobe } from "@/lib/store";
 
 /**
@@ -23,22 +23,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = useRef<string | null>(null);
 
-  const syncPull = useCallback(async (uid: string) => {
-    const run = async () => {
-      const remote = await pullSnapshot(uid);
-      if (remote) {
-        hydrateFromRemote({
-          items: remote.items,
-          outfits: remote.outfits,
-          trips: remote.trips,
-          profile: remote.profile,
-          theme: remote.theme,
-          draft: remote.draft,
-        });
-      } else {
+  const syncPull = useCallback(
+    async (uid: string) => {
+      // Drop poisoned HEIC/base64 from localStorage *before* any push path runs.
+      scrubBloatedInlineImages();
+
+      const run = async () => {
+        const remote = await pullSnapshot(uid);
+        if (remote) {
+          hydrateFromRemote({
+            items: remote.items,
+            outfits: remote.outfits,
+            trips: remote.trips,
+            profile: remote.profile,
+            theme: remote.theme,
+            draft: remote.draft,
+          });
+          // Remote wins — scrub again in case persist rehydrates late with bloat.
+          scrubBloatedInlineImages();
+        } else {
+          const { items, outfits, trips, profile, theme, draft } =
+            useWardrobe.getState();
+          const result = await pushSnapshot(uid, {
+            items,
+            outfits,
+            trips,
+            profile,
+            theme,
+            draft,
+          });
+          if (!result.ok) throw new Error(result.error);
+        }
+      };
+
+      try {
+        await Promise.race([
+          run(),
+          new Promise<never>((_, reject) =>
+            setTimeout(
+              () =>
+                reject(
+                  new Error(
+                    "Sync timed out after 12s — check your connection and try refreshing.",
+                  ),
+                ),
+              12000,
+            ),
+          ),
+        ]);
+        skipPush.current = false;
+        setSyncStatus("synced");
+      } catch (err) {
+        const msg =
+          err instanceof Error ? err.message : "Sync failed during pull.";
+        console.warn("[sync] pull/init failed:", msg);
+        // Still allow later pushes after scrub so the user isn't stuck forever.
+        skipPush.current = false;
+        setSyncStatus("error", msg);
+      }
+    },
+    [hydrateFromRemote, setSyncStatus],
+  );
+
+  /** Background: upload small leftover data: URLs; never block Connecting on this. */
+  const healInBackground = useCallback(
+    async (uid: string) => {
+      try {
+        const healed = await healBase64Snapshot(uid);
+        if (healed === 0) return;
         const { items, outfits, trips, profile, theme, draft } =
           useWardrobe.getState();
-        await pushSnapshot(uid, {
+        const result = await pushSnapshot(uid, {
           items,
           outfits,
           trips,
@@ -46,24 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           theme,
           draft,
         });
+        if (result.ok) setSyncStatus("synced");
+        else setSyncStatus("error", result.error);
+      } catch (err) {
+        console.warn("[sync] background heal failed:", err);
       }
-    };
-    try {
-      // Cap the sync so a slow/large snapshot can't leave the badge stuck on
-      // "connecting". On timeout we keep local data and don't flip skipPush,
-      // so we never clobber the (unread) remote snapshot.
-      await Promise.race([
-        run(),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("sync-timeout")), 20000),
-        ),
-      ]);
-      skipPush.current = false;
-      setSyncStatus("synced");
-    } catch {
-      setSyncStatus("error");
-    }
-  }, [hydrateFromRemote, setSyncStatus]);
+    },
+    [setSyncStatus],
+  );
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -73,15 +118,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    // Safety net: open the gate even if no auth event ever arrives. This never
-    // logs anyone out — it only stops the splash from hanging.
+    // Safety net: open the gate even if no auth event ever arrives.
     const gateTimer = setTimeout(() => {
       if (!cancelled) setAuthChecked(true);
     }, 5000);
 
-    // supabase-js fires INITIAL_SESSION on load (from the stored session, then
-    // TOKEN_REFRESHED after a background refresh). Treat that as the single
-    // source of truth so a slow network can never falsely log the user out.
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, session) => {
@@ -92,7 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? { id: session.user.id, email: session.user.email }
           : null;
 
-      // Signed out, or no session on load → show the landing.
       if (event === "SIGNED_OUT" || !sessionUser) {
         setAuthUser(null);
         userId.current = null;
@@ -103,7 +143,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Recovery link: hold sync until the user sets a new password.
       if (event === "PASSWORD_RECOVERY") {
         setAuthUser(sessionUser);
         userId.current = sessionUser.id;
@@ -113,44 +152,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // INITIAL_SESSION / SIGNED_IN / TOKEN_REFRESHED / USER_UPDATED w/ session.
+      // Show the app immediately — don't wait for cloud pull.
       setAuthUser(sessionUser);
       setAuthChecked(true);
 
-      // Do the profile touch + cloud pull once per signed-in user — not on
-      // every token refresh, which would overwrite local edits, re-write the
-      // profile, and thrash sync.
       if (userId.current !== sessionUser.id) {
         userId.current = sessionUser.id;
         updateProfile({ email: sessionUser.email });
         setSyncStatus("connecting");
-        try {
-          await syncPull(sessionUser.id);
-        } catch {
-          setSyncStatus("error");
-        }
-        // Self-heal: convert any leftover base64 images to Storage URLs, then
-        // push the shrunk snapshot so sync recovers even if the pull above
-        // timed out on an oversized (bloated) snapshot.
-        try {
-          const healed = await healBase64Snapshot(sessionUser.id);
-          if (healed > 0) {
-            const { items, outfits, trips, profile, theme, draft } =
-              useWardrobe.getState();
-            const ok = await pushSnapshot(sessionUser.id, {
-              items,
-              outfits,
-              trips,
-              profile,
-              theme,
-              draft,
-            });
-            skipPush.current = false;
-            setSyncStatus(ok ? "synced" : "error");
-          }
-        } catch {
-          // Heal is best-effort; leave sync status as the pull set it.
-        }
+        await syncPull(sessionUser.id);
+        // Heal leftover small data: URLs off the critical path.
+        void healInBackground(sessionUser.id);
       }
     });
 
@@ -165,6 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSyncStatus,
     updateProfile,
     syncPull,
+    healInBackground,
     setPasswordRecovery,
   ]);
 
@@ -194,9 +207,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         userId.current = uid;
+        scrubBloatedInlineImages();
         const { items, outfits, trips, profile, theme, draft } =
           useWardrobe.getState();
-        const ok = await pushSnapshot(uid, {
+        const result = await pushSnapshot(uid, {
           items,
           outfits,
           trips,
@@ -204,7 +218,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           theme,
           draft,
         });
-        setSyncStatus(ok ? "synced" : "error");
+        if (result.ok) setSyncStatus("synced");
+        else setSyncStatus("error", result.error);
       }, 800);
     });
 

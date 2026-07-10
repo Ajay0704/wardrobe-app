@@ -61,17 +61,28 @@ export async function signUp(
   if (!user?.email) throw new Error("Account created but no user returned.");
 
   const fullProfile: UserProfile = { ...profile, email };
+  // Never push inline data-URL avatars into the snapshot — they blow past
+  // sync size limits (especially HEIC from iPhone). Upload happens after signup.
+  const { avatarUrl, ...safeProfileFields } = fullProfile;
+  const profileForSync: UserProfile = isDataUrl(avatarUrl)
+    ? { ...safeProfileFields, email }
+    : fullProfile;
+
   const ok = await pushSnapshot(user.id, {
     items: wardrobe.items,
     outfits: wardrobe.outfits,
     trips: wardrobe.trips ?? [],
     theme: wardrobe.theme,
     draft: wardrobe.draft,
-    profile: fullProfile,
+    profile: profileForSync,
   });
-  if (!ok) throw new Error("Account created but wardrobe save failed.");
+  if (!ok.ok) throw new Error(ok.error || "Account created but wardrobe save failed.");
 
   return { id: user.id, email: user.email };
+}
+
+function isDataUrl(v: unknown): v is string {
+  return typeof v === "string" && /^data:/i.test(v);
 }
 
 export async function signIn(email: string, password: string): Promise<{

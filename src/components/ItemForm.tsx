@@ -86,10 +86,15 @@ export function ItemForm({
 
   const handleFile = async (file: File) => {
     setUploading(true);
+    setAnalyzeMsg("");
     try {
       const src = await resolveImageSource(file, authUser?.id ?? null);
       setImageUrl(src);
       void runAnalyze(src); // auto-tag in the background
+    } catch (err) {
+      setAnalyzeMsg(
+        err instanceof Error ? err.message : "Couldn't upload that image.",
+      );
     } finally {
       setUploading(false);
     }
