@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { pullSnapshot, pushSnapshot } from "@/lib/supabase/sync";
+import { healBase64Snapshot } from "@/lib/heal";
 import { useWardrobe } from "@/lib/store";
 
 /**
@@ -127,6 +128,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await syncPull(sessionUser.id);
         } catch {
           setSyncStatus("error");
+        }
+        // Self-heal: convert any leftover base64 images to Storage URLs, then
+        // push the shrunk snapshot so sync recovers even if the pull above
+        // timed out on an oversized (bloated) snapshot.
+        try {
+          const healed = await healBase64Snapshot(sessionUser.id);
+          if (healed > 0) {
+            const { items, outfits, trips, profile, theme, draft } =
+              useWardrobe.getState();
+            const ok = await pushSnapshot(sessionUser.id, {
+              items,
+              outfits,
+              trips,
+              profile,
+              theme,
+              draft,
+            });
+            skipPush.current = false;
+            setSyncStatus(ok ? "synced" : "error");
+          }
+        } catch {
+          // Heal is best-effort; leave sync status as the pull set it.
         }
       }
     });

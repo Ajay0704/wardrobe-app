@@ -2,6 +2,17 @@ import { getSupabase } from "./client";
 
 const BUCKET = "wardrobe-images";
 
+/** Turn a base64 data: URL into a File so it can be (re-)hosted via Storage. */
+export function dataUrlToFile(dataUrl: string, name = "image"): File {
+  const [head, b64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(head)?.[1] || "image/jpeg";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const ext = mime.includes("png") ? "png" : "jpg";
+  return new File([bytes], `${name.replace(/\.\w+$/, "")}.${ext}`, { type: mime });
+}
+
 /**
  * Downscale + re-encode an image in the browser so neither a Storage upload nor
  * the base64 fallback ever carries a multi-megabyte payload. A phone photo

@@ -9,6 +9,7 @@ import {
   signUp,
 } from "@/lib/supabase/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
+import { resolveImageSource } from "@/lib/supabase/storage";
 import { useWardrobe } from "@/lib/store";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
@@ -46,11 +47,10 @@ export function AuthModal({
   const patchProfile = (p: Partial<UserProfile>) =>
     setProfile((prev) => ({ ...prev, ...p }));
 
-  const handleAvatarUpload = (file: File) => {
-    const reader = new FileReader();
-    reader.onload = () =>
-      patchProfile({ avatarUrl: reader.result as string });
-    reader.readAsDataURL(file);
+  const handleAvatarUpload = async (file: File) => {
+    // No session yet during signup, so this compresses to a small data URL
+    // (never a multi-MB blob); AuthProvider's heal moves it to Storage on login.
+    patchProfile({ avatarUrl: await resolveImageSource(file, null) });
   };
 
   const submitLogin = async () => {

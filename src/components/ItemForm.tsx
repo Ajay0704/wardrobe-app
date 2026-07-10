@@ -5,21 +5,10 @@ import { useMemo, useState } from "react";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
-import { resolveImageSource } from "@/lib/supabase/storage";
+import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
-
-/** Turn a base64 data URL into a File so it can be re-hosted via Storage. */
-function dataUrlToFile(dataUrl: string, name = "product.jpg"): File {
-  const [head, b64] = dataUrl.split(",");
-  const mime = /data:([^;]+)/.exec(head)?.[1] || "image/jpeg";
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  const ext = mime.includes("png") ? "png" : "jpg";
-  return new File([bytes], name.replace(/\.\w+$/, "") + "." + ext, { type: mime });
-}
 
 /**
  * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
