@@ -14,8 +14,9 @@ import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
 import { scorePair } from "@/lib/color";
 import { generateOutfit, outfitScore } from "@/lib/matching";
 import { draftItemIds, useWardrobe } from "@/lib/store";
+import { authHeaders } from "@/lib/supabase/client";
 import type { Season, SlotKey, WardrobeItem } from "@/lib/types";
-import { SEASONS, SLOT_CONFIG, SUGGESTED_TAGS } from "@/lib/types";
+import { CATEGORY_LABEL, SEASONS, SLOT_CONFIG, SUGGESTED_TAGS } from "@/lib/types";
 import { filterItems } from "./WardrobeView";
 import { ItemCard } from "./ItemCard";
 import { OutfitPreview } from "./OutfitPreview";
@@ -147,9 +148,15 @@ export function OutfitBuilderView() {
   const handleTryOn = async () => {
     const ids = draftItemIds(draft);
     if (ids.length === 0) return;
-    const garmentImages = ids
-      .map((id) => items.find((it) => it.id === id)?.imageUrl)
-      .filter((u): u is string => Boolean(u));
+    const garments = ids
+      .map((id) => items.find((it) => it.id === id))
+      .filter((it): it is WardrobeItem => Boolean(it?.imageUrl))
+      .map((it) => ({
+        image: it.imageUrl,
+        label: `${it.name} — ${CATEGORY_LABEL[it.category]}, ${
+          it.colorName || it.color
+        }${it.brand ? `, ${it.brand}` : ""}`,
+      }));
     setTryOnOpen(true);
     setTryOnLoading(true);
     setTryOnError("");
@@ -157,10 +164,10 @@ export function OutfitBuilderView() {
     try {
       const res = await fetch("/api/tryon", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
         body: JSON.stringify({
           personImage: profile.avatarUrl ?? null,
-          garmentImages,
+          garments,
         }),
       });
       const data = await res.json();

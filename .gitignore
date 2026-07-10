@@ -43,3 +43,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# obsidian (local UI state — vault config and notes are tracked)
+docs/.obsidian/workspace.json
+docs/.obsidian/workspace-mobile.json
+docs/.obsidian/trash/
+docs/.trash/
+
+# cursor mcp secrets (use .cursor/mcp.json.example as template)
+.cursor/mcp.json
+
+# obsidian plugin secrets (API key + cert — install plugin per vault)
+docs/.obsidian/plugins/obsidian-local-rest-api/data.json
+docs/.obsidian/community-plugins.json

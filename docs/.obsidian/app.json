@@ -1,0 +1,9 @@
+{
+  "alwaysUpdateLinks": true,
+  "newFileLocation": "folder",
+  "newFileFolderPath": "notes",
+  "promptDelete": false,
+  "showLineNumber": true,
+  "strictLineBreaks": false,
+  "useMarkdownLinks": true
+}

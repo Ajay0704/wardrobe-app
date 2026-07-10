@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
 
@@ -19,6 +19,24 @@ export const metadata: Metadata = {
   title: "Your Personal Wardrobe",
   description:
     "Save your clothes, build outfits, and get color-harmony suggestions.",
+  applicationName: "Your Personal Wardrobe",
+  // Enables full-screen "Add to Home Screen" install on iOS.
+  appleWebApp: {
+    capable: true,
+    title: "Wardrobe",
+    statusBarStyle: "default",
+  },
+  // Legacy tag for older iOS — modern Next emits the standardized
+  // `mobile-web-app-capable`; this keeps full-screen install working everywhere.
+  other: { "apple-mobile-web-app-capable": "yes" },
+};
+
+export const viewport: Viewport = {
+  viewportFit: "cover",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#faf9f7" },
+    { media: "(prefers-color-scheme: dark)", color: "#131211" },
+  ],
 };
 
 export default function RootLayout({

@@ -1,0 +1,15 @@
+---
+description: Project notes live in the Obsidian vault at docs/. Use Obsidian MCP when available.
+globs:
+alwaysApply: true
+---
+
+# Obsidian vault
+
+Project documentation is maintained as an Obsidian vault in `docs/`.
+
+- Hub note: `docs/Wardrobe App.md`
+- Setup: `docs/Obsidian setup.md`
+- When the Obsidian MCP server is connected, prefer reading/updating vault notes for architecture decisions, feature specs, and runbooks instead of creating duplicate markdown elsewhere.
+
+Keep code changes in `src/`; keep narrative docs and decisions in `docs/`.

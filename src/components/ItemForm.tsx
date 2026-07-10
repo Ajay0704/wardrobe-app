@@ -1,13 +1,25 @@
 "use client";
 
-import { Pipette, Upload } from "lucide-react";
+import { Link2, Pipette, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { useWardrobe } from "@/lib/store";
+import { authHeaders } from "@/lib/supabase/client";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
+
+/** Turn a base64 data URL into a File so it can be re-hosted via Storage. */
+function dataUrlToFile(dataUrl: string, name = "product.jpg"): File {
+  const [head, b64] = dataUrl.split(",");
+  const mime = /data:([^;]+)/.exec(head)?.[1] || "image/jpeg";
+  const bin = atob(b64);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  const ext = mime.includes("png") ? "png" : "jpg";
+  return new File([bytes], name.replace(/\.\w+$/, "") + "." + ext, { type: mime });
+}
 
 /**
  * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
@@ -41,10 +53,15 @@ export function ItemForm({
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState("");
 
   const colorName = useMemo(() => nameColor(color), [color]);
   const canSave =
-    name.trim().length > 0 && imageUrl.trim().length > 0 && !uploading;
+    name.trim().length > 0 &&
+    imageUrl.trim().length > 0 &&
+    !uploading &&
+    !fetching;
 
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -61,6 +78,46 @@ export function ItemForm({
       setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleFetchDetails = async () => {
+    const url = productUrl.trim();
+    if (!url) return;
+    setFetching(true);
+    setFetchMsg("");
+    try {
+      const res = await fetch("/api/extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ url }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setFetchMsg(data.error || "Couldn't read details from that link.");
+        return;
+      }
+      if (data.name) setName(data.name);
+      if (data.brand) setBrand(data.brand);
+      if (typeof data.price === "number") setPrice(String(data.price));
+      if (data.description && !notes.trim()) setNotes(data.description);
+      // Re-host the fetched image to Storage (durable + CORS-friendly for color
+      // extraction). Fall back to the remote URL if re-hosting fails.
+      if (data.imageData) {
+        try {
+          const file = dataUrlToFile(data.imageData);
+          setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+        } catch {
+          if (data.imageUrl) setImageUrl(data.imageUrl);
+        }
+      } else if (data.imageUrl) {
+        setImageUrl(data.imageUrl);
+      }
+      setFetchMsg("Details filled in — review and adjust before saving.");
+    } catch {
+      setFetchMsg("Something went wrong. Fill the details in manually.");
+    } finally {
+      setFetching(false);
     }
   };
 
@@ -144,15 +201,30 @@ export function ItemForm({
 
           <Field
             label="Product URL (optional)"
-            hint="Link to where this item is from — shown on the item card."
+            hint="Paste a shop link, then Fetch details to auto-fill name, photo, price and brand."
           >
-            <input
-              className={inputClass}
-              type="url"
-              value={productUrl}
-              onChange={(e) => setProductUrl(e.target.value)}
-              placeholder="https://store.com/product"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                className={inputClass}
+                type="url"
+                value={productUrl}
+                onChange={(e) => setProductUrl(e.target.value)}
+                placeholder="https://store.com/product"
+              />
+              <Button
+                variant="outline"
+                onClick={handleFetchDetails}
+                disabled={!productUrl.trim() || fetching}
+                title="Fetch product details from this link"
+                className="!px-3 !py-2 text-xs whitespace-nowrap"
+              >
+                <Link2 size={13} />
+                {fetching ? "Fetching…" : "Fetch details"}
+              </Button>
+            </div>
+            {fetchMsg && (
+              <span className="mt-1 block text-xs text-muted">{fetchMsg}</span>
+            )}
           </Field>
 
           <div className="grid grid-cols-2 gap-4">

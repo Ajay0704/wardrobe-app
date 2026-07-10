@@ -32,7 +32,11 @@ export async function pullSnapshot(
     .eq("user_id", userId)
     .maybeSingle();
 
-  if (error || !data) return null;
+  if (error) {
+    console.warn("[sync] pull failed:", error.message);
+    return null;
+  }
+  if (!data) return null;
   return {
     ...(data as WardrobeSnapshot),
     profile: (data.profile as UserProfile) ?? DEFAULT_PROFILE,
@@ -57,6 +61,7 @@ export async function pushSnapshot(
     updated_at: new Date().toISOString(),
   });
 
+  if (error) console.warn("[sync] push failed:", error.message);
   return !error;
 }
 

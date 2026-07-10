@@ -22,7 +22,7 @@ export function LandingNav({
   active?: "how-it-works";
 }) {
   return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-background">
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
         <Link href="/" className="brand-wordmark leading-none">
           <span className="brand-wordmark-kicker">Your Personal</span>

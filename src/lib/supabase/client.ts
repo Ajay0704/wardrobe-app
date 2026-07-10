@@ -41,3 +41,15 @@ export function getSupabase(): SupabaseClient | null {
   }
   return client;
 }
+
+/**
+ * Authorization header carrying the current access token, so our API routes
+ * (/api/extract, /api/tryon) can verify the caller is signed in.
+ */
+export async function authHeaders(): Promise<Record<string, string>> {
+  const supabase = getSupabase();
+  if (!supabase) return {};
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}

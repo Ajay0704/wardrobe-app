@@ -195,7 +195,7 @@ function AppShellInner() {
       <ThemeEffect />
       <ShareLinkLoader />
 
-      <header className="sticky top-0 z-40 border-b border-line bg-background">
+      <header className="sticky top-0 z-40 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <div className="mx-auto flex max-w-7xl items-end justify-between gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-5">
           <BrandWordmark onClick={() => setView("wardrobe")} />
 
@@ -262,7 +262,7 @@ function AppShellInner() {
         {view === "settings" && <SettingsView />}
       </main>
 
-      <footer className="border-t border-line py-6 text-center text-xs text-muted">
+      <footer className="border-t border-line py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-xs text-muted">
         {authUser
           ? `Signed in as ${authUser.email} — wardrobe synced to the cloud.`
           : "Use the app locally, or sign up to sync your wardrobe across devices."}

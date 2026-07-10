@@ -45,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await Promise.race([
         run(),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("sync-timeout")), 8000),
+          setTimeout(() => reject(new Error("sync-timeout")), 20000),
         ),
       ]);
       skipPush.current = false;

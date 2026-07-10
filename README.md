@@ -112,3 +112,7 @@ npx netlify deploy --build --prod
 ```
 
 `netlify.toml` is already configured for Next.js. Add Supabase env vars in **Site settings → Environment variables** for cloud sync in production.
+
+## Obsidian notes
+
+Project docs live in an Obsidian vault at `docs/`. Open that folder in Obsidian, then follow [docs/Obsidian setup.md](docs/Obsidian%20setup.md) to connect Cursor via the Local REST API MCP.
