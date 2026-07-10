@@ -18,6 +18,7 @@ import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
 import { OutfitsView } from "./OutfitsView";
 import { WishlistView } from "./WishlistView";
+import { TravelView } from "./TravelView";
 import { SettingsView } from "./SettingsView";
 
 const NAV: { view: View; label: string }[] = [
@@ -25,6 +26,7 @@ const NAV: { view: View; label: string }[] = [
   { view: "builder", label: "Builder" },
   { view: "outfits", label: "Outfits" },
   { view: "wishlist", label: "Wishlist" },
+  { view: "travel", label: "Travel" },
 ];
 
 function BrandWordmark({ onClick }: { onClick: () => void }) {
@@ -259,6 +261,7 @@ function AppShellInner() {
         {view === "builder" && <OutfitBuilderView />}
         {view === "outfits" && <OutfitsView />}
         {view === "wishlist" && <WishlistView />}
+        {view === "travel" && <TravelView />}
         {view === "settings" && <SettingsView />}
       </main>
 

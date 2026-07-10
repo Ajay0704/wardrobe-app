@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@imgly/background-removal": "^1.7.0",
     "@supabase/supabase-js": "^2.110.0",
     "html-to-image": "^1.11.13",
     "lucide-react": "^1.23.0",

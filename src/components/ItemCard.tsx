@@ -3,6 +3,7 @@
 import { ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
+import { affiliateUrl } from "@/lib/affiliate";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { ColorDot, MatchBadge } from "./ui";
@@ -141,7 +142,7 @@ export function ItemCard({
         <div className="flex items-center justify-between gap-2">
           {item.productUrl ? (
             <a
-              href={item.productUrl}
+              href={affiliateUrl(item.productUrl)}
               target="_blank"
               rel="noreferrer"
               draggable={false}

@@ -10,6 +10,7 @@ Project hub for the personal wardrobe app — notes, architecture, and decisions
 - [[Supabase sync]]
 - [[Deploy]]
 - [[Obsidian setup]]
+- [[Research synthesis — next moves]]
 
 ## Repo
 

@@ -24,6 +24,16 @@ function serverClient(): SupabaseClient | null {
 export async function requireUser(
   request: Request,
 ): Promise<{ id: string } | null> {
+  // Dev/local mode: when Supabase isn't configured the whole app runs ungated
+  // (see AppShell `gated`), so don't block the API routes either. In production
+  // Supabase IS configured, so the token check below is always enforced.
+  if (
+    !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ) {
+    return { id: "local-dev" };
+  }
+
   const token = (request.headers.get("authorization") || "")
     .replace(/^Bearer\s+/i, "")
     .trim();

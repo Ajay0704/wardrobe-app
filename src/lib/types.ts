@@ -79,6 +79,18 @@ export interface Outfit {
   createdAt: number;
 }
 
+/** A trip: a named set of packed items you can build capsule outfits from. */
+export interface Trip {
+  id: string;
+  name: string;
+  destination?: string;
+  startDate?: string;
+  endDate?: string;
+  /** Item ids packed for this trip. */
+  itemIds: string[];
+  createdAt: number;
+}
+
 /**
  * The outfit builder groups categories into layer slots.
  * A dress replaces top + bottom; accessories hold up to three items.

@@ -8,7 +8,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Category, Outfit, Season, SlotKey, WardrobeItem } from "./types";
+import type { Category, Outfit, Season, SlotKey, Trip, WardrobeItem } from "./types";
 import { SLOT_CONFIG, slotForCategory } from "./types";
 import { demoItems } from "./demo-data";
 import {
@@ -20,7 +20,13 @@ import {
 import type { SyncStatus } from "./supabase/sync";
 
 export type ThemeMode = "light" | "dark";
-export type View = "wardrobe" | "builder" | "outfits" | "wishlist" | "settings";
+export type View =
+  | "wardrobe"
+  | "builder"
+  | "outfits"
+  | "wishlist"
+  | "travel"
+  | "settings";
 
 export interface Filters {
   search: string;
@@ -41,6 +47,7 @@ const emptyDraft = (): Record<SlotKey, string[]> => ({
 interface WardrobeState {
   items: WardrobeItem[];
   outfits: Outfit[];
+  trips: Trip[];
   profile: UserProfile;
   authUser: AuthUser | null;
   /** False until the initial Supabase session check resolves (gates the UI). */
@@ -63,6 +70,10 @@ interface WardrobeState {
   saveOutfit: (name: string, notes: string, itemIds: string[]) => void;
   deleteOutfit: (id: string) => void;
   loadOutfitIntoDraft: (id: string) => void;
+
+  addTrip: (trip: Omit<Trip, "id" | "createdAt">) => string;
+  updateTrip: (id: string, patch: Partial<Trip>) => void;
+  deleteTrip: (id: string) => void;
 
   updateProfile: (patch: Partial<UserProfile>) => void;
   resetAll: () => void;
@@ -137,6 +148,21 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
   };
 }
 
+function normalizeTrip(raw: Partial<Trip> | null | undefined): Trip {
+  const t = (raw ?? {}) as Partial<Trip>;
+  return {
+    id: typeof t.id === "string" ? t.id : uid(),
+    name: typeof t.name === "string" ? t.name : "",
+    destination: typeof t.destination === "string" ? t.destination : undefined,
+    startDate: typeof t.startDate === "string" ? t.startDate : undefined,
+    endDate: typeof t.endDate === "string" ? t.endDate : undefined,
+    itemIds: Array.isArray(t.itemIds)
+      ? t.itemIds.filter((x): x is string => typeof x === "string")
+      : [],
+    createdAt: typeof t.createdAt === "number" ? t.createdAt : Date.now(),
+  };
+}
+
 /** Ensure the draft has every slot present as a string array. */
 function normalizeDraft(d: unknown): Record<SlotKey, string[]> {
   const base = emptyDraft();
@@ -156,6 +182,7 @@ export const useWardrobe = create<WardrobeState>()(
     (set, get) => ({
       items: demoItems,
       outfits: [],
+      trips: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
       authChecked: false,
@@ -185,6 +212,10 @@ export const useWardrobe = create<WardrobeState>()(
             ...o,
             itemIds: o.itemIds.filter((iid) => iid !== id),
           })),
+          trips: s.trips.map((t) => ({
+            ...t,
+            itemIds: t.itemIds.filter((iid) => iid !== id),
+          })),
           draft: Object.fromEntries(
             Object.entries(s.draft).map(([k, ids]) => [
               k,
@@ -203,6 +234,22 @@ export const useWardrobe = create<WardrobeState>()(
 
       deleteOutfit: (id) =>
         set((s) => ({ outfits: s.outfits.filter((o) => o.id !== id) })),
+
+      addTrip: (trip) => {
+        const id = uid();
+        set((s) => ({
+          trips: [{ ...trip, id, createdAt: Date.now() }, ...s.trips],
+        }));
+        return id;
+      },
+
+      updateTrip: (id, patch) =>
+        set((s) => ({
+          trips: s.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)),
+        })),
+
+      deleteTrip: (id) =>
+        set((s) => ({ trips: s.trips.filter((t) => t.id !== id) })),
 
       loadOutfitIntoDraft: (id) => {
         const { outfits, items } = get();
@@ -226,6 +273,7 @@ export const useWardrobe = create<WardrobeState>()(
         set({
           items: [],
           outfits: [],
+          trips: [],
           profile: { ...DEFAULT_PROFILE },
           draft: emptyDraft(),
           theme: "light",
@@ -300,6 +348,9 @@ export const useWardrobe = create<WardrobeState>()(
           outfits: Array.isArray(p.outfits)
             ? p.outfits.map(normalizeOutfit)
             : current.outfits,
+          trips: Array.isArray(p.trips)
+            ? p.trips.map(normalizeTrip)
+            : current.trips,
           draft: normalizeDraft(p.draft),
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
           theme: p.theme === "dark" ? "dark" : "light",
@@ -309,6 +360,7 @@ export const useWardrobe = create<WardrobeState>()(
       partialize: (s) => ({
         items: s.items,
         outfits: s.outfits,
+        trips: s.trips,
         profile: s.profile,
         theme: s.theme,
         draft: s.draft,

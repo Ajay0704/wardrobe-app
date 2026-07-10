@@ -1,6 +1,6 @@
 "use client";
 
-import { Link2, Pipette, Upload } from "lucide-react";
+import { Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { useWardrobe } from "@/lib/store";
@@ -34,7 +34,7 @@ export function ItemForm({
   defaultWishlist?: boolean;
   onClose: () => void;
 }) {
-  const { addItem, updateItem, authUser } = useWardrobe();
+  const { addItem, updateItem, authUser, items } = useWardrobe();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -55,13 +55,36 @@ export function ItemForm({
   const [uploading, setUploading] = useState(false);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzeMsg, setAnalyzeMsg] = useState("");
+  const [removingBg, setRemovingBg] = useState(false);
 
   const colorName = useMemo(() => nameColor(color), [color]);
   const canSave =
     name.trim().length > 0 &&
     imageUrl.trim().length > 0 &&
     !uploading &&
-    !fetching;
+    !fetching &&
+    !analyzing &&
+    !removingBg;
+
+  // Wishlist "mindful buying" gate: flag near-duplicates we already own and a
+  // rough cost-per-wear so the wishlist nudges intentional purchases.
+  const similarOwned = useMemo(
+    () =>
+      wishlist
+        ? items.filter(
+            (it) =>
+              !it.wishlist &&
+              it.id !== initial?.id &&
+              it.category === category &&
+              it.colorName === colorName,
+          )
+        : [],
+    [wishlist, items, category, colorName, initial?.id],
+  );
+  const costPerWear =
+    price.trim() && Number(price) > 0 ? Number(price) / 30 : null;
 
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -75,9 +98,62 @@ export function ItemForm({
   const handleFile = async (file: File) => {
     setUploading(true);
     try {
-      setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+      const src = await resolveImageSource(file, authUser?.id ?? null);
+      setImageUrl(src);
+      void runAnalyze(src); // auto-tag in the background
     } finally {
       setUploading(false);
+    }
+  };
+
+  /** Ask Gemini to read the photo and pre-fill category/color/name/tags/season. */
+  const runAnalyze = async (src: string) => {
+    if (!src) return;
+    setAnalyzing(true);
+    setAnalyzeMsg("");
+    try {
+      const res = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ image: src }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAnalyzeMsg(data.error || "Couldn't auto-tag this photo.");
+        return;
+      }
+      if (data.category) setCategory(data.category as Category);
+      if (data.color) setColor(data.color);
+      if (data.name && !name.trim()) setName(data.name);
+      if (data.brand && !brand.trim()) setBrand(data.brand);
+      if (Array.isArray(data.seasons) && data.seasons.length) {
+        setSeasons((prev) => (prev.length ? prev : (data.seasons as Season[])));
+      }
+      if (Array.isArray(data.tags) && data.tags.length) {
+        setTags((prev) => [...new Set([...prev, ...(data.tags as string[])])]);
+      }
+      setAnalyzeMsg("Auto-filled from photo — review and adjust.");
+    } catch {
+      setAnalyzeMsg("Couldn't auto-tag. Fill the fields manually.");
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  /** Remove the background on-device (private, free) for a clean cutout. */
+  const handleRemoveBg = async () => {
+    if (!imageUrl) return;
+    setRemovingBg(true);
+    setAnalyzeMsg("");
+    try {
+      const { removeBackground } = await import("@imgly/background-removal");
+      const blob = await removeBackground(imageUrl);
+      const file = new File([blob], "cutout.png", { type: "image/png" });
+      setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+    } catch {
+      setAnalyzeMsg("Background removal failed — kept the original image.");
+    } finally {
+      setRemovingBg(false);
     }
   };
 
@@ -186,6 +262,32 @@ export function ItemForm({
               }
             />
           </label>
+
+          {imageUrl && (
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => runAnalyze(imageUrl)}
+                disabled={analyzing || uploading}
+                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+              >
+                <Sparkles size={13} /> {analyzing ? "Analyzing…" : "Auto-tag"}
+              </button>
+              <button
+                type="button"
+                onClick={handleRemoveBg}
+                disabled={removingBg || uploading}
+                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+              >
+                <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
+              </button>
+            </div>
+          )}
+          {analyzeMsg && (
+            <span className="block text-center text-[11px] text-muted">
+              {analyzeMsg}
+            </span>
+          )}
         </div>
 
         <div className="space-y-4">
@@ -349,6 +451,26 @@ export function ItemForm({
             />
             This is a wishlist item (I don&apos;t own it yet)
           </label>
+
+          {wishlist && (similarOwned.length > 0 || costPerWear) && (
+            <div className="space-y-1 rounded-xl border border-amber-300/50 bg-amber-500/5 p-3 text-xs">
+              {similarOwned.length > 0 && (
+                <p className="text-amber-700 dark:text-amber-400">
+                  You already own {similarOwned.length} similar{" "}
+                  {colorName.toLowerCase()}{" "}
+                  {similarOwned.length > 1 ? "pieces" : "piece"} (
+                  {similarOwned.slice(0, 3).map((s) => s.name).join(", ")}). Do
+                  you really need another?
+                </p>
+              )}
+              {costPerWear && (
+                <p className="text-muted">
+                  At ${Number(price)}, that&apos;s about ~$
+                  {costPerWear.toFixed(2)}/wear if you wear it 30 times.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={onClose}>
