@@ -5,7 +5,7 @@
 
 import type { UserProfile, AuthUser } from "../profile";
 import type { ThemeMode } from "../store";
-import type { Outfit, SlotKey, WardrobeItem } from "../types";
+import type { Outfit, SlotKey, Trip, WardrobeItem } from "../types";
 import { getSupabase } from "./client";
 import { pullSnapshot, pushSnapshot } from "./sync";
 
@@ -35,6 +35,7 @@ export async function signUp(
   wardrobe: {
     items: WardrobeItem[];
     outfits: Outfit[];
+    trips?: Trip[];
     theme: ThemeMode;
     draft: Record<SlotKey, string[]>;
   },
@@ -61,7 +62,11 @@ export async function signUp(
 
   const fullProfile: UserProfile = { ...profile, email };
   const ok = await pushSnapshot(user.id, {
-    ...wardrobe,
+    items: wardrobe.items,
+    outfits: wardrobe.outfits,
+    trips: wardrobe.trips ?? [],
+    theme: wardrobe.theme,
+    draft: wardrobe.draft,
     profile: fullProfile,
   });
   if (!ok) throw new Error("Account created but wardrobe save failed.");

@@ -98,7 +98,7 @@ export function AuthModal({
         email.trim(),
         password,
         profile,
-        { items: [], outfits: [], theme, draft },
+        { items: [], outfits: [], trips: [], theme, draft },
       );
       setAuthUser(user);
       // New accounts start with an empty wardrobe (not the demo items). Clear
@@ -106,6 +106,7 @@ export function AuthModal({
       hydrateFromRemote({
         items: [],
         outfits: [],
+        trips: [],
         profile: { ...profile, email: user.email },
         theme,
         draft,

@@ -5,7 +5,7 @@
 
 import type { ThemeMode } from "../store";
 import { DEFAULT_PROFILE, type UserProfile } from "../profile";
-import type { Outfit, SlotKey, WardrobeItem } from "../types";
+import type { Outfit, SlotKey, Trip, WardrobeItem } from "../types";
 import { getSupabase, isSupabaseConfigured } from "./client";
 
 export type SyncStatus = "offline" | "connecting" | "synced" | "syncing" | "error";
@@ -13,6 +13,7 @@ export type SyncStatus = "offline" | "connecting" | "synced" | "syncing" | "erro
 export interface WardrobeSnapshot {
   items: WardrobeItem[];
   outfits: Outfit[];
+  trips: Trip[];
   profile: UserProfile;
   theme: ThemeMode;
   draft: Record<SlotKey, string[]>;
@@ -26,20 +27,42 @@ export async function pullSnapshot(
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  const { data, error } = await supabase
-    .from("wardrobe_snapshots")
-    .select("items, outfits, profile, theme, draft, updated_at")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (error) {
-    console.warn("[sync] pull failed:", error.message);
-    return null;
+  // Prefer the full select (incl. trips). Fall back if the column isn't migrated yet.
+  let data: Record<string, unknown> | null = null;
+  {
+    const full = await supabase
+      .from("wardrobe_snapshots")
+      .select("items, outfits, trips, profile, theme, draft, updated_at")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (full.error && /trips/i.test(full.error.message)) {
+      const legacy = await supabase
+        .from("wardrobe_snapshots")
+        .select("items, outfits, profile, theme, draft, updated_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (legacy.error) {
+        console.warn("[sync] pull failed:", legacy.error.message);
+        return null;
+      }
+      data = legacy.data as Record<string, unknown> | null;
+    } else if (full.error) {
+      console.warn("[sync] pull failed:", full.error.message);
+      return null;
+    } else {
+      data = full.data as Record<string, unknown> | null;
+    }
   }
+
   if (!data) return null;
   return {
-    ...(data as WardrobeSnapshot),
+    items: (data.items as WardrobeItem[]) ?? [],
+    outfits: (data.outfits as Outfit[]) ?? [],
+    trips: Array.isArray(data.trips) ? (data.trips as Trip[]) : [],
     profile: (data.profile as UserProfile) ?? DEFAULT_PROFILE,
+    theme: (data.theme as ThemeMode) ?? "light",
+    draft: (data.draft as Record<SlotKey, string[]>) ?? ({} as Record<SlotKey, string[]>),
+    updated_at: data.updated_at as string | undefined,
   };
 }
 
@@ -51,18 +74,32 @@ export async function pushSnapshot(
   const supabase = getSupabase();
   if (!supabase) return false;
 
-  const { error } = await supabase.from("wardrobe_snapshots").upsert({
+  const row = {
     user_id: userId,
     items: snapshot.items,
     outfits: snapshot.outfits,
+    trips: snapshot.trips,
     profile: snapshot.profile,
     theme: snapshot.theme,
     draft: snapshot.draft,
     updated_at: new Date().toISOString(),
-  });
+  };
 
-  if (error) console.warn("[sync] push failed:", error.message);
-  return !error;
+  const { error } = await supabase.from("wardrobe_snapshots").upsert(row);
+  if (!error) return true;
+
+  // Pre-migration DBs lack the trips column — push without it so sync still works.
+  if (/trips/i.test(error.message)) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { trips: _omit, ...legacy } = row;
+    const retry = await supabase.from("wardrobe_snapshots").upsert(legacy);
+    if (retry.error) console.warn("[sync] push failed:", retry.error.message);
+    else console.warn("[sync] trips column missing — run schema migration to sync Travel.");
+    return !retry.error;
+  }
+
+  console.warn("[sync] push failed:", error.message);
+  return false;
 }
 
 export { isSupabaseConfigured };

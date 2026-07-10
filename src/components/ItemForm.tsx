@@ -124,8 +124,14 @@ export function ItemForm({
       }
       if (data.category) setCategory(data.category as Category);
       if (data.color) setColor(data.color);
-      if (data.name && !name.trim()) setName(data.name);
-      if (data.brand && !brand.trim()) setBrand(data.brand);
+      // Use functional updates so a name/brand typed while analyzing isn't
+      // overwritten, and empty fields still get filled from the photo.
+      if (data.name) {
+        setName((prev) => (prev.trim() ? prev : (data.name as string)));
+      }
+      if (data.brand) {
+        setBrand((prev) => (prev.trim() ? prev : (data.brand as string)));
+      }
       if (Array.isArray(data.seasons) && data.seasons.length) {
         setSeasons((prev) => (prev.length ? prev : (data.seasons as Season[])));
       }
@@ -147,9 +153,18 @@ export function ItemForm({
     setAnalyzeMsg("");
     try {
       const { removeBackground } = await import("@imgly/background-removal");
-      const blob = await removeBackground(imageUrl);
+      // Fetch into a blob first so CORS-restricted remote hosts (and data URLs)
+      // are handled consistently by the WASM pipeline.
+      let input: Blob | string = imageUrl;
+      if (imageUrl.startsWith("http")) {
+        const res = await fetch(imageUrl);
+        if (!res.ok) throw new Error("fetch-failed");
+        input = await res.blob();
+      }
+      const blob = await removeBackground(input);
       const file = new File([blob], "cutout.png", { type: "image/png" });
       setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+      setAnalyzeMsg("Background removed.");
     } catch {
       setAnalyzeMsg("Background removal failed — kept the original image.");
     } finally {
@@ -182,12 +197,18 @@ export function ItemForm({
       if (data.imageData) {
         try {
           const file = dataUrlToFile(data.imageData);
-          setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+          const src = await resolveImageSource(file, authUser?.id ?? null);
+          setImageUrl(src);
+          void runAnalyze(src);
         } catch {
-          if (data.imageUrl) setImageUrl(data.imageUrl);
+          if (data.imageUrl) {
+            setImageUrl(data.imageUrl);
+            void runAnalyze(data.imageUrl);
+          }
         }
       } else if (data.imageUrl) {
         setImageUrl(data.imageUrl);
+        void runAnalyze(data.imageUrl);
       }
       setFetchMsg("Details filled in — review and adjust before saving.");
     } catch {

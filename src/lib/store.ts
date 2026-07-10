@@ -95,6 +95,7 @@ interface WardrobeState {
   hydrateFromRemote: (data: {
     items: WardrobeItem[];
     outfits: Outfit[];
+    trips?: Trip[];
     profile?: UserProfile;
     theme: ThemeMode;
     draft: Record<SlotKey, string[]>;
@@ -330,6 +331,10 @@ export const useWardrobe = create<WardrobeState>()(
           outfits: Array.isArray(data.outfits)
             ? data.outfits.map(normalizeOutfit)
             : [],
+          // Keep local trips if remote omitted them (pre-migration snapshot).
+          trips: Array.isArray(data.trips)
+            ? data.trips.map(normalizeTrip)
+            : get().trips,
           profile: data.profile ?? get().profile,
           theme: data.theme === "dark" ? "dark" : "light",
           draft: normalizeDraft(data.draft),

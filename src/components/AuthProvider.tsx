@@ -29,13 +29,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hydrateFromRemote({
           items: remote.items,
           outfits: remote.outfits,
+          trips: remote.trips,
           profile: remote.profile,
           theme: remote.theme,
           draft: remote.draft,
         });
       } else {
-        const { items, outfits, profile, theme, draft } = useWardrobe.getState();
-        await pushSnapshot(uid, { items, outfits, profile, theme, draft });
+        const { items, outfits, trips, profile, theme, draft } =
+          useWardrobe.getState();
+        await pushSnapshot(uid, {
+          items,
+          outfits,
+          trips,
+          profile,
+          theme,
+          draft,
+        });
       }
     };
     try {
@@ -144,6 +153,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (
         state.items === prev.items &&
         state.outfits === prev.outfits &&
+        state.trips === prev.trips &&
         state.profile === prev.profile &&
         state.theme === prev.theme &&
         state.draft === prev.draft
@@ -161,8 +171,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         userId.current = uid;
-        const { items, outfits, profile, theme, draft } = useWardrobe.getState();
-        const ok = await pushSnapshot(uid, { items, outfits, profile, theme, draft });
+        const { items, outfits, trips, profile, theme, draft } =
+          useWardrobe.getState();
+        const ok = await pushSnapshot(uid, {
+          items,
+          outfits,
+          trips,
+          profile,
+          theme,
+          draft,
+        });
         setSyncStatus(ok ? "synced" : "error");
       }, 800);
     });

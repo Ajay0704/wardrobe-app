@@ -47,10 +47,17 @@ async function toInline(src: string): Promise<Inline | null> {
 function extractText(data: unknown): string {
   const parts = (
     data as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+      candidates?: Array<{
+        content?: { parts?: Array<{ text?: string; thought?: boolean }> };
+      }>;
     }
   )?.candidates?.[0]?.content?.parts;
-  return Array.isArray(parts) ? parts.map((p) => p.text ?? "").join("") : "";
+  if (!Array.isArray(parts)) return "";
+  // Skip Gemini "thinking" parts — only the final answer text is JSON.
+  return parts
+    .filter((p) => !p.thought)
+    .map((p) => p.text ?? "")
+    .join("");
 }
 
 export async function POST(request: Request) {
@@ -98,7 +105,13 @@ export async function POST(request: Request) {
 
   const payload = {
     contents: [{ parts: [{ text: prompt }, { inline_data: inline }] }],
-    generationConfig: { responseMimeType: "application/json", temperature: 0.2 },
+    generationConfig: {
+      responseMimeType: "application/json",
+      temperature: 0.2,
+      // Cataloguing is a simple vision→JSON task; keep thinking minimal for
+      // speed, cost, and to avoid empty/thought-only responses.
+      thinkingConfig: { thinkingLevel: "minimal" },
+    },
   };
 
   let resp: Response;
