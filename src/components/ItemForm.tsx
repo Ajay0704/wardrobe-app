@@ -199,10 +199,25 @@ export function ItemForm({
         setFetchMsg(data.error || "Couldn't read details from that link.");
         return;
       }
-      if (data.name) setName(data.name);
-      if (data.brand) setBrand(data.brand);
-      if (typeof data.price === "number") setPrice(String(data.price));
+      if (typeof data.name === "string" && data.name.trim()) {
+        setName(data.name.trim());
+      }
+      if (typeof data.brand === "string" && data.brand.trim()) {
+        setBrand(data.brand.trim());
+      }
+      // API may return price as number or numeric string depending on the shop.
+      const priceVal =
+        typeof data.price === "number"
+          ? data.price
+          : typeof data.price === "string"
+            ? Number(data.price.replace(/,/g, ""))
+            : NaN;
+      if (Number.isFinite(priceVal) && priceVal > 0) {
+        setPrice(String(priceVal));
+      }
       if (data.description && !notes.trim()) setNotes(data.description);
+
+      let gotImage = false;
       // Re-host the fetched image to Storage (durable + CORS-friendly for color
       // extraction). Fall back to the remote URL if re-hosting fails.
       if (data.imageData) {
@@ -210,18 +225,36 @@ export function ItemForm({
           const file = dataUrlToFile(data.imageData);
           const src = await resolveImageSource(file, authUser?.id ?? null);
           setImageUrl(src);
+          gotImage = true;
+          // Analyze fills category/tags/color; keep fetched name/brand (non-empty).
           void runAnalyze(src);
         } catch {
-          if (data.imageUrl) {
+          if (typeof data.imageUrl === "string" && data.imageUrl) {
             setImageUrl(data.imageUrl);
+            gotImage = true;
             void runAnalyze(data.imageUrl);
           }
         }
-      } else if (data.imageUrl) {
+      } else if (typeof data.imageUrl === "string" && data.imageUrl) {
         setImageUrl(data.imageUrl);
+        gotImage = true;
         void runAnalyze(data.imageUrl);
       }
-      setFetchMsg("Details filled in — review and adjust before saving.");
+
+      const bits = [
+        data.name && "name",
+        data.brand && "brand",
+        Number.isFinite(priceVal) && priceVal > 0 && "price",
+        gotImage && "photo",
+      ].filter(Boolean);
+      setFetchMsg(
+        bits.length
+          ? `Filled ${bits.join(", ")} — review before saving.` +
+              (gotImage
+                ? ""
+                : " Add a photo manually if this store blocks image fetch.")
+          : "Couldn't read much from that link — fill details manually.",
+      );
     } catch {
       setFetchMsg("Something went wrong. Fill the details in manually.");
     } finally {
