@@ -126,6 +126,10 @@ body {
   /* iOS system font for a native feel; the brand wordmark keeps its serif. */
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", ui-sans-serif,
     system-ui, sans-serif;
+  /* Stable height: 100dvh reflows when the keyboard opens and feels like a resize. */
+  height: 100svh;
+  max-height: 100svh;
+  overflow: hidden;
 }
 
 .native-topbar {
@@ -266,6 +270,16 @@ body {
   width: 11rem;
 }
 
+/*
+ * iOS zooms the WebView when focused inputs are < 16px — feels like the
+ * whole UI "resizes" when you tap a field. Keep form controls at 16px.
+ */
+.native-app input,
+.native-app textarea,
+.native-app select {
+  font-size: 16px !important;
+}
+
 /* Failsafe: if website chrome somehow mounts inside Capacitor, hide it. */
 html.native-app .web-shell-header,
 html.native-app .web-shell-footer {
@@ -273,22 +287,27 @@ html.native-app .web-shell-footer {
 }
 
 /*
- * Native item editor — in-app page that stops ABOVE the tab bar.
- * Full-screen modals covered the tabs and felt like the website (AJA-33).
+ * Native item editor — fills the shell above the tab bar.
+ * Uses 100svh (not visual viewport) so focusing inputs doesn't shrink the page.
  */
 .native-item-page {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  height: 100svh;
+  max-height: 100svh;
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  box-sizing: border-box;
   z-index: 45;
   display: flex;
   flex-direction: column;
   background: var(--background);
+  overflow: hidden;
 }
 
 .native-item-page-header {
+  flex-shrink: 0;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
@@ -326,17 +345,25 @@ html.native-app .web-shell-footer {
 
 .native-item-page-body {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   padding: 1.25rem 1rem 1.5rem;
 }
 
-/* Other modals in native (auth, etc.): sheet above the tab bar, not full-bleed. */
+/* Other modals in native: same stable height, leave tab bar clear. */
 .native-app .native-modal-backdrop {
   align-items: stretch !important;
   padding: 0 !important;
-  bottom: calc(3.5rem + env(safe-area-inset-bottom)) !important;
-  height: auto !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: auto !important;
+  height: 100svh !important;
+  max-height: 100svh !important;
+  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom)) !important;
+  box-sizing: border-box !important;
 }
 
 .native-app .native-modal-sheet {
@@ -347,4 +374,3 @@ html.native-app .web-shell-footer {
   padding-top: max(1.25rem, env(safe-area-inset-top));
   padding-bottom: 1.25rem;
 }
-

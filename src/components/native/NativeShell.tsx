@@ -57,7 +57,7 @@ export function NativeShell() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <div className="native-shell flex min-h-[100dvh] flex-col bg-background">
+    <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
       <header className="native-topbar">
         <span className="brand-wordmark-name !text-xl">
           {TITLES[view] ?? "Wardrobe"}
