@@ -12,6 +12,7 @@ import { CalendarView } from "./CalendarView";
 import { InsightsView } from "./InsightsView";
 import { YouView } from "./YouView";
 import { ItemForm } from "./ItemForm";
+import { BulkImport } from "./BulkImport";
 
 /**
  * Renders the current view's content. Shared by the web shell (AppShell) and the
@@ -22,6 +23,8 @@ export function AppViews() {
   const view = useWardrobe((s) => s.view);
   const addOpen = useWardrobe((s) => s.addOpen);
   const setAddOpen = useWardrobe((s) => s.setAddOpen);
+  const bulkOpen = useWardrobe((s) => s.bulkOpen);
+  const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
   return (
     <>
       {view === "today" && <TodayView />}
@@ -36,6 +39,7 @@ export function AppViews() {
       {view === "settings" && <SettingsView />}
 
       {addOpen && <ItemForm onClose={() => setAddOpen(false)} />}
+      {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}
     </>
   );
 }

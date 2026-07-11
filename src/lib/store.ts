@@ -79,6 +79,8 @@ interface WardrobeState {
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
   addOpen: boolean;
+  /** Global "import from photos" (bulk) modal, opened from Create / Closet. */
+  bulkOpen: boolean;
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
@@ -122,6 +124,7 @@ interface WardrobeState {
   setView: (v: View) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
+  setBulkOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
 
   addToDraft: (itemId: string) => void;
@@ -254,6 +257,7 @@ export const useWardrobe = create<WardrobeState>()(
       view: "today",
       settingsSection: "profile",
       addOpen: false,
+      bulkOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
 
@@ -430,6 +434,7 @@ export const useWardrobe = create<WardrobeState>()(
       setView: (view) => set({ view }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen }),
+      setBulkOpen: (bulkOpen) => set({ bulkOpen }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
 

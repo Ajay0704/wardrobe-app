@@ -6,7 +6,6 @@ import { forgottenItems } from "@/lib/rediscover";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
-import { BulkImport } from "./BulkImport";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { RediscoverModal } from "./RediscoverModal";
@@ -42,9 +41,9 @@ export function filterItems(
 
 export function WardrobeView() {
   const { items, filters, setFilters } = useWardrobe();
+  const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
-  const [bulk, setBulk] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [stylingItem, setStylingItem] = useState<WardrobeItem | null>(null);
@@ -122,7 +121,7 @@ export function WardrobeView() {
           >
             {seasonalView ? <LayoutGrid size={15} /> : <Sun size={15} />}
           </Button>
-          <Button variant="outline" onClick={() => setBulk(true)} title="Import multiple photos">
+          <Button variant="outline" onClick={() => setBulkOpen(true)} title="Import multiple photos">
             <Images size={15} /> Import
           </Button>
           <Button onClick={() => setAdding(true)}>
@@ -244,8 +243,6 @@ export function WardrobeView() {
           }}
         />
       )}
-
-      {bulk && <BulkImport onClose={() => setBulk(false)} />}
 
       {stylingItem && (
         <RediscoverModal

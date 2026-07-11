@@ -2,6 +2,7 @@
 
 import {
   Home,
+  Images,
   LayoutGrid,
   Plus,
   Shirt,
@@ -53,7 +54,7 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, setAddOpen } = useWardrobe();
+  const { view, setView, setAddOpen, setBulkOpen } = useWardrobe();
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
@@ -122,6 +123,17 @@ export function NativeShell() {
             >
               <Shirt size={20} strokeWidth={1.7} />
               <span>Add a clothing item</span>
+            </button>
+            <button
+              type="button"
+              className="native-sheet-row"
+              onClick={() => {
+                setCreateOpen(false);
+                setBulkOpen(true);
+              }}
+            >
+              <Images size={20} strokeWidth={1.7} />
+              <span>Import from Photos</span>
             </button>
             <button
               type="button"
