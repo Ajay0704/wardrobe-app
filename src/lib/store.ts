@@ -38,6 +38,7 @@ export type View =
   | "wishlist"
   | "travel"
   | "insights"
+  | "you"
   | "settings";
 
 export interface Filters {
@@ -74,6 +75,8 @@ interface WardrobeState {
   view: View;
   /** Which section the Settings view opens to. */
   settingsSection: SettingsSection;
+  /** Global "add item" modal (opened from the center Create button). */
+  addOpen: boolean;
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
@@ -116,6 +119,7 @@ interface WardrobeState {
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
   setSettingsSection: (s: SettingsSection) => void;
+  setAddOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
 
   addToDraft: (itemId: string) => void;
@@ -247,6 +251,7 @@ export const useWardrobe = create<WardrobeState>()(
       theme: "light",
       view: "today",
       settingsSection: "profile",
+      addOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
 
@@ -419,6 +424,7 @@ export const useWardrobe = create<WardrobeState>()(
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
+      setAddOpen: (addOpen) => set({ addOpen }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
 
@@ -513,6 +519,7 @@ export const useWardrobe = create<WardrobeState>()(
               "wishlist",
               "travel",
               "insights",
+              "you",
               "settings",
             ].includes(p.view)
               ? (p.view as View)

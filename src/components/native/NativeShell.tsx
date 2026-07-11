@@ -1,78 +1,60 @@
 "use client";
 
 import {
-  CalendarDays,
-  Heart,
   Home,
   LayoutGrid,
-  LogOut,
-  Moon,
-  MoreHorizontal,
-  PieChart,
-  Plane,
-  Settings,
+  Plus,
   Shirt,
-  Sun,
+  User,
   Wand2,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe, type View } from "@/lib/store";
-import { signOut } from "@/lib/supabase/auth";
 import { AppViews } from "../AppViews";
 import { SyncBadge } from "../SyncBadge";
 
-const TABS: { view: View; label: string; Icon: LucideIcon }[] = [
-  { view: "wardrobe", label: "Closet", Icon: Shirt },
-  { view: "builder", label: "Builder", Icon: Wand2 },
-  { view: "outfits", label: "Outfits", Icon: LayoutGrid },
-  { view: "wishlist", label: "Wishlist", Icon: Heart },
-];
-
-const MORE_ITEMS: { view: View; label: string; Icon: LucideIcon }[] = [
-  { view: "today", label: "Today", Icon: Home },
-  { view: "insights", label: "Insights", Icon: PieChart },
-  { view: "calendar", label: "Calendar", Icon: CalendarDays },
-  { view: "travel", label: "Travel", Icon: Plane },
-  { view: "settings", label: "Settings", Icon: Settings },
-];
+type Tab = { view: View; label: string; Icon: LucideIcon };
 
 const TITLES: Partial<Record<View, string>> = {
   today: "Today",
-  wardrobe: "Wardrobe",
-  builder: "Builder",
+  wardrobe: "Closet",
+  builder: "Build an outfit",
   outfits: "Outfits",
   calendar: "Calendar",
   wishlist: "Wishlist",
-  travel: "Travel",
+  travel: "Packing",
   insights: "Insights",
+  you: "You",
   settings: "Settings",
 };
 
-const TAB_VIEWS = new Set<View>(TABS.map((t) => t.view));
+// Views reachable from the "You" hub — keep that tab lit while they're open.
+const YOU_VIEWS = new Set<View>([
+  "you",
+  "wishlist",
+  "travel",
+  "insights",
+  "calendar",
+  "settings",
+]);
+
+function isActive(tab: View, view: View): boolean {
+  if (tab === "outfits") return view === "outfits" || view === "builder";
+  if (tab === "you") return YOU_VIEWS.has(view);
+  return view === tab;
+}
 
 /**
- * iOS-style app chrome for the Capacitor native shell: a compact top title bar,
- * the shared screens, and a bottom tab bar. Only rendered when running inside
- * the native app (see AppShell / isNativeApp) — the website keeps its own chrome.
+ * iOS-style app chrome: compact title bar, the shared screens, and a bottom tab
+ * bar — Today · Closet · [＋ Create] · Outfits · You. The center button opens a
+ * Create sheet (add a clothing item / build an outfit). Only rendered inside the
+ * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, theme, setTheme, authUser, setAuthUser, setSyncStatus } =
-    useWardrobe();
-  const [moreOpen, setMoreOpen] = useState(false);
-
-  const go = (v: View) => {
-    setView(v);
-    setMoreOpen(false);
-  };
-
-  const logOut = () => {
-    setMoreOpen(false);
-    setAuthUser(null);
-    setSyncStatus("offline");
-    void signOut();
-  };
+  const { view, setView, setAddOpen } = useWardrobe();
+  const [createOpen, setCreateOpen] = useState(false);
 
   return (
     <div className="native-shell flex min-h-[100dvh] flex-col bg-background">
@@ -88,96 +70,97 @@ export function NativeShell() {
       </main>
 
       <nav className="native-tabbar" aria-label="Primary">
-        {TABS.map(({ view: v, label, Icon }) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => go(v)}
-            aria-current={view === v ? "page" : undefined}
-            className={`native-tab ${view === v ? "native-tab-active" : ""}`}
-          >
-            <Icon size={22} strokeWidth={1.8} />
-            <span>{label}</span>
-          </button>
-        ))}
+        <TabBtn tab={{ view: "today", label: "Today", Icon: Home }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "wardrobe", label: "Closet", Icon: Shirt }} view={view} onClick={setView} />
+
         <button
           type="button"
-          onClick={() => setMoreOpen(true)}
-          className={`native-tab ${!TAB_VIEWS.has(view) ? "native-tab-active" : ""}`}
+          onClick={() => setCreateOpen(true)}
+          className="native-tab"
+          aria-label="Create"
         >
-          <MoreHorizontal size={22} strokeWidth={1.8} />
-          <span>More</span>
+          <span className="native-fab">
+            <Plus size={24} strokeWidth={2.2} />
+          </span>
         </button>
+
+        <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "you", label: "You", Icon: User }} view={view} onClick={setView} />
       </nav>
 
-      {moreOpen && (
+      {createOpen && (
         <div
           className="native-sheet-backdrop"
-          onClick={() => setMoreOpen(false)}
+          onClick={() => setCreateOpen(false)}
           role="presentation"
         >
           <div
             className="native-sheet"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-label="More"
+            aria-label="Create"
           >
             <div className="native-sheet-handle" />
             <div className="mb-2 flex items-center justify-between">
-              <h2 className="heading text-lg">More</h2>
+              <h2 className="heading text-lg">Create</h2>
               <button
                 type="button"
-                onClick={() => setMoreOpen(false)}
+                onClick={() => setCreateOpen(false)}
                 aria-label="Close"
                 className="p-1 text-muted"
               >
                 <X size={20} />
               </button>
             </div>
-
-            {MORE_ITEMS.map(({ view: v, label, Icon }) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => go(v)}
-                className={`native-sheet-row ${view === v ? "text-accent" : ""}`}
-              >
-                <Icon size={20} strokeWidth={1.7} />
-                <span>{label}</span>
-              </button>
-            ))}
-
             <button
               type="button"
-              onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="native-sheet-row"
+              onClick={() => {
+                setCreateOpen(false);
+                setAddOpen(true);
+              }}
             >
-              {theme === "dark" ? (
-                <Sun size={20} strokeWidth={1.7} />
-              ) : (
-                <Moon size={20} strokeWidth={1.7} />
-              )}
-              <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+              <Shirt size={20} strokeWidth={1.7} />
+              <span>Add a clothing item</span>
             </button>
-
-            {authUser && (
-              <>
-                <p className="mt-3 truncate px-1 text-xs text-muted">
-                  Signed in as {authUser.email}
-                </p>
-                <button
-                  type="button"
-                  onClick={logOut}
-                  className="native-sheet-row text-red-600 dark:text-red-400"
-                >
-                  <LogOut size={20} strokeWidth={1.7} />
-                  <span>Log out</span>
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className="native-sheet-row"
+              onClick={() => {
+                setCreateOpen(false);
+                setView("builder");
+              }}
+            >
+              <Wand2 size={20} strokeWidth={1.7} />
+              <span>Build an outfit</span>
+            </button>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function TabBtn({
+  tab,
+  view,
+  onClick,
+}: {
+  tab: Tab;
+  view: View;
+  onClick: (v: View) => void;
+}) {
+  const active = isActive(tab.view, view);
+  const { Icon, label } = tab;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(tab.view)}
+      aria-current={active ? "page" : undefined}
+      className={`native-tab ${active ? "native-tab-active" : ""}`}
+    >
+      <Icon size={22} strokeWidth={1.8} />
+      <span>{label}</span>
+    </button>
   );
 }

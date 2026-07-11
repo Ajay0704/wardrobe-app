@@ -180,6 +180,24 @@ body {
   color: var(--accent);
 }
 
+/* Center "Create" button — lifted circular FAB (Strava/FITS pattern). */
+.native-fab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  margin-top: -14px;
+  background: var(--foreground);
+  color: var(--background);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+}
+
+.native-tab:active .native-fab {
+  transform: scale(0.94);
+}
+
 .native-tab:active {
   opacity: 0.55;
 }
