@@ -3,6 +3,7 @@ import {
   CameraDirection,
   EncodingType,
 } from "@capacitor/camera";
+import { Capacitor } from "@capacitor/core";
 
 /**
  * Capture a photo with the native camera (Capacitor).
@@ -10,6 +11,15 @@ import {
  * Returns null if the user cancels.
  */
 export async function captureNativePhoto(): Promise<File | null> {
+  // If the installed binary predates the Camera plugin, Capacitor would fall
+  // back to the web `<input capture>` — which just flashes and exits in
+  // WKWebView. Detect that and tell the user to update, rather than confuse them.
+  if (Capacitor.isNativePlatform() && !Capacitor.isPluginAvailable("Camera")) {
+    throw new Error(
+      "The camera needs the latest app build. Please reinstall the app from Xcode (Product → Run).",
+    );
+  }
+
   try {
     await Camera.requestPermissions({ permissions: ["camera"] });
   } catch {
