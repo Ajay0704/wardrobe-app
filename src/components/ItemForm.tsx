@@ -1,6 +1,16 @@
 "use client";
 
-import { Camera, ExternalLink, Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
+import {
+  Camera,
+  ChevronLeft,
+  ExternalLink,
+  Link2,
+  Pipette,
+  Scissors,
+  Sparkles,
+  Upload,
+} from "lucide-react";
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import { affiliateUrl } from "@/lib/affiliate";
 import { agentLog } from "@/lib/agent-log";
@@ -301,8 +311,8 @@ export function ItemForm({
     onClose();
   };
 
-  return (
-    <Modal title={initial ? "Edit item" : "Add item"} onClose={onClose} wide>
+  const title = initial ? "Edit item" : "Add item";
+  const form = (
       <div className="item-form-layout grid gap-5 sm:grid-cols-[180px_1fr]">
         {/* Live image preview */}
         <div className="mx-auto w-44 space-y-2 sm:mx-0 sm:w-auto">
@@ -601,6 +611,50 @@ export function ItemForm({
           </div>
         </div>
       </div>
+  );
+
+  // Native: in-app page that leaves the bottom tab bar visible. A full-screen
+  // modal covered the tabs and felt like flipping to the website (AJA-33).
+  if (isNative) {
+    return (
+      <NativeItemPage title={title} onClose={onClose}>
+        {form}
+      </NativeItemPage>
+    );
+  }
+
+  return (
+    <Modal title={title} onClose={onClose} wide>
+      {form}
     </Modal>
+  );
+}
+
+function NativeItemPage({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="native-item-page" role="dialog" aria-modal="true" aria-label={title}>
+      <header className="native-item-page-header">
+        <button
+          type="button"
+          onClick={onClose}
+          className="native-item-page-back"
+          aria-label="Back"
+        >
+          <ChevronLeft size={22} strokeWidth={2} />
+          <span>Back</span>
+        </button>
+        <h2 className="native-item-page-title">{title}</h2>
+        <span className="native-item-page-spacer" aria-hidden />
+      </header>
+      <div className="native-item-page-body">{children}</div>
+    </div>
   );
 }

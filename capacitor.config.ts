@@ -5,25 +5,31 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Do not use `output: 'export'` — API routes (/api/analyze, /api/tryon, etc.)
  * must keep running on the server.
  *
- * Default: production on Vercel.
+ * Default: production on Vercel at `/n` (native-only entry — no website chrome).
  * Local debug against `next dev`:
- *   CAPACITOR_SERVER_URL=http://<your-Mac-LAN-IP>:3000 npx cap sync ios
+ *   CAPACITOR_SERVER_URL=http://<your-Mac-LAN-IP>:3000/n npx cap sync ios
  *   (requires cleartext ATS allowance — already enabled below for http://)
  *
  * `?native=1` is a hard UI lock so AppShell always uses the native shell even
  * if Capacitor bridge / UA detection flakes (fixes website top-nav flip).
  */
-function withNativeFlag(raw: string): string {
+function withNativeEntry(raw: string): string {
   try {
     const url = new URL(raw);
+    // Prefer the dedicated native route so the WebView never boots the
+    // marketing homepage that owns the website top nav.
+    if (url.pathname === "/" || url.pathname === "") {
+      url.pathname = "/n";
+    }
     url.searchParams.set("native", "1");
     return url.toString();
   } catch {
-    return raw.includes("?") ? `${raw}&native=1` : `${raw}?native=1`;
+    const base = raw.replace(/\/?(\?.*)?$/, "");
+    return `${base}/n?native=1`;
   }
 }
 
-const serverUrl = withNativeFlag(
+const serverUrl = withNativeEntry(
   process.env.CAPACITOR_SERVER_URL ??
     "https://wardrobe-app-lilac-two.vercel.app",
 );

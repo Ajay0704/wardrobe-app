@@ -70,8 +70,18 @@ function hasCapacitorBridge(): boolean {
   return false;
 }
 
+function hasNativePath(): boolean {
+  try {
+    const p = window.location.pathname;
+    return p === "/n" || p.startsWith("/n/");
+  } catch {
+    return false;
+  }
+}
+
 function detectNative(): boolean {
   if (typeof window === "undefined") return false;
+  if (hasNativePath()) return true;
   if (hasNativeQueryFlag()) return true;
   if (hasNativeHtmlClass()) return true;
   if (hasCapacitorBridge()) return true;
@@ -255,4 +265,4 @@ export function installNativeWindowOpenGuard(): void {
  * Inline boot script for <head> — runs before React so html.native-app is set
  * on first paint and AppShell never hydrates into website chrome.
  */
-export const NATIVE_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(NATIVE_LOCK_KEY)};var q=location.search.indexOf("native=1")!==-1;var ua=navigator.userAgent.indexOf("WardrobeApp")!==-1;var locked=false;try{locked=localStorage.getItem(k)==="1"||sessionStorage.getItem(k)==="1"}catch(e){}var cap=false;try{cap=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())}catch(e){}if(q||ua||locked||cap){document.documentElement.classList.add("native-app");try{localStorage.setItem(k,"1");sessionStorage.setItem(k,"1")}catch(e){}}}catch(e){}})();`;
+export const NATIVE_BOOT_SCRIPT = `(function(){try{var k=${JSON.stringify(NATIVE_LOCK_KEY)};var q=location.search.indexOf("native=1")!==-1;var ua=navigator.userAgent.indexOf("WardrobeApp")!==-1;var path=location.pathname==="/n"||location.pathname.indexOf("/n/")===0;var locked=false;try{locked=localStorage.getItem(k)==="1"||sessionStorage.getItem(k)==="1"}catch(e){}var cap=false;try{cap=!!(window.Capacitor&&window.Capacitor.isNativePlatform&&window.Capacitor.isNativePlatform())}catch(e){}if(q||ua||locked||cap||path){document.documentElement.classList.add("native-app");try{localStorage.setItem(k,"1");sessionStorage.setItem(k,"1")}catch(e){}}}catch(e){}})();`;
