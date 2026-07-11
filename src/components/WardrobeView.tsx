@@ -1,10 +1,11 @@
 "use client";
 
-import { Heart, LayoutGrid, Plus, Search, Sun } from "lucide-react";
+import { Heart, Images, LayoutGrid, Plus, Search, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
+import { BulkImport } from "./BulkImport";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
@@ -41,6 +42,7 @@ export function WardrobeView() {
   const { items, filters, setFilters } = useWardrobe();
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
+  const [bulk, setBulk] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
 
@@ -114,6 +116,9 @@ export function WardrobeView() {
             title={seasonalView ? "Grid view" : "Group by season"}
           >
             {seasonalView ? <LayoutGrid size={15} /> : <Sun size={15} />}
+          </Button>
+          <Button variant="outline" onClick={() => setBulk(true)} title="Import multiple photos">
+            <Images size={15} /> Import
           </Button>
           <Button onClick={() => setAdding(true)}>
             <Plus size={15} /> Add item
@@ -198,6 +203,8 @@ export function WardrobeView() {
           }}
         />
       )}
+
+      {bulk && <BulkImport onClose={() => setBulk(false)} />}
     </div>
   );
 }
