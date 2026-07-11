@@ -41,8 +41,15 @@ export function ShareLinkLoader() {
       setDraft(draft as ReturnType<typeof useWardrobe.getState>["draft"]);
       setView("builder");
 
-      // Clean the URL so refreshes don't re-apply.
-      window.history.replaceState({}, "", window.location.pathname);
+      // Clean outfit param; keep other flags (e.g. native=1) if still present.
+      const next = new URL(window.location.href);
+      next.searchParams.delete("outfit");
+      const qs = next.searchParams.toString();
+      window.history.replaceState(
+        {},
+        "",
+        `${next.pathname}${qs ? `?${qs}` : ""}${next.hash}`,
+      );
     } catch {
       // Malformed share links are ignored silently.
     }

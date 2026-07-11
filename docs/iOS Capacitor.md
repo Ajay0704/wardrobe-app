@@ -23,9 +23,9 @@ Safe areas: the web app already uses `viewport-fit=cover` and `env(safe-area-ins
 
 ## Dual UI
 
-Same production URL for web and app. The web app detects Capacitor via `isNativeApp()` (`src/lib/platform.ts`) — Capacitor bridge, UA `WardrobeApp`, and a one-way session/localStorage latch — then renders `NativeShell` (bottom tabs) instead of the website header.
+Same production URL for web and app. The Capacitor shell loads production with `?native=1`, which locks the native bottom-tab shell (also via UA `WardrobeApp`, Capacitor bridge, and localStorage). Safari without that flag keeps the website top nav.
 
-**If tapping a wishlist/closet item flips to the website top nav:** force-quit the app, pull latest on `main` (Vercel), then rebuild once so Browser + UA config stay in sync:
+**If tapping an item flips to the website top nav:** force-quit the app, wait for the latest Vercel deploy, then **rebuild once** so `server.url` includes `?native=1`:
 
 ```bash
 cd /Users/ajaythirumurthi/wardrobe-app

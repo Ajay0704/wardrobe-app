@@ -266,6 +266,12 @@ body {
   width: 11rem;
 }
 
+/* Failsafe: if website chrome somehow mounts inside Capacitor, hide it. */
+html.native-app .web-shell-header,
+html.native-app .web-shell-footer {
+  display: none !important;
+}
+
 /* Full-screen sheet for modals in the native app (edit item, etc.) so opening
    a wishlist product doesn't feel like the website dialog. */
 .native-app .native-modal-backdrop {

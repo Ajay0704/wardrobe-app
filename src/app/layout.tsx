@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Libre_Baskerville } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import { NativeAppClass } from "@/components/NativeAppClass";
+import { NATIVE_BOOT_SCRIPT } from "@/lib/platform";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -52,6 +54,10 @@ export default function RootLayout({
       className={`${geistSans.variable} ${libreBaskerville.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        {/* Runs before React so Capacitor never paints website chrome first. */}
+        <Script id="native-boot" strategy="beforeInteractive">
+          {NATIVE_BOOT_SCRIPT}
+        </Script>
         <NativeAppClass />
         {children}
       </body>

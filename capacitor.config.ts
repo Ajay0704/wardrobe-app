@@ -9,10 +9,24 @@ import type { CapacitorConfig } from "@capacitor/cli";
  * Local debug against `next dev`:
  *   CAPACITOR_SERVER_URL=http://<your-Mac-LAN-IP>:3000 npx cap sync ios
  *   (requires cleartext ATS allowance — already enabled below for http://)
+ *
+ * `?native=1` is a hard UI lock so AppShell always uses the native shell even
+ * if Capacitor bridge / UA detection flakes (fixes website top-nav flip).
  */
-const serverUrl =
+function withNativeFlag(raw: string): string {
+  try {
+    const url = new URL(raw);
+    url.searchParams.set("native", "1");
+    return url.toString();
+  } catch {
+    return raw.includes("?") ? `${raw}&native=1` : `${raw}?native=1`;
+  }
+}
+
+const serverUrl = withNativeFlag(
   process.env.CAPACITOR_SERVER_URL ??
-  "https://wardrobe-app-lilac-two.vercel.app";
+    "https://wardrobe-app-lilac-two.vercel.app",
+);
 
 const config: CapacitorConfig = {
   appId: "app.wardrobe.personal",

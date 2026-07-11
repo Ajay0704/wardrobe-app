@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import {
   isNativeApp,
   openExternalUrl,
   refreshNativeDetection,
+  stripNativeQueryFlag,
 } from "@/lib/platform";
 
 type Listener = () => void;
@@ -40,6 +41,7 @@ function lockNativeSnapshot() {
 function ensureNativeDetected() {
   if (refreshNativeDetection() || isNativeApp()) {
     lockNativeSnapshot();
+    stripNativeQueryFlag();
     return true;
   }
   return false;
@@ -62,6 +64,10 @@ if (typeof window !== "undefined") {
  * <a> clicks so shop links open in Safari instead of killing the app WebView.
  */
 export function NativeAppClass() {
+  useLayoutEffect(() => {
+    ensureNativeDetected();
+  }, []);
+
   useEffect(() => {
     ensureNativeDetected();
     const t1 = window.setTimeout(ensureNativeDetected, 50);
@@ -109,6 +115,10 @@ export function NativeAppClass() {
 export function useIsNativeApp(): boolean {
   const native = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
+  useLayoutEffect(() => {
+    ensureNativeDetected();
+  }, []);
+
   useEffect(() => {
     ensureNativeDetected();
     const t1 = window.setTimeout(ensureNativeDetected, 50);
@@ -119,6 +129,5 @@ export function useIsNativeApp(): boolean {
     };
   }, []);
 
-  // Sync path: module lock / session / UA / Capacitor — never wait on effects.
   return native || isNativeApp();
 }

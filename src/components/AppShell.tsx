@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
 import { isNativeApp } from "@/lib/platform";
 import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
@@ -146,17 +146,75 @@ function AuthLanding({
   );
 }
 
+/**
+ * Sign-in screen shown inside the Capacitor app when logged out — replaces the
+ * website marketing landing so the native shell never shows web chrome.
+ */
+function NativeAuthGate({
+  mode,
+  onMode,
+  sharedOutfit,
+}: {
+  mode: AuthMode | null;
+  onMode: (mode: AuthMode | null) => void;
+  sharedOutfit?: boolean;
+}) {
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-background px-8 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-center">
+      <div>
+        <span className="brand-wordmark-kicker block">Your Personal</span>
+        <span className="brand-wordmark-name text-4xl">Wardrobe</span>
+      </div>
+      {sharedOutfit && (
+        <p className="rounded-full border border-line bg-surface px-4 py-1.5 text-xs text-muted">
+          Someone shared an outfit with you — log in to view it.
+        </p>
+      )}
+      <p className="max-w-xs text-sm text-muted">
+        Sign in to open your closet, outfits, and wishlist.
+      </p>
+      <div className="flex w-full max-w-xs flex-col gap-3">
+        <button
+          type="button"
+          onClick={() => onMode("login")}
+          className="rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
+        >
+          Log in
+        </button>
+        <button
+          type="button"
+          onClick={() => onMode("signup")}
+          className="rounded-full border border-line px-6 py-3 text-sm font-medium transition-colors hover:bg-surface-2"
+        >
+          Create account
+        </button>
+      </div>
+      {mode && <AuthModal mode={mode} onClose={() => onMode(null)} />}
+    </div>
+  );
+}
+
 function AppShellInner() {
   const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
     useWardrobe();
   const isNative = useIsNativeApp();
   // One-way latch: once the native shell is chosen, never fall back to website
   // chrome (item taps used to remount detection and flip the top nav back on).
-  const [nativeLatched, setNativeLatched] = useState(() =>
-    typeof window !== "undefined" ? isNativeApp() : false,
-  );
-  useEffect(() => {
-    if (isNative || isNativeApp()) setNativeLatched(true);
+  const [nativeLatched, setNativeLatched] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return (
+      isNativeApp() ||
+      document.documentElement.classList.contains("native-app")
+    );
+  });
+  useLayoutEffect(() => {
+    if (
+      isNative ||
+      isNativeApp() ||
+      document.documentElement.classList.contains("native-app")
+    ) {
+      setNativeLatched(true);
+    }
   }, [isNative]);
   const showNative = nativeLatched || isNative || isNativeApp();
   const [sharedOutfit] = useState(
@@ -209,7 +267,21 @@ function AppShellInner() {
   }
 
   // Signed out (and not mid password-recovery) — show the sign-in landing.
+  // Inside the native app, never show the website landing (top-nav chrome);
+  // use a minimal native login screen so the app look never flips to web.
   if (gated && !authUser && !passwordRecovery) {
+    if (showNative) {
+      return (
+        <>
+          <ThemeEffect />
+          <NativeAuthGate
+            mode={authModal}
+            onMode={setAuthModal}
+            sharedOutfit={sharedOutfit}
+          />
+        </>
+      );
+    }
     return (
       <>
         <ThemeEffect />
@@ -242,7 +314,7 @@ function AppShellInner() {
       <ThemeEffect />
       <ShareLinkLoader />
 
-      <header className="sticky top-0 z-40 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
+      <header className="web-shell-header sticky top-0 z-40 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <div className="mx-auto flex max-w-7xl items-end justify-between gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-5">
           <BrandWordmark onClick={() => setView("today")} />
 
@@ -305,7 +377,7 @@ function AppShellInner() {
         <AppViews />
       </main>
 
-      <footer className="border-t border-line py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-xs text-muted">
+      <footer className="web-shell-footer border-t border-line py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-xs text-muted">
         {authUser
           ? `Signed in as ${authUser.email} — wardrobe synced to the cloud.`
           : "Use the app locally, or sign up to sync your wardrobe across devices."}
