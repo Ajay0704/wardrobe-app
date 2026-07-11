@@ -58,5 +58,7 @@
 	<string>Wardrobe needs photo access so you can add clothing images from your library.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Wardrobe may save clothing photos you capture to your library when you choose.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Wardrobe uses your location to suggest outfits for today’s weather.</string>
 </dict>
 </plist>

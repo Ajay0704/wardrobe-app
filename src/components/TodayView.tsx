@@ -71,7 +71,7 @@ function buildSuggestions(
 }
 
 export function TodayView() {
-  const { items, logWear, setDraft, setView, saveOutfit } = useWardrobe();
+  const { items, logWear, setDraft, setView, saveOutfit, profile } = useWardrobe();
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
@@ -83,7 +83,7 @@ export function TodayView() {
   const loadWeather = () => {
     setLoadingWeather(true);
     setWeatherError(null);
-    fetchLocalWeather()
+    fetchLocalWeather({ fallbackPlace: profile.location })
       .then((w) => {
         setWeather(w);
         setWeatherError(null);
@@ -178,19 +178,23 @@ export function TodayView() {
               ? "Checking the weather…"
               : weather
                 ? weather.label
-                : weatherError
-                  ? "Weather off — showing season-agnostic picks"
-                  : "Season-agnostic picks — add weather for local suggestions"}
+                : "Season-agnostic picks — add weather for local suggestions"}
           </p>
+          {weatherError && !weather && !loadingWeather && (
+            <p className="mt-2 max-w-md text-xs text-amber-700 dark:text-amber-400">
+              {weatherError}
+            </p>
+          )}
         </div>
         <div className="flex gap-2">
-          {!weather && !loadingWeather && (
+          {!loadingWeather && (
             <Button
               variant="outline"
               onClick={loadWeather}
               className="!py-2 text-xs"
             >
-              <CloudSun size={14} /> Use my location
+              <CloudSun size={14} />{" "}
+              {weather ? "Refresh weather" : "Use my location"}
             </Button>
           )}
           <Button
