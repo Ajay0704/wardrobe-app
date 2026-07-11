@@ -69,9 +69,17 @@ Create a trip → pack items → auto capsule outfits.
 
 Supabase email/password + cloud snapshot sync (items, outfits, trips, calendar, profile). See [[Supabase sync]].
 
-## PWA push (opt-in)
+## Onboarding + style quiz (first run)
 
-Morning outfit nudge + Sunday plan reminder. Settings → Notifications. Needs VAPID + cron env vars.
+Research-backed quiz (see [[Onboarding quiz research]]): **goal → occasions → style lean → “we get you” snapshot → Enter Wardrobe**. Activation is on **empty Today** (ambient “2 for a look”), not a fifth wizard step. Answers map to `styleVibes` for Today / Builder. Editable under Settings → Preferences. Skip anytime.
+
+**AJA-35 still open** — first-win activation UX (bulk/gallery path, etc.) not fully done.
+
+## Weekly habit + notifications (opt-in)
+
+- **Local habit strip** on Today (`src/lib/habit.ts`): days opened, outfits saved, wears logged this ISO week — privacy-first, no server.
+- **Website / PWA:** web push (morning + Sunday) via Settings → Notifications. Needs signed-in session + VAPID/cron env.
+- **Native iOS app:** on-device local reminders (7am daily + Sunday 10am) via `@capacitor/local-notifications` — same Settings entry. Remote APNs later (needs paid Apple Developer Program).
 
 ## Theme
 

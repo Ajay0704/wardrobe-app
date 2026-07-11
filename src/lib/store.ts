@@ -27,6 +27,7 @@ import {
 } from "./profile";
 import type { SyncStatus } from "./supabase/sync";
 import { scrubSnapshotImages } from "./heal";
+import { recordOutfitCreated, recordWearLogged } from "./habit";
 
 export type ThemeMode = "light" | "dark";
 export type View =
@@ -288,13 +289,15 @@ export const useWardrobe = create<WardrobeState>()(
           ) as Record<SlotKey, string[]>,
         })),
 
-      saveOutfit: (name, notes, itemIds) =>
+      saveOutfit: (name, notes, itemIds) => {
+        recordOutfitCreated();
         set((s) => ({
           outfits: [
             { id: uid(), name, notes, itemIds, createdAt: Date.now() },
             ...s.outfits,
           ],
-        })),
+        }));
+      },
 
       deleteOutfit: (id) =>
         set((s) => ({
@@ -322,6 +325,7 @@ export const useWardrobe = create<WardrobeState>()(
 
       logWear: ({ outfitId, itemIds, date, note }) => {
         const day = date ?? todayISO();
+        recordWearLogged();
         set((s) => {
           const ids = [...new Set(itemIds)];
           const entry: CalendarEntry = {

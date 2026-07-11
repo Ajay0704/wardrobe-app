@@ -59,6 +59,9 @@ const config: CapacitorConfig = {
     StatusBar: {
       style: "DEFAULT",
     },
+    LocalNotifications: {
+      presentationOptions: ["badge", "sound", "banner", "list"],
+    },
   },
 };
 

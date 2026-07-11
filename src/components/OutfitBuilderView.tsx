@@ -13,6 +13,7 @@ import { toPng } from "html-to-image";
 import { useCallback, useMemo, useRef, useState, type DragEvent } from "react";
 import { scorePair } from "@/lib/color";
 import { generateOutfit, outfitScore } from "@/lib/matching";
+import { primaryStyleVibe } from "@/lib/profile";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
 import type { Season, SlotKey, WardrobeItem } from "@/lib/types";
@@ -62,7 +63,7 @@ export function OutfitBuilderView() {
   } = useWardrobe();
 
   const previewRef = useRef<HTMLDivElement>(null);
-  const [vibe, setVibe] = useState<string>("casual");
+  const [vibe, setVibe] = useState<string>(() => primaryStyleVibe(profile));
   const [genSeason, setGenSeason] = useState<Season | "all">("all");
   const [anchorId, setAnchorId] = useState<string>("");
   const [saveOpen, setSaveOpen] = useState(false);

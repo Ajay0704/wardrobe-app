@@ -9,7 +9,9 @@ import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
+import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
+import { PushBootstrap } from "./PushBootstrap";
 import { ResetPasswordModal } from "./ResetPasswordModal";
 import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
@@ -196,8 +198,17 @@ function NativeAuthGate({
 }
 
 function AppShellInner() {
-  const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
-    useWardrobe();
+  const {
+    view,
+    setView,
+    theme,
+    setTheme,
+    authUser,
+    authChecked,
+    passwordRecovery,
+    profile,
+  } = useWardrobe();
+  const showOnboarding = Boolean(authUser && !profile.onboardingComplete);
   const isNative = useIsNativeApp();
   // One-way latch: once the native shell is chosen, never fall back to website
   // chrome (item taps used to remount detection and flip the top nav back on).
@@ -352,6 +363,7 @@ function AppShellInner() {
         <ThemeEffect />
         <ShareLinkLoader />
         <NativeShell />
+        {showOnboarding && <OnboardingModal />}
         {authModal && !authUser && !passwordRecovery && (
           <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
         )}
@@ -364,6 +376,7 @@ function AppShellInner() {
     <>
       <ThemeEffect />
       <ShareLinkLoader />
+      {showOnboarding && <OnboardingModal />}
 
       <header className="web-shell-header sticky top-0 z-40 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <div className="mx-auto flex max-w-7xl items-end justify-between gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-5">
@@ -446,6 +459,7 @@ function AppShellInner() {
 export function AppShell() {
   return (
     <AuthProvider>
+      <PushBootstrap />
       <AppShellInner />
     </AuthProvider>
   );

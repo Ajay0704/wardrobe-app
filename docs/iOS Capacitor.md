@@ -188,7 +188,7 @@ After changing `capacitor.config.ts` or plugins, always `cap:sync` **and rebuild
 
 - App Store / TestFlight / paid Developer Program
 - Offline-first native bundle of the Next app
-- Capacitor Push (web push / PWA SW is a separate path)
+- Capacitor Push / APNs (paid Developer Program) — for now: **local notifications** on-device (`@capacitor/local-notifications`)
 - Custom App Store icon set beyond Capacitor defaults (replace assets under `ios/App/App/Assets.xcassets` when you care)
 
 ## Troubleshooting

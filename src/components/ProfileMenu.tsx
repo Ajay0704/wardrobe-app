@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, PieChart, Settings, User, type LucideIcon } from "lucide-react";
+import { Bell, LogOut, PieChart, Settings, User, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
@@ -73,6 +73,9 @@ export function ProfileMenu() {
           <div className="py-1">
             <MenuItem icon={User} onClick={() => openSettings("profile")}>
               Profile
+            </MenuItem>
+            <MenuItem icon={Bell} onClick={() => openSettings("notifications")}>
+              Notifications
             </MenuItem>
             <MenuItem icon={Settings} onClick={() => openSettings("account")}>
               Settings

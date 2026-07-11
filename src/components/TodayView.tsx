@@ -1,8 +1,15 @@
 "use client";
 
 import { CloudSun, RefreshCw, Shirt } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { generateOutfit, outfitScore } from "@/lib/matching";
+import {
+  habitLabel,
+  readHabitWeek,
+  recordAppOpen,
+  type HabitWeek,
+} from "@/lib/habit";
+import { primaryStyleVibe } from "@/lib/profile";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { fetchLocalWeather, type WeatherSnapshot } from "@/lib/weather";
@@ -40,6 +47,7 @@ function buildSuggestions(
   pool: WardrobeItem[],
   season: Season | undefined,
   needsOuterwear: boolean,
+  vibe: string | undefined,
   count = 3,
 ): Suggestion[] {
   if (pool.length < 2) return [];
@@ -49,6 +57,7 @@ function buildSuggestions(
   for (let i = 0; i < count * 4 && out.length < count; i++) {
     const draft = generateOutfit(pool, {
       season,
+      vibe,
       // Bias outerwear when cold/wet by treating as winter-ish.
       ...(needsOuterwear && season !== "winter" ? { season: "winter" as Season } : {}),
     });
@@ -71,12 +80,18 @@ function buildSuggestions(
 }
 
 export function TodayView() {
-  const { items, logWear, setDraft, setView, saveOutfit, profile } = useWardrobe();
+  const { items, logWear, setDraft, setView, saveOutfit, profile, setAddOpen } =
+    useWardrobe();
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
   const [seed, setSeed] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
+  const [habit, setHabit] = useState<HabitWeek>(() => readHabitWeek());
+
+  useEffect(() => {
+    setHabit(recordAppOpen());
+  }, []);
 
   // Weather is opt-in: we only ask for location when the user taps "Use my
   // location", so landing on Today never triggers a surprise permission prompt.
@@ -102,16 +117,19 @@ export function TodayView() {
     [items, weather],
   );
 
+  const styleVibe = primaryStyleVibe(profile);
+
   const suggestions = useMemo(
     () =>
       buildSuggestions(
         pool,
         weather?.season,
         weather?.needsOuterwear ?? false,
+        styleVibe,
         3,
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed forces reshuffle
-    [pool, weather, seed],
+    [pool, weather, seed, styleVibe],
   );
 
   const flash = (msg: string) => {
@@ -121,6 +139,7 @@ export function TodayView() {
 
   const wearIt = (s: Suggestion) => {
     logWear({ itemIds: s.itemIds });
+    setHabit(readHabitWeek());
     flash("Logged — worn today");
   };
 
@@ -150,25 +169,67 @@ export function TodayView() {
       ? `${weather.season[0].toUpperCase()}${weather.season.slice(1)} look ${index + 1}`
       : `Today's look ${index + 1}`;
     saveOutfit(label, weather?.label ?? "", s.itemIds);
+    setHabit(readHabitWeek());
     flash("Saved to Outfits");
   };
 
-  if (items.filter((it) => !it.wishlist).length < 2) {
+  const owned = items.filter((it) => !it.wishlist);
+  const ownedCount = owned.length;
+  const needForLook = 2;
+  const remaining = Math.max(0, needForLook - ownedCount);
+
+  if (ownedCount < needForLook) {
+    const snapshot = profile.styleSnapshot;
     return (
-      <EmptyState
-        title="Add a few pieces first"
-        subtitle="Upload at least two owned items so we can suggest outfits for today."
-        action={
-          <Button onClick={() => setView("wardrobe")}>
-            <Shirt size={15} /> Open wardrobe
+      <div className="mx-auto max-w-lg space-y-6 py-6">
+        {snapshot && (
+          <div className="rounded-2xl border border-line bg-surface-2/50 px-4 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
+              Your style
+            </p>
+            <p className="mt-0.5 font-medium text-foreground">{snapshot}</p>
+          </div>
+        )}
+        <div className="space-y-3 text-center sm:text-left">
+          <h2 className="heading text-2xl sm:text-3xl">
+            {ownedCount === 0
+              ? "Add what you'd wear this week"
+              : "One more piece for a look"}
+          </h2>
+          <p className="text-sm leading-relaxed text-muted">
+            {ownedCount === 0
+              ? "Don't catalog your closet. Two owned pieces unlock today's suggestions — a top and bottoms (or a dress) is enough."
+              : `You have ${ownedCount}. Add ${remaining} more owned piece${remaining === 1 ? "" : "s"} and we'll suggest outfits.`}
+          </p>
+          <p className="text-xs text-muted">
+            {ownedCount}/{needForLook} for your first look
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <Button onClick={() => setAddOpen(true)}>
+            <Shirt size={15} />{" "}
+            {ownedCount === 0 ? "Add a piece" : "Add another piece"}
           </Button>
-        }
-      />
+          <Button variant="outline" onClick={() => setView("wardrobe")}>
+            Open closet
+          </Button>
+        </div>
+      </div>
     );
   }
 
   return (
     <div className="space-y-8">
+      <div className="rounded-2xl border border-line bg-surface-2/50 px-4 py-3 text-sm">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+          This week
+        </p>
+        <p className="mt-0.5 text-foreground">{habitLabel(habit)}</p>
+        <p className="mt-1 text-xs text-muted">
+          Coming back weekly is the goal — open Today, save a look, or log a wear.
+        </p>
+      </div>
+
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="heading text-2xl sm:text-3xl">What to wear today</h2>

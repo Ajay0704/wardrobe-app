@@ -3,7 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
-import { Button, Field, inputClass } from "./ui";
+import { Button, Chip, Field, inputClass } from "./ui";
 import { useWardrobe, type ThemeMode } from "@/lib/store";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import {
@@ -16,7 +16,13 @@ import {
   subscribeToPush,
   unsubscribeFromPush,
 } from "@/lib/push-client";
-import { SETTINGS_SECTIONS } from "@/lib/profile";
+import {
+  disableNativeOutfitReminders,
+  enableNativeOutfitReminders,
+  nativeNotificationsAvailable,
+  nativeNotificationsEnabledLocally,
+} from "@/lib/native-notifications";
+import { SETTINGS_SECTIONS, STYLE_QUIZ_VIBES } from "@/lib/profile";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currency";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -36,12 +42,8 @@ export function SettingsView() {
     setSettingsSection: setSection,
   } = useWardrobe();
 
-  // Web push doesn't work inside the Capacitor WebView (needs native APNs), so
-  // hide the Notifications section in the native app to avoid a dead-end.
   const native = useIsNativeApp();
-  const sections = native
-    ? SETTINGS_SECTIONS.filter((s) => s.id !== "notifications")
-    : SETTINGS_SECTIONS;
+  const sections = SETTINGS_SECTIONS;
 
   const handleAvatarUpload = async (file: File) => {
     try {
@@ -191,6 +193,61 @@ export function SettingsView() {
                   ))}
                 </select>
               </Field>
+              <Field
+                label="Style snapshot"
+                hint="From your first-run quiz. Edit vibes below to tweak Today suggestions."
+              >
+                <p className="rounded-xl border border-line bg-surface-2/50 px-3.5 py-3 text-sm">
+                  {profile.styleSnapshot ||
+                    (profile.styleVibes?.length
+                      ? profile.styleVibes.join(" · ")
+                      : "Not set yet — complete the quiz after a fresh sign-in, or pick vibes below.")}
+                </p>
+              </Field>
+              <Field
+                label="Style vibes"
+                hint="Used for Today and Generate outfit. Pick up to three."
+              >
+                <div className="flex flex-wrap gap-2">
+                  {STYLE_QUIZ_VIBES.map((v) => {
+                    const active = (profile.styleVibes ?? []).includes(v);
+                    return (
+                      <Chip
+                        key={v}
+                        active={active}
+                        onClick={() => {
+                          const cur = profile.styleVibes ?? [];
+                          if (active) {
+                            updateProfile({
+                              styleVibes: cur.filter((x) => x !== v),
+                            });
+                            return;
+                          }
+                          const next =
+                            cur.length >= 3 ? [...cur.slice(1), v] : [...cur, v];
+                          updateProfile({ styleVibes: next });
+                        }}
+                      >
+                        {v}
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </Field>
+              <Button
+                variant="outline"
+                onClick={() =>
+                  updateProfile({
+                    onboardingComplete: false,
+                    styleGoal: undefined,
+                    styleOccasions: undefined,
+                    styleLean: undefined,
+                    styleSnapshot: undefined,
+                  })
+                }
+              >
+                Retake style quiz
+              </Button>
               <p className="text-xs text-muted">
                 Changes save automatically to this browser
                 {isSupabaseConfigured() ? " and sync to the cloud." : "."}
@@ -198,7 +255,9 @@ export function SettingsView() {
             </SettingsPanel>
           )}
 
-          {section === "notifications" && !native && <NotificationsPanel />}
+          {section === "notifications" && (
+            <NotificationsPanel native={native} />
+          )}
 
           {section === "data" && (
             <SettingsPanel title="Data & privacy">
@@ -238,58 +297,83 @@ export function SettingsView() {
   );
 }
 
-function NotificationsPanel() {
+function NotificationsPanel({ native }: { native: boolean }) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const ready = pushConfigured();
+  const webReady = pushConfigured();
+  const nativeReady = nativeNotificationsAvailable();
 
   const enable = async () => {
     setBusy(true);
     setStatus(null);
-    const result = await subscribeToPush();
+    const result = native
+      ? await enableNativeOutfitReminders()
+      : await subscribeToPush();
     setBusy(false);
-    setStatus(result.ok ? "Enabled — you'll get morning outfit nudges." : result.error);
+    if (result.ok) {
+      setStatus(
+        native
+          ? "Enabled — daily 7am + Sunday 10am reminders on this phone."
+          : "Enabled — you'll get morning outfit nudges.",
+      );
+    } else {
+      setStatus(result.error);
+    }
   };
 
   const disable = async () => {
     setBusy(true);
-    await unsubscribeFromPush();
+    if (native) await disableNativeOutfitReminders();
+    else await unsubscribeFromPush();
     setBusy(false);
-    setStatus("Push disabled on this device.");
+    setStatus(
+      native
+        ? "Reminders cleared on this phone."
+        : "Push disabled on this device.",
+    );
   };
 
   return (
     <SettingsPanel title="Notifications">
       <p className="text-sm text-muted">
-        Opt in for a ~7am &quot;here&apos;s today&apos;s outfit&quot; nudge and a
-        Sunday &quot;plan your week&quot; reminder. Requires installing the PWA
-        (or keeping the tab) and allowing notifications.
+        {native
+          ? 'Get a 7am "here\'s today\'s outfit" nudge and a Sunday "plan your week" reminder on this phone.'
+          : 'Get a ~7am outfit nudge and a Sunday "plan your week" reminder in this browser / PWA.'}
       </p>
-      {!ready && (
+      {native && !nativeReady && (
         <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-          Server keys not set yet. Add{" "}
-          <code className="font-mono">NEXT_PUBLIC_VAPID_PUBLIC_KEY</code>,{" "}
-          <code className="font-mono">VAPID_PRIVATE_KEY</code>,{" "}
-          <code className="font-mono">VAPID_SUBJECT</code>,{" "}
-          <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code>, and{" "}
-          <code className="font-mono">CRON_SECRET</code> — then run the{" "}
-          <code className="font-mono">push_subscriptions</code> SQL in{" "}
-          <code className="font-mono">supabase/schema.sql</code>.
+          If Enable does nothing useful, rebuild from Xcode (Product → Run) so
+          Local Notifications is in the app binary.
         </p>
       )}
-      <div className="flex flex-wrap gap-2">
-        <Button disabled={busy || !ready} onClick={() => void enable()}>
-          Enable morning push
+      {!native && !webReady && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          Push keys are not configured on the server yet.
+        </p>
+      )}
+      {(native ? nativeReady && nativeNotificationsEnabledLocally() : false) && (
+        <p className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-800 dark:text-emerald-200">
+          Reminders are on for this install.
+        </p>
+      )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+        <Button
+          disabled={busy}
+          onClick={() => void enable()}
+          className="w-full sm:w-auto"
+        >
+          Enable notifications
         </Button>
         <Button
           variant="outline"
           disabled={busy}
           onClick={() => void disable()}
+          className="w-full sm:w-auto"
         >
-          Disable on this device
+          Disable
         </Button>
       </div>
-      {status && <p className="text-xs text-muted">{status}</p>}
+      {status && <p className="text-sm text-muted">{status}</p>}
     </SettingsPanel>
   );
 }

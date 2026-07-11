@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bell,
   CalendarDays,
   ChevronRight,
   Heart,
@@ -13,7 +14,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useMemo } from "react";
-import { useWardrobe, type View } from "@/lib/store";
+import { useWardrobe } from "@/lib/store";
+import type { SettingsSection } from "@/lib/profile";
 import { signOut } from "@/lib/supabase/auth";
 import { ProfileAvatar } from "./ProfileAvatar";
 
@@ -47,6 +49,11 @@ export function YouView() {
     setAuthUser(null);
     setSyncStatus("offline");
     void signOut();
+  };
+
+  const openSettings = (section: SettingsSection) => {
+    setSettingsSection(section);
+    setView("settings");
   };
 
   return (
@@ -93,12 +100,14 @@ export function YouView() {
         <Row icon={PieChart} label="Insights" onClick={() => setView("insights")} />
         <Row icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} />
         <Row
+          icon={Bell}
+          label="Notifications"
+          onClick={() => openSettings("notifications")}
+        />
+        <Row
           icon={Settings}
           label="Settings"
-          onClick={() => {
-            setSettingsSection("profile");
-            setView("settings");
-          }}
+          onClick={() => openSettings("profile")}
         />
         <Row
           icon={theme === "dark" ? Sun : Moon}

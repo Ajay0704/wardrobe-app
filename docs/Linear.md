@@ -48,12 +48,13 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 | [AJA-14](https://linear.app/ajay-karthick/issue/AJA-14) | Sync reliability |
 | [AJA-15](https://linear.app/ajay-karthick/issue/AJA-15) | Today weather opt-in; hide push in native |
 | [AJA-25](https://linear.app/ajay-karthick/issue/AJA-25) | Linear ↔ git commit auto-sync |
+| [AJA-36](https://linear.app/ajay-karthick/issue/AJA-36) | Weekly habit loop + activate web push |
+| [AJA-75](https://linear.app/ajay-karthick/issue/AJA-75) | Native app local notification reminders |
 
 ### Todo (next)
 
 | ID | Title | Priority |
 |----|-------|----------|
-| [AJA-16](https://linear.app/ajay-karthick/issue/AJA-16) | Run Supabase `calendar` column migration | High |
 | [AJA-17](https://linear.app/ajay-karthick/issue/AJA-17) | Packing capsule — weather-aware trips | Medium |
 | [AJA-18](https://linear.app/ajay-karthick/issue/AJA-18) | Flat-lay → packshot polish | Medium |
 | [AJA-22](https://linear.app/ajay-karthick/issue/AJA-22) | Fix native shell flash of web chrome | Low |
