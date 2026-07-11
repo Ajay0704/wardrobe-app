@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 import { agentLog } from "@/lib/agent-log";
 import {
+  installNativeWindowOpenGuard,
   isNativeApp,
   openExternalUrl,
   refreshNativeDetection,
   stripNativeQueryFlag,
 } from "@/lib/platform";
+import { Browser } from "@capacitor/browser";
+import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -71,6 +73,7 @@ export function NativeAppClass() {
 
   useEffect(() => {
     const detected = ensureNativeDetected();
+    installNativeWindowOpenGuard();
     // #region agent log
     agentLog("E", "NativeAppClass.tsx:boot", "Native detection boot", {
       detected,
@@ -80,6 +83,21 @@ export function NativeAppClass() {
       uaHasWardrobe: navigator.userAgent.includes("WardrobeApp"),
     });
     // #endregion
+
+    let sub: { remove: () => void } | undefined;
+    void Browser.addListener("browserFinished", () => {
+      refreshNativeDetection();
+      installNativeWindowOpenGuard();
+      // #region agent log
+      agentLog("C", "NativeAppClass.tsx:browserFinished", "Browser closed — re-locked native", {
+        isNativeAppFn: isNativeApp(),
+        htmlNative: document.documentElement.classList.contains("native-app"),
+      });
+      // #endregion
+    }).then((handle) => {
+      sub = handle;
+    });
+
     const t1 = window.setTimeout(ensureNativeDetected, 50);
     const t2 = window.setTimeout(ensureNativeDetected, 500);
     const t3 = window.setTimeout(ensureNativeDetected, 2000);
@@ -113,6 +131,7 @@ export function NativeAppClass() {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      sub?.remove();
     };
   }, []);
   return null;

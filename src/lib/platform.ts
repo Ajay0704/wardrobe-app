@@ -49,19 +49,12 @@ function hasNativeHtmlClass(): boolean {
   }
 }
 
-function detectNative(): boolean {
-  if (typeof window === "undefined") return false;
-
-  // Hard lock from Capacitor server.url (?native=1) — most reliable signal.
-  if (hasNativeQueryFlag()) return true;
-  if (hasNativeHtmlClass()) return true;
-
+function hasCapacitorBridge(): boolean {
   try {
     if (Capacitor.isNativePlatform()) return true;
   } catch {
-    /* bridge not ready */
+    /* ignore */
   }
-
   try {
     const cap = (
       window as unknown as {
@@ -74,11 +67,17 @@ function detectNative(): boolean {
   } catch {
     /* ignore */
   }
+  return false;
+}
 
+function detectNative(): boolean {
+  if (typeof window === "undefined") return false;
+  if (hasNativeQueryFlag()) return true;
+  if (hasNativeHtmlClass()) return true;
+  if (hasCapacitorBridge()) return true;
   if (typeof navigator !== "undefined" && navigator.userAgent.includes("WardrobeApp")) {
     return true;
   }
-
   try {
     if (
       (window as unknown as { webkit?: { messageHandlers?: { bridge?: unknown } } }).webkit
@@ -89,7 +88,6 @@ function detectNative(): boolean {
   } catch {
     /* ignore */
   }
-
   return false;
 }
 
@@ -147,9 +145,21 @@ export function stripNativeQueryFlag(): void {
   }
 }
 
+/** True if we must never navigate the WebView to an external shop URL. */
+export function mustUseExternalBrowser(): boolean {
+  if (typeof window === "undefined") return false;
+  return (
+    isNativeApp() ||
+    hasCapacitorBridge() ||
+    hasNativeHtmlClass() ||
+    readPersistedLock() ||
+    (typeof navigator !== "undefined" && navigator.userAgent.includes("WardrobeApp"))
+  );
+}
+
 /**
- * Open an http(s) URL outside the app WebView (Safari).
- * Never use target=_blank / window.open inside Capacitor — it replaces the WebView.
+ * Open an http(s) URL outside the app WebView (Safari / SFSafariViewController).
+ * Never use window.open inside Capacitor — it replaces the WebView with the shop.
  */
 export async function openExternalUrl(raw: string): Promise<void> {
   let url: string;
@@ -160,23 +170,14 @@ export async function openExternalUrl(raw: string): Promise<void> {
   }
   if (!/^https?:\/\//i.test(url)) return;
 
-  // Treat html.native-app / storage lock as native even if Capacitor bridge flakes.
-  let locked = false;
-  try {
-    locked =
-      document.documentElement.classList.contains("native-app") ||
-      localStorage.getItem(NATIVE_LOCK_KEY) === "1" ||
-      sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
-  } catch {
-    /* ignore */
-  }
-  const native = isNativeApp() || locked;
+  const forceExternal = mustUseExternalBrowser();
   // #region agent log
   try {
     const { agentLog } = await import("@/lib/agent-log");
     agentLog("C", "platform.ts:openExternalUrl", "opening external url", {
-      native,
-      locked,
+      forceExternal,
+      isNative: isNativeApp(),
+      hasCap: hasCapacitorBridge(),
       host: new URL(url).hostname,
     });
   } catch {
@@ -184,7 +185,7 @@ export async function openExternalUrl(raw: string): Promise<void> {
   }
   // #endregion
 
-  if (native) {
+  if (forceExternal) {
     try {
       await Browser.open({ url });
       // #region agent log
@@ -210,11 +211,44 @@ export async function openExternalUrl(raw: string): Promise<void> {
         /* ignore */
       }
       // #endregion
-      // Never window.open here — that navigates the Capacitor WebView to the shop.
       return;
     }
   }
   window.open(url, "_blank", "noopener,noreferrer");
+}
+
+/**
+ * Patch window.open so any leftover callers cannot navigate the Capacitor WebView.
+ * Call once on native boot.
+ */
+export function installNativeWindowOpenGuard(): void {
+  if (typeof window === "undefined") return;
+  if (!mustUseExternalBrowser()) return;
+  const w = window as Window & { __wardrobeOpenPatched?: boolean };
+  if (w.__wardrobeOpenPatched) return;
+  w.__wardrobeOpenPatched = true;
+  const original = window.open.bind(window);
+  window.open = ((url?: string | URL, target?: string, features?: string) => {
+    const href = typeof url === "string" ? url : url?.toString();
+    if (href && /^https?:\/\//i.test(href)) {
+      // #region agent log
+      void import("@/lib/agent-log").then(({ agentLog }) => {
+        agentLog("C", "platform.ts:window.open.guard", "intercepted window.open", {
+          host: (() => {
+            try {
+              return new URL(href).hostname;
+            } catch {
+              return "";
+            }
+          })(),
+        });
+      });
+      // #endregion
+      void openExternalUrl(href);
+      return null;
+    }
+    return original(url, target, features);
+  }) as typeof window.open;
 }
 
 /**
