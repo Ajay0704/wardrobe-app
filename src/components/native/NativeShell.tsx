@@ -8,6 +8,7 @@ import {
   LogOut,
   Moon,
   MoreHorizontal,
+  PieChart,
   Plane,
   Settings,
   Shirt,
@@ -31,6 +32,7 @@ const TABS: { view: View; label: string; Icon: LucideIcon }[] = [
 
 const MORE_ITEMS: { view: View; label: string; Icon: LucideIcon }[] = [
   { view: "today", label: "Today", Icon: Home },
+  { view: "insights", label: "Insights", Icon: PieChart },
   { view: "calendar", label: "Calendar", Icon: CalendarDays },
   { view: "travel", label: "Travel", Icon: Plane },
   { view: "settings", label: "Settings", Icon: Settings },
@@ -44,6 +46,7 @@ const TITLES: Partial<Record<View, string>> = {
   calendar: "Calendar",
   wishlist: "Wishlist",
   travel: "Travel",
+  insights: "Insights",
   settings: "Settings",
 };
 

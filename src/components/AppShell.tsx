@@ -176,6 +176,7 @@ function AppShellInner() {
       v === "calendar" ||
       v === "wishlist" ||
       v === "travel" ||
+      v === "insights" ||
       v === "settings"
     ) {
       setView(v);

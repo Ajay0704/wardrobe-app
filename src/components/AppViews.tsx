@@ -9,6 +9,7 @@ import { TravelView } from "./TravelView";
 import { SettingsView } from "./SettingsView";
 import { TodayView } from "./TodayView";
 import { CalendarView } from "./CalendarView";
+import { InsightsView } from "./InsightsView";
 
 /**
  * Renders the current view's content. Shared by the web shell (AppShell) and the
@@ -25,6 +26,7 @@ export function AppViews() {
       {view === "calendar" && <CalendarView />}
       {view === "wishlist" && <WishlistView />}
       {view === "travel" && <TravelView />}
+      {view === "insights" && <InsightsView />}
       {view === "settings" && <SettingsView />}
     </>
   );

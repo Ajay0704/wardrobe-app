@@ -37,6 +37,7 @@ export type View =
   | "calendar"
   | "wishlist"
   | "travel"
+  | "insights"
   | "settings";
 
 export interface Filters {
@@ -511,6 +512,7 @@ export const useWardrobe = create<WardrobeState>()(
               "calendar",
               "wishlist",
               "travel",
+              "insights",
               "settings",
             ].includes(p.view)
               ? (p.view as View)

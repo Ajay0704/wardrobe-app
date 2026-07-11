@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, Settings, User, type LucideIcon } from "lucide-react";
+import { LogOut, PieChart, Settings, User, type LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
@@ -40,6 +40,11 @@ export function ProfileMenu() {
     setOpen(false);
   };
 
+  const goInsights = () => {
+    setView("insights");
+    setOpen(false);
+  };
+
   const logOut = () => {
     // Clear local state first so logout is instant even if the network is slow.
     setOpen(false);
@@ -71,6 +76,9 @@ export function ProfileMenu() {
             </MenuItem>
             <MenuItem icon={Settings} onClick={() => openSettings("account")}>
               Settings
+            </MenuItem>
+            <MenuItem icon={PieChart} onClick={goInsights}>
+              Insights
             </MenuItem>
           </div>
           <div className="border-t border-line py-1">
