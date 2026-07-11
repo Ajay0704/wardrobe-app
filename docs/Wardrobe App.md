@@ -14,6 +14,7 @@ Project hub for the personal wardrobe app — notes, architecture, and decisions
 - [[Phase 0-1 status]]
 - [[iOS Capacitor]]
 - [[Claude Code handoff — iOS Capacitor]]
+- [[Linear]]
 
 ## Repo
 

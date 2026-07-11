@@ -1,0 +1,15 @@
+---
+description: Linear issue tracking for Your Personal Wardrobe
+alwaysApply: true
+---
+
+# Linear
+
+- Team: **Ajay Karthick** (`AJA`)
+- Project: **Your Personal Wardrobe** — https://linear.app/ajay-karthick/project/your-personal-wardrobe-629ac27fcd73
+- Docs: `docs/Linear.md` · protocol: `AGENTS.md`
+
+When tracking work, use Linear MCP on this project. Put `AJA-xx:` in commit messages so the post-commit hook comments the issue.
+
+**Next high priority:** [AJA-16](https://linear.app/ajay-karthick/issue/AJA-16) Supabase `calendar` column migration.  
+Dual UI ([AJA-6](https://linear.app/ajay-karthick/issue/AJA-6)) is Done. Do not start App Store ([AJA-8](https://linear.app/ajay-karthick/issue/AJA-8)) unless asked.
