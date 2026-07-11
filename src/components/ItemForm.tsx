@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
+import { Camera, ExternalLink, Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { affiliateUrl } from "@/lib/affiliate";
 import { extractDominantColor, nameColor } from "@/lib/color";
@@ -319,18 +319,48 @@ export function ItemForm({
               </div>
             )}
           </div>
-          <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
-            <Upload size={13} /> {uploading ? "Uploading…" : "Upload image"}
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              disabled={uploading}
-              onChange={(e) =>
-                e.target.files?.[0] && handleFile(e.target.files[0])
-              }
-            />
-          </label>
+          {isNative ? (
+            <div className="flex gap-2">
+              <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
+                <Upload size={13} /> {uploading ? "…" : "Upload"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) =>
+                    e.target.files?.[0] && handleFile(e.target.files[0])
+                  }
+                />
+              </label>
+              <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
+                <Camera size={13} /> Take photo
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  disabled={uploading}
+                  onChange={(e) =>
+                    e.target.files?.[0] && handleFile(e.target.files[0])
+                  }
+                />
+              </label>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
+              <Upload size={13} /> {uploading ? "Uploading…" : "Upload image"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) =>
+                  e.target.files?.[0] && handleFile(e.target.files[0])
+                }
+              />
+            </label>
+          )}
 
           {imageUrl && (
             <div className="flex flex-col gap-1.5">
