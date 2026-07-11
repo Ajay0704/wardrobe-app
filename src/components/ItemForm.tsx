@@ -7,12 +7,14 @@ import {
   Link2,
   Pipette,
   Scissors,
+  Search,
   Sparkles,
   Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import type { ProductCandidate } from "@/app/api/find-product/route";
 import { affiliateUrl } from "@/lib/affiliate";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { captureNativePhoto } from "@/lib/native-camera";
@@ -23,6 +25,7 @@ import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
+import { FindProductSheet } from "./FindProductSheet";
 import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -89,6 +92,12 @@ export function ItemForm({
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeMsg, setAnalyzeMsg] = useState("");
   const [removingBg, setRemovingBg] = useState(false);
+  const [findingProduct, setFindingProduct] = useState(false);
+  const [findCandidates, setFindCandidates] = useState<ProductCandidate[] | null>(
+    null,
+  );
+  const [findMessage, setFindMessage] = useState("");
+  const [findMsg, setFindMsg] = useState("");
 
   // Phone: don't steal focus into Name when opening a clipped wishlist item.
   useEffect(() => {
@@ -251,8 +260,11 @@ export function ItemForm({
     }
   };
 
-  const handleFetchDetails = async () => {
-    const url = productUrl.trim();
+  const handleFetchDetails = async (
+    overrideUrl?: string,
+    opts?: { keepImage?: boolean; keepName?: boolean },
+  ) => {
+    const url = (overrideUrl ?? productUrl).trim();
     if (!url) return;
     setFetching(true);
     setFetchMsg("");
@@ -268,10 +280,12 @@ export function ItemForm({
         return;
       }
       if (typeof data.name === "string" && data.name.trim()) {
-        setName(data.name.trim());
+        setName((prev) =>
+          opts?.keepName && prev.trim() ? prev : data.name.trim(),
+        );
       }
       if (typeof data.brand === "string" && data.brand.trim()) {
-        setBrand(data.brand.trim());
+        setBrand((prev) => (prev.trim() ? prev : data.brand.trim()));
       }
       // API may return price as number or numeric string depending on the shop.
       const priceVal =
@@ -284,6 +298,11 @@ export function ItemForm({
         setPrice(String(priceVal));
       }
       if (data.description && !notes.trim()) setNotes(data.description);
+
+      if (opts?.keepImage) {
+        setFetchMsg("Filled link, price and brand — review before saving.");
+        return;
+      }
 
       let gotImage = false;
       // Re-host the fetched image to Storage (durable + CORS-friendly for color
@@ -330,6 +349,61 @@ export function ItemForm({
     }
   };
 
+  const handleFindProduct = async () => {
+    if (!imageUrl.startsWith("http")) {
+      setFindMsg(
+        "Upload the photo while signed in first so it has a public Storage URL.",
+      );
+      return;
+    }
+    setFindingProduct(true);
+    setFindMsg("");
+    setFindMessage("");
+    setFindCandidates(null);
+    try {
+      const hint = [name, brand, category].filter(Boolean).join(" ").trim();
+      const res = await fetch("/api/find-product", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(await authHeaders()),
+        },
+        body: JSON.stringify({ imageUrl, hint: hint || undefined }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        message?: string;
+        candidates?: ProductCandidate[];
+      };
+      if (!res.ok) {
+        setFindMsg(data.error || "Couldn't search for this product.");
+        return;
+      }
+      setFindMessage(data.message || "");
+      setFindCandidates(data.candidates ?? []);
+      if (!(data.candidates ?? []).length) {
+        setFindMsg(
+          data.message ||
+            "No product listings found. Try a clearer photo or paste a shop link.",
+        );
+      }
+    } catch {
+      setFindMsg("Product search failed. Try again or paste a shop link.");
+    } finally {
+      setFindingProduct(false);
+    }
+  };
+
+  const handlePickCandidate = (c: ProductCandidate) => {
+    setFindCandidates(null);
+    setProductUrl(c.link);
+    if (c.price != null && Number.isFinite(c.price) && c.price > 0) {
+      setPrice(String(c.price));
+    }
+    setFetchMsg("Fetching full details from that listing…");
+    void handleFetchDetails(c.link, { keepImage: true, keepName: true });
+  };
+
   const handleExtract = async () => {
     setExtracting(true);
     setExtractError("");
@@ -366,6 +440,7 @@ export function ItemForm({
 
   const title = initial ? "Edit item" : "Add item";
   const form = (
+    <>
       <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
         {/* Live image preview */}
         <div className="mx-auto w-44 space-y-2 lg:mx-0 lg:w-auto">
@@ -439,7 +514,21 @@ export function ItemForm({
               >
                 <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
               </button>
+              <button
+                type="button"
+                onClick={() => void handleFindProduct()}
+                disabled={findingProduct || uploading || fetching}
+                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+              >
+                <Search size={13} />{" "}
+                {findingProduct ? "Searching…" : "Find product online"}
+              </button>
             </div>
+          )}
+          {findMsg && (
+            <span className="block text-center text-[11px] text-muted">
+              {findMsg}
+            </span>
           )}
           {analyzeMsg && (
             <span className="block text-center text-[11px] text-muted">
@@ -475,7 +564,7 @@ export function ItemForm({
               />
               <Button
                 variant="outline"
-                onClick={handleFetchDetails}
+                onClick={() => void handleFetchDetails()}
                 disabled={!productUrl.trim() || fetching}
                 title="Fetch product details from this link"
                 className="!px-3 !py-2 text-xs whitespace-nowrap"
@@ -644,6 +733,15 @@ export function ItemForm({
           </div>
         </div>
       </div>
+      {findCandidates !== null && (
+        <FindProductSheet
+          candidates={findCandidates}
+          message={findMessage}
+          onPick={handlePickCandidate}
+          onClose={() => setFindCandidates(null)}
+        />
+      )}
+    </>
   );
 
   // Phone + Capacitor: full-page editor portaled to <body> so iOS WebKit

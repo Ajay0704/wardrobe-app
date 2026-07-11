@@ -74,6 +74,7 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 | [AJA-24](https://linear.app/ajay-karthick/issue/AJA-24) | Commit activity log (meta) |
 | [AJA-34](https://linear.app/ajay-karthick/issue/AJA-34)–[AJA-49](https://linear.app/ajay-karthick/issue/AJA-49) | Prior research backlog (bulk ingest, stylist, resale, …) |
 | [AJA-58](https://linear.app/ajay-karthick/issue/AJA-58)–[AJA-72](https://linear.app/ajay-karthick/issue/AJA-72) | Market-gap ideas Jul 11 (utilization, calendar, wash, family, DPP, B2B, local store finder, …) |
+| [AJA-79](https://linear.app/ajay-karthick/issue/AJA-79) | Closet photo → product link/price — **Done** (SerpAPI Lens + Find product sheet) |
 
 Notion scratchpad: [New ideas](https://app.notion.com/p/39ac075eff4c8146990be35f0d3506b3)
 
