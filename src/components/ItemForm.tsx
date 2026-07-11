@@ -1,8 +1,10 @@
 "use client";
 
-import { Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
+import { ExternalLink, Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
+import { affiliateUrl } from "@/lib/affiliate";
 import { extractDominantColor, nameColor } from "@/lib/color";
+import { openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
@@ -10,6 +12,7 @@ import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { SmartBuy } from "./SmartBuy";
+import { useIsNativeApp } from "./NativeAppClass";
 
 /**
  * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
@@ -25,6 +28,7 @@ export function ItemForm({
   onClose: () => void;
 }) {
   const { addItem, updateItem, authUser } = useWardrobe();
+  const isNative = useIsNativeApp();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -391,6 +395,19 @@ export function ItemForm({
             </div>
             {fetchMsg && (
               <span className="mt-1 block text-xs text-muted">{fetchMsg}</span>
+            )}
+            {productUrl.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  const url = affiliateUrl(productUrl.trim());
+                  if (url) void openExternalUrl(url);
+                }}
+                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-accent"
+              >
+                <ExternalLink size={12} />
+                {isNative ? "Open product page in Safari" : "Open product page"}
+              </button>
             )}
           </Field>
 

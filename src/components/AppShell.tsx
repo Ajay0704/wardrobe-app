@@ -3,6 +3,7 @@
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { isNativeApp } from "@/lib/platform";
 import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
@@ -149,6 +150,15 @@ function AppShellInner() {
   const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
     useWardrobe();
   const isNative = useIsNativeApp();
+  // One-way latch: once the native shell is chosen, never fall back to website
+  // chrome (item taps used to remount detection and flip the top nav back on).
+  const [nativeLatched, setNativeLatched] = useState(() =>
+    typeof window !== "undefined" ? isNativeApp() : false,
+  );
+  useEffect(() => {
+    if (isNative || isNativeApp()) setNativeLatched(true);
+  }, [isNative]);
+  const showNative = nativeLatched || isNative || isNativeApp();
   const [sharedOutfit] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -213,7 +223,7 @@ function AppShellInner() {
 
   // Native app (Capacitor iOS shell): logged-in users get the iOS-style chrome
   // with a bottom tab bar. The website keeps the header/footer chrome below.
-  if (isNative) {
+  if (showNative) {
     return (
       <>
         <ThemeEffect />

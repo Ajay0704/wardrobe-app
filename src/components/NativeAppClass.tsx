@@ -1,36 +1,83 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { isNativeApp, openExternalUrl } from "@/lib/platform";
+import { useEffect, useSyncExternalStore } from "react";
+import {
+  isNativeApp,
+  openExternalUrl,
+  refreshNativeDetection,
+} from "@/lib/platform";
 
-const NATIVE_LOCK_KEY = "wardrobe:native-shell";
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+/** Sticky: once true in this JS context, never goes back to false. */
+let snapshot = false;
+
+function subscribe(listener: Listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function getSnapshot() {
+  return snapshot;
+}
+
+function getServerSnapshot() {
+  return false;
+}
+
+function lockNativeSnapshot() {
+  if (snapshot) return;
+  snapshot = true;
+  try {
+    document.documentElement.classList.add("native-app");
+  } catch {
+    /* ignore */
+  }
+  listeners.forEach((l) => l());
+}
+
+function ensureNativeDetected() {
+  if (refreshNativeDetection() || isNativeApp()) {
+    lockNativeSnapshot();
+    return true;
+  }
+  return false;
+}
+
+// Eager client init so first paint after hydrate can already be native.
+if (typeof window !== "undefined") {
+  try {
+    if (isNativeApp()) {
+      snapshot = true;
+      document.documentElement.classList.add("native-app");
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 /**
- * Adds the `native-app` class to <html> when running inside the Capacitor shell,
- * so CSS and components can branch the look (app vs website) on the same URL.
- * No-op in a normal browser, so the website is unaffected.
- *
- * Also intercepts in-app clicks on external http(s) links so they open in Safari
- * instead of replacing the WebView.
+ * Adds `native-app` on <html>, keeps detection sticky, and intercepts external
+ * <a> clicks so shop links open in Safari instead of killing the app WebView.
  */
 export function NativeAppClass() {
   useEffect(() => {
-    const apply = () => {
-      const native = isNativeApp() || sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
-      if (isNativeApp()) sessionStorage.setItem(NATIVE_LOCK_KEY, "1");
-      document.documentElement.classList.toggle("native-app", native);
-      return native;
-    };
-
-    if (!apply()) return;
+    ensureNativeDetected();
+    const t1 = window.setTimeout(ensureNativeDetected, 50);
+    const t2 = window.setTimeout(ensureNativeDetected, 500);
+    const t3 = window.setTimeout(ensureNativeDetected, 2000);
 
     const onClick = (e: MouseEvent) => {
+      if (!isNativeApp()) return;
       const target = e.target;
       if (!(target instanceof Element)) return;
       const anchor = target.closest("a");
       if (!(anchor instanceof HTMLAnchorElement)) return;
       const href = anchor.getAttribute("href");
-      if (!href || href.startsWith("#") || href.startsWith("/")) return;
+      if (!href || href.startsWith("#") || href.startsWith("/") || href.startsWith("?")) {
+        return;
+      }
       let url: URL;
       try {
         url = new URL(href, window.location.href);
@@ -45,43 +92,33 @@ export function NativeAppClass() {
     };
 
     document.addEventListener("click", onClick, true);
-    // Bridge can inject slightly after first paint when using server.url
-    const t1 = window.setTimeout(apply, 50);
-    const t2 = window.setTimeout(apply, 400);
     return () => {
       document.removeEventListener("click", onClick, true);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
+      window.clearTimeout(t3);
     };
   }, []);
   return null;
 }
 
 /**
- * Client hook: false during SSR. Once we detect the Capacitor shell, stay on
- * the native chrome for the rest of the session (avoids flipping to the website
- * top-nav after opening a wishlist item / remount).
+ * Shared sticky native flag for the whole app. Once true, never returns false
+ * in this tab — prevents AppShell from swapping to website chrome.
  */
 export function useIsNativeApp(): boolean {
-  const locked = useRef(false);
-  const [native, setNative] = useState(false);
+  const native = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   useEffect(() => {
-    const check = () => {
-      if (isNativeApp() || sessionStorage.getItem(NATIVE_LOCK_KEY) === "1") {
-        if (isNativeApp()) sessionStorage.setItem(NATIVE_LOCK_KEY, "1");
-        locked.current = true;
-        setNative(true);
-      }
-    };
-    check();
-    const t1 = window.setTimeout(check, 50);
-    const t2 = window.setTimeout(check, 400);
+    ensureNativeDetected();
+    const t1 = window.setTimeout(ensureNativeDetected, 50);
+    const t2 = window.setTimeout(ensureNativeDetected, 500);
     return () => {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
   }, []);
 
-  return locked.current || native;
+  // Sync path: module lock / session / UA / Capacitor — never wait on effects.
+  return native || isNativeApp();
 }

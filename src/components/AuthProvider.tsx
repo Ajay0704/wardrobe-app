@@ -136,13 +136,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? { id: session.user.id, email: session.user.email }
           : null;
 
-      if (event === "SIGNED_OUT" || !sessionUser) {
+      // Only clear the session on explicit sign-out or the initial null session.
+      // Transient null sessions on other events (token refresh races) used to
+      // flash the website landing chrome inside the native app.
+      if (event === "SIGNED_OUT") {
         setAuthUser(null);
         userId.current = null;
         skipPush.current = true;
         setPasswordRecovery(false);
         setSyncStatus("offline");
         setAuthChecked(true);
+        return;
+      }
+
+      if (!sessionUser) {
+        if (event === "INITIAL_SESSION") {
+          setAuthUser(null);
+          userId.current = null;
+          skipPush.current = true;
+          setPasswordRecovery(false);
+          setSyncStatus("offline");
+          setAuthChecked(true);
+        }
         return;
       }
 

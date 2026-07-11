@@ -1,33 +1,111 @@
 import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 
-/**
- * True when running inside the Capacitor native shell (the iOS app), false in a
- * normal browser. Used to branch the UI for Option 1 "dual UI" while sharing one
- * backend and one production URL.
- *
- * Detection order (both, for robustness):
- *   1. `Capacitor.isNativePlatform()` — set when the web view is the Capacitor shell.
- *   2. User-agent contains `WardrobeApp` — injected via `overrideUserAgent` in
- *      `capacitor.config.ts`, a fallback if the Capacitor global isn't ready.
- *
- * SSR-safe: returns false on the server, so the website look is the default.
- */
-export function isNativeApp(): boolean {
+const NATIVE_LOCK_KEY = "wardrobe:native-shell";
+
+/** Process-lifetime lock — survives React remounts; cleared only on full reload. */
+let nativeLocked = false;
+
+function readPersistedLock(): boolean {
+  try {
+    if (sessionStorage.getItem(NATIVE_LOCK_KEY) === "1") return true;
+  } catch {
+    /* private mode / blocked storage */
+  }
+  try {
+    // localStorage survives some WebView session clears better than sessionStorage.
+    if (localStorage.getItem(NATIVE_LOCK_KEY) === "1") return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
+function writePersistedLock(): void {
+  try {
+    sessionStorage.setItem(NATIVE_LOCK_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  try {
+    localStorage.setItem(NATIVE_LOCK_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+}
+
+function detectNative(): boolean {
   if (typeof window === "undefined") return false;
+
   try {
     if (Capacitor.isNativePlatform()) return true;
   } catch {
-    /* not in a Capacitor context */
+    /* bridge not ready */
   }
-  return navigator.userAgent.includes("WardrobeApp");
+
+  // Capacitor global (injected into the WebView even with server.url)
+  try {
+    const cap = (
+      window as unknown as {
+        Capacitor?: { isNativePlatform?: () => boolean; getPlatform?: () => string };
+      }
+    ).Capacitor;
+    if (cap?.isNativePlatform?.()) return true;
+    const platform = cap?.getPlatform?.();
+    if (platform === "ios" || platform === "android") return true;
+  } catch {
+    /* ignore */
+  }
+
+  if (typeof navigator !== "undefined" && navigator.userAgent.includes("WardrobeApp")) {
+    return true;
+  }
+
+  // Capacitor often injects this protocol handler / iframe bridge marker.
+  try {
+    if (
+      (window as unknown as { webkit?: { messageHandlers?: { bridge?: unknown } } }).webkit
+        ?.messageHandlers?.bridge
+    ) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+
+  return false;
 }
 
 /**
- * Open an http(s) URL outside the app WebView.
- * In Capacitor, `target="_blank"` navigates the WebView itself (user loses the
- * app chrome and can't get back). Use Safari via the Browser plugin instead.
- * In a normal browser, opens a new tab.
+ * True inside the Capacitor iOS shell. Once true in this JS context, stays true
+ * so AppShell cannot flip to the website top-nav after opening an item.
+ */
+export function isNativeApp(): boolean {
+  if (typeof window === "undefined") return false;
+  if (nativeLocked || readPersistedLock()) {
+    nativeLocked = true;
+    return true;
+  }
+  if (detectNative()) {
+    nativeLocked = true;
+    writePersistedLock();
+    return true;
+  }
+  return false;
+}
+
+/** Call on app boot / after bridge ready to refresh detection. */
+export function refreshNativeDetection(): boolean {
+  if (detectNative()) {
+    nativeLocked = true;
+    writePersistedLock();
+  }
+  return isNativeApp();
+}
+
+/**
+ * Open an http(s) URL outside the app WebView (Safari).
+ * Never use target=_blank inside Capacitor — it can replace the WebView.
  */
 export async function openExternalUrl(raw: string): Promise<void> {
   let url: string;
@@ -43,8 +121,16 @@ export async function openExternalUrl(raw: string): Promise<void> {
       await Browser.open({ url });
       return;
     } catch {
-      /* fall through */
+      // Last resort — still avoid location.assign which replaces the WebView.
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        /* ignore */
+      }
+      return;
     }
   }
   window.open(url, "_blank", "noopener,noreferrer");
 }
+
+export { NATIVE_LOCK_KEY };

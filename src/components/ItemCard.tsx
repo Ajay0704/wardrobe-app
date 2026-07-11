@@ -7,12 +7,14 @@ import { affiliateUrl } from "@/lib/affiliate";
 import { openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
+import { useIsNativeApp } from "./NativeAppClass";
 import { ColorDot, MatchBadge } from "./ui";
 
 /**
  * Image-first card used in every grid. `matchScore` (when provided) renders
  * the green/amber/red harmony indicator against the current outfit draft.
- * Cards are draggable so the outfit builder supports drag-and-drop too.
+ * Cards are draggable on the website so the outfit builder supports drag-and-drop;
+ * drag is disabled in the native app (iOS drag gestures fight tap-to-edit).
  */
 export function ItemCard({
   item,
@@ -26,12 +28,18 @@ export function ItemCard({
   compact?: boolean;
 }) {
   const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
+  const isNative = useIsNativeApp();
   const [imgError, setImgError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const addAndGo = () => {
     addToDraft(item.id);
     if (!compact) setView("builder");
+  };
+
+  const openEditor = () => {
+    if (compact) addAndGo();
+    else onEdit?.(item);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -52,9 +60,17 @@ export function ItemCard({
 
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
-      onClick={() => (compact ? addAndGo() : onEdit?.(item))}
+      role="button"
+      tabIndex={0}
+      draggable={!isNative && !compact}
+      onDragStart={isNative ? undefined : handleDragStart}
+      onClick={openEditor}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openEditor();
+        }
+      }}
       title={compact ? "Add to outfit" : "Edit item"}
       className="group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface transition-shadow active:cursor-grabbing hover:shadow-lg hover:shadow-black/5"
     >
@@ -78,7 +94,7 @@ export function ItemCard({
           />
         )}
 
-        {!compact && (
+        {!compact && !isNative && (
           <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
             <CardAction title="Add to outfit" onClick={addAndGo}>
               <Plus size={15} />
@@ -162,11 +178,13 @@ export function ItemCard({
             ? ` · ${item.wearCount}× worn`
             : ""}
         </p>
-        {!compact && item.productUrl && (
+        {/* Shop link only on website cards — native opens it from the editor
+            to avoid accidental Safari / layout jumps from the grid. */}
+        {!compact && !isNative && item.productUrl && (
           <button
             type="button"
             onClick={openProduct}
-            title="View product in Safari"
+            title="View product page"
             className="flex items-center gap-1 pt-0.5 text-[11px] font-medium text-accent"
           >
             <ExternalLink size={11} />

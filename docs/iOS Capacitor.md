@@ -21,9 +21,19 @@ https://wardrobe-app-lilac-two.vercel.app  (or local next dev)
 
 Safe areas: the web app already uses `viewport-fit=cover` and `env(safe-area-inset-*)` in the shell/nav. Capacitor `ios.contentInset` is `never` (web owns insets). Mobile layout is forced via `preferredContentMode: mobile`, `overrideUserAgent` (includes `WardrobeApp`), and `MobileBridgeViewController`.
 
-## Dual UI (next)
+## Dual UI
 
-Same production URL for web and app; branch look with `Capacitor.isNativePlatform()` / UA `WardrobeApp`. Full agent brief: [[Claude Code handoff — iOS Capacitor]].
+Same production URL for web and app. The web app detects Capacitor via `isNativeApp()` (`src/lib/platform.ts`) — Capacitor bridge, UA `WardrobeApp`, and a one-way session/localStorage latch — then renders `NativeShell` (bottom tabs) instead of the website header.
+
+**If tapping a wishlist/closet item flips to the website top nav:** force-quit the app, pull latest on `main` (Vercel), then rebuild once so Browser + UA config stay in sync:
+
+```bash
+cd /Users/ajaythirumurthi/wardrobe-app
+npm run cap:sync
+npm run cap:open:ios
+```
+
+Then Run ▶. Expected: tap item name → full-screen editor → Close → still bottom tabs.
 
 ## Prerequisites
 
