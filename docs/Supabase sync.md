@@ -26,10 +26,11 @@ cp .env.example .env.local
 | `src/components/AuthProvider.tsx` | Auth context |
 | `src/components/SyncBadge.tsx` | Cloud status UI |
 
-## Behavior
+## Schema notes
 
-- Without env vars → local-only mode
-- With env vars → auto sync + cloud badge in header
+- Snapshot table: `wardrobe_snapshots` (one row per user)
+- JSONB columns: `items`, `outfits`, `trips`, `calendar`, `profile`, `theme`, `draft`
+- **`calendar` column (AJA-16):** added on live DB 2026-07-11 — wear-log / Calendar entries now round-trip web ↔ app. Migration: `supabase/migrations/20260711_add_calendar_column.sql`
 
 ## Related
 

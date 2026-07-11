@@ -32,7 +32,7 @@ Last updated: 2026-07-11
 
 ## Ops checklist (push)
 
-1. Run calendar + push SQL from `supabase/schema.sql`
+1. ~~Run calendar + push SQL from `supabase/schema.sql`~~ — **calendar column done (AJA-16, 2026-07-11)**; push_subscriptions still if missing
 2. `npx web-push generate-vapid-keys` → set env on Vercel
 3. Set `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET`
 4. Settings → Notifications → Enable
