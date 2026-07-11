@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
+import { agentLog } from "@/lib/agent-log";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { pullSnapshot, pushSnapshot } from "@/lib/supabase/sync";
@@ -140,6 +141,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Transient null sessions on other events (token refresh races) used to
       // flash the website landing chrome inside the native app.
       if (event === "SIGNED_OUT") {
+        // #region agent log
+        agentLog("B", "AuthProvider.tsx:SIGNED_OUT", "Auth cleared via SIGNED_OUT", {
+          event,
+        });
+        // #endregion
         setAuthUser(null);
         userId.current = null;
         skipPush.current = true;
@@ -151,12 +157,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!sessionUser) {
         if (event === "INITIAL_SESSION") {
+          // #region agent log
+          agentLog("B", "AuthProvider.tsx:INITIAL_null", "Auth null on INITIAL_SESSION", {
+            event,
+          });
+          // #endregion
           setAuthUser(null);
           userId.current = null;
           skipPush.current = true;
           setPasswordRecovery(false);
           setSyncStatus("offline");
           setAuthChecked(true);
+        } else {
+          // #region agent log
+          agentLog("B", "AuthProvider.tsx:transient_null", "Ignored transient null session", {
+            event,
+          });
+          // #endregion
         }
         return;
       }

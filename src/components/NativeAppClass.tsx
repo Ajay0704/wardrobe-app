@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
+import { agentLog } from "@/lib/agent-log";
 import {
   isNativeApp,
   openExternalUrl,
@@ -69,7 +70,16 @@ export function NativeAppClass() {
   }, []);
 
   useEffect(() => {
-    ensureNativeDetected();
+    const detected = ensureNativeDetected();
+    // #region agent log
+    agentLog("E", "NativeAppClass.tsx:boot", "Native detection boot", {
+      detected,
+      isNativeAppFn: isNativeApp(),
+      htmlNative: document.documentElement.classList.contains("native-app"),
+      href: window.location.href,
+      uaHasWardrobe: navigator.userAgent.includes("WardrobeApp"),
+    });
+    // #endregion
     const t1 = window.setTimeout(ensureNativeDetected, 50);
     const t2 = window.setTimeout(ensureNativeDetected, 500);
     const t3 = window.setTimeout(ensureNativeDetected, 2000);

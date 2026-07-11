@@ -2,8 +2,9 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
-import { isNativeApp } from "@/lib/platform";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { agentLog } from "@/lib/agent-log";
+import { isNativeApp, NATIVE_LOCK_KEY } from "@/lib/platform";
 import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
@@ -217,6 +218,7 @@ function AppShellInner() {
     }
   }, [isNative]);
   const showNative = nativeLatched || isNative || isNativeApp();
+  const branchRef = useRef<string>("");
   const [sharedOutfit] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -254,6 +256,55 @@ function AppShellInner() {
   // The app requires an account. Without Supabase configured, login is
   // impossible, so we fall back to the ungated app for local/dev use.
   const gated = isSupabaseConfigured();
+
+  // #region agent log
+  useEffect(() => {
+    let locked = false;
+    try {
+      locked =
+        localStorage.getItem(NATIVE_LOCK_KEY) === "1" ||
+        sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
+    } catch {
+      /* ignore */
+    }
+    const branch =
+      gated && !authChecked && hasStoredSession()
+        ? "splash"
+        : gated && !authUser && !passwordRecovery
+          ? showNative
+            ? "native-auth"
+            : "web-auth-landing"
+          : showNative
+            ? "native-shell"
+            : "web-shell";
+    if (branchRef.current !== branch) {
+      branchRef.current = branch;
+      agentLog("A", "AppShell.tsx:branch", "AppShell branch changed", {
+        branch,
+        showNative,
+        nativeLatched,
+        isNative,
+        isNativeAppFn: isNativeApp(),
+        htmlNative: document.documentElement.classList.contains("native-app"),
+        locked,
+        hasAuthUser: !!authUser,
+        authChecked,
+        view,
+        href: window.location.href,
+        uaHasWardrobe: navigator.userAgent.includes("WardrobeApp"),
+      });
+    }
+  }, [
+    gated,
+    showNative,
+    nativeLatched,
+    isNative,
+    authUser,
+    authChecked,
+    passwordRecovery,
+    view,
+  ]);
+  // #endregion
 
   // Only block on the splash when there's actually a stored session to restore.
   // Logged-out visitors (no token) skip it and see the landing immediately.
