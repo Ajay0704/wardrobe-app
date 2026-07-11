@@ -8,8 +8,16 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { Category, Outfit, Season, SlotKey, Trip, WardrobeItem } from "./types";
-import { SLOT_CONFIG, slotForCategory } from "./types";
+import type {
+  CalendarEntry,
+  Category,
+  Outfit,
+  Season,
+  SlotKey,
+  Trip,
+  WardrobeItem,
+} from "./types";
+import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
 import { demoItems } from "./demo-data";
 import {
   DEFAULT_PROFILE,
@@ -22,9 +30,11 @@ import { scrubSnapshotImages } from "./heal";
 
 export type ThemeMode = "light" | "dark";
 export type View =
+  | "today"
   | "wardrobe"
   | "builder"
   | "outfits"
+  | "calendar"
   | "wishlist"
   | "travel"
   | "settings";
@@ -49,6 +59,7 @@ interface WardrobeState {
   items: WardrobeItem[];
   outfits: Outfit[];
   trips: Trip[];
+  calendar: CalendarEntry[];
   profile: UserProfile;
   authUser: AuthUser | null;
   /** False until the initial Supabase session check resolves (gates the UI). */
@@ -78,6 +89,22 @@ interface WardrobeState {
   updateTrip: (id: string, patch: Partial<Trip>) => void;
   deleteTrip: (id: string) => void;
 
+  /** Log that an outfit (or loose items) was worn on a date. */
+  logWear: (opts: {
+    outfitId?: string;
+    itemIds: string[];
+    date?: string;
+    note?: string;
+  }) => void;
+  /** Schedule an outfit for a future (or today) date. */
+  planOutfit: (opts: {
+    outfitId?: string;
+    itemIds: string[];
+    date: string;
+    note?: string;
+  }) => void;
+  deleteCalendarEntry: (id: string) => void;
+
   updateProfile: (patch: Partial<UserProfile>) => void;
   resetAll: () => void;
   setAuthUser: (user: AuthUser | null) => void;
@@ -99,6 +126,7 @@ interface WardrobeState {
     items: WardrobeItem[];
     outfits: Outfit[];
     trips?: Trip[];
+    calendar?: CalendarEntry[];
     profile?: UserProfile;
     theme: ThemeMode;
     draft: Record<SlotKey, string[]>;
@@ -135,6 +163,8 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     notes: typeof it.notes === "string" ? it.notes : undefined,
     wishlist: Boolean(it.wishlist),
     favorite: Boolean(it.favorite),
+    wearCount: typeof it.wearCount === "number" ? it.wearCount : undefined,
+    lastWornAt: typeof it.lastWornAt === "string" ? it.lastWornAt : undefined,
     createdAt: typeof it.createdAt === "number" ? it.createdAt : Date.now(),
   };
 }
@@ -148,6 +178,8 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
     itemIds: Array.isArray(o.itemIds)
       ? o.itemIds.filter((x): x is string => typeof x === "string")
       : [],
+    wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
+    lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
   };
 }
@@ -164,6 +196,23 @@ function normalizeTrip(raw: Partial<Trip> | null | undefined): Trip {
       ? t.itemIds.filter((x): x is string => typeof x === "string")
       : [],
     createdAt: typeof t.createdAt === "number" ? t.createdAt : Date.now(),
+  };
+}
+
+function normalizeCalendarEntry(
+  raw: Partial<CalendarEntry> | null | undefined,
+): CalendarEntry {
+  const e = (raw ?? {}) as Partial<CalendarEntry>;
+  return {
+    id: typeof e.id === "string" ? e.id : uid(),
+    date: typeof e.date === "string" ? e.date : todayISO(),
+    kind: e.kind === "planned" ? "planned" : "worn",
+    outfitId: typeof e.outfitId === "string" ? e.outfitId : undefined,
+    itemIds: Array.isArray(e.itemIds)
+      ? e.itemIds.filter((x): x is string => typeof x === "string")
+      : [],
+    note: typeof e.note === "string" ? e.note : undefined,
+    createdAt: typeof e.createdAt === "number" ? e.createdAt : Date.now(),
   };
 }
 
@@ -187,6 +236,7 @@ export const useWardrobe = create<WardrobeState>()(
       items: demoItems,
       outfits: [],
       trips: [],
+      calendar: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
       authChecked: false,
@@ -194,7 +244,7 @@ export const useWardrobe = create<WardrobeState>()(
       syncError: null as string | null,
       passwordRecovery: false,
       theme: "light",
-      view: "wardrobe",
+      view: "today",
       settingsSection: "profile",
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -212,7 +262,6 @@ export const useWardrobe = create<WardrobeState>()(
       deleteItem: (id) =>
         set((s) => ({
           items: s.items.filter((it) => it.id !== id),
-          // Keep saved outfits consistent when an item disappears.
           outfits: s.outfits.map((o) => ({
             ...o,
             itemIds: o.itemIds.filter((iid) => iid !== id),
@@ -220,6 +269,10 @@ export const useWardrobe = create<WardrobeState>()(
           trips: s.trips.map((t) => ({
             ...t,
             itemIds: t.itemIds.filter((iid) => iid !== id),
+          })),
+          calendar: s.calendar.map((e) => ({
+            ...e,
+            itemIds: e.itemIds.filter((iid) => iid !== id),
           })),
           draft: Object.fromEntries(
             Object.entries(s.draft).map(([k, ids]) => [
@@ -238,7 +291,12 @@ export const useWardrobe = create<WardrobeState>()(
         })),
 
       deleteOutfit: (id) =>
-        set((s) => ({ outfits: s.outfits.filter((o) => o.id !== id) })),
+        set((s) => ({
+          outfits: s.outfits.filter((o) => o.id !== id),
+          calendar: s.calendar.map((e) =>
+            e.outfitId === id ? { ...e, outfitId: undefined } : e,
+          ),
+        })),
 
       addTrip: (trip) => {
         const id = uid();
@@ -255,6 +313,66 @@ export const useWardrobe = create<WardrobeState>()(
 
       deleteTrip: (id) =>
         set((s) => ({ trips: s.trips.filter((t) => t.id !== id) })),
+
+      logWear: ({ outfitId, itemIds, date, note }) => {
+        const day = date ?? todayISO();
+        set((s) => {
+          const ids = [...new Set(itemIds)];
+          const entry: CalendarEntry = {
+            id: uid(),
+            date: day,
+            kind: "worn",
+            outfitId,
+            itemIds: ids,
+            note,
+            createdAt: Date.now(),
+          };
+          return {
+            calendar: [entry, ...s.calendar],
+            items: s.items.map((it) =>
+              ids.includes(it.id)
+                ? {
+                    ...it,
+                    wearCount: (it.wearCount ?? 0) + 1,
+                    lastWornAt: day,
+                  }
+                : it,
+            ),
+            outfits: outfitId
+              ? s.outfits.map((o) =>
+                  o.id === outfitId
+                    ? {
+                        ...o,
+                        wearCount: (o.wearCount ?? 0) + 1,
+                        lastWornAt: day,
+                      }
+                    : o,
+                )
+              : s.outfits,
+          };
+        });
+      },
+
+      planOutfit: ({ outfitId, itemIds, date, note }) =>
+        set((s) => ({
+          calendar: [
+            {
+              id: uid(),
+              date,
+              kind: "planned",
+              outfitId,
+              itemIds: [...new Set(itemIds)],
+              note,
+              createdAt: Date.now(),
+            },
+            ...s.calendar,
+          ],
+        })),
+
+      deleteCalendarEntry: (id) =>
+        set((s) => ({
+          calendar: s.calendar.filter((e) => e.id !== id),
+        })),
 
       loadOutfitIntoDraft: (id) => {
         const { outfits, items } = get();
@@ -279,6 +397,7 @@ export const useWardrobe = create<WardrobeState>()(
           items: [],
           outfits: [],
           trips: [],
+          calendar: [],
           profile: { ...DEFAULT_PROFILE },
           draft: emptyDraft(),
           theme: "light",
@@ -311,11 +430,9 @@ export const useWardrobe = create<WardrobeState>()(
         const next = { ...draft, [slot]: [...draft[slot]] };
         if (next[slot].includes(itemId)) return;
         if (next[slot].length >= max) {
-          // Single slots replace; multi slots drop the oldest.
           next[slot].shift();
         }
         next[slot].push(itemId);
-        // A dress replaces top + bottom, and vice versa.
         if (slot === "dress") {
           next.top = [];
           next.bottom = [];
@@ -345,10 +462,12 @@ export const useWardrobe = create<WardrobeState>()(
             outfits: Array.isArray(data.outfits)
               ? data.outfits.map(normalizeOutfit)
               : [],
-            // Keep local trips if remote omitted them (pre-migration snapshot).
             trips: Array.isArray(data.trips)
               ? data.trips.map(normalizeTrip)
               : get().trips,
+            calendar: Array.isArray(data.calendar)
+              ? data.calendar.map(normalizeCalendarEntry)
+              : get().calendar,
             profile: data.profile ?? get().profile,
             theme: (data.theme === "dark" ? "dark" : "light") as ThemeMode,
             draft: normalizeDraft(data.draft),
@@ -375,21 +494,39 @@ export const useWardrobe = create<WardrobeState>()(
           trips: Array.isArray(p.trips)
             ? p.trips.map(normalizeTrip)
             : current.trips,
+          calendar: Array.isArray(p.calendar)
+            ? p.calendar.map(normalizeCalendarEntry)
+            : current.calendar,
           draft: normalizeDraft(p.draft),
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
           theme: p.theme === "dark" ? "dark" : "light",
+          // Prefer persisted view only if it's a known View; else default Today.
+          view:
+            typeof p.view === "string" &&
+            [
+              "today",
+              "wardrobe",
+              "builder",
+              "outfits",
+              "calendar",
+              "wishlist",
+              "travel",
+              "settings",
+            ].includes(p.view)
+              ? (p.view as View)
+              : "today",
         };
       },
-      // Persist data + preferences, not transient UI state like filters.
-      // Never write HEIC / multi-MB data-URLs back to localStorage.
       partialize: (s) =>
         scrubSnapshotImages({
           items: s.items,
           outfits: s.outfits,
           trips: s.trips,
+          calendar: s.calendar,
           profile: s.profile,
           theme: s.theme,
           draft: s.draft,
+          view: s.view,
         }),
     },
   ),

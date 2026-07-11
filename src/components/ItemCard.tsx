@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { affiliateUrl } from "@/lib/affiliate";
@@ -24,7 +24,7 @@ export function ItemCard({
   matchScore?: number;
   compact?: boolean;
 }) {
-  const { deleteItem, updateItem, addToDraft, setView } = useWardrobe();
+  const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
   const [imgError, setImgError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
@@ -37,7 +37,6 @@ export function ItemCard({
     e.dataTransfer.setData("text/item-id", item.id);
     e.dataTransfer.setData("text/plain", item.id);
     e.dataTransfer.effectAllowed = "move";
-    // Custom drag ghost so the browser doesn't grab the <img> alone.
     if (e.currentTarget instanceof HTMLElement) {
       e.dataTransfer.setDragImage(e.currentTarget, 40, 52);
     }
@@ -51,7 +50,6 @@ export function ItemCard({
       title={compact ? "Add to outfit" : "Edit item"}
       className="group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface transition-shadow active:cursor-grabbing hover:shadow-lg hover:shadow-black/5"
     >
-      {/* Image area */}
       <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
         {imgError ? (
           <div
@@ -61,8 +59,6 @@ export function ItemCard({
             Image unavailable — edit the item to upload a new one.
           </div>
         ) : (
-          // Plain <img>: URLs come from arbitrary user-provided hosts, which
-          // next/image would require allowlisting per-domain.
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={item.imageUrl}
@@ -74,34 +70,42 @@ export function ItemCard({
           />
         )}
 
-        {/* Builder: click + only — hover chrome blocks drag on compact cards */}
         {!compact && (
-        <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
-          <CardAction title="Add to outfit" onClick={addAndGo}>
-            <Plus size={15} />
-          </CardAction>
-          <CardAction
-            title={item.favorite ? "Remove from favourites" : "Add to favourites"}
-            onClick={() => updateItem(item.id, { favorite: !item.favorite })}
-          >
-            <Heart
-              size={14}
-              className={item.favorite ? "fill-red-500 text-red-500" : ""}
-            />
-          </CardAction>
-          <CardAction
-            title={confirmDelete ? "Click again to confirm" : "Delete"}
-            onClick={() =>
-              confirmDelete ? deleteItem(item.id) : setConfirmDelete(true)
-            }
-            danger={confirmDelete}
-          >
-            <Trash2 size={14} />
-          </CardAction>
-        </div>
+          <div className="absolute inset-x-0 bottom-0 flex justify-center gap-2 bg-gradient-to-t from-black/50 to-transparent p-3 opacity-0 transition-opacity group-hover:opacity-100">
+            <CardAction title="Add to outfit" onClick={addAndGo}>
+              <Plus size={15} />
+            </CardAction>
+            {!item.wishlist && (
+              <CardAction
+                title="I wore this today"
+                onClick={() => logWear({ itemIds: [item.id] })}
+              >
+                <Check size={14} />
+              </CardAction>
+            )}
+            <CardAction
+              title={
+                item.favorite ? "Remove from favourites" : "Add to favourites"
+              }
+              onClick={() => updateItem(item.id, { favorite: !item.favorite })}
+            >
+              <Heart
+                size={14}
+                className={item.favorite ? "fill-red-500 text-red-500" : ""}
+              />
+            </CardAction>
+            <CardAction
+              title={confirmDelete ? "Click again to confirm" : "Delete"}
+              onClick={() =>
+                confirmDelete ? deleteItem(item.id) : setConfirmDelete(true)
+              }
+              danger={confirmDelete}
+            >
+              <Trash2 size={14} />
+            </CardAction>
+          </div>
         )}
 
-        {/* Compact builder cards: always-visible add button, doesn't block drag */}
         {compact && (
           <button
             type="button"
@@ -137,7 +141,6 @@ export function ItemCard({
         )}
       </div>
 
-      {/* Meta */}
       <div className="space-y-1 p-3">
         <div className="flex items-center justify-between gap-2">
           {item.productUrl ? (
@@ -162,6 +165,9 @@ export function ItemCard({
           {CATEGORY_LABEL[item.category]}
           {item.brand ? ` · ${item.brand}` : ""}
           {item.price !== undefined ? ` · $${item.price}` : ""}
+          {!item.wishlist && item.wearCount
+            ? ` · ${item.wearCount}× worn`
+            : ""}
         </p>
         {!compact && item.tags.length > 0 && (
           <p className="truncate text-[11px] capitalize text-muted/80">

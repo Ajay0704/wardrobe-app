@@ -30,6 +30,28 @@ create policy "Users update own snapshot"
 -- If you already ran an older version of this schema, add missing columns:
 -- alter table public.wardrobe_snapshots add column if not exists profile jsonb not null default '{}'::jsonb;
 -- alter table public.wardrobe_snapshots add column if not exists trips jsonb not null default '[]'::jsonb;
+alter table public.wardrobe_snapshots
+  add column if not exists calendar jsonb not null default '[]'::jsonb;
+
+
+-- ---------------------------------------------------------------------------
+-- Web Push subscriptions (Phase 1.3). Written via service role from
+-- /api/push/subscribe; read by the daily cron job.
+-- ---------------------------------------------------------------------------
+create table if not exists public.push_subscriptions (
+  endpoint text primary key,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  p256dh text not null,
+  auth text not null,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists push_subscriptions_user_id_idx
+  on public.push_subscriptions (user_id);
+
+alter table public.push_subscriptions enable row level security;
+
+-- No direct client policies — API uses the service role key.
 
 
 -- Enable email/password auth in Supabase Dashboard:

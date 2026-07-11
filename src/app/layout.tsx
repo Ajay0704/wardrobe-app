@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Libre_Baskerville } from "next/font/google";
 import "./globals.css";
+import { NativeAppClass } from "@/components/NativeAppClass";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${libreBaskerville.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <NativeAppClass />
         {children}
       </body>
     </html>

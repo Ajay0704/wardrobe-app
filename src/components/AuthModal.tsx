@@ -72,6 +72,7 @@ export function AuthModal({
           items: snapshot.items,
           outfits: snapshot.outfits,
           trips: snapshot.trips,
+          calendar: snapshot.calendar,
           profile: { ...snapshot.profile, email: user.email },
           theme: snapshot.theme,
           draft: snapshot.draft,
@@ -107,7 +108,7 @@ export function AuthModal({
         email.trim(),
         password,
         profile,
-        { items: [], outfits: [], trips: [], theme, draft },
+        { items: [], outfits: [], trips: [], calendar: [], theme, draft },
       );
       setAuthUser(user);
       // New accounts start with an empty wardrobe (not the demo items). Clear
@@ -116,6 +117,7 @@ export function AuthModal({
         items: [],
         outfits: [],
         trips: [],
+        calendar: [],
         profile: { ...profile, email: user.email },
         theme,
         draft,

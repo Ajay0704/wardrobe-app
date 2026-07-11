@@ -9,6 +9,7 @@ import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
+import { SmartBuy } from "./SmartBuy";
 
 /**
  * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
@@ -23,7 +24,7 @@ export function ItemForm({
   defaultWishlist?: boolean;
   onClose: () => void;
 }) {
-  const { addItem, updateItem, authUser, items } = useWardrobe();
+  const { addItem, updateItem, authUser } = useWardrobe();
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -57,23 +58,39 @@ export function ItemForm({
     !analyzing &&
     !removingBg;
 
-  // Wishlist "mindful buying" gate: flag near-duplicates we already own and a
-  // rough cost-per-wear so the wishlist nudges intentional purchases.
-  const similarOwned = useMemo(
-    () =>
-      wishlist
-        ? items.filter(
-            (it) =>
-              !it.wishlist &&
-              it.id !== initial?.id &&
-              it.category === category &&
-              it.colorName === colorName,
-          )
-        : [],
-    [wishlist, items, category, colorName, initial?.id],
+  // Provisional item from the current form, so the Smart Buy analysis below
+  // reacts live as you fill in / fetch details for a wishlist piece.
+  const candidate = useMemo<WardrobeItem>(
+    () => ({
+      id: initial?.id ?? "__candidate__",
+      name: name.trim() || "This item",
+      imageUrl,
+      productUrl: productUrl.trim() || undefined,
+      category,
+      color,
+      colorName,
+      tags,
+      seasons,
+      brand: brand.trim() || undefined,
+      price: price.trim() ? Number(price) : undefined,
+      wishlist: true,
+      createdAt: initial?.createdAt ?? 0,
+    }),
+    [
+      initial?.id,
+      initial?.createdAt,
+      name,
+      imageUrl,
+      productUrl,
+      category,
+      color,
+      colorName,
+      tags,
+      seasons,
+      brand,
+      price,
+    ],
   );
-  const costPerWear =
-    price.trim() && Number(price) > 0 ? Number(price) / 30 : null;
 
   const toggle = <T,>(list: T[], value: T): T[] =>
     list.includes(value) ? list.filter((v) => v !== value) : [...list, value];
@@ -467,23 +484,12 @@ export function ItemForm({
             This is a wishlist item (I don&apos;t own it yet)
           </label>
 
-          {wishlist && (similarOwned.length > 0 || costPerWear) && (
-            <div className="space-y-1 rounded-xl border border-amber-300/50 bg-amber-500/5 p-3 text-xs">
-              {similarOwned.length > 0 && (
-                <p className="text-amber-700 dark:text-amber-400">
-                  You already own {similarOwned.length} similar{" "}
-                  {colorName.toLowerCase()}{" "}
-                  {similarOwned.length > 1 ? "pieces" : "piece"} (
-                  {similarOwned.slice(0, 3).map((s) => s.name).join(", ")}). Do
-                  you really need another?
-                </p>
-              )}
-              {costPerWear && (
-                <p className="text-muted">
-                  At ${Number(price)}, that&apos;s about ~$
-                  {costPerWear.toFixed(2)}/wear if you wear it 30 times.
-                </p>
-              )}
+          {wishlist && imageUrl && (
+            <div className="rounded-xl border border-line bg-surface-2/40 p-4">
+              <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+                <Sparkles size={13} /> Smart Buy
+              </p>
+              <SmartBuy item={candidate} />
             </div>
           )}
 

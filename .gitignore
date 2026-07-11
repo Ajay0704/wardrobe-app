@@ -40,9 +40,22 @@ yarn-error.log*
 # vercel
 .vercel
 
+# supabase CLI local temp/state
+supabase/.temp/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Capacitor / Xcode (keep ios/App source; ignore build artifacts)
+ios/App/Pods
+ios/App/Podfile.lock
+ios/DerivedData
+ios/App/App/public
+*.xcuserstate
+xcuserdata/
+.capacitor
+
 
 # obsidian (local UI state — vault config and notes are tracked)
 docs/.obsidian/workspace.json

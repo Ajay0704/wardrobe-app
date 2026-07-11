@@ -11,6 +11,9 @@ Project hub for the personal wardrobe app — notes, architecture, and decisions
 - [[Deploy]]
 - [[Obsidian setup]]
 - [[Research synthesis — next moves]]
+- [[Phase 0-1 status]]
+- [[iOS Capacitor]]
+- [[Claude Code handoff — iOS Capacitor]]
 
 ## Repo
 
@@ -25,6 +28,15 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## iOS (Capacitor)
+
+Native shell for personal iPhone testing (WebView → production URL). See [[iOS Capacitor]] for Xcode signing, free Apple ID limits (~7-day reinstall), and local debug.
+
+```bash
+npm run cap:sync
+npm run cap:open:ios
+```
 
 ## Tags
 

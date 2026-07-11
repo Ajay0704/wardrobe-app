@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
@@ -14,17 +14,16 @@ import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
 import { VideoPanel } from "./VideoPanel";
 import { LandingNav } from "./landing/LandingNav";
-import { WardrobeView } from "./WardrobeView";
-import { OutfitBuilderView } from "./OutfitBuilderView";
-import { OutfitsView } from "./OutfitsView";
-import { WishlistView } from "./WishlistView";
-import { TravelView } from "./TravelView";
-import { SettingsView } from "./SettingsView";
+import { AppViews } from "./AppViews";
+import { useIsNativeApp } from "./NativeAppClass";
+import { NativeShell } from "./native/NativeShell";
 
 const NAV: { view: View; label: string }[] = [
+  { view: "today", label: "Today" },
   { view: "wardrobe", label: "Wardrobe" },
   { view: "builder", label: "Builder" },
   { view: "outfits", label: "Outfits" },
+  { view: "calendar", label: "Calendar" },
   { view: "wishlist", label: "Wishlist" },
   { view: "travel", label: "Travel" },
 ];
@@ -149,6 +148,7 @@ function AuthLanding({
 function AppShellInner() {
   const { view, setView, theme, setTheme, authUser, authChecked, passwordRecovery } =
     useWardrobe();
+  const isNative = useIsNativeApp();
   const [sharedOutfit] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -163,6 +163,24 @@ function AppShellInner() {
     if (params.has("outfit")) return "login";
     return null;
   });
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("view");
+    if (
+      v === "today" ||
+      v === "wardrobe" ||
+      v === "builder" ||
+      v === "outfits" ||
+      v === "calendar" ||
+      v === "wishlist" ||
+      v === "travel" ||
+      v === "settings"
+    ) {
+      setView(v);
+    }
+  }, [setView]);
 
   // The app requires an account. Without Supabase configured, login is
   // impossible, so we fall back to the ungated app for local/dev use.
@@ -192,6 +210,22 @@ function AppShellInner() {
     );
   }
 
+  // Native app (Capacitor iOS shell): logged-in users get the iOS-style chrome
+  // with a bottom tab bar. The website keeps the header/footer chrome below.
+  if (isNative) {
+    return (
+      <>
+        <ThemeEffect />
+        <ShareLinkLoader />
+        <NativeShell />
+        {authModal && !authUser && !passwordRecovery && (
+          <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
+        )}
+        {passwordRecovery && <ResetPasswordModal />}
+      </>
+    );
+  }
+
   return (
     <>
       <ThemeEffect />
@@ -199,7 +233,7 @@ function AppShellInner() {
 
       <header className="sticky top-0 z-40 border-b border-line bg-background pt-[env(safe-area-inset-top)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]">
         <div className="mx-auto flex max-w-7xl items-end justify-between gap-4 px-4 py-4 sm:gap-8 sm:px-6 sm:py-5">
-          <BrandWordmark onClick={() => setView("wardrobe")} />
+          <BrandWordmark onClick={() => setView("today")} />
 
           <div className="flex min-w-0 flex-1 items-end justify-end gap-4 sm:gap-6">
             <nav
@@ -257,12 +291,7 @@ function AppShellInner() {
       </header>
 
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
-        {view === "wardrobe" && <WardrobeView />}
-        {view === "builder" && <OutfitBuilderView />}
-        {view === "outfits" && <OutfitsView />}
-        {view === "wishlist" && <WishlistView />}
-        {view === "travel" && <TravelView />}
-        {view === "settings" && <SettingsView />}
+        <AppViews />
       </main>
 
       <footer className="border-t border-line py-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] text-center text-xs text-muted">

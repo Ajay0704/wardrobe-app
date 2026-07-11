@@ -1,7 +1,7 @@
 "use client";
 
-import { Pencil, Trash2, Wand2 } from "lucide-react";
-import { useMemo } from "react";
+import { Check, Pencil, Trash2, Wand2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import { outfitScore } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -9,7 +9,9 @@ import { OutfitPreview } from "./OutfitPreview";
 import { Button, EmptyState, MatchBadge } from "./ui";
 
 export function OutfitsView() {
-  const { outfits, items, loadOutfitIntoDraft, deleteOutfit } = useWardrobe();
+  const { outfits, items, loadOutfitIntoDraft, deleteOutfit, logWear } =
+    useWardrobe();
+  const [toast, setToast] = useState<string | null>(null);
 
   const resolve = (ids: string[]) =>
     ids
@@ -20,6 +22,12 @@ export function OutfitsView() {
     () => [...outfits].sort((a, b) => b.createdAt - a.createdAt),
     [outfits],
   );
+
+  const wore = (outfitId: string, itemIds: string[]) => {
+    logWear({ outfitId, itemIds });
+    setToast("Logged as worn today");
+    window.setTimeout(() => setToast(null), 2000);
+  };
 
   if (sorted.length === 0) {
     return (
@@ -43,6 +51,12 @@ export function OutfitsView() {
           {sorted.length} look{sorted.length === 1 ? "" : "s"} in your collection
         </p>
       </div>
+
+      {toast && (
+        <p className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+          {toast}
+        </p>
+      )}
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {sorted.map((outfit) => {
@@ -73,17 +87,25 @@ export function OutfitsView() {
                 <p className="text-xs text-muted">
                   {outfitItems.length} piece
                   {outfitItems.length === 1 ? "" : "s"}
-                  {outfitItems.length > 0 &&
-                    ` · ${outfitItems.map((it) => it.name).join(", ")}`}
+                  {outfit.wearCount
+                    ? ` · worn ${outfit.wearCount}×`
+                    : ""}
+                  {outfit.lastWornAt ? ` · last ${outfit.lastWornAt}` : ""}
                 </p>
 
-                <div className="flex gap-2 pt-1">
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <Button
+                    className="flex-1 !py-1.5 text-xs"
+                    onClick={() => wore(outfit.id, outfit.itemIds)}
+                  >
+                    <Check size={13} /> I wore this
+                  </Button>
                   <Button
                     variant="outline"
-                    className="flex-1 !py-1.5 text-xs"
+                    className="!py-1.5 text-xs"
                     onClick={() => loadOutfitIntoDraft(outfit.id)}
                   >
-                    <Pencil size={13} /> Edit in builder
+                    <Pencil size={13} /> Edit
                   </Button>
                   <Button
                     variant="ghost"

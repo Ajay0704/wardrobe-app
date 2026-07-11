@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
+import { ClosetInsights } from "./ClosetInsights";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
@@ -120,6 +121,9 @@ export function WardrobeView() {
           </Button>
         </div>
       </div>
+
+      {/* Closet ROI insights — lives inside this screen, no new tab/button */}
+      <ClosetInsights />
 
       {/* Category chips */}
       <div className="flex flex-wrap gap-1.5">

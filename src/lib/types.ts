@@ -48,9 +48,9 @@ export const SUGGESTED_TAGS = [
 
 export interface WardrobeItem {
   id: string;
-  name: string;
   /** Direct image URL, or a data: URL when the user uploads a file. */
   imageUrl: string;
+  name: string;
   /** Optional link to the product page (where to buy or view the item). */
   productUrl?: string;
   category: Category;
@@ -67,6 +67,10 @@ export interface WardrobeItem {
   wishlist: boolean;
   /** Favourited pieces the user loves — independent of wishlist. */
   favorite?: boolean;
+  /** Times this piece has been logged as worn. */
+  wearCount?: number;
+  /** ISO date YYYY-MM-DD of the most recent wear. */
+  lastWornAt?: string;
   createdAt: number;
 }
 
@@ -76,6 +80,8 @@ export interface Outfit {
   notes?: string;
   /** References into the items collection. Missing ids are ignored at render. */
   itemIds: string[];
+  wearCount?: number;
+  lastWornAt?: string;
   createdAt: number;
 }
 
@@ -89,6 +95,29 @@ export interface Trip {
   /** Item ids packed for this trip. */
   itemIds: string[];
   createdAt: number;
+}
+
+/**
+ * Calendar / wear log entry. `kind: "worn"` is history; `kind: "planned"` is
+ * an outfit scheduled for a future (or today) date.
+ */
+export interface CalendarEntry {
+  id: string;
+  /** ISO date YYYY-MM-DD */
+  date: string;
+  kind: "worn" | "planned";
+  outfitId?: string;
+  itemIds: string[];
+  note?: string;
+  createdAt: number;
+}
+
+/** Local calendar day helper (YYYY-MM-DD in the user's timezone). */
+export function todayISO(d = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
 }
 
 /**

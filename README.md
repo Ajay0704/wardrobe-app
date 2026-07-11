@@ -113,6 +113,17 @@ npx netlify deploy --build --prod
 
 `netlify.toml` is already configured for Next.js. Add Supabase env vars in **Site settings → Environment variables** for cloud sync in production.
 
+## iOS shell (Capacitor)
+
+Install a native home-screen app on your iPhone that loads the live production site in a WebView (APIs and auth stay on Vercel). Free Apple ID works for personal device testing; profiles expire ~every 7 days.
+
+```bash
+npm run cap:sync
+npm run cap:open:ios
+```
+
+Full steps (Xcode signing, trust certificate, local Next debug): [docs/iOS Capacitor.md](docs/iOS%20Capacitor.md).
+
 ## Obsidian notes
 
 Project docs live in an Obsidian vault at `docs/`. Open that folder in Obsidian, then follow [docs/Obsidian setup.md](docs/Obsidian%20setup.md) to connect Cursor via the Local REST API MCP.

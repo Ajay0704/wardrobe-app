@@ -5,7 +5,13 @@
 
 import type { ThemeMode } from "../store";
 import { DEFAULT_PROFILE, type UserProfile } from "../profile";
-import type { Outfit, SlotKey, Trip, WardrobeItem } from "../types";
+import type {
+  CalendarEntry,
+  Outfit,
+  SlotKey,
+  Trip,
+  WardrobeItem,
+} from "../types";
 import { getSupabase, isSupabaseConfigured } from "./client";
 
 export type SyncStatus =
@@ -19,6 +25,7 @@ export interface WardrobeSnapshot {
   items: WardrobeItem[];
   outfits: Outfit[];
   trips: Trip[];
+  calendar: CalendarEntry[];
   profile: UserProfile;
   theme: ThemeMode;
   draft: Record<SlotKey, string[]>;
@@ -60,7 +67,6 @@ export function diagnoseSnapshot(snapshot: {
   if (heic) {
     return "Sync blocked: a HEIC photo is embedded inline. Re-upload as JPEG/PNG (Settings → photo, then edit the item).";
   }
-  // Small compressed data URLs (~100KB) are tolerable; multi-MB blobs are not.
   if (totalChars > 200_000) {
     return `Sync blocked: ${count} inline image${count > 1 ? "s" : ""} totaling ${Math.round(totalChars / 1024)} KB. Re-upload those photos while signed in so they go to Storage.`;
   }
@@ -87,6 +93,10 @@ function formatSupabaseError(error: {
   return bits || "Unknown sync error";
 }
 
+function asArray<T>(v: unknown): T[] {
+  return Array.isArray(v) ? (v as T[]) : [];
+}
+
 /** Pull the remote snapshot for the current user. */
 export async function pullSnapshot(
   userId: string,
@@ -94,38 +104,43 @@ export async function pullSnapshot(
   const supabase = getSupabase();
   if (!supabase) return null;
 
-  // Prefer the full select (incl. trips). Fall back if the column isn't migrated yet.
+  const columns = [
+    "items, outfits, trips, calendar, profile, theme, draft, updated_at",
+    "items, outfits, trips, profile, theme, draft, updated_at",
+    "items, outfits, profile, theme, draft, updated_at",
+  ];
+
   let data: Record<string, unknown> | null = null;
-  {
-    const full = await supabase
+  let lastError: string | null = null;
+
+  for (const select of columns) {
+    const res = await supabase
       .from("wardrobe_snapshots")
-      .select("items, outfits, trips, profile, theme, draft, updated_at")
+      .select(select)
       .eq("user_id", userId)
       .maybeSingle();
-    if (full.error && /trips/i.test(full.error.message)) {
-      const legacy = await supabase
-        .from("wardrobe_snapshots")
-        .select("items, outfits, profile, theme, draft, updated_at")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (legacy.error) {
-        console.warn("[sync] pull failed:", formatSupabaseError(legacy.error));
-        return null;
-      }
-      data = legacy.data as Record<string, unknown> | null;
-    } else if (full.error) {
-      console.warn("[sync] pull failed:", formatSupabaseError(full.error));
+    if (!res.error) {
+      data = res.data as Record<string, unknown> | null;
+      break;
+    }
+    lastError = formatSupabaseError(res.error);
+    // Only retry on missing-column style errors.
+    if (!/column|calendar|trips/i.test(res.error.message)) {
+      console.warn("[sync] pull failed:", lastError);
       return null;
-    } else {
-      data = full.data as Record<string, unknown> | null;
     }
   }
 
-  if (!data) return null;
+  if (!data) {
+    if (lastError) console.warn("[sync] pull failed:", lastError);
+    return null;
+  }
+
   return {
     items: (data.items as WardrobeItem[]) ?? [],
     outfits: (data.outfits as Outfit[]) ?? [],
-    trips: Array.isArray(data.trips) ? (data.trips as Trip[]) : [],
+    trips: asArray<Trip>(data.trips),
+    calendar: asArray<CalendarEntry>(data.calendar),
     profile: (data.profile as UserProfile) ?? DEFAULT_PROFILE,
     theme: (data.theme as ThemeMode) ?? "light",
     draft:
@@ -193,46 +208,61 @@ export async function pushSnapshot(
     return { ok: false, error: diagnosis };
   }
 
-  const row = {
+  const fullRow = {
     user_id: userId,
     items: clean.items,
     outfits: clean.outfits,
     trips: clean.trips,
+    calendar: clean.calendar,
     profile: clean.profile,
     theme: clean.theme,
     draft: clean.draft,
     updated_at: new Date().toISOString(),
   };
 
-  const size = snapshotCharSize(row);
+  const size = snapshotCharSize(fullRow);
   if (size > MAX_SNAPSHOT_CHARS) {
     const msg = `Snapshot too large (${Math.round(size / 1024)} KB). Re-upload photos so they go to Storage as URLs, not inline data.`;
     console.warn("[sync] push blocked:", msg);
     return { ok: false, error: msg };
   }
 
-  const { error } = await supabase.from("wardrobe_snapshots").upsert(row);
-  if (!error) return { ok: true };
+  // Try full row, then drop calendar, then drop trips — so older schemas still sync.
+  const attempts: Record<string, unknown>[] = [
+    fullRow,
+    (() => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { calendar: _c, ...rest } = fullRow;
+      return rest;
+    })(),
+    (() => {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { calendar: _c, trips: _t, ...rest } = fullRow;
+      return rest;
+    })(),
+  ];
 
-  // Pre-migration DBs lack the trips column — push without it so sync still works.
-  if (/trips/i.test(error.message)) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { trips: _omit, ...legacy } = row;
-    const retry = await supabase.from("wardrobe_snapshots").upsert(legacy);
-    if (retry.error) {
-      const msg = formatSupabaseError(retry.error);
-      console.warn("[sync] push failed:", msg);
-      return { ok: false, error: msg };
+  let lastMsg = "Unknown sync error";
+  for (let i = 0; i < attempts.length; i++) {
+    const { error } = await supabase.from("wardrobe_snapshots").upsert(attempts[i]);
+    if (!error) {
+      if (i === 1) {
+        console.warn(
+          "[sync] calendar column missing — run schema migration to sync Calendar.",
+        );
+      } else if (i === 2) {
+        console.warn(
+          "[sync] trips/calendar columns missing — run schema migration.",
+        );
+      }
+      return { ok: true };
     }
-    console.warn(
-      "[sync] trips column missing — run schema migration to sync Travel.",
-    );
-    return { ok: true };
+    lastMsg = formatSupabaseError(error);
+    if (!/column|calendar|trips/i.test(error.message)) break;
   }
 
-  const msg = formatSupabaseError(error);
-  console.warn("[sync] push failed:", msg);
-  return { ok: false, error: msg };
+  console.warn("[sync] push failed:", lastMsg);
+  return { ok: false, error: lastMsg };
 }
 
 export { isSupabaseConfigured };

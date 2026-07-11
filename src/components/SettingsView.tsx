@@ -11,8 +11,14 @@ import {
   signOut,
   updatePassword,
 } from "@/lib/supabase/auth";
+import {
+  pushConfigured,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/lib/push-client";
 import { SETTINGS_SECTIONS } from "@/lib/profile";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
+import { useIsNativeApp } from "./NativeAppClass";
 
 export function SettingsView() {
   const {
@@ -28,6 +34,13 @@ export function SettingsView() {
     settingsSection: section,
     setSettingsSection: setSection,
   } = useWardrobe();
+
+  // Web push doesn't work inside the Capacitor WebView (needs native APNs), so
+  // hide the Notifications section in the native app to avoid a dead-end.
+  const native = useIsNativeApp();
+  const sections = native
+    ? SETTINGS_SECTIONS.filter((s) => s.id !== "notifications")
+    : SETTINGS_SECTIONS;
 
   const handleAvatarUpload = async (file: File) => {
     try {
@@ -56,7 +69,7 @@ export function SettingsView() {
           className="flex shrink-0 gap-1 overflow-x-auto md:w-48 md:flex-col md:overflow-visible"
           aria-label="Settings sections"
         >
-          {SETTINGS_SECTIONS.map((s) => (
+          {sections.map((s) => (
             <button
               key={s.id}
               type="button"
@@ -171,6 +184,8 @@ export function SettingsView() {
             </SettingsPanel>
           )}
 
+          {section === "notifications" && !native && <NotificationsPanel />}
+
           {section === "data" && (
             <SettingsPanel title="Data & privacy">
               <div className="space-y-4 rounded-xl border border-line bg-surface-2/40 p-4">
@@ -206,6 +221,62 @@ export function SettingsView() {
         </div>
       </div>
     </div>
+  );
+}
+
+function NotificationsPanel() {
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const ready = pushConfigured();
+
+  const enable = async () => {
+    setBusy(true);
+    setStatus(null);
+    const result = await subscribeToPush();
+    setBusy(false);
+    setStatus(result.ok ? "Enabled — you'll get morning outfit nudges." : result.error);
+  };
+
+  const disable = async () => {
+    setBusy(true);
+    await unsubscribeFromPush();
+    setBusy(false);
+    setStatus("Push disabled on this device.");
+  };
+
+  return (
+    <SettingsPanel title="Notifications">
+      <p className="text-sm text-muted">
+        Opt in for a ~7am &quot;here&apos;s today&apos;s outfit&quot; nudge and a
+        Sunday &quot;plan your week&quot; reminder. Requires installing the PWA
+        (or keeping the tab) and allowing notifications.
+      </p>
+      {!ready && (
+        <p className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
+          Server keys not set yet. Add{" "}
+          <code className="font-mono">NEXT_PUBLIC_VAPID_PUBLIC_KEY</code>,{" "}
+          <code className="font-mono">VAPID_PRIVATE_KEY</code>,{" "}
+          <code className="font-mono">VAPID_SUBJECT</code>,{" "}
+          <code className="font-mono">SUPABASE_SERVICE_ROLE_KEY</code>, and{" "}
+          <code className="font-mono">CRON_SECRET</code> — then run the{" "}
+          <code className="font-mono">push_subscriptions</code> SQL in{" "}
+          <code className="font-mono">supabase/schema.sql</code>.
+        </p>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <Button disabled={busy || !ready} onClick={() => void enable()}>
+          Enable morning push
+        </Button>
+        <Button
+          variant="outline"
+          disabled={busy}
+          onClick={() => void disable()}
+        >
+          Disable on this device
+        </Button>
+      </div>
+      {status && <p className="text-xs text-muted">{status}</p>}
+    </SettingsPanel>
   );
 }
 

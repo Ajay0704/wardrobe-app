@@ -36,7 +36,12 @@ export function profileInitials(profile: UserProfile): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-export type SettingsSection = "profile" | "account" | "preferences" | "data";
+export type SettingsSection =
+  | "profile"
+  | "account"
+  | "preferences"
+  | "notifications"
+  | "data";
 
 export const SETTINGS_SECTIONS: {
   id: SettingsSection;
@@ -57,6 +62,11 @@ export const SETTINGS_SECTIONS: {
     id: "preferences",
     label: "Preferences",
     description: "Appearance and defaults",
+  },
+  {
+    id: "notifications",
+    label: "Notifications",
+    description: "Morning outfit push nudges",
   },
   {
     id: "data",

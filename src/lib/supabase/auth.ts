@@ -5,7 +5,7 @@
 
 import type { UserProfile, AuthUser } from "../profile";
 import type { ThemeMode } from "../store";
-import type { Outfit, SlotKey, Trip, WardrobeItem } from "../types";
+import type { CalendarEntry, Outfit, SlotKey, Trip, WardrobeItem } from "../types";
 import { getSupabase } from "./client";
 import { pullSnapshot, pushSnapshot } from "./sync";
 
@@ -36,6 +36,7 @@ export async function signUp(
     items: WardrobeItem[];
     outfits: Outfit[];
     trips?: Trip[];
+    calendar?: CalendarEntry[];
     theme: ThemeMode;
     draft: Record<SlotKey, string[]>;
   },
@@ -72,6 +73,7 @@ export async function signUp(
     items: wardrobe.items,
     outfits: wardrobe.outfits,
     trips: wardrobe.trips ?? [],
+    calendar: wardrobe.calendar ?? [],
     theme: wardrobe.theme,
     draft: wardrobe.draft,
     profile: profileForSync,
