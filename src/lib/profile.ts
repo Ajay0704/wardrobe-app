@@ -14,6 +14,8 @@ export interface UserProfile {
   website?: string;
   /** ISO date string YYYY-MM-DD */
   birthDate?: string;
+  /** Preferred currency code (e.g. "USD", "EUR"); drives all money formatting. */
+  currency?: string;
 }
 
 export const DEFAULT_PROFILE: UserProfile = {

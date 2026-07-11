@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Check, Coins } from "lucide-react";
 import { analyzeSmartBuy } from "@/lib/smart-buy";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
@@ -13,6 +14,7 @@ import { CATEGORY_LABEL } from "@/lib/types";
  */
 export function SmartBuy({ item }: { item: WardrobeItem }) {
   const items = useWardrobe((s) => s.items);
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const a = analyzeSmartBuy(item, items);
 
   const verdictClass =
@@ -49,7 +51,9 @@ export function SmartBuy({ item }: { item: WardrobeItem }) {
           <p className="truncate text-xs text-muted">
             {CATEGORY_LABEL[item.category]}
             {item.brand ? ` · ${item.brand}` : ""}
-            {typeof item.price === "number" ? ` · $${item.price}` : ""}
+            {typeof item.price === "number"
+              ? ` · ${formatMoney(item.price, currency, 0)}`
+              : ""}
           </p>
         </div>
         <span
@@ -64,7 +68,7 @@ export function SmartBuy({ item }: { item: WardrobeItem }) {
         <Metric label="Pairs with" value={`${a.pairsWith.length}`} />
         <Metric
           label="Cost / wear"
-          value={a.costPerWear !== null ? `$${a.costPerWear.toFixed(2)}` : "—"}
+          value={a.costPerWear !== null ? formatMoney(a.costPerWear, currency, 2) : "—"}
         />
         <Metric label="New outfits" value={`+${a.newOutfits}`} />
       </div>

@@ -2,6 +2,7 @@
 
 import { Shirt } from "lucide-react";
 import { computeFullInsights } from "@/lib/insights";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { Category } from "@/lib/types";
 import { Button, EmptyState } from "./ui";
@@ -20,6 +21,7 @@ const CATEGORY_COLOR: Record<Category, string> = {
 export function InsightsView() {
   const items = useWardrobe((s) => s.items);
   const setView = useWardrobe((s) => s.setView);
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const i = computeFullInsights(items);
 
   if (i.itemCount === 0) {
@@ -78,10 +80,10 @@ export function InsightsView() {
 
       {/* Value tiles */}
       <div className="grid grid-cols-2 gap-3">
-        <Tile label="Wardrobe value" value={`$${Math.round(i.value).toLocaleString()}`} />
+        <Tile label="Wardrobe value" value={formatMoney(i.value, currency, 0)} />
         <Tile
           label="Average item price"
-          value={i.avgPrice > 0 ? `$${i.avgPrice.toFixed(2)}` : "—"}
+          value={i.avgPrice > 0 ? formatMoney(i.avgPrice, currency, 2) : "—"}
         />
       </div>
 
@@ -110,7 +112,7 @@ export function InsightsView() {
           <h2 className="mb-3 font-medium">Best value (cost per wear)</h2>
           <ItemRow
             item={i.bestValue.item}
-            trailing={`$${i.bestValue.costPerWear.toFixed(2)}/wear`}
+            trailing={`${formatMoney(i.bestValue.costPerWear, currency, 2)}/wear`}
           />
           {i.mostWorn.length > 0 && (
             <>

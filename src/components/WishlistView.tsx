@@ -2,6 +2,7 @@
 
 import { Heart, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { ItemCard } from "./ItemCard";
@@ -11,6 +12,7 @@ import { Button, EmptyState } from "./ui";
 
 export function WishlistView() {
   const { items } = useWardrobe();
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
@@ -40,7 +42,7 @@ export function WishlistView() {
       {wishlist.length > 0 && totalValue > 0 && (
         <div className="rounded-2xl border border-line bg-accent-soft/50 px-4 py-3 text-sm">
           <span className="font-medium">Estimated total: </span>
-          <span className="text-accent">${totalValue.toLocaleString()}</span>
+          <span className="text-accent">{formatMoney(totalValue, currency, 0)}</span>
           <span className="text-muted"> across {wishlist.length} items</span>
         </div>
       )}

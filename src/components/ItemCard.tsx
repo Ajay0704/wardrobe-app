@@ -3,6 +3,7 @@
 import { Check, ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { affiliateUrl } from "@/lib/affiliate";
 import { agentLog } from "@/lib/agent-log";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
@@ -29,6 +30,7 @@ export function ItemCard({
   compact?: boolean;
 }) {
   const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
   const [imgError, setImgError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -191,7 +193,7 @@ export function ItemCard({
         <p className="text-xs text-muted">
           {CATEGORY_LABEL[item.category]}
           {item.brand ? ` · ${item.brand}` : ""}
-          {item.price !== undefined ? ` · $${item.price}` : ""}
+          {item.price !== undefined ? ` · ${formatMoney(item.price, currency, 0)}` : ""}
           {!item.wishlist && item.wearCount
             ? ` · ${item.wearCount}× worn`
             : ""}

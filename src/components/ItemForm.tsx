@@ -23,6 +23,7 @@ import type { Category, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { SmartBuy } from "./SmartBuy";
+import { BrandPicker } from "./BrandPicker";
 import { useIsNativeApp } from "./NativeAppClass";
 
 /**
@@ -554,12 +555,7 @@ export function ItemForm({
 
           <div className="grid grid-cols-2 gap-4">
             <Field label="Brand (optional)">
-              <input
-                className={inputClass}
-                value={brand}
-                onChange={(e) => setBrand(e.target.value)}
-                placeholder="Everlane"
-              />
+              <BrandPicker value={brand} onChange={setBrand} />
             </Field>
             <Field label="Price (optional)">
               <input

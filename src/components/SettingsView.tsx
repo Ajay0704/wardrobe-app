@@ -17,6 +17,7 @@ import {
   unsubscribeFromPush,
 } from "@/lib/push-client";
 import { SETTINGS_SECTIONS } from "@/lib/profile";
+import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currency";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { useIsNativeApp } from "./NativeAppClass";
 
@@ -176,6 +177,19 @@ export function SettingsView() {
                     </button>
                   ))}
                 </div>
+              </Field>
+              <Field label="Currency" hint="Used for prices, wardrobe value, and cost-per-wear.">
+                <select
+                  className={inputClass}
+                  value={profile.currency ?? DEFAULT_CURRENCY}
+                  onChange={(e) => updateProfile({ currency: e.target.value })}
+                >
+                  {CURRENCIES.map((c) => (
+                    <option key={c.code} value={c.code}>
+                      {c.symbol} · {c.code} — {c.label}
+                    </option>
+                  ))}
+                </select>
               </Field>
               <p className="text-xs text-muted">
                 Changes save automatically to this browser
