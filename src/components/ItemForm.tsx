@@ -267,7 +267,7 @@ export function ItemForm({
     <Modal title={initial ? "Edit item" : "Add item"} onClose={onClose} wide>
       <div className="grid gap-5 sm:grid-cols-[180px_1fr]">
         {/* Live image preview */}
-        <div className="space-y-2">
+        <div className="mx-auto w-44 space-y-2 sm:mx-0 sm:w-auto">
           <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-line bg-surface-2">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element

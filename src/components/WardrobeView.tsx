@@ -74,7 +74,7 @@ export function WardrobeView() {
             onChange={(e) => setFilters({ search: e.target.value })}
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <select
             className={`${inputClass} !w-auto`}
             value={filters.season}
