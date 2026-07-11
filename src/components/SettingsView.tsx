@@ -22,7 +22,7 @@ import {
   nativeNotificationsAvailable,
   nativeNotificationsEnabledLocally,
 } from "@/lib/native-notifications";
-import { SETTINGS_SECTIONS, STYLE_QUIZ_VIBES } from "@/lib/profile";
+import { SETTINGS_SECTIONS, START_SCREEN_OPTIONS, STYLE_QUIZ_VIBES, type StartScreen } from "@/lib/profile";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currency";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -189,6 +189,27 @@ export function SettingsView() {
                   {CURRENCIES.map((c) => (
                     <option key={c.code} value={c.code}>
                       {c.symbol} · {c.code} — {c.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field
+                label="App starts in"
+                hint="Which screen opens when you launch the app. Applies next launch (and after cloud sync)."
+              >
+                <select
+                  className={inputClass}
+                  value={profile.startView ?? "today"}
+                  onChange={(e) =>
+                    updateProfile({
+                      startView: e.target.value as StartScreen,
+                    })
+                  }
+                >
+                  {START_SCREEN_OPTIONS.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.label}
+                      {o.hint ? ` — ${o.hint}` : ""}
                     </option>
                   ))}
                 </select>

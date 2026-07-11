@@ -33,6 +33,49 @@ export interface UserProfile {
   styleSnapshot?: string;
   /** True after first-run onboarding is finished or skipped. */
   onboardingComplete?: boolean;
+  /**
+   * Screen the app opens to on launch (FITS-style “App starts in”).
+   * Defaults to Today when unset.
+   */
+  startView?: StartScreen;
+}
+
+/** Views allowed as the default launch screen. */
+export type StartScreen =
+  | "today"
+  | "wardrobe"
+  | "outfits"
+  | "calendar"
+  | "wishlist"
+  | "travel"
+  | "insights"
+  | "you";
+
+export const START_SCREEN_OPTIONS: {
+  id: StartScreen;
+  label: string;
+  hint?: string;
+}[] = [
+  { id: "today", label: "Today", hint: "What to wear" },
+  { id: "wardrobe", label: "Closet", hint: "Your pieces" },
+  { id: "outfits", label: "Outfits", hint: "Saved looks" },
+  { id: "calendar", label: "Calendar" },
+  { id: "wishlist", label: "Wishlist" },
+  { id: "travel", label: "Packing" },
+  { id: "insights", label: "Insights" },
+  { id: "you", label: "You", hint: "Profile hub (app)" },
+];
+
+const START_SCREEN_IDS = new Set<string>(
+  START_SCREEN_OPTIONS.map((o) => o.id),
+);
+
+export function resolveStartView(
+  profile: Pick<UserProfile, "startView"> | null | undefined,
+): StartScreen {
+  const v = profile?.startView;
+  if (v && START_SCREEN_IDS.has(v)) return v;
+  return "today";
 }
 
 export const DEFAULT_PROFILE: UserProfile = {

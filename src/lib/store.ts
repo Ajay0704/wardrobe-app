@@ -21,6 +21,7 @@ import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
 import { demoItems } from "./demo-data";
 import {
   DEFAULT_PROFILE,
+  resolveStartView,
   type AuthUser,
   type SettingsSection,
   type UserProfile,
@@ -466,6 +467,7 @@ export const useWardrobe = create<WardrobeState>()(
 
       hydrateFromRemote: (data) =>
         set(() => {
+          const profile = data.profile ?? get().profile;
           const scrubbed = scrubSnapshotImages({
             items: Array.isArray(data.items)
               ? data.items.map(normalizeItem)
@@ -479,11 +481,15 @@ export const useWardrobe = create<WardrobeState>()(
             calendar: Array.isArray(data.calendar)
               ? data.calendar.map(normalizeCalendarEntry)
               : get().calendar,
-            profile: data.profile ?? get().profile,
+            profile,
             theme: (data.theme === "dark" ? "dark" : "light") as ThemeMode,
             draft: normalizeDraft(data.draft),
           });
-          return scrubbed;
+          return {
+            ...scrubbed,
+            // Cold start / sync: open to the user's preferred start screen.
+            view: resolveStartView(profile),
+          };
         }),
     }),
     {
@@ -511,23 +517,8 @@ export const useWardrobe = create<WardrobeState>()(
           draft: normalizeDraft(p.draft),
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
           theme: p.theme === "dark" ? "dark" : "light",
-          // Prefer persisted view only if it's a known View; else default Today.
-          view:
-            typeof p.view === "string" &&
-            [
-              "today",
-              "wardrobe",
-              "builder",
-              "outfits",
-              "calendar",
-              "wishlist",
-              "travel",
-              "insights",
-              "you",
-              "settings",
-            ].includes(p.view)
-              ? (p.view as View)
-              : "today",
+          // Launch screen comes from profile.startView (not last-visited tab).
+          view: resolveStartView(p.profile),
         };
       },
       partialize: (s) =>
@@ -539,7 +530,6 @@ export const useWardrobe = create<WardrobeState>()(
           profile: s.profile,
           theme: s.theme,
           draft: s.draft,
-          view: s.view,
         }),
     },
   ),

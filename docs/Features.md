@@ -85,6 +85,10 @@ Research-backed quiz (see [[Onboarding quiz research]]): **goal → occasions �
 
 Dark/light mode persisted in localStorage (`ThemeEffect.tsx`).
 
+## App starts in
+
+Settings → Preferences → **App starts in** (`profile.startView`). Launch opens that screen (Today by default) instead of the last-visited tab. Syncs with the profile snapshot.
+
 ## Native app chrome (Capacitor)
 
 Bottom tabs: **Today · Closet · ＋ Create · Outfits · You**. You hub groups Wishlist, Packing, Insights, Calendar, Settings. Website keeps top-nav chrome. See [[iOS Capacitor]].
