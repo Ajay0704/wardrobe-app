@@ -52,5 +52,11 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Wardrobe needs the camera to photograph clothing for your closet.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Wardrobe needs photo access so you can add clothing images from your library.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Wardrobe may save clothing photos you capture to your library when you choose.</string>
 </dict>
 </plist>

@@ -1,6 +1,6 @@
 # Phase 0 + Phase 1 roadmap status
 
-Last updated: 2026-07-10
+Last updated: 2026-07-11
 
 ## Phase 0 — Frictionless input + monetization seed ✅
 
@@ -20,6 +20,16 @@ Last updated: 2026-07-10
 | 1.3 | PWA push | Scaffolded | Needs VAPID keys, `SUPABASE_SERVICE_ROLE_KEY`, `CRON_SECRET`, run `push_subscriptions` SQL |
 | 1.4 | Outfit calendar | Done | `CalendarView` over worn + planned entries |
 
+## Shipped after Phase 1 (Jul 2026)
+
+| ID | Feature | Status | Notes |
+|----|---------|--------|-------|
+| AJA-28 | Insights screen | Done | Category mix, value, usage, CPW — earlier than research “Phase 3” |
+| AJA-31 | Native IA | Done | Today / Closet / ＋ / Outfits / You |
+| AJA-32 | Take photo | Done | Capacitor `@capacitor/camera` + Info.plist camera permission (HTML capture broken in WKWebView) |
+| AJA-33 | Native shell stability | Done | `/n` entry, in-app editor + tabs, no WebView shop nav, input zoom fix |
+| AJA-50/51 | Currency + brand picker | Done | Settings currency; searchable brands |
+
 ## Ops checklist (push)
 
 1. Run calendar + push SQL from `supabase/schema.sql`
@@ -30,4 +40,5 @@ Last updated: 2026-07-10
 ## Related
 
 - [[Features]]
+- [[iOS Capacitor]]
 - [[Research synthesis — next moves]]

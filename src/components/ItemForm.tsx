@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { affiliateUrl } from "@/lib/affiliate";
 import { agentLog } from "@/lib/agent-log";
 import { extractDominantColor, nameColor } from "@/lib/color";
+import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
@@ -130,6 +131,22 @@ export function ItemForm({
       );
     } finally {
       setUploading(false);
+    }
+  };
+
+  /** Native camera via Capacitor — HTML capture= flashes and exits in WKWebView. */
+  const handleTakePhoto = async () => {
+    setAnalyzeMsg("");
+    try {
+      const file = await captureNativePhoto();
+      if (!file) return;
+      await handleFile(file);
+    } catch (err) {
+      setAnalyzeMsg(
+        err instanceof Error
+          ? err.message
+          : "Couldn't open the camera. Check Settings → Wardrobe → Camera.",
+      );
     }
   };
 
@@ -345,19 +362,14 @@ export function ItemForm({
                   }
                 />
               </label>
-              <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
-                <Camera size={13} /> Take photo
-                <input
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={(e) =>
-                    e.target.files?.[0] && handleFile(e.target.files[0])
-                  }
-                />
-              </label>
+              <button
+                type="button"
+                disabled={uploading}
+                onClick={() => void handleTakePhoto()}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+              >
+                <Camera size={13} /> {uploading ? "…" : "Take photo"}
+              </button>
             </div>
           ) : (
             <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">

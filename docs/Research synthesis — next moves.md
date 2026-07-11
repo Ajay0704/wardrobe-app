@@ -21,9 +21,9 @@ The consumer problem is **real but intermittent** (84% “nothing to wear”; mo
 | Capability | Current product | Research must-have |
 |---|---|---|
 | Cataloging | Manual + product URL extract | Bulk photo, bg removal, auto-tag, receipt/gallery ingest |
-| Styling | Color-harmony generate + builder | Weather / occasion / calendar-aware outfits |
-| Habit | None instrumented | Wear log, weekly return, gentle nudges |
-| Analytics | None (`birthDate` unused) | Cost-per-wear, unworn %, balance |
+| Styling | Weather Today + color-harmony generate + builder | Weather / occasion / calendar-aware outfits |
+| Habit | Today + wear log + calendar + push scaffold | Wear log, weekly return, gentle nudges |
+| Analytics | Insights screen (CPW, unworn, value, usage) | Cost-per-wear, unworn %, balance |
 | Try-on | Gemini try-on (env-gated) | Keep as wow; not the core habit |
 | Commerce | Wishlist only | Gap-fill affiliate + resale deep links |
 | Monetization | Free | Freemium *after* habit; never paywall closet post-upload |
@@ -50,9 +50,9 @@ The consumer problem is **real but intermittent** (84% “nothing to wear”; mo
 3. Simple outfit calendar + weekly nudge
 4. 6–8 week cohort on plateau behavior
 
-### Phase 3 — Insights (weeks 12–20)
+### Phase 3 — Insights (weeks 12–20) — **partially shipped early**
 
-1. Cost-per-wear + unworn dashboard
+1. Cost-per-wear + unworn dashboard → **done** (`InsightsView`, AJA-28)
 2. Wishlist → wardrobe one-click; remote clear on reset
 3. Harden try-on quality
 

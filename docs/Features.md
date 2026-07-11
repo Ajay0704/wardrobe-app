@@ -1,5 +1,7 @@
 # Features
 
+Last updated: 2026-07-11
+
 ## Today (default home)
 
 Weather-aware outfit suggestions via Open-Meteo + geolocation. One-tap **I wore this**, edit in builder, or save.
@@ -12,9 +14,12 @@ Add clothing with name, image URL (or upload), category, color, tags, seasons, b
 
 - **AI auto-tag** on upload (`/api/analyze` + Gemini) pre-fills fields
 - **Background removal** (client WASM `@imgly/background-removal`) for clean cutouts
+- **Fetch details** from a product URL (`/api/extract`) — name, photo, brand, price
 - **Wear logging** from item cards (increments `wearCount` / `lastWornAt`)
+- **Brand picker** (searchable) + **currency** from Settings (formats prices / Insights)
+- **Native only:** **Take photo** via Capacitor Camera plugin (not HTML capture — that flashes and exits in WKWebView)
 
-**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`
+**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx` · **Logic:** `src/lib/brands.ts`, `src/lib/currency.ts`
 
 ## Outfit builder
 
@@ -41,6 +46,13 @@ Stacked outfit preview with a color harmony score (complementary, analogous, cla
 - **Outfits** — save looks; **I wore this** logs wear (`OutfitsView.tsx`)
 - **Calendar** — plan outfits + worn history (`CalendarView.tsx`)
 - **Wishlist** — mindful-buying gate (similar owned items + cost-per-wear) + affiliate links (`WishlistView.tsx`, `src/lib/affiliate.ts`)
+- **Smart Buy** — similar/cheaper suggestions on wishlist items (`SmartBuy.tsx`)
+
+## Insights
+
+Closet analytics: category mix, wardrobe value, usage %, cost-per-wear, most/never worn, recently added.
+
+**Component:** `InsightsView.tsx` · entry via web profile menu or native **You** hub
 
 ## Travel mode
 
@@ -64,3 +76,13 @@ Morning outfit nudge + Sunday plan reminder. Settings → Notifications. Needs V
 ## Theme
 
 Dark/light mode persisted in localStorage (`ThemeEffect.tsx`).
+
+## Native app chrome (Capacitor)
+
+Bottom tabs: **Today · Closet · ＋ Create · Outfits · You**. You hub groups Wishlist, Packing, Insights, Calendar, Settings. Website keeps top-nav chrome. See [[iOS Capacitor]].
+
+## Related
+
+- [[Phase 0-1 status]]
+- [[Architecture]]
+- [[Data model]]
