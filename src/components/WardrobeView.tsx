@@ -1,13 +1,15 @@
 "use client";
 
-import { Heart, Images, LayoutGrid, Plus, Search, Sun } from "lucide-react";
+import { Heart, Images, LayoutGrid, Plus, Search, Sparkles, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
+import { forgottenItems } from "@/lib/rediscover";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
 import { BulkImport } from "./BulkImport";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
+import { RediscoverModal } from "./RediscoverModal";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
 
 /** Apply search + category/season/tag filters to the item list. */
@@ -45,8 +47,11 @@ export function WardrobeView() {
   const [bulk, setBulk] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
   const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [stylingItem, setStylingItem] = useState<WardrobeItem | null>(null);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
+  // Least-worn pieces to spotlight for rediscovery.
+  const forgotten = useMemo(() => forgottenItems(owned, 6), [owned]);
   const scoped = useMemo(
     () => (favoritesOnly ? owned.filter((it) => it.favorite) : owned),
     [owned, favoritesOnly],
@@ -125,6 +130,42 @@ export function WardrobeView() {
           </Button>
         </div>
       </div>
+
+      {/* Rediscover strip — spotlight least-worn pieces to restyle */}
+      {owned.length >= 4 && forgotten.length > 0 && (
+        <div className="rounded-2xl border border-line bg-accent-soft/40 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <Sparkles size={15} className="text-accent" />
+            <h3 className="text-sm font-semibold">Rediscover your closet</h3>
+            <span className="text-xs text-muted">
+              Pieces you haven&apos;t worn lately — tap for 3 ways to style them.
+            </span>
+          </div>
+          <div className="flex gap-3 overflow-x-auto pb-1">
+            {forgotten.map((it) => (
+              <button
+                key={it.id}
+                type="button"
+                onClick={() => setStylingItem(it)}
+                title={`Style ${it.name}`}
+                className="group relative h-24 w-20 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-2"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={it.imageUrl}
+                  alt={it.name}
+                  className="h-full w-full object-cover"
+                />
+                <span className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white">
+                    <Sparkles size={10} /> Style
+                  </span>
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Category chips */}
       <div className="flex flex-wrap gap-1.5">
@@ -205,6 +246,13 @@ export function WardrobeView() {
       )}
 
       {bulk && <BulkImport onClose={() => setBulk(false)} />}
+
+      {stylingItem && (
+        <RediscoverModal
+          anchor={stylingItem}
+          onClose={() => setStylingItem(null)}
+        />
+      )}
     </div>
   );
 }

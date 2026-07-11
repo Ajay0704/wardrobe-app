@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Heart, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
@@ -10,6 +10,7 @@ import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
+import { RediscoverModal } from "./RediscoverModal";
 import { ColorDot, MatchBadge } from "./ui";
 
 /**
@@ -34,6 +35,7 @@ export function ItemCard({
   const isNative = useIsNativeApp();
   const [imgError, setImgError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [styling, setStyling] = useState(false);
 
   const addAndGo = () => {
     addToDraft(item.id);
@@ -79,6 +81,7 @@ export function ItemCard({
   };
 
   return (
+    <>
     <div
       role="button"
       tabIndex={0}
@@ -119,6 +122,14 @@ export function ItemCard({
             <CardAction title="Add to outfit" onClick={addAndGo}>
               <Plus size={15} />
             </CardAction>
+            {!item.wishlist && (
+              <CardAction
+                title="3 ways to style this"
+                onClick={() => setStyling(true)}
+              >
+                <Sparkles size={14} />
+              </CardAction>
+            )}
             {!item.wishlist && (
               <CardAction
                 title="I wore this today"
@@ -218,6 +229,10 @@ export function ItemCard({
         )}
       </div>
     </div>
+    {styling && (
+      <RediscoverModal anchor={item} onClose={() => setStyling(false)} />
+    )}
+    </>
   );
 }
 
