@@ -151,19 +151,7 @@ export function ItemCard({
 
       <div className="space-y-1 p-3">
         <div className="flex items-center justify-between gap-2">
-          {item.productUrl ? (
-            <button
-              type="button"
-              onClick={openProduct}
-              title="View product in browser"
-              className="flex min-w-0 items-center gap-1 text-left text-sm font-medium transition-colors hover:text-accent"
-            >
-              <span className="truncate">{item.name}</span>
-              <ExternalLink size={12} className="shrink-0 opacity-60" />
-            </button>
-          ) : (
-            <p className="truncate text-sm font-medium">{item.name}</p>
-          )}
+          <p className="truncate text-sm font-medium">{item.name}</p>
           <ColorDot color={item.color} name={item.colorName} />
         </div>
         <p className="text-xs text-muted">
@@ -174,6 +162,17 @@ export function ItemCard({
             ? ` · ${item.wearCount}× worn`
             : ""}
         </p>
+        {!compact && item.productUrl && (
+          <button
+            type="button"
+            onClick={openProduct}
+            title="View product in Safari"
+            className="flex items-center gap-1 pt-0.5 text-[11px] font-medium text-accent"
+          >
+            <ExternalLink size={11} />
+            Open product page
+          </button>
+        )}
         {!compact && item.tags.length > 0 && (
           <p className="truncate text-[11px] capitalize text-muted/80">
             {item.tags.join(" · ")}

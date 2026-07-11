@@ -6,10 +6,12 @@ import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
+import { useIsNativeApp } from "./NativeAppClass";
 import { Button, EmptyState } from "./ui";
 
 export function WishlistView() {
   const { items } = useWardrobe();
+  const isNative = useIsNativeApp();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
 
@@ -24,8 +26,8 @@ export function WishlistView() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 className="heading text-2xl">Wishlist</h2>
-          <p className="mt-1 text-sm text-muted">
+          {!isNative && <h2 className="heading text-2xl">Wishlist</h2>}
+          <p className={`text-sm text-muted ${isNative ? "" : "mt-1"}`}>
             Pieces you want to buy — track prices and notes before adding to
             your wardrobe.
           </p>

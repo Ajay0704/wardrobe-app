@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
+
+const NATIVE_LOCK_KEY = "wardrobe:native-shell";
 
 /**
  * Adds the `native-app` class to <html> when running inside the Capacitor shell,
@@ -9,14 +11,18 @@ import { isNativeApp, openExternalUrl } from "@/lib/platform";
  * No-op in a normal browser, so the website is unaffected.
  *
  * Also intercepts in-app clicks on external http(s) links so they open in Safari
- * instead of replacing the WebView (which looked like "switching to web layout"
- * with no way back).
+ * instead of replacing the WebView.
  */
 export function NativeAppClass() {
   useEffect(() => {
-    const native = isNativeApp();
-    document.documentElement.classList.toggle("native-app", native);
-    if (!native) return;
+    const apply = () => {
+      const native = isNativeApp() || sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
+      if (isNativeApp()) sessionStorage.setItem(NATIVE_LOCK_KEY, "1");
+      document.documentElement.classList.toggle("native-app", native);
+      return native;
+    };
+
+    if (!apply()) return;
 
     const onClick = (e: MouseEvent) => {
       const target = e.target;
@@ -32,7 +38,6 @@ export function NativeAppClass() {
         return;
       }
       if (url.protocol !== "http:" && url.protocol !== "https:") return;
-      // Same-origin app routes stay in the WebView.
       if (url.origin === window.location.origin) return;
       e.preventDefault();
       e.stopPropagation();
@@ -40,15 +45,43 @@ export function NativeAppClass() {
     };
 
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    // Bridge can inject slightly after first paint when using server.url
+    const t1 = window.setTimeout(apply, 50);
+    const t2 = window.setTimeout(apply, 400);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, []);
   return null;
 }
 
-/** Client hook mirror of {@link isNativeApp}: false during SSR/first paint,
- *  resolves to the real value after mount (avoids hydration mismatch). */
+/**
+ * Client hook: false during SSR. Once we detect the Capacitor shell, stay on
+ * the native chrome for the rest of the session (avoids flipping to the website
+ * top-nav after opening a wishlist item / remount).
+ */
 export function useIsNativeApp(): boolean {
+  const locked = useRef(false);
   const [native, setNative] = useState(false);
-  useEffect(() => setNative(isNativeApp()), []);
-  return native;
+
+  useEffect(() => {
+    const check = () => {
+      if (isNativeApp() || sessionStorage.getItem(NATIVE_LOCK_KEY) === "1") {
+        if (isNativeApp()) sessionStorage.setItem(NATIVE_LOCK_KEY, "1");
+        locked.current = true;
+        setNative(true);
+      }
+    };
+    check();
+    const t1 = window.setTimeout(check, 50);
+    const t2 = window.setTimeout(check, 400);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
+  }, []);
+
+  return locked.current || native;
 }
