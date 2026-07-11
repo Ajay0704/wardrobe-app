@@ -4,6 +4,7 @@ import { Check, ExternalLink, Heart, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { affiliateUrl } from "@/lib/affiliate";
+import { openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { ColorDot, MatchBadge } from "./ui";
@@ -40,6 +41,13 @@ export function ItemCard({
     if (e.currentTarget instanceof HTMLElement) {
       e.dataTransfer.setDragImage(e.currentTarget, 40, 52);
     }
+  };
+
+  const openProduct = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const url = affiliateUrl(item.productUrl);
+    if (url) void openExternalUrl(url);
   };
 
   return (
@@ -144,18 +152,15 @@ export function ItemCard({
       <div className="space-y-1 p-3">
         <div className="flex items-center justify-between gap-2">
           {item.productUrl ? (
-            <a
-              href={affiliateUrl(item.productUrl)}
-              target="_blank"
-              rel="noreferrer"
-              draggable={false}
-              onClick={(e) => e.stopPropagation()}
-              title="View product"
-              className="flex min-w-0 items-center gap-1 text-sm font-medium transition-colors hover:text-accent"
+            <button
+              type="button"
+              onClick={openProduct}
+              title="View product in browser"
+              className="flex min-w-0 items-center gap-1 text-left text-sm font-medium transition-colors hover:text-accent"
             >
               <span className="truncate">{item.name}</span>
               <ExternalLink size={12} className="shrink-0 opacity-60" />
-            </a>
+            </button>
           ) : (
             <p className="truncate text-sm font-medium">{item.name}</p>
           )}

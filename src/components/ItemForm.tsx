@@ -298,7 +298,7 @@ export function ItemForm({
 
   return (
     <Modal title={initial ? "Edit item" : "Add item"} onClose={onClose} wide>
-      <div className="grid gap-5 sm:grid-cols-[180px_1fr]">
+      <div className="item-form-layout grid gap-5 sm:grid-cols-[180px_1fr]">
         {/* Live image preview */}
         <div className="mx-auto w-44 space-y-2 sm:mx-0 sm:w-auto">
           <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-line bg-surface-2">

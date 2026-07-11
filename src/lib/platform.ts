@@ -1,3 +1,4 @@
+import { Browser } from "@capacitor/browser";
 import { Capacitor } from "@capacitor/core";
 
 /**
@@ -20,4 +21,30 @@ export function isNativeApp(): boolean {
     /* not in a Capacitor context */
   }
   return navigator.userAgent.includes("WardrobeApp");
+}
+
+/**
+ * Open an http(s) URL outside the app WebView.
+ * In Capacitor, `target="_blank"` navigates the WebView itself (user loses the
+ * app chrome and can't get back). Use Safari via the Browser plugin instead.
+ * In a normal browser, opens a new tab.
+ */
+export async function openExternalUrl(raw: string): Promise<void> {
+  let url: string;
+  try {
+    url = new URL(raw).toString();
+  } catch {
+    return;
+  }
+  if (!/^https?:\/\//i.test(url)) return;
+
+  if (isNativeApp()) {
+    try {
+      await Browser.open({ url });
+      return;
+    } catch {
+      /* fall through */
+    }
+  }
+  window.open(url, "_blank", "noopener,noreferrer");
 }

@@ -236,3 +236,15 @@ body {
 .native-sheet-row:last-child {
   border-bottom: none;
 }
+
+/* Item edit modal: keep a single-column phone layout inside the native app
+   even if the WebView reports a wide CSS width. */
+.native-app .item-form-layout {
+  grid-template-columns: 1fr;
+}
+
+.native-app .item-form-layout > :first-child {
+  margin-inline: auto;
+  width: 11rem;
+}
+
