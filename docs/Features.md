@@ -44,9 +44,10 @@ Stacked outfit preview with a color harmony score (complementary, analogous, cla
 ## Saved outfits, calendar & wishlist
 
 - **Outfits** — save looks; **I wore this** logs wear (`OutfitsView.tsx`)
-- **Calendar** — plan outfits + worn history (`CalendarView.tsx`)
+- **Calendar** — plan outfits + worn history (`CalendarView.tsx`); friendly dates via `formatDisplayDate`
 - **Wishlist** — mindful-buying gate (similar owned items + cost-per-wear) + affiliate links (`WishlistView.tsx`, `src/lib/affiliate.ts`)
-- **Smart Buy** — similar/cheaper suggestions on wishlist items (`SmartBuy.tsx`)
+- **Smart Buy** — opt-in closet-fit sheet (wear-based CPW, tag/season scoring); never expands inline on mobile (`SmartBuy.tsx`, `src/lib/smart-buy.ts`)
+- **Browser clipper** — Chrome/Edge MV3: icon / right‑click / ⌥⇧W / on-page Save → `POST /api/clip` (see [[Browser extension]])
 
 ## Insights
 
@@ -96,5 +97,6 @@ Bottom tabs: **Today · Closet · ＋ Create · Outfits · You**. You hub groups
 ## Related
 
 - [[Phase 0-1 status]]
+- [[Browser extension]]
 - [[Architecture]]
 - [[Data model]]

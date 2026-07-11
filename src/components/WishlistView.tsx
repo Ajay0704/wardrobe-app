@@ -50,7 +50,7 @@ export function WishlistView() {
       {wishlist.length === 0 ? (
         <EmptyState
           title="Your wishlist is empty"
-          subtitle="Save items you're eyeing — move them to your wardrobe once you buy them."
+          subtitle="Save items you're eyeing from shop pages with the browser clipper, or add one manually."
           action={
             <Button onClick={() => setAdding(true)}>
               <Heart size={15} /> Add your first wish

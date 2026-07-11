@@ -66,6 +66,19 @@ export function scrubSnapshotImages<
 }
 
 /**
+ * Drop HEIC / oversized data-URLs from an in-memory snapshot (e.g. after pull)
+ * without writing the Zustand store item-by-item (that would spam sync).
+ */
+export function scrubPulledSnapshot<
+  T extends {
+    items: WardrobeItem[];
+    profile: UserProfile;
+  },
+>(snapshot: T): T {
+  return scrubSnapshotImages(snapshot);
+}
+
+/**
  * Convert remaining (small, non-HEIC) data: URLs into Storage URLs.
  * Oversized/HEIC must already be scrubbed — those cannot be healed in-browser.
  */

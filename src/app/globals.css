@@ -282,28 +282,39 @@ body {
 
 /* Failsafe: if website chrome somehow mounts inside Capacitor, hide it. */
 html.native-app .web-shell-header,
-html.native-app .web-shell-footer {
+html.native-app .web-shell-footer,
+html.native-app .web-auth-landing {
   display: none !important;
 }
 
 /*
- * Native item editor — fills the shell above the tab bar.
- * Uses 100svh (not visual viewport) so focusing inputs doesn't shrink the page.
+ * Native item editor — fills the shell *above* the tab bar.
+ * Must stay below .native-tabbar (z-index 40). z-index 60 covered the tabs and
+ * felt like flipping off the mobile layout (clipped wishlist opens — AJA-78).
+ * Uses 100svh only on non-native phone web; native uses top/bottom insets.
  */
 .native-item-page {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  height: 100svh;
-  max-height: 100svh;
-  padding-bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  bottom: 0;
+  width: 100%;
+  height: auto;
+  max-height: none;
+  padding-bottom: env(safe-area-inset-bottom);
   box-sizing: border-box;
-  z-index: 45;
+  z-index: 35;
   display: flex;
   flex-direction: column;
   background: var(--background);
   overflow: hidden;
+}
+
+/* Leave the Capacitor tab bar visible and tappable */
+html.native-app .native-item-page {
+  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+  padding-bottom: 0;
 }
 
 .native-item-page-header {
@@ -350,6 +361,87 @@ html.native-app .web-shell-footer {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
   padding: 1.25rem 1rem 1.5rem;
+}
+
+/*
+ * Smart Buy result sheet — separate fixed layer above the item editor.
+ * Must NOT expand inside the form (that reflow flipped the native layout).
+ * Same insets as .native-item-page so tabs stay visible.
+ */
+.smart-buy-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 36;
+  display: flex;
+  flex-direction: column;
+  background: var(--background);
+  overflow: hidden;
+  /* Contain layout so opening this never reflows the editor underneath */
+  contain: layout style size;
+}
+
+html.native-app .smart-buy-sheet {
+  bottom: calc(3.5rem + env(safe-area-inset-bottom));
+}
+
+.smart-buy-sheet-header {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  padding: 0.55rem 0.75rem;
+  padding-top: max(0.55rem, env(safe-area-inset-top));
+}
+
+.smart-buy-sheet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.1rem;
+  justify-self: start;
+  margin-left: -0.35rem;
+  padding: 0.35rem 0.4rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--accent);
+}
+
+.smart-buy-sheet-title {
+  justify-self: center;
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.smart-buy-sheet-close {
+  justify-self: end;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 9999px;
+  color: var(--muted);
+}
+
+.smart-buy-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 1.25rem 1rem 1.5rem;
+}
+
+.smart-buy-trigger {
+  /* Keep a stable footprint in the form — never swaps for taller content */
+  min-height: 2.75rem;
 }
 
 /* Other modals in native: same stable height, leave tab bar clear. */

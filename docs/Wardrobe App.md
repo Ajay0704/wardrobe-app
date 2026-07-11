@@ -15,6 +15,7 @@ Last updated: 2026-07-11
 - [[Research synthesis — next moves]]
 - [[Onboarding quiz research]]
 - [[Phase 0-1 status]]
+- [[Browser extension]]
 - [[iOS Capacitor]]
 - [[Claude Code handoff — iOS Capacitor]]
 - [[Linear]]
@@ -24,7 +25,8 @@ Last updated: 2026-07-11
 - **Web:** marketing landing + signed-in top-nav app
 - **iOS:** Capacitor → `/n?native=1` · tabs Today / Closet / ＋ / Outfits / You
 - **Phase 0–1:** shipped (AJA-36 habit + web push activated)
-- **Also shipped:** Insights, camera capture, currency + brand picker, native editor stability (AJA-33)
+- **Also shipped:** Insights, camera capture, currency + brand picker, native editor stability (AJA-33), browser clipper (AJA-78), Smart Buy sheet, sync soft-timeout, AJA-22/23 polish
+- **Open:** AJA-35 onboarding first-win; AJA-17/18 travel & packshot
 
 Notion hub (broader product docs): [Your Personal Wardrobe](https://app.notion.com/p/396c075eff4c814eabb8d6825530f504) · [New ideas](https://app.notion.com/p/39ac075eff4c8146990be35f0d3506b3)
 

@@ -11,9 +11,9 @@ import {
   Upload,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { affiliateUrl } from "@/lib/affiliate";
-import { agentLog } from "@/lib/agent-log";
 import { extractDominantColor, nameColor } from "@/lib/color";
 import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
@@ -26,6 +26,28 @@ import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
 import { useIsNativeApp } from "./NativeAppClass";
+
+/** Phone / Capacitor: keep the stacked editor — never jump to desktop modal chrome. */
+function usePhoneEditorLayout(nativeHook: boolean): boolean {
+  const [narrow, setNarrow] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const mq = window.matchMedia("(max-width: 767px)");
+    const sync = () => setNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  const htmlNative =
+    mounted && document.documentElement.classList.contains("native-app");
+  return nativeHook || isNativeApp() || htmlNative || narrow;
+}
+
+function portalToBody(node: ReactNode): ReactNode {
+  if (typeof document === "undefined") return node;
+  return createPortal(node, document.body);
+}
 
 /**
  * Add / edit item modal. Uploaded images go to Supabase Storage when signed in
@@ -41,7 +63,9 @@ export function ItemForm({
   onClose: () => void;
 }) {
   const { addItem, updateItem, authUser } = useWardrobe();
-  const isNative = useIsNativeApp();
+  const nativeHook = useIsNativeApp();
+  const isNative = nativeHook || isNativeApp();
+  const phoneEditor = usePhoneEditorLayout(nativeHook);
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
@@ -65,6 +89,16 @@ export function ItemForm({
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzeMsg, setAnalyzeMsg] = useState("");
   const [removingBg, setRemovingBg] = useState(false);
+
+  // Phone: don't steal focus into Name when opening a clipped wishlist item.
+  useEffect(() => {
+    if (!phoneEditor) return;
+    const t = window.setTimeout(() => {
+      const ae = document.activeElement;
+      if (ae instanceof HTMLElement) ae.blur();
+    }, 50);
+    return () => window.clearTimeout(t);
+  }, [phoneEditor, initial?.id]);
 
   const colorName = useMemo(() => nameColor(color), [color]);
   const canSave =
@@ -90,7 +124,7 @@ export function ItemForm({
       seasons,
       brand: brand.trim() || undefined,
       price: price.trim() ? Number(price) : undefined,
-      wishlist: true,
+      wishlist,
       createdAt: initial?.createdAt ?? 0,
     }),
     [
@@ -106,6 +140,7 @@ export function ItemForm({
       seasons,
       brand,
       price,
+      wishlist,
     ],
   );
 
@@ -331,9 +366,9 @@ export function ItemForm({
 
   const title = initial ? "Edit item" : "Add item";
   const form = (
-      <div className="item-form-layout grid gap-5 sm:grid-cols-[180px_1fr]">
+      <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
         {/* Live image preview */}
-        <div className="mx-auto w-44 space-y-2 sm:mx-0 sm:w-auto">
+        <div className="mx-auto w-44 space-y-2 lg:mx-0 lg:w-auto">
           <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-line bg-surface-2">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -420,7 +455,6 @@ export function ItemForm({
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g. Camel Knit Sweater"
-              autoFocus
             />
           </Field>
 
@@ -458,20 +492,6 @@ export function ItemForm({
                 type="button"
                 onClick={() => {
                   const url = affiliateUrl(productUrl.trim());
-                  // #region agent log
-                  agentLog("C", "ItemForm.tsx:openProduct", "Open product page tapped", {
-                    hasUrl: !!url,
-                    isNative,
-                    isNativeAppFn: isNativeApp(),
-                    host: (() => {
-                      try {
-                        return url ? new URL(url).hostname : "";
-                      } catch {
-                        return "";
-                      }
-                    })(),
-                  });
-                  // #endregion
                   if (url) void openExternalUrl(url);
                 }}
                 className="mt-2 flex items-center gap-1.5 text-xs font-medium text-accent"
@@ -600,15 +620,20 @@ export function ItemForm({
             This is a wishlist item (I don&apos;t own it yet)
           </label>
 
-          {wishlist && imageUrl && (
+          {wishlist && (
             <div className="rounded-xl border border-line bg-surface-2/40 p-4">
               <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
                 <Sparkles size={13} /> Smart Buy
               </p>
-              <SmartBuy item={candidate} />
+              {imageUrl ? (
+                <SmartBuy item={candidate} />
+              ) : (
+                <p className="text-sm text-muted">
+                  Add a photo to check how this piece fits your closet.
+                </p>
+              )}
             </div>
           )}
-
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={onClose}>
               Cancel
@@ -621,20 +646,21 @@ export function ItemForm({
       </div>
   );
 
-  // Native: in-app page that leaves the bottom tab bar visible. A full-screen
-  // modal covered the tabs and felt like flipping to the website (AJA-33).
-  if (isNative) {
-    return (
+  // Phone + Capacitor: full-page editor portaled to <body> so iOS WebKit
+  // doesn't trap position:fixed inside .native-shell { overflow:hidden }
+  // (that bug felt like flipping off the mobile layout — AJA-33 / clipper).
+  if (phoneEditor) {
+    return portalToBody(
       <NativeItemPage title={title} onClose={onClose}>
         {form}
-      </NativeItemPage>
+      </NativeItemPage>,
     );
   }
 
-  return (
+  return portalToBody(
     <Modal title={title} onClose={onClose} wide>
       {form}
-    </Modal>
+    </Modal>,
   );
 }
 

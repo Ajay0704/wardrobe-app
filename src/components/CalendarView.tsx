@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { CalendarEntry, WardrobeItem } from "@/lib/types";
-import { todayISO } from "@/lib/types";
+import { formatDisplayDate, todayISO } from "@/lib/types";
 import { OutfitPreview } from "./OutfitPreview";
 import { Button } from "./ui";
 
@@ -190,7 +190,7 @@ export function CalendarView() {
         <div className="space-y-4">
           <div>
             <h3 className="font-medium">
-              {selected === today ? "Today" : selected}
+              {selected === today ? "Today" : formatDisplayDate(selected)}
             </h3>
             <p className="text-xs text-muted">
               {selectedEntries.length === 0
@@ -219,7 +219,7 @@ export function CalendarView() {
                 disabled={!planOutfitId}
                 onClick={addPlan}
               >
-                Add to {selected === today ? "today" : selected}
+                Add to {selected === today ? "today" : formatDisplayDate(selected)}
               </Button>
             </div>
           )}

@@ -1,15 +1,29 @@
 "use client";
 
 import { useCallback, useEffect, useRef } from "react";
-import { agentLog } from "@/lib/agent-log";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
-import { pullSnapshot, pushSnapshot } from "@/lib/supabase/sync";
-import { healBase64Snapshot, scrubBloatedInlineImages } from "@/lib/heal";
+import {
+  absorbWishlistClips,
+  pullSnapshot,
+  pushSnapshot,
+} from "@/lib/supabase/sync";
+import {
+  healBase64Snapshot,
+  scrubBloatedInlineImages,
+} from "@/lib/heal";
 import { useWardrobe } from "@/lib/store";
+
+/** Soft budget for the first cloud pull. Keep short — local data already works. */
+const PULL_TIMEOUT_MS = 8_000;
+/** Don't re-pull clips more often than this when switching apps. */
+const ABSORB_COOLDOWN_MS = 30_000;
 
 /**
  * Restores session on load, syncs wardrobe when signed in.
+ *
+ * Important: never `await` long network work inside `onAuthStateChange` —
+ * supabase-js holds an auth lock and the whole app feels frozen.
  */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const {
@@ -23,15 +37,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const skipPush = useRef(true);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const userId = useRef<string | null>(null);
+  const merging = useRef(false);
+  const pullGen = useRef(0);
+  const lastAbsorbAt = useRef(0);
+  const absorbInFlight = useRef(false);
 
   const syncPull = useCallback(
     async (uid: string) => {
-      // Drop poisoned HEIC/base64 from localStorage *before* any push path runs.
       scrubBloatedInlineImages();
+
+      const gen = ++pullGen.current;
+      let timedOut = false;
+      let timerId: ReturnType<typeof setTimeout> | undefined;
 
       const run = async () => {
         const remote = await pullSnapshot(uid);
+        if (gen !== pullGen.current) return;
         if (remote) {
+          // pullSnapshot already scrubs poisoned inline images
           hydrateFromRemote({
             items: remote.items,
             outfits: remote.outfits,
@@ -41,8 +64,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             theme: remote.theme,
             draft: remote.draft,
           });
-          // Remote wins — scrub again in case persist rehydrates late with bloat.
-          scrubBloatedInlineImages();
         } else {
           const { items, outfits, trips, calendar, profile, theme, draft } =
             useWardrobe.getState();
@@ -62,33 +83,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         await Promise.race([
           run(),
-          new Promise<never>((_, reject) =>
-            setTimeout(
-              () =>
-                reject(
-                  new Error(
-                    "Sync timed out after 12s — check your connection and try refreshing.",
-                  ),
-                ),
-              12000,
-            ),
-          ),
+          new Promise<never>((_, reject) => {
+            timerId = setTimeout(() => {
+              timedOut = true;
+              reject(new Error("SYNC_TIMEOUT"));
+            }, PULL_TIMEOUT_MS);
+          }),
         ]);
+        if (gen !== pullGen.current) return;
         skipPush.current = false;
         setSyncStatus("synced");
       } catch (err) {
+        if (gen !== pullGen.current) return;
+        skipPush.current = false;
+        if (timedOut || (err instanceof Error && err.message === "SYNC_TIMEOUT")) {
+          console.warn("[sync] pull timed out — using local data");
+          setSyncStatus("synced"); // don't leave a long error spinner
+          return;
+        }
         const msg =
           err instanceof Error ? err.message : "Sync failed during pull.";
         console.warn("[sync] pull/init failed:", msg);
-        // Still allow later pushes after scrub so the user isn't stuck forever.
-        skipPush.current = false;
         setSyncStatus("error", msg);
+      } finally {
+        if (timerId) clearTimeout(timerId);
       }
     },
     [hydrateFromRemote, setSyncStatus],
   );
 
-  /** Background: upload small leftover data: URLs; never block Connecting on this. */
   const healInBackground = useCallback(
     async (uid: string) => {
       try {
@@ -122,14 +145,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    // Safety net: open the gate even if no auth event ever arrives.
     const gateTimer = setTimeout(() => {
       if (!cancelled) setAuthChecked(true);
     }, 5000);
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
 
       const sessionUser =
@@ -137,15 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ? { id: session.user.id, email: session.user.email }
           : null;
 
-      // Only clear the session on explicit sign-out or the initial null session.
-      // Transient null sessions on other events (token refresh races) used to
-      // flash the website landing chrome inside the native app.
       if (event === "SIGNED_OUT") {
-        // #region agent log
-        agentLog("B", "AuthProvider.tsx:SIGNED_OUT", "Auth cleared via SIGNED_OUT", {
-          event,
-        });
-        // #endregion
         setAuthUser(null);
         userId.current = null;
         skipPush.current = true;
@@ -157,23 +171,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!sessionUser) {
         if (event === "INITIAL_SESSION") {
-          // #region agent log
-          agentLog("B", "AuthProvider.tsx:INITIAL_null", "Auth null on INITIAL_SESSION", {
-            event,
-          });
-          // #endregion
           setAuthUser(null);
           userId.current = null;
           skipPush.current = true;
           setPasswordRecovery(false);
           setSyncStatus("offline");
           setAuthChecked(true);
-        } else {
-          // #region agent log
-          agentLog("B", "AuthProvider.tsx:transient_null", "Ignored transient null session", {
-            event,
-          });
-          // #endregion
         }
         return;
       }
@@ -187,22 +190,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Show the app immediately — don't wait for cloud pull.
+      // Show the app immediately from local cache — never block the auth lock.
       setAuthUser(sessionUser);
       setAuthChecked(true);
 
       if (userId.current !== sessionUser.id) {
         userId.current = sessionUser.id;
-        updateProfile({ email: sessionUser.email });
+        // Avoid writing profile (and kicking a push) unless email actually changed.
+        const currentEmail = useWardrobe.getState().profile.email;
+        if (sessionUser.email && sessionUser.email !== currentEmail) {
+          updateProfile({ email: sessionUser.email });
+        }
         setSyncStatus("connecting");
-        await syncPull(sessionUser.id);
-        // Heal leftover small data: URLs off the critical path.
-        void healInBackground(sessionUser.id);
+        void syncPull(sessionUser.id).then(() => {
+          void healInBackground(sessionUser.id);
+        });
       }
     });
 
     return () => {
       cancelled = true;
+      pullGen.current += 1;
       clearTimeout(gateTimer);
       subscription.unsubscribe();
     };
@@ -216,11 +224,58 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setPasswordRecovery,
   ]);
 
+  // Absorb extension clips when returning to the app (debounced, visibility only).
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    const absorbRemoteClips = async () => {
+      if (document.visibilityState !== "visible") return;
+      const uid = userId.current;
+      if (!uid || skipPush.current || merging.current || absorbInFlight.current)
+        return;
+      if (timer.current) return;
+      const now = Date.now();
+      if (now - lastAbsorbAt.current < ABSORB_COOLDOWN_MS) return;
+
+      absorbInFlight.current = true;
+      lastAbsorbAt.current = now;
+      try {
+        const remote = await pullSnapshot(uid);
+        if (!remote) return;
+        const local = useWardrobe.getState();
+        const mergedItems = absorbWishlistClips(local.items, remote.items);
+        if (mergedItems.length === local.items.length) return;
+
+        merging.current = true;
+        hydrateFromRemote({
+          items: mergedItems,
+          outfits: local.outfits,
+          trips: local.trips,
+          calendar: local.calendar,
+          profile: local.profile,
+          theme: local.theme,
+          draft: local.draft,
+        });
+        merging.current = false;
+      } catch (err) {
+        merging.current = false;
+        console.warn("[sync] absorb clips failed:", err);
+      } finally {
+        absorbInFlight.current = false;
+      }
+    };
+
+    document.addEventListener("visibilitychange", absorbRemoteClips);
+    return () => {
+      document.removeEventListener("visibilitychange", absorbRemoteClips);
+    };
+  }, [hydrateFromRemote]);
+
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
 
     const unsub = useWardrobe.subscribe((state, prev) => {
-      if (!state.authUser || skipPush.current) return;
+      if (!state.authUser || skipPush.current || merging.current) return;
       if (
         state.items === prev.items &&
         state.outfits === prev.outfits &&
@@ -257,7 +312,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (result.ok) setSyncStatus("synced");
         else setSyncStatus("error", result.error);
-      }, 800);
+      }, 600);
     });
 
     return () => {

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Wardrobe clipper</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Wardrobe clipper</h1>
+      <p id="account" class="muted">Not connected</p>
+    </header>
+
+    <label class="field">
+      <span class="muted">App</span>
+      <select id="origin">
+        <option value="https://wardrobe-app-lilac-two.vercel.app">
+          Production
+        </option>
+        <option value="http://localhost:3000">Localhost</option>
+      </select>
+    </label>
+
+    <p id="status" class="status" hidden></p>
+
+    <div class="actions">
+      <button id="connect" type="button" class="primary">Connect account</button>
+      <button id="disconnect" type="button" class="ghost" hidden>
+        Disconnect
+      </button>
+    </div>
+
+    <ul class="hints muted">
+      <li>Click the extension icon to save the current page</li>
+      <li>Right‑click a page → <strong>Save to Wardrobe wishlist</strong></li>
+      <li>Shortcut: <strong>⌥⇧W</strong> (Alt+Shift+W)</li>
+      <li>On product pages, use the floating <strong>Save to Wardrobe</strong> button</li>
+      <li>Right‑click the extension icon → <strong>Wardrobe clipper settings</strong></li>
+    </ul>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

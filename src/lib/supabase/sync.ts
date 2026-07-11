@@ -5,6 +5,7 @@
 
 import type { ThemeMode } from "../store";
 import { DEFAULT_PROFILE, type UserProfile } from "../profile";
+import { scrubSnapshotImages } from "../heal";
 import type {
   CalendarEntry,
   Outfit,
@@ -136,7 +137,8 @@ export async function pullSnapshot(
     return null;
   }
 
-  return {
+  // Strip poisoned inline images at the edge so callers never hydrate megabytes.
+  const raw = {
     items: (data.items as WardrobeItem[]) ?? [],
     outfits: (data.outfits as Outfit[]) ?? [],
     trips: asArray<Trip>(data.trips),
@@ -148,6 +150,9 @@ export async function pullSnapshot(
       ({} as Record<SlotKey, string[]>),
     updated_at: data.updated_at as string | undefined,
   };
+
+  const scrubbed = scrubSnapshotImages(raw);
+  return { ...raw, items: scrubbed.items ?? raw.items, profile: scrubbed.profile ?? raw.profile };
 }
 
 /** Strip oversized / HEIC data-URLs so a poisoned local store can't re-bloat the DB. */
@@ -185,6 +190,50 @@ function sanitizeSnapshotForPush(
     snapshot: { ...snapshot, profile, items },
     stripped,
   };
+}
+
+/**
+ * Merge two item lists by id so a local push cannot wipe pieces the server
+ * added while the app was open (e.g. browser extension clips).
+ * Same id → prefer `preferred` (usually local edits).
+ */
+export function mergeItemsById(
+  preferred: WardrobeItem[],
+  other: WardrobeItem[],
+): WardrobeItem[] {
+  const preferredIds = new Set(preferred.map((it) => it.id));
+  const extras = other.filter((it) => it?.id && !preferredIds.has(it.id));
+  return [...preferred, ...extras];
+}
+
+function normalizeProductUrl(url: string | undefined): string {
+  return (url || "").trim().replace(/\/$/, "");
+}
+
+/**
+ * Fold in remote wishlist clips (extension / deep-link) without resurrecting
+ * wardrobe items the user deleted locally.
+ */
+export function absorbWishlistClips(
+  local: WardrobeItem[],
+  remote: WardrobeItem[],
+): WardrobeItem[] {
+  const localIds = new Set(local.map((it) => it.id));
+  const localUrls = new Set(
+    local
+      .map((it) => normalizeProductUrl(it.productUrl))
+      .filter(Boolean),
+  );
+  const extras = remote.filter((it) => {
+    if (!it?.id || !it.wishlist) return false;
+    if (localIds.has(it.id)) return false;
+    const url = normalizeProductUrl(it.productUrl);
+    if (!url) return false;
+    if (localUrls.has(url)) return false;
+    return true;
+  });
+  if (!extras.length) return local;
+  return [...extras, ...local];
 }
 
 /** Push local state to Supabase (upsert). Returns a structured result with the real error. */

@@ -224,6 +224,18 @@ export async function openExternalUrl(raw: string): Promise<void> {
       return;
     }
   }
+  // #region agent log — hypothesis C (WebView-dangerous path)
+  try {
+    const { agentLog } = await import("@/lib/agent-log");
+    agentLog("C", "platform.ts:openExternalUrl", "window.open fallback", {
+      forceExternal,
+      host: new URL(url).hostname,
+      via: "window.open",
+    });
+  } catch {
+    /* ignore */
+  }
+  // #endregion
   window.open(url, "_blank", "noopener,noreferrer");
 }
 

@@ -5,8 +5,7 @@ import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { affiliateUrl } from "@/lib/affiliate";
-import { agentLog } from "@/lib/agent-log";
-import { isNativeApp, openExternalUrl } from "@/lib/platform";
+import { openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -43,17 +42,6 @@ export function ItemCard({
   };
 
   const openEditor = () => {
-    // #region agent log
-    agentLog("D", "ItemCard.tsx:openEditor", "Item card tapped", {
-      itemId: item.id,
-      wishlist: !!item.wishlist,
-      hasProductUrl: !!item.productUrl,
-      isNativeHook: isNative,
-      isNativeAppFn: isNativeApp(),
-      htmlNative: document.documentElement.classList.contains("native-app"),
-      compact: !!compact,
-    });
-    // #endregion
     if (compact) addAndGo();
     else onEdit?.(item);
   };
@@ -70,12 +58,6 @@ export function ItemCard({
   const openProduct = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    // #region agent log
-    agentLog("C", "ItemCard.tsx:openProduct", "Product link opened", {
-      hasUrl: !!item.productUrl,
-      isNativeHook: isNative,
-    });
-    // #endregion
     const url = affiliateUrl(item.productUrl);
     if (url) void openExternalUrl(url);
   };

@@ -32,33 +32,35 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 2. **Dual UI (app vs web)** — AJA-6 Done (shipped in `a1a43c7`)
 3. **App Store later** — AJA-8 Backlog
 
-## Board snapshot (checked 2026-07-10)
+## Board snapshot (checked 2026-07-11)
 
-### Done (Claude Code + earlier)
+### Done (Claude Code + Cursor)
 
 | ID | Title |
 |----|-------|
 | [AJA-5](https://linear.app/ajay-karthick/issue/AJA-5) | Capacitor iOS shell |
 | [AJA-6](https://linear.app/ajay-karthick/issue/AJA-6) | Dual UI Option 1 (`NativeShell`, `platform.ts`) |
 | [AJA-9](https://linear.app/ajay-karthick/issue/AJA-9) | PWA install support |
-| [AJA-10](https://linear.app/ajay-karthick/issue/AJA-10) | Wishlist Smart Buy |
+| [AJA-10](https://linear.app/ajay-karthick/issue/AJA-10) | Wishlist Smart Buy (v2: wear CPW + opt-in sheet) |
 | [AJA-11](https://linear.app/ajay-karthick/issue/AJA-11) | Closet ROI insights |
 | [AJA-12](https://linear.app/ajay-karthick/issue/AJA-12) | AI auto-catalog + bg removal |
 | [AJA-13](https://linear.app/ajay-karthick/issue/AJA-13) | Wishlist link extraction |
-| [AJA-14](https://linear.app/ajay-karthick/issue/AJA-14) | Sync reliability |
+| [AJA-14](https://linear.app/ajay-karthick/issue/AJA-14) | Sync reliability (soft timeout, no auth-lock await, scrub poisoned snapshots) |
 | [AJA-15](https://linear.app/ajay-karthick/issue/AJA-15) | Today weather opt-in; hide push in native |
+| [AJA-22](https://linear.app/ajay-karthick/issue/AJA-22) | Native shell flash of web chrome |
+| [AJA-23](https://linear.app/ajay-karthick/issue/AJA-23) | Format ISO dates in Outfits/Calendar |
 | [AJA-25](https://linear.app/ajay-karthick/issue/AJA-25) | Linear ↔ git commit auto-sync |
 | [AJA-36](https://linear.app/ajay-karthick/issue/AJA-36) | Weekly habit loop + activate web push |
 | [AJA-75](https://linear.app/ajay-karthick/issue/AJA-75) | Native app local notification reminders |
+| [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) | Browser wishlist clipper |
 
 ### Todo (next)
 
 | ID | Title | Priority |
 |----|-------|----------|
+| [AJA-35](https://linear.app/ajay-karthick/issue/AJA-35) | Onboarding first-win polish | Medium |
 | [AJA-17](https://linear.app/ajay-karthick/issue/AJA-17) | Packing capsule — weather-aware trips | Medium |
 | [AJA-18](https://linear.app/ajay-karthick/issue/AJA-18) | Flat-lay → packshot polish | Medium |
-| [AJA-22](https://linear.app/ajay-karthick/issue/AJA-22) | Fix native shell flash of web chrome | Low |
-| [AJA-23](https://linear.app/ajay-karthick/issue/AJA-23) | Format ISO dates in Outfits/Calendar | Low |
 
 ### Backlog
 
@@ -77,12 +79,17 @@ Notion scratchpad: [New ideas](https://app.notion.com/p/39ac075eff4c8146990be35f
 
 ## Code landed (verify)
 
-Big commit `a1a43c7` — dual UI + PWA + Smart Buy + insights + sync fixes. Key paths:
+Big commit `a1a43c7` — dual UI + PWA + Smart Buy + insights + sync fixes. Later: clipper, Smart Buy sheet, sync soft-timeout, AJA-22/23.
+
+Key paths:
 
 - `src/lib/platform.ts`
 - `src/components/native/NativeShell.tsx`
 - `src/components/NativeAppClass.tsx`
 - `src/components/AppViews.tsx`
+- `src/components/SmartBuy.tsx`
+- `src/app/api/clip/route.ts`
+- `extensions/wishlist-clipper/`
 
 ## GitHub (optional)
 

@@ -121,6 +121,30 @@ export function todayISO(d = new Date()): string {
 }
 
 /**
+ * Friendly display for YYYY-MM-DD (and tolerant of full ISO timestamps).
+ * e.g. "Today", "Yesterday", "Jul 11, 2026"
+ */
+export function formatDisplayDate(raw: string | undefined | null): string {
+  if (!raw) return "";
+  const iso = raw.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return raw;
+  const today = todayISO();
+  if (iso === today) return "Today";
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  if (iso === todayISO(yest)) return "Yesterday";
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  if (Number.isNaN(date.getTime())) return iso;
+  const sameYear = date.getFullYear() === new Date().getFullYear();
+  return date.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
+}
+
+/**
  * The outfit builder groups categories into layer slots.
  * A dress replaces top + bottom; accessories hold up to three items.
  */

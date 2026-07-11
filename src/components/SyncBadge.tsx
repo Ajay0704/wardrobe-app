@@ -4,6 +4,15 @@ import { Cloud, CloudOff, Loader2 } from "lucide-react";
 import { useWardrobe } from "@/lib/store";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 
+/** Short badge labels — long diagnostics stay in the title tooltip only. */
+function shortError(msg: string | null | undefined): string {
+  if (!msg) return "Sync error";
+  if (/timed out/i.test(msg)) return "Sync timed out";
+  if (/too large|inline image|HEIC/i.test(msg)) return "Photo too large";
+  if (/network|fetch|Failed to fetch/i.test(msg)) return "Network error";
+  return "Sync error";
+}
+
 /** Header badge showing cloud sync / sign-in status. */
 export function SyncBadge() {
   const authUser = useWardrobe((s) => s.authUser);
@@ -21,9 +30,10 @@ export function SyncBadge() {
   } as const;
 
   const title =
-    status === "error" && syncError
-      ? syncError
-      : labels[status];
+    status === "error" && syncError ? syncError : labels[status];
+
+  const visible =
+    status === "error" ? shortError(syncError) : labels[status];
 
   return (
     <span
@@ -41,9 +51,7 @@ export function SyncBadge() {
       ) : (
         <CloudOff size={12} className="shrink-0" />
       )}
-      <span className="truncate">
-        {status === "error" && syncError ? syncError : labels[status]}
-      </span>
+      <span className="truncate">{visible}</span>
     </span>
   );
 }

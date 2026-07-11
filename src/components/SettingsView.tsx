@@ -284,6 +284,18 @@ export function SettingsView() {
             <SettingsPanel title="Data & privacy">
               <div className="space-y-4 rounded-xl border border-line bg-surface-2/40 p-4">
                 <div>
+                  <p className="text-sm font-medium">Browser wishlist clipper</p>
+                  <p className="mt-0.5 text-xs text-muted">
+                    Chrome/Edge extension: save shop product pages straight to
+                    your wishlist. Load{" "}
+                    <code className="text-[11px]">extensions/wishlist-clipper</code>{" "}
+                    unpacked, then Connect account.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-4 rounded-xl border border-line bg-surface-2/40 p-4">
+                <div>
                   <p className="text-sm font-medium">Export wardrobe</p>
                   <p className="mt-0.5 text-xs text-muted">
                     Download all items, outfits, and profile as JSON.

@@ -1,6 +1,5 @@
 "use client";
 
-import { agentLog } from "@/lib/agent-log";
 import {
   installNativeWindowOpenGuard,
   isNativeApp,
@@ -22,7 +21,24 @@ function subscribe(listener: Listener) {
   return () => listeners.delete(listener);
 }
 
+/** True if boot script / Capacitor already marked this session as native. */
+function domSaysNative(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    if (document.documentElement.classList.contains("native-app")) return true;
+    if (isNativeApp()) return true;
+  } catch {
+    /* ignore */
+  }
+  return false;
+}
+
 function getSnapshot() {
+  // Re-check every read so the first client render after boot script
+  // never returns false and paints website chrome for one frame (AJA-22).
+  if (!snapshot && domSaysNative()) {
+    snapshot = true;
+  }
   return snapshot;
 }
 
@@ -42,7 +58,7 @@ function lockNativeSnapshot() {
 }
 
 function ensureNativeDetected() {
-  if (refreshNativeDetection() || isNativeApp()) {
+  if (refreshNativeDetection() || isNativeApp() || domSaysNative()) {
     lockNativeSnapshot();
     stripNativeQueryFlag();
     return true;
@@ -53,7 +69,7 @@ function ensureNativeDetected() {
 // Eager client init so first paint after hydrate can already be native.
 if (typeof window !== "undefined") {
   try {
-    if (isNativeApp()) {
+    if (domSaysNative()) {
       snapshot = true;
       document.documentElement.classList.add("native-app");
     }
@@ -72,28 +88,13 @@ export function NativeAppClass() {
   }, []);
 
   useEffect(() => {
-    const detected = ensureNativeDetected();
+    ensureNativeDetected();
     installNativeWindowOpenGuard();
-    // #region agent log
-    agentLog("E", "NativeAppClass.tsx:boot", "Native detection boot", {
-      detected,
-      isNativeAppFn: isNativeApp(),
-      htmlNative: document.documentElement.classList.contains("native-app"),
-      href: window.location.href,
-      uaHasWardrobe: navigator.userAgent.includes("WardrobeApp"),
-    });
-    // #endregion
 
     let sub: { remove: () => void } | undefined;
     void Browser.addListener("browserFinished", () => {
       refreshNativeDetection();
       installNativeWindowOpenGuard();
-      // #region agent log
-      agentLog("C", "NativeAppClass.tsx:browserFinished", "Browser closed — re-locked native", {
-        isNativeAppFn: isNativeApp(),
-        htmlNative: document.documentElement.classList.contains("native-app"),
-      });
-      // #endregion
     }).then((handle) => {
       sub = handle;
     });
@@ -158,5 +159,5 @@ export function useIsNativeApp(): boolean {
     };
   }, []);
 
-  return native || isNativeApp();
+  return native || isNativeApp() || domSaysNative();
 }

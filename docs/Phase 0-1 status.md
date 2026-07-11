@@ -30,6 +30,10 @@ Last updated: 2026-07-11
 | AJA-33 | Native shell stability | Done | `/n` entry, in-app editor + tabs, no WebView shop nav, input zoom fix |
 | AJA-35 | Onboarding + style quiz | In progress | Quiz + Today activation shipped; first-win polish still open |
 | AJA-50/51 | Currency + brand picker | Done | Settings currency; searchable brands |
+| AJA-78 | Browser wishlist clipper | Done | MV3 extension → `/api/clip`; deep link `/?clipUrl=` |
+| AJA-10 | Smart Buy v2 | Done | Wear-based CPW, tag/season scoring; opt-in sheet (no editor reflow) |
+| AJA-22 | Native web-chrome flash | Done | Sticky native detection + CSS hide landing/header |
+| AJA-23 | Friendly dates | Done | `formatDisplayDate` in Outfits + Calendar |
 
 ## Ops checklist (push) — AJA-36 done 2026-07-11
 
@@ -44,3 +48,5 @@ Last updated: 2026-07-11
 - [[Features]]
 - [[iOS Capacitor]]
 - [[Research synthesis — next moves]]
+- [[Browser extension]]
+- [[Linear]]

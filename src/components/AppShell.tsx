@@ -2,13 +2,13 @@
 
 import { Moon, Sun } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { agentLog } from "@/lib/agent-log";
+import { useLayoutEffect, useState, type ReactNode } from "react";
 import { isNativeApp, NATIVE_LOCK_KEY } from "@/lib/platform";
 import { useWardrobe, type View } from "@/lib/store";
 import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
+import { ClipLinkLoader } from "./ClipLinkLoader";
 import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
 import { PushBootstrap } from "./PushBootstrap";
@@ -63,7 +63,7 @@ function AuthLanding({
   sharedOutfit?: boolean;
 }) {
   return (
-    <div className="relative bg-[#0b0d11] text-white">
+    <div className="web-auth-landing relative bg-[#0b0d11] text-white">
       <LandingNav onAuth={onAuth} />
 
       <VideoPanel overlay={0.5} eager poster="/hero-poster.jpg">
@@ -214,10 +214,18 @@ function AppShellInner() {
   // chrome (item taps used to remount detection and flip the top nav back on).
   const [nativeLatched, setNativeLatched] = useState(() => {
     if (typeof window === "undefined") return false;
-    return (
-      isNativeApp() ||
-      document.documentElement.classList.contains("native-app")
-    );
+    try {
+      if (document.documentElement.classList.contains("native-app")) return true;
+      if (
+        localStorage.getItem(NATIVE_LOCK_KEY) === "1" ||
+        sessionStorage.getItem(NATIVE_LOCK_KEY) === "1"
+      ) {
+        return true;
+      }
+    } catch {
+      /* ignore */
+    }
+    return isNativeApp();
   });
   useLayoutEffect(() => {
     if (
@@ -229,7 +237,6 @@ function AppShellInner() {
     }
   }, [isNative]);
   const showNative = nativeLatched || isNative || isNativeApp();
-  const branchRef = useRef<string>("");
   const [sharedOutfit] = useState(
     () =>
       typeof window !== "undefined" &&
@@ -245,7 +252,7 @@ function AppShellInner() {
     return null;
   });
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
     const v = params.get("view");
@@ -267,55 +274,6 @@ function AppShellInner() {
   // The app requires an account. Without Supabase configured, login is
   // impossible, so we fall back to the ungated app for local/dev use.
   const gated = isSupabaseConfigured();
-
-  // #region agent log
-  useEffect(() => {
-    let locked = false;
-    try {
-      locked =
-        localStorage.getItem(NATIVE_LOCK_KEY) === "1" ||
-        sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
-    } catch {
-      /* ignore */
-    }
-    const branch =
-      gated && !authChecked && hasStoredSession()
-        ? "splash"
-        : gated && !authUser && !passwordRecovery
-          ? showNative
-            ? "native-auth"
-            : "web-auth-landing"
-          : showNative
-            ? "native-shell"
-            : "web-shell";
-    if (branchRef.current !== branch) {
-      branchRef.current = branch;
-      agentLog("A", "AppShell.tsx:branch", "AppShell branch changed", {
-        branch,
-        showNative,
-        nativeLatched,
-        isNative,
-        isNativeAppFn: isNativeApp(),
-        htmlNative: document.documentElement.classList.contains("native-app"),
-        locked,
-        hasAuthUser: !!authUser,
-        authChecked,
-        view,
-        href: window.location.href,
-        uaHasWardrobe: navigator.userAgent.includes("WardrobeApp"),
-      });
-    }
-  }, [
-    gated,
-    showNative,
-    nativeLatched,
-    isNative,
-    authUser,
-    authChecked,
-    passwordRecovery,
-    view,
-  ]);
-  // #endregion
 
   // Only block on the splash when there's actually a stored session to restore.
   // Logged-out visitors (no token) skip it and see the landing immediately.
@@ -460,6 +418,7 @@ export function AppShell() {
   return (
     <AuthProvider>
       <PushBootstrap />
+      <ClipLinkLoader />
       <AppShellInner />
     </AuthProvider>
   );

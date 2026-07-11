@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { outfitScore } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
+import { formatDisplayDate } from "@/lib/types";
 import { OutfitPreview } from "./OutfitPreview";
 import { Button, EmptyState, MatchBadge } from "./ui";
 
@@ -90,7 +91,9 @@ export function OutfitsView() {
                   {outfit.wearCount
                     ? ` · worn ${outfit.wearCount}×`
                     : ""}
-                  {outfit.lastWornAt ? ` · last ${outfit.lastWornAt}` : ""}
+                  {outfit.lastWornAt
+                    ? ` · last ${formatDisplayDate(outfit.lastWornAt)}`
+                    : ""}
                 </p>
 
                 <div className="flex flex-wrap gap-2 pt-1">
