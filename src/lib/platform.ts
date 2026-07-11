@@ -149,7 +149,7 @@ export function stripNativeQueryFlag(): void {
 
 /**
  * Open an http(s) URL outside the app WebView (Safari).
- * Never use target=_blank inside Capacitor — it can replace the WebView.
+ * Never use target=_blank / window.open inside Capacitor — it replaces the WebView.
  */
 export async function openExternalUrl(raw: string): Promise<void> {
   let url: string;
@@ -160,16 +160,57 @@ export async function openExternalUrl(raw: string): Promise<void> {
   }
   if (!/^https?:\/\//i.test(url)) return;
 
-  if (isNativeApp()) {
+  // Treat html.native-app / storage lock as native even if Capacitor bridge flakes.
+  let locked = false;
+  try {
+    locked =
+      document.documentElement.classList.contains("native-app") ||
+      localStorage.getItem(NATIVE_LOCK_KEY) === "1" ||
+      sessionStorage.getItem(NATIVE_LOCK_KEY) === "1";
+  } catch {
+    /* ignore */
+  }
+  const native = isNativeApp() || locked;
+  // #region agent log
+  try {
+    const { agentLog } = await import("@/lib/agent-log");
+    agentLog("C", "platform.ts:openExternalUrl", "opening external url", {
+      native,
+      locked,
+      host: new URL(url).hostname,
+    });
+  } catch {
+    /* ignore */
+  }
+  // #endregion
+
+  if (native) {
     try {
       await Browser.open({ url });
-      return;
-    } catch {
+      // #region agent log
       try {
-        window.open(url, "_blank", "noopener,noreferrer");
+        const { agentLog } = await import("@/lib/agent-log");
+        agentLog("C", "platform.ts:Browser.open", "Browser.open ok", {
+          host: new URL(url).hostname,
+        });
       } catch {
         /* ignore */
       }
+      // #endregion
+      return;
+    } catch (err) {
+      // #region agent log
+      try {
+        const { agentLog } = await import("@/lib/agent-log");
+        agentLog("C", "platform.ts:Browser.open", "Browser.open FAILED", {
+          host: new URL(url).hostname,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      } catch {
+        /* ignore */
+      }
+      // #endregion
+      // Never window.open here — that navigates the Capacitor WebView to the shop.
       return;
     }
   }

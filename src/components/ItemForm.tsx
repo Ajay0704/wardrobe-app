@@ -3,8 +3,9 @@
 import { Camera, ExternalLink, Link2, Pipette, Scissors, Sparkles, Upload } from "lucide-react";
 import { useMemo, useState } from "react";
 import { affiliateUrl } from "@/lib/affiliate";
+import { agentLog } from "@/lib/agent-log";
 import { extractDominantColor, nameColor } from "@/lib/color";
-import { openExternalUrl } from "@/lib/platform";
+import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
@@ -407,7 +408,10 @@ export function ItemForm({
             <div className="flex items-center gap-2">
               <input
                 className={inputClass}
-                type="url"
+                type="text"
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
                 value={productUrl}
                 onChange={(e) => setProductUrl(e.target.value)}
                 placeholder="https://store.com/product"
@@ -431,6 +435,20 @@ export function ItemForm({
                 type="button"
                 onClick={() => {
                   const url = affiliateUrl(productUrl.trim());
+                  // #region agent log
+                  agentLog("C", "ItemForm.tsx:openProduct", "Open product page tapped", {
+                    hasUrl: !!url,
+                    isNative,
+                    isNativeAppFn: isNativeApp(),
+                    host: (() => {
+                      try {
+                        return url ? new URL(url).hostname : "";
+                      } catch {
+                        return "";
+                      }
+                    })(),
+                  });
+                  // #endregion
                   if (url) void openExternalUrl(url);
                 }}
                 className="mt-2 flex items-center gap-1.5 text-xs font-medium text-accent"
