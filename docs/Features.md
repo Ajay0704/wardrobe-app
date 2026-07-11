@@ -4,7 +4,7 @@ Last updated: 2026-07-11
 
 ## Today (default home)
 
-Weather-aware outfit suggestions via Open-Meteo + geolocation. One-tap **I wore this**, edit in builder, or save.
+Weather-aware outfit suggestions via Open-Meteo + geolocation (Capacitor Geolocation on iOS; city fallback from profile location). One-tap **I wore this**, edit in builder, or save.
 
 **Component:** `TodayView.tsx` · **Logic:** `src/lib/weather.ts`, `generateOutfit`
 
