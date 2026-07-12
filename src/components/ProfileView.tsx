@@ -27,6 +27,7 @@ export function ProfileView() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <ProfileAvatarEditor
+        centered
         profile={profile}
         onUpload={handleAvatarUpload}
         onRemove={() => updateProfile({ avatarUrl: undefined })}

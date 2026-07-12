@@ -59,12 +59,15 @@ export function ProfileAvatarEditor({
   onUpload,
   onRemove,
   compact,
+  centered,
 }: {
   profile: UserProfile;
   onUpload: (file: File) => void;
   onRemove: () => void;
   /** Vertical-friendly layout for modals. */
   compact?: boolean;
+  /** Stack everything centered at all breakpoints (profile screen). */
+  centered?: boolean;
 }) {
   const initials = profileInitials(profile);
 
@@ -128,9 +131,15 @@ export function ProfileAvatarEditor({
   }
 
   return (
-    <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
+    <div
+      className={
+        centered
+          ? "flex flex-col items-center gap-3 text-center"
+          : "flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6"
+      }
+    >
       {avatar}
-      <div className="space-y-2">
+      <div className={centered ? "flex flex-col items-center space-y-2" : "space-y-2"}>
         <p className="text-sm font-medium">Profile photo</p>
         <p className="max-w-xs text-xs text-muted">
           JPG, PNG or GIF. Square images look best.
