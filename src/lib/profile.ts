@@ -50,6 +50,7 @@ export interface UserProfile {
 
 /** Views allowed as the default launch screen. */
 export type StartScreen =
+  | "explore"
   | "today"
   | "wardrobe"
   | "outfits"
@@ -64,6 +65,7 @@ export const START_SCREEN_OPTIONS: {
   label: string;
   hint?: string;
 }[] = [
+  { id: "explore", label: "Explore", hint: "Fashion feed" },
   { id: "today", label: "Today", hint: "What to wear" },
   { id: "wardrobe", label: "Closet", hint: "Your pieces" },
   { id: "outfits", label: "Outfits", hint: "Saved looks" },
@@ -83,7 +85,7 @@ export function resolveStartView(
 ): StartScreen {
   const v = profile?.startView;
   if (v && START_SCREEN_IDS.has(v)) return v;
-  return "today";
+  return "explore";
 }
 
 export const DEFAULT_PROFILE: UserProfile = {

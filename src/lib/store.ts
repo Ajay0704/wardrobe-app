@@ -263,7 +263,7 @@ export const useWardrobe = create<WardrobeState>()(
       syncError: null as string | null,
       passwordRecovery: false,
       theme: "light",
-      view: "today",
+      view: "explore",
       settingsSection: "profile",
       addOpen: false,
       bulkOpen: false,
