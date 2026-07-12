@@ -197,7 +197,7 @@ export function NativeShell() {
       </main>
 
       <nav className="native-tabbar" aria-label="Primary">
-        <TabBtn tab={{ view: "today", label: "Home", Icon: Home }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "explore", label: "Explore", Icon: Compass }} view={view} onClick={setView} />
         <TabBtn tab={{ view: "wardrobe", label: "Closet", Icon: Shirt }} view={view} onClick={setView} />
 
         <button
@@ -212,7 +212,7 @@ export function NativeShell() {
         </button>
 
         <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={setView} />
-        <TabBtn tab={{ view: "explore", label: "Explore", Icon: Compass }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "today", label: "Home", Icon: Home }} view={view} onClick={setView} />
       </nav>
 
       {createOpen && (
