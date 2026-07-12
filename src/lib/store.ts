@@ -88,6 +88,8 @@ interface WardrobeState {
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
+  /** Explore pins saved to the user's board. */
+  savedPinIds: string[];
 
   addItem: (item: Omit<WardrobeItem, "id" | "createdAt">) => void;
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
@@ -136,6 +138,8 @@ interface WardrobeState {
   removeFromDraft: (slot: SlotKey, itemId: string) => void;
   clearDraft: () => void;
   setDraft: (draft: Record<SlotKey, string[]>) => void;
+  /** Save/unsave an Explore pin. */
+  toggleSavePin: (id: string) => void;
   /** Replace persisted fields from a remote snapshot (Supabase pull). */
   hydrateFromRemote: (data: {
     items: WardrobeItem[];
@@ -266,6 +270,7 @@ export const useWardrobe = create<WardrobeState>()(
       closetsOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
+      savedPinIds: [],
 
       addItem: (item) =>
         set((s) => ({
@@ -476,6 +481,12 @@ export const useWardrobe = create<WardrobeState>()(
 
       clearDraft: () => set({ draft: emptyDraft() }),
       setDraft: (draft) => set({ draft }),
+      toggleSavePin: (id) =>
+        set((s) => ({
+          savedPinIds: s.savedPinIds.includes(id)
+            ? s.savedPinIds.filter((x) => x !== id)
+            : [id, ...s.savedPinIds],
+        })),
 
       hydrateFromRemote: (data) =>
         set(() => {
@@ -542,6 +553,7 @@ export const useWardrobe = create<WardrobeState>()(
           profile: s.profile,
           theme: s.theme,
           draft: s.draft,
+          savedPinIds: s.savedPinIds,
         }),
     },
   ),
