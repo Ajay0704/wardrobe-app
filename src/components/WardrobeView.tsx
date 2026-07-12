@@ -7,19 +7,34 @@ import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
+import { ClosetsSheet, FilterSheet, SortSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { RediscoverModal } from "./RediscoverModal";
 import { ClosetReviewSheet, ShareClosetSheet } from "./ShareClosetSheet";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
+import { CATEGORY_LABEL, type Category } from "@/lib/types";
 
 const SORT_OPTIONS = [
-  ["recent", "Recently added"],
-  ["oldest", "Oldest first"],
-  ["name", "Name A–Z"],
-  ["worn", "Most worn"],
+  { key: "recent", label: "Recently added" },
+  { key: "worn", label: "Most worn" },
+  { key: "leastworn", label: "Least worn" },
+  { key: "recentlyworn", label: "Recently worn" },
+  { key: "category", label: "By category" },
+  { key: "name", label: "Name A–Z" },
+  { key: "priceHigh", label: "Price: High to Low" },
+  { key: "priceLow", label: "Price: Low to High" },
 ] as const;
-type SortKey = (typeof SORT_OPTIONS)[number][0];
+type SortKey = (typeof SORT_OPTIONS)[number]["key"];
+
+// Main tabs map to our category enum (sub-tabs = categories within the group).
+const MAIN_TABS = [
+  { key: "all", label: "All", cats: null },
+  { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
+  { key: "pants", label: "Pants", cats: ["bottom"] },
+  { key: "shoes", label: "Shoes", cats: ["shoes", "bag", "accessory"] },
+] as const;
+type MainTabKey = (typeof MAIN_TABS)[number]["key"];
 
 /** Apply search + category/season/tag filters to the item list. */
 export function filterItems(
@@ -53,6 +68,8 @@ export function WardrobeView() {
   const { items, filters, setFilters } = useWardrobe();
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
   const setView = useWardrobe((s) => s.setView);
+  const closetsOpen = useWardrobe((s) => s.closetsOpen);
+  const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const isNative = useIsNativeApp();
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
@@ -61,7 +78,9 @@ export function WardrobeView() {
   const [shareClosetOpen, setShareClosetOpen] = useState(false);
   const [closetReviewOpen, setClosetReviewOpen] = useState(false);
   const [sort, setSort] = useState<SortKey>("recent");
-  const [showFilters, setShowFilters] = useState(false);
+  const [mainTab, setMainTab] = useState<MainTabKey>("all");
+  const [subCat, setSubCat] = useState<Category | "all">("all");
+  const [sheet, setSheet] = useState<null | "closets" | "filter" | "sort">(null);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
   // Least-worn pieces powering the Restyle quick action.
@@ -69,12 +88,32 @@ export function WardrobeView() {
   const filtered = useMemo(() => filterItems(owned, filters), [owned, filters]);
   const sorted = useMemo(() => {
     const a = [...filtered];
-    if (sort === "oldest") a.sort((x, y) => x.createdAt - y.createdAt);
-    else if (sort === "name") a.sort((x, y) => x.name.localeCompare(y.name));
-    else if (sort === "worn") a.sort((x, y) => (y.wearCount ?? 0) - (x.wearCount ?? 0));
-    else a.sort((x, y) => y.createdAt - x.createdAt);
+    switch (sort) {
+      case "worn": a.sort((x, y) => (y.wearCount ?? 0) - (x.wearCount ?? 0)); break;
+      case "leastworn": a.sort((x, y) => (x.wearCount ?? 0) - (y.wearCount ?? 0)); break;
+      case "recentlyworn": a.sort((x, y) => (y.lastWornAt ?? "").localeCompare(x.lastWornAt ?? "")); break;
+      case "category": a.sort((x, y) => x.category.localeCompare(y.category)); break;
+      case "name": a.sort((x, y) => x.name.localeCompare(y.name)); break;
+      case "priceHigh": a.sort((x, y) => (y.price ?? 0) - (x.price ?? 0)); break;
+      case "priceLow": a.sort((x, y) => (x.price ?? 0) - (y.price ?? 0)); break;
+      default: a.sort((x, y) => y.createdAt - x.createdAt);
+    }
     return a;
   }, [filtered, sort]);
+  // Two-level category filter (native): main-tab group + optional sub-category.
+  const shown = useMemo(() => {
+    const g = MAIN_TABS.find((t) => t.key === mainTab);
+    let arr = sorted;
+    if (g?.cats) arr = arr.filter((it) => (g.cats as readonly string[]).includes(it.category));
+    if (subCat !== "all") arr = arr.filter((it) => it.category === subCat);
+    return arr;
+  }, [sorted, mainTab, subCat]);
+  const subCats = useMemo(() => {
+    const g = MAIN_TABS.find((t) => t.key === mainTab);
+    if (!g?.cats) return [];
+    return g.cats.filter((c) => owned.some((it) => it.category === c));
+  }, [mainTab, owned]);
+  const sortLabel = SORT_OPTIONS.find((o) => o.key === sort)?.label ?? "Sort";
 
   // All tags currently in use, for the tag filter dropdown.
   const allTags = useMemo(
@@ -115,9 +154,13 @@ export function WardrobeView() {
               onClick={onClick}
               className="flex w-14 shrink-0 flex-col items-center gap-1.5"
             >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-accent">
-                <Icon size={19} />
-              </span>
+              {label === "Import" ? (
+                <BrandCluster />
+              ) : (
+                <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-accent">
+                  <Icon size={19} />
+                </span>
+              )}
               <span className="w-full text-center text-[10px] leading-tight text-muted">
                 {label}
               </span>
@@ -128,12 +171,16 @@ export function WardrobeView() {
 
       {isNative ? (
         <>
-          {/* All Clothes header */}
+          {/* All Clothes header — opens the closets sheet */}
           <div className="-mt-2 flex items-center justify-between">
-            <span className="flex items-center gap-1 text-xl font-semibold">
+            <button
+              type="button"
+              onClick={() => setSheet("closets")}
+              className="flex items-center gap-1 text-xl font-semibold"
+            >
               All Clothes
               <ChevronDown size={18} className="text-muted" />
-            </span>
+            </button>
             <button
               type="button"
               aria-label={seasonalView ? "Grid view" : "Group by season"}
@@ -149,81 +196,53 @@ export function WardrobeView() {
             <button
               type="button"
               aria-label="Filters"
-              onClick={() => setShowFilters((v) => !v)}
+              onClick={() => setSheet("filter")}
               className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
-                showFilters ? "border-accent text-accent" : "border-line text-foreground"
+                filters.season !== "all" || filters.tag !== "all"
+                  ? "border-accent text-accent"
+                  : "border-line text-foreground"
               }`}
             >
               <SlidersHorizontal size={17} />
             </button>
-            <div className="relative">
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as SortKey)}
-                className="h-11 appearance-none rounded-xl border border-line bg-surface pl-4 pr-10 text-sm font-medium"
-              >
-                {SORT_OPTIONS.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown
-                size={16}
-                className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setSheet("sort")}
+              className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-medium"
+            >
+              {sortLabel}
+              <ChevronDown size={16} className="text-muted" />
+            </button>
           </div>
 
-          {showFilters && (
-            <div className="flex flex-wrap gap-2">
-              <select
-                className={`${inputClass} !w-auto`}
-                value={filters.season}
-                onChange={(e) => setFilters({ season: e.target.value as Season | "all" })}
-              >
-                <option value="all">All seasons</option>
-                {SEASONS.map((s) => (
-                  <option key={s} value={s} className="capitalize">
-                    {s[0].toUpperCase() + s.slice(1)}
-                  </option>
-                ))}
-              </select>
-              <select
-                className={`${inputClass} !w-auto`}
-                value={filters.tag}
-                onChange={(e) => setFilters({ tag: e.target.value })}
-              >
-                <option value="all">All tags</option>
-                {allTags.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+          {/* Main category tabs */}
+          <div className="-mx-4 flex gap-6 overflow-x-auto border-b border-line px-4">
+            {MAIN_TABS.map((t) => (
+              <TextTab
+                key={t.key}
+                label={t.label}
+                active={mainTab === t.key}
+                onClick={() => {
+                  setMainTab(t.key);
+                  setSubCat("all");
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Sub-category chips (when a main tab has more than one type) */}
+          {subCats.length > 1 && (
+            <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+              <Chip active={subCat === "all"} onClick={() => setSubCat("all")}>
+                All
+              </Chip>
+              {subCats.map((c) => (
+                <Chip key={c} active={subCat === c} onClick={() => setSubCat(c)}>
+                  {CATEGORY_LABEL[c]}
+                </Chip>
+              ))}
             </div>
           )}
-
-          {/* Category text tabs */}
-          <div className="-mx-4 flex gap-6 overflow-x-auto border-b border-line px-4">
-            <TextTab
-              label="All"
-              active={filters.category === "all"}
-              onClick={() => setFilters({ category: "all" })}
-            />
-            {CATEGORIES.map((c) => {
-              const count = owned.filter((it) => it.category === c.value).length;
-              if (count === 0) return null;
-              return (
-                <TextTab
-                  key={c.value}
-                  label={c.label}
-                  active={filters.category === c.value}
-                  onClick={() => setFilters({ category: c.value })}
-                />
-              );
-            })}
-          </div>
         </>
       ) : (
         <>
@@ -291,7 +310,7 @@ export function WardrobeView() {
       )}
 
       {/* Grid */}
-      {sorted.length === 0 ? (
+      {(isNative ? shown : sorted).length === 0 ? (
         <EmptyState
           title={owned.length === 0 ? "Your wardrobe is empty" : "No matches"}
           subtitle={
@@ -310,7 +329,9 @@ export function WardrobeView() {
       ) : seasonalView ? (
         <div className="space-y-8">
           {SEASONS.map((season) => {
-            const group = sorted.filter((it) => it.seasons.includes(season));
+            const group = (isNative ? shown : sorted).filter((it) =>
+              it.seasons.includes(season),
+            );
             if (group.length === 0) return null;
             return (
               <section key={season}>
@@ -328,7 +349,7 @@ export function WardrobeView() {
           })}
         </div>
       ) : isNative ? (
-        <ClosetGrid items={sorted} onEdit={setEditing} />
+        <ClosetGrid items={shown} onEdit={setEditing} />
       ) : (
         <Grid items={sorted} onEdit={setEditing} />
       )}
@@ -356,7 +377,51 @@ export function WardrobeView() {
       {closetReviewOpen && (
         <ClosetReviewSheet onClose={() => setClosetReviewOpen(false)} />
       )}
+
+      {(sheet === "closets" || closetsOpen) && (
+        <ClosetsSheet
+          items={items}
+          onClose={() => {
+            setSheet(null);
+            setClosetsOpen(false);
+          }}
+        />
+      )}
+      {sheet === "sort" && (
+        <SortSheet
+          value={sort}
+          options={SORT_OPTIONS.map((o) => ({ key: o.key, label: o.label }))}
+          onSelect={setSort}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === "filter" && (
+        <FilterSheet
+          season={filters.season}
+          tag={filters.tag}
+          allTags={allTags}
+          onChange={(patch) => setFilters(patch)}
+          onClear={() => setFilters({ season: "all", tag: "all" })}
+          onClose={() => setSheet(null)}
+        />
+      )}
     </div>
+  );
+}
+
+/** Brand-logo cluster for the Import quick action (Gmail + shops). */
+function BrandCluster() {
+  const cell =
+    "flex h-6 w-6 items-center justify-center rounded-md text-[8px] font-bold text-white";
+  return (
+    <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2">
+      <span className="grid grid-cols-2 grid-rows-2 gap-0.5">
+        <span className={cell} style={{ background: "#ea4335" }}>@</span>
+        <span className={cell} style={{ background: "#111111" }}>Z</span>
+        <span className={cell} style={{ background: "#e50010" }}>H</span>
+        <span className={cell} style={{ background: "#e4002b" }}>U</span>
+      </span>
+    </span>
   );
 }
 

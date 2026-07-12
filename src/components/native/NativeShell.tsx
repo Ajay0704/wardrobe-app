@@ -3,6 +3,7 @@
 import {
   Bell,
   Calendar,
+  ChevronDown,
   ChevronLeft,
   Compass,
   Home,
@@ -16,8 +17,8 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useWardrobe, type View } from "@/lib/store";
-import { profileInitials } from "@/lib/profile";
 import { AppViews } from "../AppViews";
+import { ProfileAvatar } from "../ProfileAvatar";
 import { SyncBadge } from "../SyncBadge";
 
 type Tab = { view: View; label: string; Icon: LucideIcon };
@@ -54,7 +55,9 @@ export function NativeShell() {
   const { view, setView, setAddOpen, setBulkOpen, setSettingsSection } =
     useWardrobe();
   const profile = useWardrobe((s) => s.profile);
+  const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const [createOpen, setCreateOpen] = useState(false);
+  const [closetMenuOpen, setClosetMenuOpen] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
   // Remember the last main tab so sub-views (Insights, Wishlist, Calendar,
@@ -78,9 +81,49 @@ export function NativeShell() {
               <ChevronLeft size={22} />
             </button>
           )}
-          <span className="brand-wordmark-name !text-xl">
-            {TITLES[view] ?? "Wardrobe"}
-          </span>
+          {view === "wardrobe" ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setClosetMenuOpen((v) => !v)}
+                className="brand-wordmark-name flex items-center gap-1 !text-xl"
+              >
+                {TITLES[view]}
+                <ChevronDown size={17} className="text-muted" />
+              </button>
+              {closetMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-40"
+                    onClick={() => setClosetMenuOpen(false)}
+                  />
+                  <div className="absolute left-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg shadow-black/10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setClosetMenuOpen(false);
+                        setClosetsOpen(true);
+                      }}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2"
+                    >
+                      <LayoutGrid size={18} /> View closets
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setClosetMenuOpen(false)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2"
+                    >
+                      <Shirt size={18} /> View items
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          ) : (
+            <span className="brand-wordmark-name !text-xl">
+              {TITLES[view] ?? "Wardrobe"}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-3.5">
           <SyncBadge />
@@ -105,14 +148,11 @@ export function NativeShell() {
               >
                 <Bell size={21} strokeWidth={1.8} />
               </button>
-              <button
-                type="button"
-                aria-label="Your profile"
+              <ProfileAvatar
+                profile={profile}
+                size={28}
                 onClick={() => setView("you")}
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white"
-              >
-                {profileInitials(profile)}
-              </button>
+              />
             </>
           )}
         </div>
