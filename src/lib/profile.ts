@@ -13,6 +13,9 @@ export interface UserProfile {
   username?: string;
   /** Who to show in the Explore feed. "all" shows everything. */
   shopGender?: "male" | "female" | "all";
+  /** Social graph counts (community feature). Default 0. */
+  followers?: number;
+  following?: number;
   email: string;
   phone?: string;
   bio?: string;

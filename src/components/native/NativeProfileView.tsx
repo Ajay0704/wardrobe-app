@@ -111,11 +111,19 @@ export function NativeProfileView() {
           <p className="text-sm text-muted">@{handle}</p>
         </div>
 
-        {/* Stats */}
+        {/* Stats — social profile style */}
         <div className="flex w-full max-w-xs items-center justify-around py-1">
-          <Stat n={outfits.length} label="Outfits" onClick={() => setView("outfits")} />
-          <Stat n={owned.length} label="Items" onClick={() => setView("wardrobe")} />
-          <Stat n={savedPinIds.length} label="Saved" onClick={() => setTab("saved")} />
+          <Stat n={outfits.length} label="Outfits" onClick={() => setTab("outfits")} />
+          <Stat
+            n={profile.followers ?? 0}
+            label="Followers"
+            onClick={() => flash("Followers — community coming soon")}
+          />
+          <Stat
+            n={profile.following ?? 0}
+            label="Following"
+            onClick={() => flash("Following — community coming soon")}
+          />
         </div>
 
         {profile.bio?.trim() && (
@@ -233,10 +241,16 @@ export function NativeProfileView() {
   );
 }
 
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}k`;
+  return String(n);
+}
+
 function Stat({ n, label, onClick }: { n: number; label: string; onClick: () => void }) {
   return (
     <button type="button" onClick={onClick} className="flex flex-col items-center px-2">
-      <span className="text-lg font-semibold leading-tight">{n}</span>
+      <span className="text-lg font-semibold leading-tight">{formatCount(n)}</span>
       <span className="text-xs text-muted">{label}</span>
     </button>
   );
