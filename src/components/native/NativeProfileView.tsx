@@ -21,6 +21,14 @@ interface SavedProduct {
   imageUrl: string;
 }
 
+/** Minimal shape of a feed card returned by /api/explore/feed?ids=. */
+interface FeedCardLite {
+  id: string;
+  title: string;
+  heroImage?: string;
+  pieces?: { imageUrl: string }[];
+}
+
 type Tab = "outfits" | "items" | "saved";
 
 /**
@@ -54,8 +62,15 @@ export function NativeProfileView() {
     let alive = true;
     fetch(`/api/explore/feed?ids=${encodeURIComponent(savedPinIds.join(","))}`)
       .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((d: { items?: SavedProduct[] }) => {
-        if (alive) setSavedProducts(d.items ?? []);
+      .then((d: { items?: FeedCardLite[] }) => {
+        if (!alive) return;
+        setSavedProducts(
+          (d.items ?? []).map((it) => ({
+            id: it.id,
+            title: it.title,
+            imageUrl: it.heroImage || it.pieces?.[0]?.imageUrl || "",
+          })),
+        );
       })
       .catch(() => {});
     return () => {

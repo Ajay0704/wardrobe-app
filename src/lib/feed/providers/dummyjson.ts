@@ -13,18 +13,25 @@ import type { FeedProduct, FeedProvider } from "../types";
 
 const BASE = "https://dummyjson.com/products/category";
 
-// DummyJSON fashion categories → normalized category + vibe tags.
-const CATEGORIES: { slug: string; category: string; vibes: string[] }[] = [
-  { slug: "mens-shirts", category: "top", vibes: ["work", "casual"] },
-  { slug: "tops", category: "top", vibes: ["casual", "minimal"] },
-  { slug: "womens-dresses", category: "dress", vibes: ["party", "formal"] },
-  { slug: "mens-shoes", category: "shoes", vibes: ["casual"] },
-  { slug: "womens-shoes", category: "shoes", vibes: ["formal", "party"] },
-  { slug: "mens-watches", category: "accessory", vibes: ["minimal", "work"] },
-  { slug: "womens-watches", category: "accessory", vibes: ["minimal"] },
-  { slug: "womens-bags", category: "bag", vibes: ["minimal", "formal"] },
-  { slug: "womens-jewellery", category: "accessory", vibes: ["party", "formal"] },
-  { slug: "sunglasses", category: "accessory", vibes: ["streetwear", "casual"] },
+type Gender = "male" | "female" | "unisex";
+
+// DummyJSON fashion categories → normalized category + gender + vibe tags.
+const CATEGORIES: {
+  slug: string;
+  category: string;
+  gender: Gender;
+  vibes: string[];
+}[] = [
+  { slug: "mens-shirts", category: "top", gender: "male", vibes: ["work", "casual"] },
+  { slug: "tops", category: "top", gender: "female", vibes: ["casual", "minimal"] },
+  { slug: "womens-dresses", category: "dress", gender: "female", vibes: ["party", "formal"] },
+  { slug: "mens-shoes", category: "shoes", gender: "male", vibes: ["casual"] },
+  { slug: "womens-shoes", category: "shoes", gender: "female", vibes: ["formal", "party"] },
+  { slug: "mens-watches", category: "accessory", gender: "male", vibes: ["minimal", "work"] },
+  { slug: "womens-watches", category: "accessory", gender: "female", vibes: ["minimal"] },
+  { slug: "womens-bags", category: "bag", gender: "female", vibes: ["minimal", "formal"] },
+  { slug: "womens-jewellery", category: "accessory", gender: "female", vibes: ["party", "formal"] },
+  { slug: "sunglasses", category: "accessory", gender: "unisex", vibes: ["streetwear", "casual"] },
 ];
 
 interface DummyProduct {
@@ -52,7 +59,7 @@ export class DummyJsonProvider implements FeedProvider {
   async fetchProducts(): Promise<FeedProduct[]> {
     if (!this.isConfigured()) return [];
     const out: FeedProduct[] = [];
-    for (const { slug, category, vibes } of CATEGORIES) {
+    for (const { slug, category, gender, vibes } of CATEGORIES) {
       try {
         const res = await fetch(`${BASE}/${slug}?limit=0`);
         if (!res.ok) continue;
@@ -70,6 +77,7 @@ export class DummyJsonProvider implements FeedProvider {
             imageUrl: img,
             productUrl: shoppingUrl(p.title, p.brand),
             category,
+            gender,
             colors: [],
             vibeTags: vibes,
             inStock: (p.stock ?? 1) > 0,

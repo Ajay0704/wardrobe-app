@@ -16,9 +16,15 @@ import {
 } from "@/lib/style-quiz";
 import { useWardrobe } from "@/lib/store";
 
-type Step = "goal" | "occasions" | "lean" | "snapshot";
+type Step = "gender" | "goal" | "occasions" | "lean" | "snapshot";
 
-const STEPS: Step[] = ["goal", "occasions", "lean", "snapshot"];
+const STEPS: Step[] = ["gender", "goal", "occasions", "lean", "snapshot"];
+
+const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] = [
+  { id: "female", label: "Women's", hint: "Show women's styles" },
+  { id: "male", label: "Men's", hint: "Show men's styles" },
+  { id: "all", label: "Everything", hint: "Show it all" },
+];
 
 /**
  * Research-backed first-run quiz (ends at snapshot).
@@ -26,7 +32,10 @@ const STEPS: Step[] = ["goal", "occasions", "lean", "snapshot"];
  */
 export function OnboardingModal() {
   const { profile, updateProfile, setView } = useWardrobe();
-  const [step, setStep] = useState<Step>("goal");
+  const [step, setStep] = useState<Step>("gender");
+  const [shopGender, setShopGender] = useState<"male" | "female" | "all" | undefined>(
+    profile.shopGender,
+  );
   const [goal, setGoal] = useState<StyleGoal | undefined>(profile.styleGoal);
   const [occasions, setOccasions] = useState<StyleOccasion[]>(
     profile.styleOccasions ?? [],
@@ -57,6 +66,7 @@ export function OnboardingModal() {
   };
 
   const canContinue =
+    (step === "gender" && Boolean(shopGender)) ||
     (step === "goal" && Boolean(goal)) ||
     (step === "occasions" && occasions.length > 0) ||
     (step === "lean" && Boolean(lean)) ||
@@ -111,6 +121,31 @@ export function OnboardingModal() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-6">
+          {step === "gender" && (
+            <div className="space-y-4">
+              <h2 id="onboarding-title" className="heading text-2xl">
+                What should we show you?
+              </h2>
+              <p className="text-sm text-muted">
+                Sets the Explore feed. You can change it anytime.
+              </p>
+              <div className="space-y-2">
+                {GENDERS.map((g) => (
+                  <ChoiceCard
+                    key={g.id}
+                    active={shopGender === g.id}
+                    title={g.label}
+                    hint={g.hint}
+                    onClick={() => {
+                      setShopGender(g.id);
+                      updateProfile({ shopGender: g.id });
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           {step === "goal" && (
             <div className="space-y-4">
               <h2 id="onboarding-title" className="heading text-2xl">

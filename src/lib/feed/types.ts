@@ -21,6 +21,8 @@ export interface FeedProduct {
   productUrl: string;
   /** Normalized to our Category slug where possible (top/bottom/shoes/…). */
   category?: string;
+  /** Who the piece is for — drives the gender-aware feed. */
+  gender?: "male" | "female" | "unisex";
   colors?: string[];
   vibeTags?: string[];
   inStock?: boolean;

@@ -1,12 +1,13 @@
 "use client";
 
 import {
+  Bookmark,
   Check,
   Heart,
   RefreshCw,
   Shirt,
   ShoppingBag,
-  ShoppingCart,
+  Sparkles,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -16,10 +17,10 @@ import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
 
-/** One external product from /api/explore/feed. */
-interface FeedItem {
+/* --------------------------------------------------------------- types */
+
+interface Piece {
   id: string;
-  source: string;
   title: string;
   brand?: string;
   price?: number;
@@ -27,41 +28,41 @@ interface FeedItem {
   imageUrl: string;
   productUrl: string;
   category?: string;
-  colors: string[];
-  vibeTags: string[];
+}
+
+interface FeedCard {
+  id: string;
+  kind: "look" | "editorial" | "product";
+  gender: string;
+  title: string;
+  subtitle?: string;
+  vibes: string[];
+  ratio: number;
+  heroImage?: string;
+  pieces: Piece[];
   saves: number;
 }
 
-const CHIPS = [
-  "All",
-  "minimal",
-  "streetwear",
-  "casual",
-  "work",
-  "formal",
-  "party",
-  "cozy",
-  "athleisure",
-];
-const PAGE = 20;
+const CHIPS = ["All", "minimal", "streetwear", "casual", "work", "formal", "party", "cozy"];
+const PAGE = 18;
 
 async function fetchFeed(params: {
   cursor?: string | null;
-  vibe?: string;
+  gender?: string;
   ids?: string[];
-}): Promise<{ items: FeedItem[]; nextCursor: string | null }> {
+}): Promise<{ items: FeedCard[]; nextCursor: string | null }> {
   const sp = new URLSearchParams();
   if (params.ids?.length) {
     sp.set("ids", params.ids.join(","));
   } else {
     sp.set("limit", String(PAGE));
-    if (params.vibe && params.vibe !== "All") sp.set("vibe", params.vibe);
+    sp.set("gender", params.gender || "all");
     if (params.cursor) sp.set("cursor", params.cursor);
   }
   try {
     const res = await fetch(`/api/explore/feed?${sp.toString()}`);
     if (!res.ok) return { items: [], nextCursor: null };
-    return (await res.json()) as { items: FeedItem[]; nextCursor: string | null };
+    return (await res.json()) as { items: FeedCard[]; nextCursor: string | null };
   } catch {
     return { items: [], nextCursor: null };
   }
@@ -70,35 +71,36 @@ async function fetchFeed(params: {
 function money(price?: number, currency?: string): string {
   if (price == null) return "";
   const sym = currency === "GBP" ? "£" : currency === "EUR" ? "€" : "$";
-  const val = price % 1 === 0 ? String(price) : price.toFixed(2);
-  return `${sym}${val}`;
+  return `${sym}${price % 1 === 0 ? price : price.toFixed(2)}`;
 }
 
-/** Items the user already owns in the same category — the closet-match hook. */
-function ownedSimilar(p: FeedItem, items: WardrobeItem[]): WardrobeItem[] {
-  if (!p.category) return [];
-  return items.filter((it) => !it.wishlist && it.category === p.category);
+/** How much of a look the user already owns (by category). The closet-match hook. */
+function lookMatch(pieces: Piece[], items: WardrobeItem[]): { owned: number; total: number } {
+  const ownedCats = new Set(items.filter((i) => !i.wishlist).map((i) => i.category));
+  let owned = 0;
+  for (const p of pieces) if (p.category && ownedCats.has(p.category as Category)) owned++;
+  return { owned, total: pieces.length };
 }
 
 /**
- * Explore — a real, endless fashion feed of EXTERNAL products (eBay / Skimlinks;
- * DummyJSON while those approve). Served from /api/explore/feed with cursor
- * pagination. No user closet content lives in the feed; instead each product is
- * cross-referenced against the user's closet ("similar in your closet") and can
- * be shopped or wishlisted.
+ * Explore — a content-first fashion feed (Pinterest for outfits). The feed mixes
+ * composed outfit "looks", editorial inspiration, and trending products, served
+ * gender-aware and interleaved from /api/explore/feed. Pinterest-style masonry;
+ * every card is shoppable and cross-referenced against the user's closet.
  */
 export function ExploreView() {
   const isNative = useIsNativeApp();
-  const { items, savedPinIds, toggleSavePin, addItem } = useWardrobe();
+  const { items, profile, savedPinIds, toggleSavePin, addItem } = useWardrobe();
+  const gender = profile.shopGender ?? "all";
 
   const [tab, setTab] = useState<"foryou" | "saved">("foryou");
   const [chip, setChip] = useState("All");
-  const [pins, setPins] = useState<FeedItem[]>([]);
+  const [cards, setCards] = useState<FeedCard[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
-  const [savedItems, setSavedItems] = useState<FeedItem[]>([]);
-  const [openPin, setOpenPin] = useState<FeedItem | null>(null);
+  const [savedCards, setSavedCards] = useState<FeedCard[]>([]);
+  const [open, setOpen] = useState<FeedCard | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<() => void>(() => {});
@@ -108,14 +110,14 @@ export function ExploreView() {
     window.setTimeout(() => setToast(null), 1900);
   };
 
-  // Initial load + refetch on chip change.
+  // Initial load + refetch when the gender preference changes.
   useEffect(() => {
     let alive = true;
     setLoading(true);
     setDone(false);
-    fetchFeed({ vibe: chip }).then((r) => {
+    fetchFeed({ gender }).then((r) => {
       if (!alive) return;
-      setPins(r.items);
+      setCards(r.items);
       setCursor(r.nextCursor);
       setDone(!r.nextCursor);
       setLoading(false);
@@ -123,31 +125,26 @@ export function ExploreView() {
     return () => {
       alive = false;
     };
-  }, [chip]);
+  }, [gender]);
 
   const loadMore = useCallback(() => {
     if (loading || done || !cursor) return;
     setLoading(true);
-    fetchFeed({ vibe: chip, cursor }).then((r) => {
-      setPins((prev) => {
-        const seen = new Set(prev.map((p) => p.id));
+    fetchFeed({ gender, cursor }).then((r) => {
+      setCards((prev) => {
+        const seen = new Set(prev.map((c) => c.id));
         return [...prev, ...r.items.filter((i) => !seen.has(i.id))];
       });
       setCursor(r.nextCursor);
       setDone(!r.nextCursor);
       setLoading(false);
     });
-  }, [loading, done, cursor, chip]);
+  }, [loading, done, cursor, gender]);
 
-  // Keep the observer callback pointed at the latest loadMore without
-  // re-creating the observer on every state change.
   useEffect(() => {
     loadMoreRef.current = loadMore;
   }, [loadMore]);
 
-  // Infinite scroll: callback ref attaches an observer exactly when the sentinel
-  // mounts, scoped to the native scroll container (falls back to the viewport on
-  // web). This is more reliable than a useEffect that churns on loadMore changes.
   const sentinelRef = useCallback((node: HTMLDivElement | null) => {
     ioRef.current?.disconnect();
     ioRef.current = null;
@@ -163,40 +160,32 @@ export function ExploreView() {
     ioRef.current = io;
   }, []);
 
-  // Saved tab: fetch the saved products by id.
+  // Saved tab: fetch the saved cards by id.
   useEffect(() => {
     if (tab !== "saved") return;
     if (!savedPinIds.length) {
-      setSavedItems([]);
+      setSavedCards([]);
       return;
     }
     let alive = true;
     fetchFeed({ ids: savedPinIds }).then((r) => {
-      if (alive) setSavedItems(r.items);
+      if (alive) setSavedCards(r.items);
     });
     return () => {
       alive = false;
     };
   }, [tab, savedPinIds]);
 
-  const refresh = () => {
-    setChip("All");
-    setLoading(true);
-    setDone(false);
-    fetchFeed({ vibe: "All" }).then((r) => {
-      setPins(r.items);
-      setCursor(r.nextCursor);
-      setDone(!r.nextCursor);
-      setLoading(false);
-    });
-  };
+  const base = tab === "saved" ? savedCards : cards;
+  const list = useMemo(
+    () => (chip === "All" ? base : base.filter((c) => c.vibes.includes(chip))),
+    [base, chip],
+  );
 
-  const list = tab === "saved" ? savedItems : pins;
-
-  const shop = (p: FeedItem) =>
+  const shopPiece = (p: Piece) =>
     void openExternalUrl(affiliateUrl(p.productUrl) ?? p.productUrl);
 
-  const wishlist = (p: FeedItem) => {
+  const wishlistPiece = (p: Piece, vibes: string[]) => {
     addItem({
       name: p.brand ? `${p.brand} ${p.title}` : p.title,
       imageUrl: p.imageUrl,
@@ -205,24 +194,18 @@ export function ExploreView() {
       brand: p.brand,
       price: p.price,
       productUrl: p.productUrl,
-      tags: p.vibeTags,
+      tags: vibes,
       seasons: [],
       wishlist: true,
     });
-    flash("Added to wishlist");
   };
 
   const moreLikeThis = useMemo(() => {
-    if (!openPin) return [];
-    return pins
-      .filter(
-        (p) =>
-          p.id !== openPin.id &&
-          (p.category === openPin.category ||
-            p.vibeTags.some((v) => openPin.vibeTags.includes(v))),
-      )
+    if (!open) return [];
+    return cards
+      .filter((c) => c.id !== open.id && c.vibes.some((v) => open.vibes.includes(v)))
       .slice(0, 8);
-  }, [openPin, pins]);
+  }, [open, cards]);
 
   return (
     <div className="space-y-4">
@@ -240,9 +223,7 @@ export function ExploreView() {
             type="button"
             onClick={() => setTab(id)}
             className={`-mb-px border-b-2 pb-2 font-medium transition-colors ${
-              tab === id
-                ? "border-accent text-accent"
-                : "border-transparent text-muted"
+              tab === id ? "border-accent text-accent" : "border-transparent text-muted"
             }`}
           >
             {label}
@@ -258,7 +239,16 @@ export function ExploreView() {
         {tab === "foryou" && (
           <button
             type="button"
-            onClick={refresh}
+            onClick={() => {
+              setChip("All");
+              setLoading(true);
+              fetchFeed({ gender }).then((r) => {
+                setCards(r.items);
+                setCursor(r.nextCursor);
+                setDone(!r.nextCursor);
+                setLoading(false);
+              });
+            }}
             aria-label="Refresh"
             className="ml-auto -mb-px pb-2 text-muted"
           >
@@ -267,43 +257,39 @@ export function ExploreView() {
         )}
       </div>
 
-      {tab === "foryou" && (
-        <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
-          {CHIPS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setChip(c)}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-sm capitalize transition-colors ${
-                chip === c
-                  ? "bg-foreground text-background"
-                  : "border border-line text-muted"
-              }`}
-            >
-              {c}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
+        {CHIPS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setChip(c)}
+            className={`shrink-0 rounded-full px-3 py-1.5 text-sm capitalize transition-colors ${
+              chip === c ? "bg-foreground text-background" : "border border-line text-muted"
+            }`}
+          >
+            {c}
+          </button>
+        ))}
+      </div>
 
       {list.length === 0 ? (
         <div className="py-16 text-center text-sm text-muted">
           {tab === "saved"
-            ? "No saved items yet — tap the heart on anything you like."
+            ? "Nothing saved yet — tap the heart on anything you love."
             : loading
-              ? "Loading the feed…"
-              : "Nothing here yet."}
+              ? "Curating your feed…"
+              : "No ideas here yet."}
         </div>
       ) : (
         <div style={{ columnCount: 2, columnGap: "12px" }}>
-          {list.map((pin) => (
-            <PinCard
-              key={pin.id}
-              pin={pin}
-              owned={ownedSimilar(pin, items).length > 0}
-              saved={savedPinIds.includes(pin.id)}
-              onOpen={() => setOpenPin(pin)}
-              onSave={() => toggleSavePin(pin.id)}
+          {list.map((card) => (
+            <Card
+              key={card.id}
+              card={card}
+              items={items}
+              saved={savedPinIds.includes(card.id)}
+              onOpen={() => setOpen(card)}
+              onSave={() => toggleSavePin(card.id)}
             />
           ))}
         </div>
@@ -311,21 +297,24 @@ export function ExploreView() {
 
       {tab === "foryou" && list.length > 0 && !done && (
         <div ref={sentinelRef} className="py-6 text-center text-xs text-muted">
-          Finding more…
+          Finding more ideas…
         </div>
       )}
 
-      {openPin && (
-        <PinSheet
-          pin={openPin}
-          ownedSimilar={ownedSimilar(openPin, items)}
-          saved={savedPinIds.includes(openPin.id)}
+      {open && (
+        <Sheet
+          card={open}
+          items={items}
+          saved={savedPinIds.includes(open.id)}
           more={moreLikeThis}
-          onClose={() => setOpenPin(null)}
-          onOpenMore={(p) => setOpenPin(p)}
-          onSave={() => toggleSavePin(openPin.id)}
-          onShop={() => shop(openPin)}
-          onWishlist={() => wishlist(openPin)}
+          onClose={() => setOpen(null)}
+          onOpenMore={(c) => setOpen(c)}
+          onSave={() => toggleSavePin(open.id)}
+          onShopPiece={shopPiece}
+          onWishlistLook={() => {
+            open.pieces.forEach((p) => wishlistPiece(p, open.vibes));
+            flash(`Added ${open.pieces.length} to wishlist`);
+          }}
         />
       )}
 
@@ -340,26 +329,39 @@ export function ExploreView() {
   );
 }
 
-/* --------------------------------------------------------------- pin card */
+/* ------------------------------------------------------------------ card */
 
-function PinCard({
-  pin,
-  owned,
+function Card({
+  card,
+  items,
   saved,
   onOpen,
   onSave,
 }: {
-  pin: FeedItem;
-  owned: boolean;
+  card: FeedCard;
+  items: WardrobeItem[];
   saved: boolean;
   onOpen: () => void;
   onSave: () => void;
 }) {
+  const match = card.kind === "look" ? lookMatch(card.pieces, items) : null;
+  const owned = card.kind === "product" && card.pieces[0]?.category
+    ? items.some((i) => !i.wishlist && i.category === (card.pieces[0].category as Category))
+    : false;
+
   return (
     <div className="mb-3 break-inside-avoid">
       <button type="button" onClick={onOpen} className="block w-full text-left">
-        <div className="relative overflow-hidden rounded-2xl bg-surface-2">
-          <PinImage src={pin.imageUrl} />
+        <div
+          className="relative overflow-hidden rounded-2xl bg-surface-2"
+          style={{ aspectRatio: String(1 / card.ratio) }}
+        >
+          {card.kind === "look" ? (
+            <Collage images={card.pieces.map((p) => p.imageUrl)} />
+          ) : (
+            <Img src={card.heroImage} />
+          )}
+
           <span
             role="button"
             aria-label={saved ? "Unsave" : "Save"}
@@ -369,161 +371,202 @@ function PinCard({
             }}
             className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-surface/90"
           >
-            <Heart
-              size={16}
-              className={saved ? "fill-accent text-accent" : "text-foreground"}
-            />
+            <Heart size={16} className={saved ? "fill-accent text-accent" : "text-foreground"} />
           </span>
-          {owned && (
+
+          {card.kind === "look" && (
+            <span className="absolute left-2 top-2 rounded-full bg-surface/90 px-2 py-0.5 text-[10px] font-medium">
+              <Sparkles size={10} className="mr-1 inline" />
+              {card.pieces.length} pieces
+            </span>
+          )}
+          {card.kind === "editorial" && (
+            <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-3 pb-2 pt-6 text-left">
+              <span className="block text-sm font-medium text-white">{card.title}</span>
+              {card.subtitle && (
+                <span className="block text-[11px] text-white/80">{card.subtitle}</span>
+              )}
+            </span>
+          )}
+
+          {match && match.owned > 0 && (
+            <span className="absolute bottom-2 left-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
+              you own {match.owned}/{match.total}
+            </span>
+          )}
+          {card.kind === "product" && owned && (
             <span className="absolute bottom-2 left-2 rounded-full bg-accent px-2 py-0.5 text-[10px] font-medium text-accent-foreground">
               similar in closet
             </span>
           )}
         </div>
       </button>
-      <div className="px-1 pt-1.5">
-        <p className="truncate text-sm">{pin.title}</p>
-        <p className="text-xs text-muted">
-          {[pin.brand, money(pin.price, pin.currency)].filter(Boolean).join(" · ")}
-        </p>
-      </div>
+
+      {card.kind !== "editorial" && (
+        <div className="px-1 pt-1.5">
+          <p className="truncate text-sm">{card.title}</p>
+          <p className="truncate text-xs text-muted">
+            {card.kind === "product"
+              ? [card.subtitle, money(card.pieces[0]?.price, card.pieces[0]?.currency)]
+                  .filter(Boolean)
+                  .join(" · ")
+              : card.subtitle}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function PinImage({ src }: { src?: string }) {
+function Img({ src }: { src?: string }) {
   const [err, setErr] = useState(false);
   if (!src || err) {
     return (
-      <div className="flex aspect-square w-full items-center justify-center bg-surface-2">
+      <div className="flex h-full w-full items-center justify-center bg-surface-2">
         <Shirt size={30} className="text-muted" />
       </div>
     );
   }
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img
-      src={src}
-      alt=""
-      onError={() => setErr(true)}
-      className="w-full object-cover"
-    />
+    <img src={src} alt="" onError={() => setErr(true)} className="h-full w-full object-cover" />
   );
 }
 
-/* -------------------------------------------------------------- pin sheet */
+/** Up to a 2×2 collage of a look's pieces. */
+function Collage({ images }: { images: string[] }) {
+  const imgs = images.slice(0, 4);
+  if (imgs.length <= 1) return <Img src={imgs[0]} />;
+  return (
+    <div className="grid h-full w-full grid-cols-2 gap-px bg-surface">
+      {imgs.map((src, i) => (
+        <div key={i} className="overflow-hidden bg-surface-2">
+          <Img src={src} />
+        </div>
+      ))}
+      {Array.from({ length: Math.max(0, 4 - imgs.length) }).map((_, i) => (
+        <div key={`e${i}`} className="bg-surface-2" />
+      ))}
+    </div>
+  );
+}
 
-function PinSheet({
-  pin,
-  ownedSimilar,
+/* ----------------------------------------------------------------- sheet */
+
+function Sheet({
+  card,
+  items,
   saved,
   more,
   onClose,
   onOpenMore,
   onSave,
-  onShop,
-  onWishlist,
+  onShopPiece,
+  onWishlistLook,
 }: {
-  pin: FeedItem;
-  ownedSimilar: WardrobeItem[];
+  card: FeedCard;
+  items: WardrobeItem[];
   saved: boolean;
-  more: FeedItem[];
+  more: FeedCard[];
   onClose: () => void;
-  onOpenMore: (p: FeedItem) => void;
+  onOpenMore: (c: FeedCard) => void;
   onSave: () => void;
-  onShop: () => void;
-  onWishlist: () => void;
+  onShopPiece: (p: Piece) => void;
+  onWishlistLook: () => void;
 }) {
+  const match = card.kind === "look" ? lookMatch(card.pieces, items) : null;
+  const ownedCats = new Set(items.filter((i) => !i.wishlist).map((i) => i.category));
+  const heading =
+    card.kind === "look" ? "Get the look" : card.kind === "editorial" ? "Shop the vibe" : "Product";
+
   return (
     <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
       <div
-        className="native-sheet max-h-[88vh] overflow-y-auto"
+        className="native-sheet max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
-        aria-label={pin.title}
+        aria-label={card.title}
       >
         <div className="native-sheet-handle" />
         <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">Product</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="p-1 text-muted"
-          >
+          <h2 className="heading text-lg">{heading}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
             <X size={20} />
           </button>
         </div>
 
-        <div className="overflow-hidden rounded-2xl bg-surface-2">
-          <PinImage src={pin.imageUrl} />
+        <div className="overflow-hidden rounded-2xl bg-surface-2" style={{ aspectRatio: String(1 / card.ratio) }}>
+          {card.kind === "look" ? (
+            <Collage images={card.pieces.map((p) => p.imageUrl)} />
+          ) : (
+            <Img src={card.heroImage} />
+          )}
         </div>
 
-        <p className="mt-3 font-medium">{pin.title}</p>
-        <p className="text-sm text-muted">
-          {[pin.brand, money(pin.price, pin.currency)]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
+        <p className="mt-3 font-medium">{card.title}</p>
+        {card.subtitle && <p className="text-sm text-muted">{card.subtitle}</p>}
 
-        {ownedSimilar.length > 0 && (
-          <div className="mt-3 rounded-2xl bg-surface-2 p-3">
-            <p className="flex items-center gap-1.5 text-sm">
-              <Check size={14} className="text-accent" />
-              You own {ownedSimilar.length} similar in your closet
-            </p>
-            <div className="mt-2 flex gap-2 overflow-x-auto">
-              {ownedSimilar.slice(0, 6).map((it) => (
-                <div
-                  key={it.id}
-                  className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-surface"
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={it.imageUrl}
-                    alt={it.name}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
+        {match && (
+          <p className="mt-2 flex items-center gap-1.5 text-sm text-muted">
+            <Check size={14} className="text-accent" />
+            You own {match.owned} of {match.total} in your closet
+          </p>
         )}
 
-        <button
-          type="button"
-          onClick={onShop}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3 font-medium text-accent-foreground"
-        >
-          <ShoppingBag size={17} /> Shop this
-        </button>
-        <div className="mt-2 flex gap-2">
-          <ActionBtn icon={ShoppingCart} label="Wishlist" onClick={onWishlist} />
-          <ActionBtn
-            icon={Heart}
-            label={saved ? "Saved" : "Save"}
-            active={saved}
-            onClick={onSave}
-          />
+        {/* Shoppable pieces */}
+        <div className="mt-3 divide-y divide-line rounded-2xl border border-line">
+          {card.pieces.map((p) => {
+            const owned = p.category && ownedCats.has(p.category as Category);
+            return (
+              <div key={p.id} className="flex items-center gap-3 px-3 py-2.5">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-surface-2">
+                  <Img src={p.imageUrl} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm">{p.title}</p>
+                  <p className="truncate text-xs text-muted">
+                    {[p.brand, money(p.price, p.currency)].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                {owned ? (
+                  <span className="flex items-center gap-1 text-xs text-accent">
+                    <Check size={13} /> owned
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onShopPiece(p)}
+                    className="flex items-center gap-1 rounded-full border border-line px-3 py-1.5 text-xs font-medium"
+                  >
+                    <ShoppingBag size={13} /> Shop
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mt-3 flex gap-2">
+          {card.kind !== "editorial" && (
+            <ActionBtn icon={Bookmark} label="Wishlist" onClick={onWishlistLook} />
+          )}
+          <ActionBtn icon={Heart} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave} />
         </div>
 
         {more.length > 0 && (
           <div className="mt-5">
             <p className="mb-2 text-sm font-medium">More like this</p>
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
-              {more.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => onOpenMore(p)}
-                  className="w-24 shrink-0"
-                >
-                  <div className="overflow-hidden rounded-xl bg-surface-2">
-                    <PinImage src={p.imageUrl} />
+              {more.map((c) => (
+                <button key={c.id} type="button" onClick={() => onOpenMore(c)} className="w-24 shrink-0">
+                  <div className="overflow-hidden rounded-xl bg-surface-2" style={{ aspectRatio: "1 / 1.2" }}>
+                    {c.kind === "look" ? (
+                      <Collage images={c.pieces.map((p) => p.imageUrl)} />
+                    ) : (
+                      <Img src={c.heroImage} />
+                    )}
                   </div>
-                  <p className="truncate pt-1 text-[11px] text-muted">
-                    {p.title}
-                  </p>
+                  <p className="truncate pt-1 text-[11px] text-muted">{c.title}</p>
                 </button>
               ))}
             </div>

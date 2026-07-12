@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { composeFeed } from "./compose";
 import { DummyJsonProvider } from "./providers/dummyjson";
 import { EbayProvider } from "./providers/ebay";
 import { SkimlinksProvider } from "./providers/skimlinks";
@@ -17,6 +18,7 @@ export interface IngestResult {
   skipped: string[];
   fetched: number;
   upserted: number;
+  looks: number;
   errors: string[];
 }
 
@@ -32,6 +34,7 @@ export async function runIngest(): Promise<IngestResult> {
     skipped: [],
     fetched: 0,
     upserted: 0,
+    looks: 0,
     errors: [],
   };
 
@@ -74,6 +77,7 @@ export async function runIngest(): Promise<IngestResult> {
     image_url: p.imageUrl,
     product_url: p.productUrl,
     category: p.category ?? null,
+    gender: p.gender ?? "unisex",
     colors: p.colors ?? [],
     vibe_tags: p.vibeTags ?? [],
     in_stock: p.inStock ?? true,
@@ -87,6 +91,33 @@ export async function runIngest(): Promise<IngestResult> {
       .upsert(chunk, { onConflict: "id" });
     if (error) result.errors.push(`upsert: ${error.message}`);
     else result.upserted += chunk.length;
+  }
+
+  // Compose the content feed (looks + editorial + trending) from the catalogue.
+  try {
+    const looks = composeFeed(all).map((l) => ({
+      id: l.id,
+      kind: l.kind,
+      gender: l.gender,
+      title: l.title,
+      subtitle: l.subtitle,
+      vibes: l.vibes,
+      ratio: l.ratio,
+      hero_image: l.hero_image,
+      product_ids: l.product_ids,
+    }));
+    for (let i = 0; i < looks.length; i += 500) {
+      const chunk = looks.slice(i, i + 500);
+      const { error } = await admin
+        .from("looks")
+        .upsert(chunk, { onConflict: "id" });
+      if (error) result.errors.push(`looks upsert: ${error.message}`);
+      else result.looks += chunk.length;
+    }
+  } catch (e) {
+    result.errors.push(
+      `compose: ${e instanceof Error ? e.message : String(e)}`,
+    );
   }
 
   return result;

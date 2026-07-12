@@ -16,17 +16,25 @@ const SCOPE = "https://api.ebay.com/oauth/api_scope";
 
 // Curated fashion queries → normalized category + vibe tags. This is what drives
 // the breadth of the feed; add more rows to widen it.
-const QUERIES: { q: string; category: string; vibes: string[] }[] = [
-  { q: "women's dress", category: "dress", vibes: ["party", "formal"] },
-  { q: "men's oxford shirt", category: "top", vibes: ["work", "minimal"] },
-  { q: "denim jacket", category: "outerwear", vibes: ["casual", "streetwear"] },
-  { q: "white leather sneakers", category: "shoes", vibes: ["casual", "minimal"] },
-  { q: "wool blazer", category: "outerwear", vibes: ["work", "formal"] },
-  { q: "knit sweater", category: "top", vibes: ["cozy", "minimal"] },
-  { q: "chino trousers", category: "bottom", vibes: ["work", "casual"] },
-  { q: "leather handbag", category: "bag", vibes: ["minimal", "formal"] },
-  { q: "hoodie", category: "top", vibes: ["streetwear", "athleisure"] },
-  { q: "midi skirt", category: "bottom", vibes: ["minimal", "work"] },
+type Gender = "male" | "female" | "unisex";
+const QUERIES: {
+  q: string;
+  category: string;
+  gender: Gender;
+  vibes: string[];
+}[] = [
+  { q: "women's dress", category: "dress", gender: "female", vibes: ["party", "formal"] },
+  { q: "men's oxford shirt", category: "top", gender: "male", vibes: ["work", "minimal"] },
+  { q: "men's denim jacket", category: "outerwear", gender: "male", vibes: ["casual", "streetwear"] },
+  { q: "white leather sneakers", category: "shoes", gender: "unisex", vibes: ["casual", "minimal"] },
+  { q: "men's wool blazer", category: "outerwear", gender: "male", vibes: ["work", "formal"] },
+  { q: "women's knit sweater", category: "top", gender: "female", vibes: ["cozy", "minimal"] },
+  { q: "men's chino trousers", category: "bottom", gender: "male", vibes: ["work", "casual"] },
+  { q: "women's leather handbag", category: "bag", gender: "female", vibes: ["minimal", "formal"] },
+  { q: "men's hoodie", category: "top", gender: "male", vibes: ["streetwear", "athleisure"] },
+  { q: "women's midi skirt", category: "bottom", gender: "female", vibes: ["minimal", "work"] },
+  { q: "women's blazer", category: "outerwear", gender: "female", vibes: ["work", "formal"] },
+  { q: "women's trousers", category: "bottom", gender: "female", vibes: ["work", "minimal"] },
 ];
 
 interface EbayItemSummary {
@@ -93,7 +101,7 @@ export class EbayProvider implements FeedProvider {
     }
 
     const out: FeedProduct[] = [];
-    for (const { q, category, vibes } of QUERIES) {
+    for (const { q, category, gender, vibes } of QUERIES) {
       const url =
         `${SEARCH_URL}?q=${encodeURIComponent(q)}` +
         `&limit=${this.perQuery}` +
@@ -116,6 +124,7 @@ export class EbayProvider implements FeedProvider {
             imageUrl: img,
             productUrl: buyUrl,
             category,
+            gender,
             colors: [],
             vibeTags: vibes,
             inStock: true,

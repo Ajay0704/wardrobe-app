@@ -11,6 +11,8 @@ export interface UserProfile {
   displayName: string;
   /** Public @handle shown on the social profile. Falls back to email/name. */
   username?: string;
+  /** Who to show in the Explore feed. "all" shows everything. */
+  shopGender?: "male" | "female" | "all";
   email: string;
   phone?: string;
   bio?: string;
