@@ -7,7 +7,7 @@
 
 import { getSupabase } from "./supabase/client";
 
-export type PostKind = "ootd" | "poll" | "style";
+export type PostKind = "ootd" | "poll" | "style" | "stat" | "tour";
 
 export interface CommunityPost {
   id: string;
@@ -135,7 +135,9 @@ export interface FeedPage {
  * Resolves the viewer's liked/saved/voted state + poll tallies in a few extra
  * queries so cards render fully.
  */
-export async function fetchFeed(opts: { limit?: number; before?: string | null } = {}): Promise<FeedPage> {
+export async function fetchFeed(
+  opts: { limit?: number; before?: string | null; authorIds?: string[] } = {},
+): Promise<FeedPage> {
   const sb = getSupabase();
   if (!sb) return { posts: [], nextCursor: null };
   const limit = opts.limit ?? 15;
@@ -144,6 +146,7 @@ export async function fetchFeed(opts: { limit?: number; before?: string | null }
     .select("*")
     .order("created_at", { ascending: false })
     .limit(limit + 1);
+  if (opts.authorIds && opts.authorIds.length) q = q.in("author_id", opts.authorIds);
   if (opts.before) q = q.lt("created_at", opts.before);
   const { data, error } = await q;
   if (error) return { posts: [], nextCursor: null };
@@ -285,6 +288,43 @@ export async function fetchComments(postId: string): Promise<Comment[]> {
     .order("created_at", { ascending: true });
   if (error) return [];
   return (data ?? []).map((r) => toComment(r as CommentRow));
+}
+
+export async function deleteComment(commentId: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  await sb.from("post_comments").delete().eq("id", commentId);
+}
+
+/* ------------------------------------------------------------------ follows */
+
+/** Ids of everyone the given user follows. */
+export async function fetchFollowing(userId: string): Promise<string[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data } = await sb.from("follows").select("following_id").eq("follower_id", userId);
+  return (data ?? []).map((r) => (r as { following_id: string }).following_id);
+}
+
+export async function fetchFollowCounts(
+  userId: string,
+): Promise<{ followers: number; following: number }> {
+  const sb = getSupabase();
+  if (!sb) return { followers: 0, following: 0 };
+  const [followers, following] = await Promise.all([
+    sb.from("follows").select("*", { count: "exact", head: true }).eq("following_id", userId),
+    sb.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", userId),
+  ]);
+  return { followers: followers.count ?? 0, following: following.count ?? 0 };
+}
+
+export async function toggleFollow(targetId: string, follow: boolean): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const uid = await currentUserId();
+  if (!uid || uid === targetId) return;
+  if (follow) await sb.from("follows").insert({ follower_id: uid, following_id: targetId });
+  else await sb.from("follows").delete().eq("follower_id", uid).eq("following_id", targetId);
 }
 
 export async function addComment(

@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  Award,
   BarChart3,
   Bookmark,
   Camera,
   Check,
+  Grid3x3,
   Heart,
   MessageCircle,
   MoreHorizontal,
@@ -13,14 +15,18 @@ import {
   Sparkles,
   Trash2,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   addComment,
   createPost,
+  deleteComment,
   deletePost,
   fetchComments,
   fetchFeed,
+  fetchFollowing,
+  toggleFollow,
   toggleLike,
   toggleSave,
   votePoll,
@@ -45,33 +51,55 @@ export function CommunityFeed() {
   const [loading, setLoading] = useState(true);
   const [done, setDone] = useState(false);
   const [createType, setCreateType] = useState<PostKind | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [following, setFollowing] = useState<Set<string>>(new Set());
+  const [authorIds, setAuthorIds] = useState<string[] | undefined>(undefined);
   const ioRef = useRef<IntersectionObserver | null>(null);
   const moreRef = useRef<() => void>(() => {});
+  const myId = authUser?.id ?? null;
 
   const flash = (m: string) => {
     setToast(m);
     window.setTimeout(() => setToast(null), 2000);
   };
 
+  // Load who I follow, then show the "Following" feed (their posts + mine).
+  // With no follows yet, fall back to all recent posts (discovery).
   useEffect(() => {
     let alive = true;
-    fetchFeed({}).then((r) => {
+    (async () => {
+      const followIds = myId ? await fetchFollowing(myId) : [];
+      if (!alive) return;
+      setFollowing(new Set(followIds));
+      const ids = followIds.length && myId ? [...followIds, myId] : undefined;
+      setAuthorIds(ids);
+      const r = await fetchFeed({ authorIds: ids });
       if (!alive) return;
       setPosts(r.posts);
       setCursor(r.nextCursor);
       setDone(!r.nextCursor);
       setLoading(false);
-    });
+    })();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [myId]);
+
+  const onToggleFollow = (authorId: string, next: boolean) => {
+    setFollowing((prev) => {
+      const s = new Set(prev);
+      if (next) s.add(authorId);
+      else s.delete(authorId);
+      return s;
+    });
+    void toggleFollow(authorId, next).catch(() => {});
+  };
 
   const loadMore = useCallback(() => {
     if (loading || done || !cursor) return;
     setLoading(true);
-    fetchFeed({ before: cursor }).then((r) => {
+    fetchFeed({ before: cursor, authorIds }).then((r) => {
       setPosts((prev) => {
         const seen = new Set(prev.map((p) => p.id));
         return [...prev, ...r.posts.filter((p) => !seen.has(p.id))];
@@ -80,7 +108,7 @@ export function CommunityFeed() {
       setDone(!r.nextCursor);
       setLoading(false);
     });
-  }, [loading, done, cursor]);
+  }, [loading, done, cursor, authorIds]);
 
   useEffect(() => {
     moreRef.current = loadMore;
@@ -120,7 +148,7 @@ export function CommunityFeed() {
         <Avatar profile={profile} size={30} />
         <button
           type="button"
-          onClick={() => openCompose("ootd")}
+          onClick={() => (authUser ? setPickerOpen(true) : flash("Sign in to post"))}
           className="flex-1 text-left text-sm text-muted"
         >
           Share a fit, poll, or challenge…
@@ -139,7 +167,9 @@ export function CommunityFeed() {
           <PostCard
             key={p.id}
             post={p}
-            myId={authUser?.id ?? null}
+            myId={myId}
+            following={following.has(p.authorId)}
+            onToggleFollow={onToggleFollow}
             onDeleted={() => setPosts((prev) => prev.filter((x) => x.id !== p.id))}
           />
         ))
@@ -152,6 +182,16 @@ export function CommunityFeed() {
         <div ref={sentinelRef} className="py-4 text-center text-xs text-muted">
           More posts…
         </div>
+      )}
+
+      {pickerOpen && (
+        <TypePicker
+          onPick={(t) => {
+            setPickerOpen(false);
+            setCreateType(t);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
       )}
 
       {createType && (
@@ -173,15 +213,68 @@ export function CommunityFeed() {
   );
 }
 
+/* --------------------------------------------------------------- type picker */
+
+const POST_TYPES: { kind: PostKind; icon: LucideIcon; label: string; hint: string }[] = [
+  { kind: "ootd", icon: Camera, label: "Post a fit", hint: "Share your OOTD" },
+  { kind: "poll", icon: BarChart3, label: "Ask a poll", hint: "Let followers vote" },
+  { kind: "style", icon: Sparkles, label: "Style challenge", hint: "Others recreate from their closet" },
+  { kind: "stat", icon: Award, label: "Stat card", hint: "Auto flex from your closet" },
+  { kind: "tour", icon: Grid3x3, label: "Closet tour", hint: "Show your wardrobe" },
+];
+
+function TypePicker({
+  onPick,
+  onClose,
+}: {
+  onPick: (t: PostKind) => void;
+  onClose: () => void;
+}) {
+  return (
+    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="native-sheet"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="New post"
+      >
+        <div className="native-sheet-handle" />
+        <h2 className="heading mb-2 text-lg">New post</h2>
+        <div className="divide-y divide-line">
+          {POST_TYPES.map(({ kind, icon: Icon, label, hint }) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => onPick(kind)}
+              className="flex w-full items-center gap-3 py-3 text-left"
+            >
+              <Icon size={20} className="text-accent" />
+              <span className="flex-1">
+                <span className="block text-sm font-medium">{label}</span>
+                <span className="block text-xs text-muted">{hint}</span>
+              </span>
+              <span className="text-muted">›</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* --------------------------------------------------------------- post card */
 
 function PostCard({
   post,
   myId,
+  following,
+  onToggleFollow,
   onDeleted,
 }: {
   post: CommunityPost;
   myId: string | null;
+  following: boolean;
+  onToggleFollow: (authorId: string, next: boolean) => void;
   onDeleted: () => void;
 }) {
   const [liked, setLiked] = useState(post.liked);
@@ -236,6 +329,19 @@ function PostCard({
           <span className="font-medium">{post.authorName}</span>{" "}
           <span className="text-muted">@{post.authorHandle}</span>
         </p>
+        {!isMine && myId && (
+          <button
+            type="button"
+            onClick={() => onToggleFollow(post.authorId, !following)}
+            className={`ml-auto rounded-full px-3 py-1 text-xs font-medium ${
+              following
+                ? "border border-line text-muted"
+                : "bg-accent text-accent-foreground"
+            }`}
+          >
+            {following ? "Following" : "Follow"}
+          </button>
+        )}
         {isMine && (
           <div className="relative ml-auto">
             <button
@@ -301,6 +407,26 @@ function PostCard({
             <p className="mt-1.5 text-xs text-muted">{total} vote{total === 1 ? "" : "s"}</p>
           )}
         </div>
+      ) : post.kind === "stat" ? (
+        <div className="px-3 pb-1">
+          <div className="rounded-2xl bg-accent-soft p-5 text-center">
+            <p className="text-[11px] uppercase tracking-wide text-accent/80">Wardrobe stat</p>
+            <p className="mt-1.5 font-medium">{post.lookTitle}</p>
+            <p className="mt-1 text-lg font-semibold text-accent">{post.caption}</p>
+          </div>
+        </div>
+      ) : post.kind === "tour" ? (
+        <>
+          <div className="grid grid-cols-3 gap-0.5">
+            {post.pollOptions.map((src, i) => (
+              <div key={i} className="aspect-square overflow-hidden bg-surface-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={src} alt="" className="h-full w-full object-cover" />
+              </div>
+            ))}
+          </div>
+          {post.caption && <p className="px-3 pt-2.5 text-sm">{post.caption}</p>}
+        </>
       ) : (
         <>
           <PostImage src={post.imageUrl} kind={post.kind} />
@@ -348,7 +474,7 @@ function PostCard({
         <CommentSheet
           postId={post.id}
           onClose={() => setCommentsOpen(false)}
-          onAdded={() => setCommentCount((n) => n + 1)}
+          onCountChange={(d) => setCommentCount((n) => Math.max(0, n + d))}
         />
       )}
     </article>
@@ -360,11 +486,11 @@ function PostCard({
 function CommentSheet({
   postId,
   onClose,
-  onAdded,
+  onCountChange,
 }: {
   postId: string;
   onClose: () => void;
-  onAdded: () => void;
+  onCountChange: (delta: number) => void;
 }) {
   const profile = useWardrobe((s) => s.profile);
   const authUser = useWardrobe((s) => s.authUser);
@@ -399,13 +525,19 @@ function CommentSheet({
       if (c) {
         setComments((prev) => [...prev, c]);
         setText("");
-        onAdded();
+        onCountChange(1);
       }
     } catch {
       // ignore — keep the text so they can retry
     } finally {
       setBusy(false);
     }
+  };
+
+  const remove = (id: string) => {
+    setComments((prev) => prev.filter((c) => c.id !== id));
+    onCountChange(-1);
+    void deleteComment(id).catch(() => {});
   };
 
   return (
@@ -433,13 +565,23 @@ function CommentSheet({
             comments.map((c) => (
               <div key={c.id} className="flex gap-2.5">
                 <Avatar profile={{ avatarUrl: c.authorAvatar, displayName: c.authorName }} size={28} />
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm">
                     <span className="font-medium">{c.authorName}</span>{" "}
                     <span className="text-muted">@{c.authorHandle}</span>
                   </p>
                   <p className="text-sm">{c.body}</p>
                 </div>
+                {authUser?.id === c.userId && (
+                  <button
+                    type="button"
+                    onClick={() => remove(c.id)}
+                    aria-label="Delete comment"
+                    className="p-1 text-muted"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                )}
               </div>
             ))
           )}
@@ -516,10 +658,30 @@ function CreateSheet({
   const [imageUrl, setImageUrl] = useState<string | undefined>();
   const [opts, setOpts] = useState<string[]>(["", ""]);
   const [lookId, setLookId] = useState<string>(outfits[0]?.id ?? "");
+  const [pieceTags, setPieceTags] = useState<string[]>([]);
+  const [tourImgs, setTourImgs] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
-  const title = kind === "ootd" ? "Post a fit" : kind === "poll" ? "Ask a poll" : "Style challenge";
+  const owned = items.filter((i) => !i.wishlist);
+  const statItem = owned
+    .slice()
+    .sort((a, b) => (b.wearCount ?? 0) - (a.wearCount ?? 0))[0];
+  const statLine = statItem
+    ? `${statItem.wearCount ?? 0}× worn${
+        statItem.price
+          ? ` · $${(statItem.price / Math.max(1, statItem.wearCount ?? 1)).toFixed(2)} per wear`
+          : ""
+      }`
+    : "";
+
+  const title = {
+    ootd: "Post a fit",
+    poll: "Ask a poll",
+    style: "Style challenge",
+    stat: "Stat card",
+    tour: "Closet tour",
+  }[kind];
   const author = {
     name: profile.displayName?.trim() || "You",
     handle: profileHandle(profile),
@@ -534,13 +696,23 @@ function CreateSheet({
       setErr(e instanceof Error ? e.message : "Couldn't use that photo");
     }
   };
+  const toggleTag = (name: string) =>
+    setPieceTags((p) => (p.includes(name) ? p.filter((x) => x !== name) : [...p, name]));
+  const toggleTourImg = (src: string) =>
+    setTourImgs((p) =>
+      p.includes(src) ? p.filter((x) => x !== src) : p.length >= 6 ? p : [...p, src],
+    );
 
   const canPost =
     kind === "ootd"
       ? Boolean(imageUrl || caption.trim())
       : kind === "poll"
-        ? caption.trim() && opts.filter((o) => o.trim()).length >= 2
-        : Boolean(lookId);
+        ? Boolean(caption.trim() && opts.filter((o) => o.trim()).length >= 2)
+        : kind === "style"
+          ? Boolean(lookId)
+          : kind === "stat"
+            ? Boolean(statItem)
+            : tourImgs.length >= 2;
 
   const submit = async () => {
     if (!canPost || busy) return;
@@ -549,13 +721,17 @@ function CreateSheet({
     try {
       let payload;
       if (kind === "ootd") {
-        payload = { kind, imageUrl, caption: caption.trim() || undefined };
+        payload = { kind, imageUrl, caption: caption.trim() || undefined, tags: pieceTags };
       } else if (kind === "poll") {
         payload = { kind, caption: caption.trim(), pollOptions: opts.map((o) => o.trim()).filter(Boolean) };
-      } else {
+      } else if (kind === "style") {
         const look = outfits.find((o) => o.id === lookId);
         const first = look?.itemIds.map((id) => items.find((i) => i.id === id)).find(Boolean);
         payload = { kind, lookTitle: look?.name ?? "My look", imageUrl: first?.imageUrl };
+      } else if (kind === "stat") {
+        payload = { kind, lookTitle: statItem!.name, caption: statLine, imageUrl: statItem!.imageUrl };
+      } else {
+        payload = { kind, caption: caption.trim() || "My closet tour", pollOptions: tourImgs };
       }
       const post = await createPost(payload, author);
       if (post) onCreated(post);
@@ -620,6 +796,29 @@ function CreateSheet({
               onChange={(e) => setCaption(e.target.value)}
               maxLength={280}
             />
+            {owned.length > 0 && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs text-muted">Tag pieces from your closet</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {owned.slice(0, 24).map((it) => {
+                    const on = pieceTags.includes(it.name);
+                    return (
+                      <button
+                        key={it.id}
+                        type="button"
+                        onClick={() => toggleTag(it.name)}
+                        className={`rounded-full px-2.5 py-1 text-xs ${
+                          on ? "bg-accent text-accent-foreground" : "border border-line text-muted"
+                        }`}
+                      >
+                        {on && <Check size={11} className="mr-1 inline" />}
+                        {it.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </>
         )}
 
@@ -681,6 +880,63 @@ function CreateSheet({
                     {lookId === o.id && <Check size={16} className="text-accent" />}
                   </button>
                 ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {kind === "stat" && (
+          statItem ? (
+            <div className="rounded-2xl bg-accent-soft p-6 text-center">
+              <p className="text-[11px] uppercase tracking-wide text-accent/80">Wardrobe stat</p>
+              <p className="mt-2 font-medium">{statItem.name}</p>
+              <p className="mt-1 text-lg font-semibold text-accent">{statLine}</p>
+              <p className="mt-3 text-xs text-muted">Auto-generated from your closet — post it as a flex.</p>
+            </div>
+          ) : (
+            <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">
+              Wear a few pieces (log them in your closet) and your stats will show up here.
+            </p>
+          )
+        )}
+
+        {kind === "tour" && (
+          <>
+            <input
+              className="w-full rounded-xl border border-line bg-surface p-3 text-sm"
+              placeholder="Tour title — e.g. my 20-piece capsule"
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              maxLength={80}
+            />
+            <p className="mb-1.5 mt-3 text-xs text-muted">Pick pieces to show ({tourImgs.length}/6)</p>
+            {owned.length === 0 ? (
+              <p className="rounded-xl bg-surface-2 p-3 text-sm text-muted">
+                Add items to your closet to build a tour.
+              </p>
+            ) : (
+              <div className="grid grid-cols-4 gap-1.5">
+                {owned.slice(0, 24).map((it) => {
+                  const on = tourImgs.includes(it.imageUrl);
+                  return (
+                    <button
+                      key={it.id}
+                      type="button"
+                      onClick={() => toggleTourImg(it.imageUrl)}
+                      className={`relative aspect-square overflow-hidden rounded-lg border-2 ${
+                        on ? "border-accent" : "border-transparent"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={it.imageUrl} alt={it.name} className="h-full w-full object-cover" />
+                      {on && (
+                        <span className="absolute right-0.5 top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                          <Check size={10} />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
           </>

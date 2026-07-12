@@ -10,7 +10,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchUserPosts, type CommunityPost } from "@/lib/community";
+import { fetchFollowCounts, fetchUserPosts, type CommunityPost } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -49,14 +49,19 @@ export function NativeProfileView() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [myPosts, setMyPosts] = useState<CommunityPost[]>([]);
+  const [counts, setCounts] = useState({ followers: 0, following: 0 });
   useEffect(() => {
     if (!authUser?.id) {
       setMyPosts([]);
+      setCounts({ followers: 0, following: 0 });
       return;
     }
     let alive = true;
     fetchUserPosts(authUser.id).then((p) => {
       if (alive) setMyPosts(p);
+    });
+    fetchFollowCounts(authUser.id).then((c) => {
+      if (alive) setCounts(c);
     });
     return () => {
       alive = false;
@@ -126,14 +131,14 @@ export function NativeProfileView() {
         <div className="flex w-full max-w-xs items-center justify-around py-1">
           <Stat n={myPosts.length} label="Posts" onClick={() => setTab("posts")} />
           <Stat
-            n={profile.followers ?? 0}
+            n={counts.followers}
             label="Followers"
-            onClick={() => flash("Followers — community coming soon")}
+            onClick={() => flash(`${counts.followers} follower${counts.followers === 1 ? "" : "s"}`)}
           />
           <Stat
-            n={profile.following ?? 0}
+            n={counts.following}
             label="Following"
-            onClick={() => flash("Following — community coming soon")}
+            onClick={() => flash(`Following ${counts.following}`)}
           />
         </div>
 
