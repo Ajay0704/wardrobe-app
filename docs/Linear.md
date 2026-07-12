@@ -53,6 +53,9 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 | [AJA-36](https://linear.app/ajay-karthick/issue/AJA-36) | Weekly habit loop + activate web push |
 | [AJA-75](https://linear.app/ajay-karthick/issue/AJA-75) | Native app local notification reminders |
 | [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) | Browser wishlist clipper |
+| [AJA-55](https://linear.app/ajay-karthick/issue/AJA-55) | Settings: Rate + Share the app |
+| [AJA-56](https://linear.app/ajay-karthick/issue/AJA-56) | Settings: Send feedback + Feature request |
+| [AJA-79](https://linear.app/ajay-karthick/issue/AJA-79) | Closet photo → product link/price |
 
 ### Todo (next)
 

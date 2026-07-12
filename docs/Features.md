@@ -90,6 +90,12 @@ Dark/light mode persisted in localStorage (`ThemeEffect.tsx`).
 
 Settings → Preferences → **App starts in** (`profile.startView`). Launch opens that screen (Today by default) instead of the last-visited tab. Syncs with the profile snapshot.
 
+## Support (Settings)
+
+- **Rate the app** — App Store write-review URL when `NEXT_PUBLIC_IOS_APP_ID` is set (AJA-55)
+- **Share the app** — native share sheet (`@capacitor/share`) or copy link (AJA-55)
+- **Send feedback** / **Feature request** — mailto to `NEXT_PUBLIC_SUPPORT_EMAIL` (AJA-56)
+
 ## Native app chrome (Capacitor)
 
 Bottom tabs: **Today · Closet · ＋ Create · Outfits · You**. You hub groups Wishlist, Packing, Insights, Calendar, Settings. Website keeps top-nav chrome. See [[iOS Capacitor]].

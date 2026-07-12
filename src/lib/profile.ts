@@ -121,6 +121,7 @@ export type SettingsSection =
   | "account"
   | "preferences"
   | "notifications"
+  | "support"
   | "data";
 
 export const SETTINGS_SECTIONS: {
@@ -147,6 +148,11 @@ export const SETTINGS_SECTIONS: {
     id: "preferences",
     label: "Preferences",
     description: "Appearance and defaults",
+  },
+  {
+    id: "support",
+    label: "Support",
+    description: "Rate, share, and feedback",
   },
   {
     id: "data",

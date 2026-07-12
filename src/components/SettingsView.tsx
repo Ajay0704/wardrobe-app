@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { Lightbulb, Mail, Share2, Star } from "lucide-react";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
 import { Button, Chip, Field, inputClass } from "./ui";
@@ -22,6 +23,12 @@ import {
   nativeNotificationsAvailable,
   nativeNotificationsEnabledLocally,
 } from "@/lib/native-notifications";
+import {
+  openSupportMail,
+  rateApp,
+  shareApp,
+  SUPPORT_EMAIL,
+} from "@/lib/support";
 import { SETTINGS_SECTIONS, START_SCREEN_OPTIONS, STYLE_QUIZ_VIBES, type StartScreen } from "@/lib/profile";
 import { CURRENCIES, DEFAULT_CURRENCY } from "@/lib/currency";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
@@ -280,6 +287,8 @@ export function SettingsView() {
             <NotificationsPanel native={native} />
           )}
 
+          {section === "support" && <SupportPanel native={native} />}
+
           {section === "data" && (
             <SettingsPanel title="Data & privacy">
               <div className="space-y-4 rounded-xl border border-line bg-surface-2/40 p-4">
@@ -327,6 +336,106 @@ export function SettingsView() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SupportPanel({ native }: { native: boolean }) {
+  const [status, setStatus] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setStatus(null);
+    try {
+      await fn();
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SettingsPanel title="Support">
+      <p className="text-sm text-muted">
+        Rate Wardrobe, share it with a friend, or tell us what to improve.
+      </p>
+
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line">
+        <SupportRow
+          icon={<Star size={16} />}
+          title="Rate the app"
+          hint={
+            native
+              ? "Opens the App Store review page when the listing is live."
+              : "Best from the iOS app once we’re on the App Store."
+          }
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              const result = await rateApp();
+              if (!result.ok) setStatus(result.message);
+            })
+          }
+        />
+        <SupportRow
+          icon={<Share2 size={16} />}
+          title="Share the app"
+          hint="Send a link via Messages, Mail, or copy."
+          disabled={busy}
+          onClick={() =>
+            void run(async () => {
+              const result = await shareApp();
+              if (!result.ok) setStatus(result.message);
+              else if (result.mode === "copy") setStatus("Link copied.");
+            })
+          }
+        />
+        <SupportRow
+          icon={<Mail size={16} />}
+          title="Send feedback"
+          hint={`Email ${SUPPORT_EMAIL}`}
+          disabled={busy}
+          onClick={() => void run(() => openSupportMail("feedback"))}
+        />
+        <SupportRow
+          icon={<Lightbulb size={16} />}
+          title="Feature request"
+          hint="Suggest something you’d love to see."
+          disabled={busy}
+          onClick={() => void run(() => openSupportMail("feature"))}
+        />
+      </div>
+
+      {status && <p className="text-sm text-muted">{status}</p>}
+    </SettingsPanel>
+  );
+}
+
+function SupportRow({
+  icon,
+  title,
+  hint,
+  onClick,
+  disabled,
+}: {
+  icon: ReactNode;
+  title: string;
+  hint: string;
+  onClick: () => void;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="flex w-full items-start gap-3 bg-surface px-4 py-3.5 text-left transition-colors hover:bg-surface-2/60 disabled:opacity-60"
+    >
+      <span className="mt-0.5 text-muted">{icon}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{title}</span>
+        <span className="mt-0.5 block text-xs text-muted">{hint}</span>
+      </span>
+    </button>
   );
 }
 
