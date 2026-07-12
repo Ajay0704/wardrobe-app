@@ -15,6 +15,7 @@ import { affiliateUrl } from "@/lib/affiliate";
 import { openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
+import { CommunityFeed } from "./community/CommunityFeed";
 import { useIsNativeApp } from "./NativeAppClass";
 
 /* --------------------------------------------------------------- types */
@@ -93,7 +94,7 @@ export function ExploreView() {
   const { items, profile, savedPinIds, toggleSavePin, addItem } = useWardrobe();
   const gender = profile.shopGender ?? "all";
 
-  const [tab, setTab] = useState<"foryou" | "saved">("foryou");
+  const [tab, setTab] = useState<"foryou" | "saved" | "following">("foryou");
   const [chip, setChip] = useState("All");
   const [cards, setCards] = useState<FeedCard[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -231,8 +232,10 @@ export function ExploreView() {
         ))}
         <button
           type="button"
-          onClick={() => flash("Following feed — coming soon")}
-          className="-mb-px border-b-2 border-transparent pb-2 font-medium text-muted"
+          onClick={() => setTab("following")}
+          className={`-mb-px border-b-2 pb-2 font-medium transition-colors ${
+            tab === "following" ? "border-accent text-accent" : "border-transparent text-muted"
+          }`}
         >
           Following
         </button>
@@ -257,6 +260,10 @@ export function ExploreView() {
         )}
       </div>
 
+      {tab === "following" ? (
+        <CommunityFeed />
+      ) : (
+       <>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
         {CHIPS.map((c) => (
           <button
@@ -299,6 +306,8 @@ export function ExploreView() {
         <div ref={sentinelRef} className="py-6 text-center text-xs text-muted">
           Finding more ideas…
         </div>
+      )}
+       </>
       )}
 
       {open && (
