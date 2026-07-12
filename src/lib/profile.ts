@@ -18,6 +18,14 @@ export interface UserProfile {
   birthDate?: string;
   /** Preferred currency code (e.g. "USD", "EUR"); drives all money formatting. */
   currency?: string;
+  /** Custom brands the user added — surfaced as suggestions when adding items. */
+  customBrands?: string[];
+  /** Temperature unit for weather display. Defaults to Celsius. */
+  temperatureUnit?: "C" | "F";
+  /** Country label (display + weather geocoding hint). */
+  country?: string;
+  /** Language label. UI translation (i18n) is a follow-up; this persists choice. */
+  language?: string;
   /**
    * Tags used by generateOutfit (derived from style quiz occasions + lean).
    * e.g. ["casual", "work"]

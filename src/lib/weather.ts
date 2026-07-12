@@ -59,6 +59,14 @@ export function weatherIconKey(code: number): WeatherIconKey {
   return "cloud";
 }
 
+export type TempUnit = "C" | "F";
+export const DEFAULT_TEMP_UNIT: TempUnit = "C";
+
+/** Convert a Celsius reading to the chosen unit, rounded to a whole degree. */
+export function convertTemp(celsius: number, unit: TempUnit): number {
+  return unit === "F" ? Math.round((celsius * 9) / 5 + 32) : Math.round(celsius);
+}
+
 export type WeatherOptions = {
   /** Timeout for GPS + forecast fetch (ms). */
   timeoutMs?: number;

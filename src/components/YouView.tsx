@@ -24,20 +24,31 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { CURRENCIES, currencySymbol, DEFAULT_CURRENCY } from "@/lib/currency";
+import {
+  COUNTRIES,
+  DEFAULT_COUNTRY,
+  DEFAULT_LANGUAGE,
+  LANGUAGES,
+} from "@/lib/locale";
+import {
+  disableNativeOutfitReminders,
+  enableNativeOutfitReminders,
+  nativeNotificationsEnabledLocally,
+} from "@/lib/native-notifications";
 import { STYLE_QUIZ_VIBES } from "@/lib/profile";
+import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
-import { NotificationsPanel } from "./SettingsView";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { Chip } from "./ui";
+import { Button, Chip, inputClass, Toggle } from "./ui";
 
-type SheetKind = "currency" | "vibes" | "notifications";
+type SheetKind = "currency" | "vibes" | "brands" | "country" | "language";
 
 /**
  * "My page" — profile, plan/closet stats, a highlights row, and grouped settings.
- * Layout modelled on Acloset. Every row that does something is handled inline
- * (a native sheet or one of our own screens) — nothing here opens the old
- * SettingsView. Not-yet-built rows show a "coming soon" toast.
+ * Every working row is handled inline (a native sheet, a toggle, or one of our
+ * own screens) — nothing here opens the old SettingsView. Unbuilt rows show a
+ * "coming soon" toast.
  */
 export function YouView() {
   const {
@@ -55,22 +66,72 @@ export function YouView() {
   const [sheet, setSheet] = useState<SheetKind | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isNative, setIsNative] = useState(false);
+  const [brandInput, setBrandInput] = useState("");
+  const [notifOn, setNotifOn] = useState(false);
+  const [notifBusy, setNotifBusy] = useState(false);
+
   useEffect(() => {
     setIsNative(document.documentElement.classList.contains("native-app"));
+    setNotifOn(nativeNotificationsEnabledLocally());
   }, []);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist).length, [items]);
   const currency = currencySymbol(profile.currency ?? DEFAULT_CURRENCY);
   const closetPct = Math.min(100, Math.round((owned / 100) * 100));
+  const customBrands = profile.customBrands ?? [];
 
-  const soon = (what: string) => {
-    setToast(`${what} — coming soon`);
-    window.setTimeout(() => setToast(null), 2000);
+  const flash = (msg: string) => {
+    setToast(msg);
+    window.setTimeout(() => setToast(null), 2200);
   };
+  const soon = (what: string) => flash(`${what} — coming soon`);
   const logOut = () => {
     setAuthUser(null);
     setSyncStatus("offline");
     void signOut();
+  };
+
+  const toggleTempUnit = () =>
+    updateProfile({
+      temperatureUnit: (profile.temperatureUnit ?? "C") === "C" ? "F" : "C",
+    });
+
+  const addBrand = () => {
+    const t = brandInput.trim();
+    if (!t) return;
+    if (customBrands.some((b) => b.toLowerCase() === t.toLowerCase())) {
+      setBrandInput("");
+      return;
+    }
+    updateProfile({ customBrands: [...customBrands, t] });
+    setBrandInput("");
+  };
+  const removeBrand = (b: string) =>
+    updateProfile({ customBrands: customBrands.filter((x) => x !== b) });
+
+  const toggleNotif = async () => {
+    if (notifBusy) return;
+    setNotifBusy(true);
+    try {
+      if (notifOn) {
+        if (isNative) await disableNativeOutfitReminders();
+        else await unsubscribeFromPush();
+        setNotifOn(false);
+        flash("Reminders turned off");
+      } else {
+        const r = isNative
+          ? await enableNativeOutfitReminders()
+          : await subscribeToPush();
+        if (r.ok) {
+          setNotifOn(true);
+          flash("Reminders on — daily outfit nudge");
+        } else {
+          flash(r.error);
+        }
+      }
+    } finally {
+      setNotifBusy(false);
+    }
   };
 
   return (
@@ -149,14 +210,38 @@ export function YouView() {
       <SettingsCard label="Account Settings">
         <SRow icon={User} label="My information" onClick={() => setView("profile")} />
         <SRow icon={Bot} label="Outfit suggestion settings" onClick={() => setSheet("vibes")} />
-        <SRow icon={Bell} label="Notifications" onClick={() => setSheet("notifications")} />
+        <div className="flex w-full items-center gap-3 border-b border-line px-4 py-3">
+          <Bell size={19} strokeWidth={1.7} />
+          <span className="flex-1">Notifications</span>
+          <Toggle on={notifOn} disabled={notifBusy} onChange={toggleNotif} label="Notifications" />
+        </div>
         <SRow icon={History} label="Purchase Info" onClick={() => soon("Purchase info")} />
         <SRow icon={CalendarDays} label="Week start day" value="Sunday" onClick={() => soon("Week start day")} />
-        <SRow icon={Tag} label="Custom Brands" onClick={() => soon("Custom brands")} />
-        <SRow icon={Thermometer} label="Temperature Unit" value="°C" onClick={() => soon("Temperature unit")} />
+        <SRow
+          icon={Tag}
+          label="Custom Brands"
+          value={customBrands.length ? String(customBrands.length) : undefined}
+          onClick={() => setSheet("brands")}
+        />
+        <SRow
+          icon={Thermometer}
+          label="Temperature Unit"
+          value={`°${profile.temperatureUnit ?? "C"}`}
+          onClick={toggleTempUnit}
+        />
         <SRow icon={DollarSign} label="Currency" value={currency} onClick={() => setSheet("currency")} />
-        <SRow icon={Globe} label="Country" value="United States" onClick={() => soon("Country")} />
-        <SRow icon={Globe} label="Language" value="English" onClick={() => soon("Language")} />
+        <SRow
+          icon={Globe}
+          label="Country"
+          value={profile.country ?? DEFAULT_COUNTRY}
+          onClick={() => setSheet("country")}
+        />
+        <SRow
+          icon={Globe}
+          label="Language"
+          value={profile.language ?? DEFAULT_LANGUAGE}
+          onClick={() => setSheet("language")}
+        />
         <SRow icon={Luggage} label="Packing & trips" onClick={() => setView("travel")} />
         <SRow icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} />
         <SRow icon={Settings} label="Navigation setting" onClick={() => soon("Navigation setting")} />
@@ -195,21 +280,19 @@ export function YouView() {
           {CURRENCIES.map((c) => {
             const active = (profile.currency ?? DEFAULT_CURRENCY) === c.code;
             return (
-              <button
+              <PickRow
                 key={c.code}
-                type="button"
+                active={active}
                 onClick={() => {
                   updateProfile({ currency: c.code });
                   setSheet(null);
                 }}
-                className="flex w-full items-center gap-3 border-b border-line px-1 py-3.5 text-left last:border-none"
               >
                 <span className="w-8 text-center text-lg">{c.symbol}</span>
                 <span className="flex-1">
                   {c.label} <span className="text-muted">· {c.code}</span>
                 </span>
-                {active && <Check size={18} className="text-accent" />}
-              </button>
+              </PickRow>
             );
           })}
         </Sheet>
@@ -245,9 +328,87 @@ export function YouView() {
         </Sheet>
       )}
 
-      {sheet === "notifications" && (
-        <Sheet title="Notifications" onClose={() => setSheet(null)}>
-          <NotificationsPanel native={isNative} />
+      {sheet === "brands" && (
+        <Sheet title="Custom brands" onClose={() => setSheet(null)}>
+          <p className="pb-3 text-sm text-muted">
+            Add brands you buy often — they show up as suggestions when you add items.
+          </p>
+          <div className="flex gap-2 pb-4">
+            <input
+              className={inputClass}
+              value={brandInput}
+              placeholder="Add a brand"
+              onChange={(e) => setBrandInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addBrand();
+                }
+              }}
+            />
+            <Button onClick={addBrand} className="!py-2">
+              Add
+            </Button>
+          </div>
+          {customBrands.length ? (
+            <div className="flex flex-wrap gap-2">
+              {customBrands.map((b) => (
+                <span
+                  key={b}
+                  className="flex items-center gap-1.5 rounded-full border border-line bg-surface-2 px-3 py-1.5 text-sm"
+                >
+                  {b}
+                  <button
+                    type="button"
+                    onClick={() => removeBrand(b)}
+                    aria-label={`Remove ${b}`}
+                    className="text-muted"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted">No custom brands yet.</p>
+          )}
+        </Sheet>
+      )}
+
+      {sheet === "country" && (
+        <Sheet title="Country" onClose={() => setSheet(null)}>
+          {COUNTRIES.map((c) => (
+            <PickRow
+              key={c}
+              active={(profile.country ?? DEFAULT_COUNTRY) === c}
+              onClick={() => {
+                updateProfile({ country: c });
+                setSheet(null);
+              }}
+            >
+              <span className="flex-1">{c}</span>
+            </PickRow>
+          ))}
+        </Sheet>
+      )}
+
+      {sheet === "language" && (
+        <Sheet title="Language" onClose={() => setSheet(null)}>
+          <p className="pb-3 text-sm text-muted">
+            Sets your preferred language. Full in-app translation is coming soon.
+          </p>
+          {LANGUAGES.map((l) => (
+            <PickRow
+              key={l.code}
+              active={(profile.language ?? DEFAULT_LANGUAGE) === l.label}
+              onClick={() => {
+                updateProfile({ language: l.label });
+                setSheet(null);
+              }}
+            >
+              <span className="flex-1">{l.label}</span>
+            </PickRow>
+          ))}
         </Sheet>
       )}
 
@@ -289,6 +450,27 @@ function Sheet({
         {children}
       </div>
     </div>
+  );
+}
+
+function PickRow({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex w-full items-center gap-3 border-b border-line px-1 py-3.5 text-left last:border-none"
+    >
+      {children}
+      {active && <Check size={18} className="shrink-0 text-accent" />}
+    </button>
   );
 }
 

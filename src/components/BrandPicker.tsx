@@ -20,6 +20,7 @@ export function BrandPicker({
   onChange: (brand: string) => void;
 }) {
   const items = useWardrobe((s) => s.items);
+  const customBrands = useWardrobe((s) => s.profile.customBrands);
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,12 +29,12 @@ export function BrandPicker({
       .map((it) => it.brand)
       .filter((b): b is string => !!b && b.trim().length > 0);
     const seen = new Map<string, string>();
-    for (const b of [...used, ...COMMON_BRANDS]) {
+    for (const b of [...(customBrands ?? []), ...used, ...COMMON_BRANDS]) {
       const k = b.trim().toLowerCase();
       if (k && !seen.has(k)) seen.set(k, b.trim());
     }
     return [...seen.values()].sort((a, b) => a.localeCompare(b));
-  }, [items]);
+  }, [items, customBrands]);
 
   const q = value.trim().toLowerCase();
   const matches = useMemo(

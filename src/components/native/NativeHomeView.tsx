@@ -32,9 +32,11 @@ import { primaryStyleVibe } from "@/lib/profile";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import {
+  convertTemp,
   fetchLocalWeather,
   fetchWeatherForPlace,
   weatherIconKey,
+  type TempUnit,
   type WeatherIconKey,
   type WeatherSnapshot,
 } from "@/lib/weather";
@@ -204,10 +206,10 @@ export function NativeHomeView() {
     [owned],
   );
   const remaining = Math.max(0, 6 - owned.length);
+  const unit = (profile.temperatureUnit ?? "C") as TempUnit;
+  const t = (c: number) => convertTemp(c, unit);
   const tempLabel = weather
-    ? `${Math.round(weather.hi ?? weather.tempC)} / ${Math.round(
-        weather.lo ?? weather.tempC,
-      )}°C`
+    ? `${t(weather.hi ?? weather.tempC)} / ${t(weather.lo ?? weather.tempC)}°${unit}`
     : wxLoading
       ? "…"
       : null;
@@ -368,7 +370,7 @@ export function NativeHomeView() {
                   {f ? (
                     <>
                       <WxIcon code={f.weatherCode} size={14} />
-                      {f.hi}° <span className="opacity-60">{f.lo}°</span>
+                      {t(f.hi)}° <span className="opacity-60">{t(f.lo)}°</span>
                     </>
                   ) : (
                     <span className="opacity-40">—</span>
