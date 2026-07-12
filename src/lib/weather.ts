@@ -10,10 +10,22 @@ import { Capacitor } from "@capacitor/core";
 import { Geolocation } from "@capacitor/geolocation";
 import type { Season } from "./types";
 
+/** One day of the forecast (used by the Home outfit-calendar rail). */
+export interface DayForecast {
+  /** Local date, YYYY-MM-DD. */
+  dateISO: string;
+  hi: number;
+  lo: number;
+  weatherCode: number;
+}
+
 export interface WeatherSnapshot {
   tempC: number;
   precipMm: number;
   weatherCode: number;
+  /** Today's high/low in °C, when a daily forecast is available. */
+  hi?: number;
+  lo?: number;
   /** Human label, e.g. "Partly cloudy · 18°C" */
   label: string;
   season: Season;
@@ -22,6 +34,29 @@ export interface WeatherSnapshot {
   longitude: number;
   /** Optional place name when resolved via city search */
   placeName?: string;
+  /** Up to 7 days starting today, when available. */
+  daily?: DayForecast[];
+}
+
+/** Coarse icon key for a WMO weather code — mapped to a lucide icon in the UI. */
+export type WeatherIconKey =
+  | "sun"
+  | "cloud-sun"
+  | "cloud"
+  | "rain"
+  | "snow"
+  | "storm"
+  | "fog";
+
+export function weatherIconKey(code: number): WeatherIconKey {
+  if (code === 0) return "sun";
+  if (code === 1 || code === 2) return "cloud-sun";
+  if (code === 3) return "cloud";
+  if (code >= 45 && code <= 48) return "fog";
+  if (code >= 71 && code <= 77) return "snow";
+  if (code >= 95) return "storm";
+  if ((code >= 51 && code <= 67) || (code >= 80 && code <= 86)) return "rain";
+  return "cloud";
 }
 
 export type WeatherOptions = {
@@ -148,7 +183,8 @@ async function forecastAt(
     `https://api.open-meteo.com/v1/forecast` +
     `?latitude=${latitude}&longitude=${longitude}` +
     `&current=temperature_2m,precipitation,weather_code` +
-    `&timezone=auto`;
+    `&daily=temperature_2m_max,temperature_2m_min,weather_code` +
+    `&forecast_days=7&timezone=auto`;
 
   const res = await fetch(url, { signal: AbortSignal.timeout(timeoutMs) });
   if (!res.ok) throw new Error("Couldn't reach the weather service.");
@@ -158,6 +194,12 @@ async function forecastAt(
       precipitation?: number;
       weather_code?: number;
     };
+    daily?: {
+      time?: string[];
+      temperature_2m_max?: number[];
+      temperature_2m_min?: number[];
+      weather_code?: number[];
+    };
   };
   const tempC = data.current?.temperature_2m ?? 18;
   const precipMm = data.current?.precipitation ?? 0;
@@ -165,16 +207,26 @@ async function forecastAt(
   const season = seasonFromTemp(tempC);
   const base = weatherLabel(weatherCode, tempC);
 
+  const daily: DayForecast[] = (data.daily?.time ?? []).map((dateISO, i) => ({
+    dateISO,
+    hi: Math.round(data.daily?.temperature_2m_max?.[i] ?? tempC),
+    lo: Math.round(data.daily?.temperature_2m_min?.[i] ?? tempC),
+    weatherCode: data.daily?.weather_code?.[i] ?? weatherCode,
+  }));
+
   return {
     tempC,
     precipMm,
     weatherCode,
+    hi: daily[0]?.hi,
+    lo: daily[0]?.lo,
     label: placeName ? `${base} · ${placeName}` : base,
     season,
     needsOuterwear: tempC < 14 || precipMm > 0.2 || weatherCode >= 51,
     latitude,
     longitude,
     placeName,
+    daily,
   };
 }
 
@@ -215,4 +267,16 @@ export async function fetchLocalWeather(
     gpsError ??
       "Couldn't get your location. Enable Location, or set a city in Settings.",
   );
+}
+
+/**
+ * Weather for a named place (from the profile), geocoded via Open-Meteo — no GPS,
+ * so the Home screen can auto-load a forecast without a location permission prompt.
+ */
+export async function fetchWeatherForPlace(
+  place: string,
+  timeoutMs = 8000,
+): Promise<WeatherSnapshot> {
+  const geo = await geocodePlace(place, timeoutMs);
+  return forecastAt(geo.latitude, geo.longitude, timeoutMs, geo.name);
 }

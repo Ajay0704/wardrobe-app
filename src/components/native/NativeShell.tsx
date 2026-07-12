@@ -3,16 +3,25 @@
 import {
   Bell,
   Calendar,
+  Camera,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
+  Clipboard,
   Compass,
+  Globe,
+  Heart,
   Home,
-  Images,
+  Image as ImageIcon,
+  Landmark,
   LayoutGrid,
+  Mail,
   Plus,
+  ScanLine,
+  Search,
   Shirt,
-  Wand2,
-  X,
+  ShoppingBag,
+  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -59,6 +68,7 @@ export function NativeShell() {
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const [createOpen, setCreateOpen] = useState(false);
   const [closetMenuOpen, setClosetMenuOpen] = useState(false);
+  const [sheetNote, setSheetNote] = useState<string | null>(null);
   const showActions = MAIN_VIEWS.has(view);
 
   // Navigation history so the back button returns to the actual previous view
@@ -76,6 +86,17 @@ export function NativeShell() {
     const target = historyRef.current.pop() ?? "today";
     prevRef.current = target;
     setView(target);
+  };
+
+  // Create sheet: run a real action (and close), or flag a not-yet-built one.
+  const runSheet = (fn: () => void) => {
+    setSheetNote(null);
+    setCreateOpen(false);
+    fn();
+  };
+  const soon = () => {
+    setSheetNote("Coming soon");
+    window.setTimeout(() => setSheetNote(null), 1600);
   };
 
   return (
@@ -132,7 +153,9 @@ export function NativeShell() {
             </div>
           ) : (
             <span className="brand-wordmark-name !text-xl">
-              {TITLES[view] ?? "Wardrobe"}
+              {view === "today"
+                ? `Hello, ${profile.displayName?.trim() || "there"}`
+                : (TITLES[view] ?? "Wardrobe")}
             </span>
           )}
         </div>
@@ -199,60 +222,67 @@ export function NativeShell() {
           role="presentation"
         >
           <div
-            className="native-sheet"
+            className="native-sheet max-h-[85vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
-            aria-label="Create"
+            aria-label="Add"
           >
             <div className="native-sheet-handle" />
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="heading text-lg">Create</h2>
-              <button
-                type="button"
-                onClick={() => setCreateOpen(false)}
-                aria-label="Close"
-                className="p-1 text-muted"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <button
-              type="button"
-              className="native-sheet-row"
-              onClick={() => {
-                setCreateOpen(false);
-                setAddOpen(true);
-              }}
-            >
-              <Shirt size={20} strokeWidth={1.7} />
-              <span>Add a clothing item</span>
-            </button>
-            <button
-              type="button"
-              className="native-sheet-row"
-              onClick={() => {
-                setCreateOpen(false);
-                setBulkOpen(true);
-              }}
-            >
-              <Images size={20} strokeWidth={1.7} />
-              <span>Import from Photos</span>
-            </button>
-            <button
-              type="button"
-              className="native-sheet-row"
-              onClick={() => {
-                setCreateOpen(false);
-                setView("builder");
-              }}
-            >
-              <Wand2 size={20} strokeWidth={1.7} />
-              <span>Build an outfit</span>
-            </button>
+
+            <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
+              Add item
+            </p>
+            <SheetRow icon={ImageIcon} label="Album" onClick={() => runSheet(() => setBulkOpen(true))} />
+            <SheetRow icon={Camera} label="Camera" onClick={() => runSheet(() => setAddOpen(true))} />
+            <SheetRow icon={ScanLine} label="Smart Detector" onClick={() => runSheet(() => setBulkOpen(true))} />
+            <SheetRow icon={Landmark} label="Library" onClick={soon} />
+            <SheetRow icon={Globe} label="Web" onClick={() => runSheet(() => setAddOpen(true))} />
+            <SheetRow icon={Clipboard} label="Clipboard" onClick={soon} />
+            <SheetRow icon={Search} label="Search item" onClick={soon} />
+            <SheetRow icon={ShoppingBag} label="Import from Online Stores" onClick={soon} />
+            <SheetRow icon={Mail} label="Import from Email" onClick={soon} />
+
+            <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
+              Closet
+            </p>
+            <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} />
+            <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} />
+            <SheetRow icon={Sparkles} label="Beautify" onClick={soon} last />
+
+            {sheetNote && (
+              <p className="mt-3 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">
+                {sheetNote}
+              </p>
+            )}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function SheetRow({
+  icon: Icon,
+  label,
+  onClick,
+  last,
+}: {
+  icon: LucideIcon;
+  label: string;
+  onClick: () => void;
+  last?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="native-sheet-row"
+      style={last ? { borderBottom: "none" } : undefined}
+    >
+      <Icon size={20} strokeWidth={1.7} />
+      <span className="flex-1 text-left">{label}</span>
+      <ChevronRight size={18} className="text-muted" />
+    </button>
   );
 }
 

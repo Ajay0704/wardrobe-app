@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useWardrobe } from "@/lib/store";
+import { NativeHomeView } from "./native/NativeHomeView";
 import { WardrobeView } from "./WardrobeView";
 import { OutfitBuilderView } from "./OutfitBuilderView";
 import { OutfitsView } from "./OutfitsView";
@@ -27,9 +29,16 @@ export function AppViews() {
   const setAddOpen = useWardrobe((s) => s.setAddOpen);
   const bulkOpen = useWardrobe((s) => s.bulkOpen);
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
+
+  // The native shell gets the richer Acloset-style Home; web keeps TodayView.
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => {
+    setIsNative(document.documentElement.classList.contains("native-app"));
+  }, []);
+
   return (
     <>
-      {view === "today" && <TodayView />}
+      {view === "today" && (isNative ? <NativeHomeView /> : <TodayView />)}
       {view === "wardrobe" && <WardrobeView />}
       {view === "builder" && <OutfitBuilderView />}
       {view === "outfits" && <OutfitsView />}
