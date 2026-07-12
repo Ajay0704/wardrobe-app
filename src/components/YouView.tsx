@@ -65,7 +65,7 @@ export function YouView() {
       <div className="grid grid-cols-2 gap-3">
         <button
           type="button"
-          onClick={() => openSettings("profile")}
+          onClick={() => setView("profile")}
           className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left"
         >
           <ProfileAvatar profile={profile} size={36} />
@@ -73,7 +73,7 @@ export function YouView() {
         </button>
         <button
           type="button"
-          onClick={() => openSettings("profile")}
+          onClick={() => setView("profile")}
           className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left"
         >
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-accent">

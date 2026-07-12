@@ -34,6 +34,7 @@ const TITLES: Partial<Record<View, string>> = {
   insights: "Insights",
   you: "My page",
   explore: "Explore",
+  profile: "My Profile",
   settings: "Settings",
 };
 
@@ -60,12 +61,22 @@ export function NativeShell() {
   const [closetMenuOpen, setClosetMenuOpen] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
-  // Remember the last main tab so sub-views (Insights, Wishlist, Calendar,
-  // Settings, You) get a back button that returns where the user came from.
-  const lastMain = useRef<View>("today");
+  // Navigation history so the back button returns to the actual previous view
+  // (e.g. My page → My Profile → back → My page), not just the last main tab.
+  const historyRef = useRef<View[]>([]);
+  const prevRef = useRef<View>(view);
   useEffect(() => {
-    if (MAIN_VIEWS.has(view)) lastMain.current = view;
+    if (prevRef.current !== view) {
+      historyRef.current.push(prevRef.current);
+      if (historyRef.current.length > 30) historyRef.current.shift();
+      prevRef.current = view;
+    }
   }, [view]);
+  const goBack = () => {
+    const target = historyRef.current.pop() ?? "today";
+    prevRef.current = target;
+    setView(target);
+  };
 
   return (
     <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
@@ -75,7 +86,7 @@ export function NativeShell() {
             <button
               type="button"
               aria-label="Back"
-              onClick={() => setView(lastMain.current)}
+              onClick={goBack}
               className="-ml-1.5 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-2"
             >
               <ChevronLeft size={22} />

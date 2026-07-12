@@ -42,6 +42,7 @@ export type View =
   | "insights"
   | "you"
   | "explore"
+  | "profile"
   | "settings";
 
 export interface Filters {
