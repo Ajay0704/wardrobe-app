@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Bell,
   Calendar,
   Camera,
   ChevronDown,
@@ -19,6 +18,7 @@ import {
   Plus,
   ScanLine,
   Search,
+  Settings,
   Shirt,
   ShoppingBag,
   Sparkles,
@@ -44,6 +44,7 @@ const TITLES: Partial<Record<View, string>> = {
   you: "My page",
   explore: "Explore",
   profile: "My Profile",
+  social: "Profile",
   settings: "Settings",
 };
 
@@ -62,8 +63,7 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, setAddOpen, setBulkOpen, setSettingsSection } =
-    useWardrobe();
+  const { view, setView, setAddOpen, setBulkOpen } = useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const [createOpen, setCreateOpen] = useState(false);
@@ -173,19 +173,16 @@ export function NativeShell() {
               </button>
               <button
                 type="button"
-                aria-label="Notifications"
-                onClick={() => {
-                  setSettingsSection("notifications");
-                  setView("settings");
-                }}
+                aria-label="Settings"
+                onClick={() => setView("you")}
                 className="text-foreground/80 transition-colors hover:text-foreground"
               >
-                <Bell size={21} strokeWidth={1.8} />
+                <Settings size={21} strokeWidth={1.8} />
               </button>
               <ProfileAvatar
                 profile={profile}
                 size={28}
-                onClick={() => setView("you")}
+                onClick={() => setView("social")}
               />
             </>
           )}
