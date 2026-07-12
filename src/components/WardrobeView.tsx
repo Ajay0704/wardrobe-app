@@ -1,11 +1,12 @@
 "use client";
 
-import { Heart, Images, LayoutGrid, Plus, Search, Sparkles, Sun } from "lucide-react";
+import { BarChart3, Heart, Images, LayoutGrid, Plus, Search, Sparkles, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
 import { forgottenItems } from "@/lib/rediscover";
 import { useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, SEASONS } from "@/lib/types";
+import { useIsNativeApp } from "./NativeAppClass";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { RediscoverModal } from "./RediscoverModal";
@@ -42,6 +43,8 @@ export function filterItems(
 export function WardrobeView() {
   const { items, filters, setFilters } = useWardrobe();
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
+  const setView = useWardrobe((s) => s.setView);
+  const isNative = useIsNativeApp();
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
@@ -63,8 +66,38 @@ export function WardrobeView() {
     [owned],
   );
 
+  const quickActions = [
+    { icon: Images, label: "Import", onClick: () => setBulkOpen(true) },
+    {
+      icon: Sparkles,
+      label: "Restyle",
+      onClick: () => forgotten[0] && setStylingItem(forgotten[0]),
+    },
+    { icon: BarChart3, label: "Insights", onClick: () => setView("insights") },
+    { icon: Heart, label: "Wishlist", onClick: () => setView("wishlist") },
+  ];
+
   return (
     <div className="space-y-6">
+      {/* Quick actions — app only (the website keeps its toolbar buttons) */}
+      {isNative && (
+        <div className="-mx-4 flex gap-5 overflow-x-auto px-4 pb-1">
+          {quickActions.map(({ icon: Icon, label, onClick }) => (
+            <button
+              key={label}
+              type="button"
+              onClick={onClick}
+              className="flex shrink-0 flex-col items-center gap-1.5"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-surface-2 text-accent">
+                <Icon size={19} />
+              </span>
+              <span className="text-[11px] text-muted">{label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
@@ -121,12 +154,17 @@ export function WardrobeView() {
           >
             {seasonalView ? <LayoutGrid size={15} /> : <Sun size={15} />}
           </Button>
-          <Button variant="outline" onClick={() => setBulkOpen(true)} title="Import multiple photos">
-            <Images size={15} /> Import
-          </Button>
-          <Button onClick={() => setAdding(true)}>
-            <Plus size={15} /> Add item
-          </Button>
+          {/* On native these live in the quick-action row + ＋ FAB, so hide them here. */}
+          {!isNative && (
+            <>
+              <Button variant="outline" onClick={() => setBulkOpen(true)} title="Import multiple photos">
+                <Images size={15} /> Import
+              </Button>
+              <Button onClick={() => setAdding(true)}>
+                <Plus size={15} /> Add item
+              </Button>
+            </>
+          )}
         </div>
       </div>
 

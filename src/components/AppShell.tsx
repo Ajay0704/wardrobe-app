@@ -23,13 +23,14 @@ import { useIsNativeApp } from "./NativeAppClass";
 import { NativeShell } from "./native/NativeShell";
 
 const NAV: { view: View; label: string }[] = [
-  { view: "today", label: "Today" },
-  { view: "wardrobe", label: "Wardrobe" },
+  { view: "today", label: "Home" },
+  { view: "wardrobe", label: "Closet" },
   { view: "builder", label: "Builder" },
   { view: "outfits", label: "Outfits" },
   { view: "calendar", label: "Calendar" },
   { view: "wishlist", label: "Wishlist" },
   { view: "travel", label: "Travel" },
+  { view: "explore", label: "Explore" },
 ];
 
 function BrandWordmark({ onClick }: { onClick: () => void }) {
@@ -265,6 +266,7 @@ function AppShellInner() {
       v === "wishlist" ||
       v === "travel" ||
       v === "insights" ||
+      v === "explore" ||
       v === "settings"
     ) {
       setView(v);

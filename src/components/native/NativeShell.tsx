@@ -1,25 +1,28 @@
 "use client";
 
 import {
+  Bell,
+  Calendar,
+  Compass,
   Home,
   Images,
   LayoutGrid,
   Plus,
   Shirt,
-  User,
   Wand2,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe, type View } from "@/lib/store";
+import { profileInitials } from "@/lib/profile";
 import { AppViews } from "../AppViews";
 import { SyncBadge } from "../SyncBadge";
 
 type Tab = { view: View; label: string; Icon: LucideIcon };
 
 const TITLES: Partial<Record<View, string>> = {
-  today: "Today",
+  today: "Home",
   wardrobe: "Closet",
   builder: "Build an outfit",
   outfits: "Outfits",
@@ -28,22 +31,15 @@ const TITLES: Partial<Record<View, string>> = {
   travel: "Packing",
   insights: "Insights",
   you: "You",
+  explore: "Explore",
   settings: "Settings",
 };
 
-// Views reachable from the "You" hub — keep that tab lit while they're open.
-const YOU_VIEWS = new Set<View>([
-  "you",
-  "wishlist",
-  "travel",
-  "insights",
-  "calendar",
-  "settings",
-]);
+// Main tabbed screens — the header actions (calendar/bell/profile) show here.
+const MAIN_VIEWS = new Set<View>(["today", "wardrobe", "outfits", "explore"]);
 
 function isActive(tab: View, view: View): boolean {
   if (tab === "outfits") return view === "outfits" || view === "builder";
-  if (tab === "you") return YOU_VIEWS.has(view);
   return view === tab;
 }
 
@@ -54,8 +50,11 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, setAddOpen, setBulkOpen } = useWardrobe();
+  const { view, setView, setAddOpen, setBulkOpen, setSettingsSection } =
+    useWardrobe();
+  const profile = useWardrobe((s) => s.profile);
   const [createOpen, setCreateOpen] = useState(false);
+  const showActions = MAIN_VIEWS.has(view);
 
   return (
     <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
@@ -63,7 +62,40 @@ export function NativeShell() {
         <span className="brand-wordmark-name !text-xl">
           {TITLES[view] ?? "Wardrobe"}
         </span>
-        <SyncBadge />
+        <div className="flex items-center gap-3.5">
+          <SyncBadge />
+          {showActions && (
+            <>
+              <button
+                type="button"
+                aria-label="Calendar"
+                onClick={() => setView("calendar")}
+                className="text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <Calendar size={21} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                aria-label="Notifications"
+                onClick={() => {
+                  setSettingsSection("notifications");
+                  setView("settings");
+                }}
+                className="text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <Bell size={21} strokeWidth={1.8} />
+              </button>
+              <button
+                type="button"
+                aria-label="Your profile"
+                onClick={() => setView("you")}
+                className="flex h-7 w-7 items-center justify-center rounded-full bg-accent text-[11px] font-semibold text-white"
+              >
+                {profileInitials(profile)}
+              </button>
+            </>
+          )}
+        </div>
       </header>
 
       <main className="native-main flex-1 overflow-y-auto px-4 pt-5">
@@ -71,7 +103,7 @@ export function NativeShell() {
       </main>
 
       <nav className="native-tabbar" aria-label="Primary">
-        <TabBtn tab={{ view: "today", label: "Today", Icon: Home }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "today", label: "Home", Icon: Home }} view={view} onClick={setView} />
         <TabBtn tab={{ view: "wardrobe", label: "Closet", Icon: Shirt }} view={view} onClick={setView} />
 
         <button
@@ -86,7 +118,7 @@ export function NativeShell() {
         </button>
 
         <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={setView} />
-        <TabBtn tab={{ view: "you", label: "You", Icon: User }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "explore", label: "Explore", Icon: Compass }} view={view} onClick={setView} />
       </nav>
 
       {createOpen && (

@@ -41,6 +41,7 @@ export type View =
   | "travel"
   | "insights"
   | "you"
+  | "explore"
   | "settings";
 
 export interface Filters {

@@ -11,6 +11,7 @@ import { TodayView } from "./TodayView";
 import { CalendarView } from "./CalendarView";
 import { InsightsView } from "./InsightsView";
 import { YouView } from "./YouView";
+import { ExploreView } from "./ExploreView";
 import { ItemForm } from "./ItemForm";
 import { BulkImport } from "./BulkImport";
 
@@ -36,6 +37,7 @@ export function AppViews() {
       {view === "travel" && <TravelView />}
       {view === "insights" && <InsightsView />}
       {view === "you" && <YouView />}
+      {view === "explore" && <ExploreView />}
       {view === "settings" && <SettingsView />}
 
       {addOpen && <ItemForm onClose={() => setAddOpen(false)} />}
