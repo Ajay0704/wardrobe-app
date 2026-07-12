@@ -202,7 +202,10 @@ export async function POST(request: Request) {
     let candidates: ProductCandidate[] = [];
     const softErrors: string[] = [];
 
-    // Prefer shopping tab, then visual, then all — never hard-fail on empty tabs.
+    // Important: do NOT pass a text `q` on the first pass. For worn/selfie
+    // photos SerpAPI often returns strong product matches from the image
+    // alone, but a wrong/narrow hint (e.g. "tshirt") can zero out results.
+    // Only refine with `q` if the image-only pass is empty/weak.
     for (const type of ["products", "visual_matches", "all"] as const) {
       if (candidates.filter((c) => shopScore(c) > 0).length >= 3) break;
       try {
@@ -210,18 +213,32 @@ export async function POST(request: Request) {
           apiKey,
           imageUrl,
           type,
-          // Refinement helps products/visual when we know garment type.
-          type === "products" || type === "visual_matches" ? hint || undefined : undefined,
+          undefined,
         );
         if (error) softErrors.push(`${type}: ${error}`);
         candidates = mergeCandidates(candidates, normalizeCandidates(matches), 20);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         softErrors.push(`${type}: ${msg}`);
-        // Continue to next type unless it's a hard auth/quota failure
         if (/invalid api key|rate limit|run out of searches/i.test(msg)) {
           throw err;
         }
+      }
+    }
+
+    if (hint && candidates.filter((c) => shopScore(c) > 0).length < 2) {
+      try {
+        const { matches, error } = await serpLens(
+          apiKey,
+          imageUrl,
+          "products",
+          hint,
+        );
+        if (error) softErrors.push(`products+q: ${error}`);
+        candidates = mergeCandidates(candidates, normalizeCandidates(matches), 20);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        softErrors.push(`products+q: ${msg}`);
       }
     }
 

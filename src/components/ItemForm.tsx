@@ -551,9 +551,9 @@ export function ItemForm({
             label="Product URL (optional)"
             hint="Paste a shop link, then Fetch details to auto-fill name, photo, price and brand."
           >
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
-                className={inputClass}
+                className={`${inputClass} min-w-0 flex-1`}
                 type="text"
                 inputMode="url"
                 autoCapitalize="off"
@@ -567,7 +567,7 @@ export function ItemForm({
                 onClick={() => void handleFetchDetails()}
                 disabled={!productUrl.trim() || fetching}
                 title="Fetch product details from this link"
-                className="!px-3 !py-2 text-xs whitespace-nowrap"
+                className="w-full shrink-0 !px-3 !py-2.5 text-xs whitespace-nowrap sm:w-auto"
               >
                 <Link2 size={13} />
                 {fetching ? "Fetching…" : "Fetch details"}
