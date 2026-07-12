@@ -7,17 +7,24 @@ import {
   Check,
   Heart,
   MessageCircle,
+  MoreHorizontal,
+  Send,
   ShoppingBag,
   Sparkles,
+  Trash2,
   X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  addComment,
   createPost,
+  deletePost,
+  fetchComments,
   fetchFeed,
   toggleLike,
   toggleSave,
   votePoll,
+  type Comment,
   type CommunityPost,
   type PostKind,
 } from "@/lib/community";
@@ -128,7 +135,14 @@ export function CommunityFeed() {
           No posts yet — be the first to share a fit.
         </div>
       ) : (
-        posts.map((p) => <PostCard key={p.id} post={p} />)
+        posts.map((p) => (
+          <PostCard
+            key={p.id}
+            post={p}
+            myId={authUser?.id ?? null}
+            onDeleted={() => setPosts((prev) => prev.filter((x) => x.id !== p.id))}
+          />
+        ))
       )}
 
       {loading && (
@@ -161,13 +175,31 @@ export function CommunityFeed() {
 
 /* --------------------------------------------------------------- post card */
 
-function PostCard({ post }: { post: CommunityPost }) {
+function PostCard({
+  post,
+  myId,
+  onDeleted,
+}: {
+  post: CommunityPost;
+  myId: string | null;
+  onDeleted: () => void;
+}) {
   const [liked, setLiked] = useState(post.liked);
   const [likes, setLikes] = useState(post.likes);
   const [saved, setSaved] = useState(post.saved);
   const [saves, setSaves] = useState(post.saves);
   const [myVote, setMyVote] = useState<number | null>(post.myVote);
   const [counts, setCounts] = useState<number[]>(post.pollCounts);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [commentsOpen, setCommentsOpen] = useState(false);
+  const [commentCount, setCommentCount] = useState(post.comments);
+  const isMine = Boolean(myId && post.authorId === myId);
+
+  const onDelete = () => {
+    setMenuOpen(false);
+    onDeleted();
+    void deletePost(post.id).catch(() => {});
+  };
 
   const onLike = () => {
     const next = !liked;
@@ -204,6 +236,32 @@ function PostCard({ post }: { post: CommunityPost }) {
           <span className="font-medium">{post.authorName}</span>{" "}
           <span className="text-muted">@{post.authorHandle}</span>
         </p>
+        {isMine && (
+          <div className="relative ml-auto">
+            <button
+              type="button"
+              aria-label="Post options"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="p-1 text-muted"
+            >
+              <MoreHorizontal size={18} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full z-50 mt-1 w-36 overflow-hidden rounded-xl border border-line bg-surface shadow-lg shadow-black/10">
+                  <button
+                    type="button"
+                    onClick={onDelete}
+                    className="flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm text-red-600 hover:bg-surface-2"
+                  >
+                    <Trash2 size={15} /> Delete post
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {post.kind === "poll" ? (
@@ -276,16 +334,145 @@ function PostCard({ post }: { post: CommunityPost }) {
           <Heart size={16} className={`mr-1 inline ${liked ? "fill-accent" : ""}`} />
           {likes}
         </button>
-        <span>
+        <button type="button" onClick={() => setCommentsOpen(true)}>
           <MessageCircle size={16} className="mr-1 inline" />
-          {post.comments}
-        </span>
+          {commentCount}
+        </button>
         <button type="button" onClick={onSave} className={`ml-auto ${saved ? "text-accent" : ""}`}>
           <Bookmark size={16} className={`mr-1 inline ${saved ? "fill-accent" : ""}`} />
           {saves}
         </button>
       </div>
+
+      {commentsOpen && (
+        <CommentSheet
+          postId={post.id}
+          onClose={() => setCommentsOpen(false)}
+          onAdded={() => setCommentCount((n) => n + 1)}
+        />
+      )}
     </article>
+  );
+}
+
+/* -------------------------------------------------------------- comments */
+
+function CommentSheet({
+  postId,
+  onClose,
+  onAdded,
+}: {
+  postId: string;
+  onClose: () => void;
+  onAdded: () => void;
+}) {
+  const profile = useWardrobe((s) => s.profile);
+  const authUser = useWardrobe((s) => s.authUser);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetchComments(postId).then((c) => {
+      if (!alive) return;
+      setComments(c);
+      setLoading(false);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [postId]);
+
+  const send = async () => {
+    const body = text.trim();
+    if (!body || busy) return;
+    if (!authUser) return;
+    setBusy(true);
+    try {
+      const c = await addComment(postId, body, {
+        name: profile.displayName?.trim() || "You",
+        handle: profileHandle(profile),
+        avatar: profile.avatarUrl,
+      });
+      if (c) {
+        setComments((prev) => [...prev, c]);
+        setText("");
+        onAdded();
+      }
+    } catch {
+      // ignore — keep the text so they can retry
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="native-sheet flex max-h-[80vh] flex-col"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label="Comments"
+      >
+        <div className="native-sheet-handle" />
+        <div className="mb-2 flex items-center justify-between">
+          <h2 className="heading text-lg">Comments</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="min-h-24 flex-1 space-y-3 overflow-y-auto py-1">
+          {loading ? (
+            <p className="py-6 text-center text-sm text-muted">Loading…</p>
+          ) : comments.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">No comments yet — say something nice.</p>
+          ) : (
+            comments.map((c) => (
+              <div key={c.id} className="flex gap-2.5">
+                <Avatar profile={{ avatarUrl: c.authorAvatar, displayName: c.authorName }} size={28} />
+                <div className="min-w-0">
+                  <p className="text-sm">
+                    <span className="font-medium">{c.authorName}</span>{" "}
+                    <span className="text-muted">@{c.authorHandle}</span>
+                  </p>
+                  <p className="text-sm">{c.body}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="mt-2 flex items-center gap-2 border-t border-line pt-3">
+          <input
+            className="flex-1 rounded-full border border-line bg-surface px-4 py-2 text-sm"
+            placeholder={authUser ? "Add a comment…" : "Sign in to comment"}
+            value={text}
+            disabled={!authUser}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void send();
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={send}
+            disabled={!text.trim() || busy}
+            aria-label="Send comment"
+            className={`flex h-9 w-9 items-center justify-center rounded-full ${
+              text.trim() && !busy ? "bg-accent text-accent-foreground" : "bg-surface-2 text-muted"
+            }`}
+          >
+            <Send size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 

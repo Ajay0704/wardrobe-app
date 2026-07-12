@@ -226,3 +226,88 @@ export async function votePoll(postId: string, optionIdx: number): Promise<void>
   if (!uid) return;
   await sb.from("poll_votes").insert({ post_id: postId, user_id: uid, option_idx: optionIdx });
 }
+
+/** Delete one of the current user's posts (RLS enforces ownership). */
+export async function deletePost(postId: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const { error } = await sb.from("posts").delete().eq("id", postId);
+  if (error) throw new Error(error.message);
+}
+
+/** The current user's id, for "is this my post?" checks in the UI. */
+export async function myUserId(): Promise<string | null> {
+  return currentUserId();
+}
+
+export interface Comment {
+  id: string;
+  postId: string;
+  userId: string;
+  authorName: string;
+  authorHandle: string;
+  authorAvatar?: string;
+  body: string;
+  createdAt: string;
+}
+
+interface CommentRow {
+  id: string;
+  post_id: string;
+  user_id: string;
+  author_name: string | null;
+  author_handle: string | null;
+  author_avatar: string | null;
+  body: string;
+  created_at: string;
+}
+
+function toComment(r: CommentRow): Comment {
+  return {
+    id: r.id,
+    postId: r.post_id,
+    userId: r.user_id,
+    authorName: r.author_name ?? "Someone",
+    authorHandle: r.author_handle ?? "user",
+    authorAvatar: r.author_avatar ?? undefined,
+    body: r.body,
+    createdAt: r.created_at,
+  };
+}
+
+export async function fetchComments(postId: string): Promise<Comment[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("post_comments")
+    .select("*")
+    .eq("post_id", postId)
+    .order("created_at", { ascending: true });
+  if (error) return [];
+  return (data ?? []).map((r) => toComment(r as CommentRow));
+}
+
+export async function addComment(
+  postId: string,
+  body: string,
+  author: PostAuthor,
+): Promise<Comment | null> {
+  const sb = getSupabase();
+  if (!sb) return null;
+  const uid = await currentUserId();
+  if (!uid) throw new Error("Sign in to comment");
+  const { data, error } = await sb
+    .from("post_comments")
+    .insert({
+      post_id: postId,
+      user_id: uid,
+      author_name: author.name,
+      author_handle: author.handle,
+      author_avatar: author.avatar ?? null,
+      body: body.trim(),
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return toComment(data as CommentRow);
+}

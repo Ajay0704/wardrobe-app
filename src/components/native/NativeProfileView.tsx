@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  BarChart3,
   Bookmark,
   Grid3x3,
   MapPin,
@@ -9,9 +10,9 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { fetchUserPosts, type CommunityPost } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import type { WardrobeItem } from "@/lib/types";
 import { ProfileAvatar } from "../ProfileAvatar";
 
 /** A saved external product (fetched from the Explore feed by id). */
@@ -29,7 +30,7 @@ interface FeedCardLite {
   pieces?: { imageUrl: string }[];
 }
 
-type Tab = "outfits" | "items" | "saved";
+type Tab = "posts" | "items" | "saved";
 
 /**
  * Instagram / TikTok–style social profile. Reached by tapping the avatar in the
@@ -40,19 +41,29 @@ type Tab = "outfits" | "items" | "saved";
 export function NativeProfileView() {
   const profile = useWardrobe((s) => s.profile);
   const items = useWardrobe((s) => s.items);
-  const outfits = useWardrobe((s) => s.outfits);
+  const authUser = useWardrobe((s) => s.authUser);
   const savedPinIds = useWardrobe((s) => s.savedPinIds);
   const setView = useWardrobe((s) => s.setView);
 
-  const [tab, setTab] = useState<Tab>("outfits");
+  const [tab, setTab] = useState<Tab>("posts");
   const [toast, setToast] = useState<string | null>(null);
 
+  const [myPosts, setMyPosts] = useState<CommunityPost[]>([]);
+  useEffect(() => {
+    if (!authUser?.id) {
+      setMyPosts([]);
+      return;
+    }
+    let alive = true;
+    fetchUserPosts(authUser.id).then((p) => {
+      if (alive) setMyPosts(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [authUser?.id]);
+
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
-  const byId = useMemo(() => {
-    const m = new Map<string, WardrobeItem>();
-    for (const it of items) m.set(it.id, it);
-    return m;
-  }, [items]);
   const [savedProducts, setSavedProducts] = useState<SavedProduct[]>([]);
   useEffect(() => {
     if (!savedPinIds.length) {
@@ -113,7 +124,7 @@ export function NativeProfileView() {
 
         {/* Stats — social profile style */}
         <div className="flex w-full max-w-xs items-center justify-around py-1">
-          <Stat n={outfits.length} label="Outfits" onClick={() => setTab("outfits")} />
+          <Stat n={myPosts.length} label="Posts" onClick={() => setTab("posts")} />
           <Stat
             n={profile.followers ?? 0}
             label="Followers"
@@ -164,33 +175,38 @@ export function NativeProfileView() {
 
       {/* Tabs */}
       <div className="-mx-4 flex border-y border-line">
-        <TabBtn Icon={Grid3x3} label="Outfits" active={tab === "outfits"} onClick={() => setTab("outfits")} />
+        <TabBtn Icon={Grid3x3} label="Posts" active={tab === "posts"} onClick={() => setTab("posts")} />
         <TabBtn Icon={Shirt} label="Items" active={tab === "items"} onClick={() => setTab("items")} />
         <TabBtn Icon={Bookmark} label="Saved" active={tab === "saved"} onClick={() => setTab("saved")} />
       </div>
 
       {/* Grid */}
       <div className="-mx-4">
-        {tab === "outfits" &&
-          (outfits.length ? (
+        {tab === "posts" &&
+          (myPosts.length ? (
             <Grid>
-              {outfits.map((o) => (
+              {myPosts.map((p) => (
                 <button
-                  key={o.id}
+                  key={p.id}
                   type="button"
-                  onClick={() => setView("outfits")}
+                  onClick={() => setView("explore")}
                   className="aspect-square overflow-hidden bg-surface-2"
                 >
-                  <OutfitCollage
-                    itemImages={o.itemIds
-                      .map((id) => byId.get(id)?.imageUrl)
-                      .filter((u): u is string => !!u)}
-                  />
+                  {p.kind === "poll" ? (
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-accent-soft p-2 text-center">
+                      <BarChart3 size={20} className="text-accent" />
+                      <span className="line-clamp-2 text-[10px] leading-tight text-foreground">
+                        {p.caption}
+                      </span>
+                    </div>
+                  ) : (
+                    <Thumb src={p.imageUrl} alt={p.caption || p.lookTitle || "post"} />
+                  )}
                 </button>
               ))}
             </Grid>
           ) : (
-            <Empty icon={Grid3x3} label="No outfits yet" hint="Build a look and it shows up here." />
+            <Empty icon={Grid3x3} label="No posts yet" hint="Share a fit from Explore → Following." />
           ))}
 
         {tab === "items" &&
@@ -325,28 +341,5 @@ function Thumb({ src, alt }: { src?: string; alt?: string }) {
       onError={() => setErr(true)}
       className="h-full w-full object-cover"
     />
-  );
-}
-
-/** Up to a 2×2 collage of an outfit's item images (Instagram-grid feel). */
-function OutfitCollage({ itemImages }: { itemImages: string[] }) {
-  const imgs = itemImages.slice(0, 4);
-  if (imgs.length === 0) {
-    return (
-      <div className="flex h-full w-full items-center justify-center text-muted">
-        <Grid3x3 size={22} strokeWidth={1.5} />
-      </div>
-    );
-  }
-  if (imgs.length === 1) return <Thumb src={imgs[0]} />;
-  const cols = imgs.length === 2 ? "grid-cols-2" : "grid-cols-2 grid-rows-2";
-  return (
-    <div className={`grid h-full w-full gap-px ${cols}`}>
-      {imgs.map((src, i) => (
-        <div key={i} className="overflow-hidden bg-surface-2">
-          <Thumb src={src} />
-        </div>
-      ))}
-    </div>
   );
 }
