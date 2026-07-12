@@ -3,13 +3,14 @@
  * fashion, but every pin knows your closet" idea (see Linear AJA-87).
  *
  * Two of the three real content "fuel tanks" run here without any backend:
- *  - AI-recombined looks: generateOutfit over the user's closet -> outfit pins.
- *  - Seeded inspiration/shop looks: a small mock catalog (stands in for the
- *    affiliate/product feeds that will be ingested for real in v2).
+ *  - AI-recombined looks: generateOutfit over the user's closet -> outfit pins,
+ *    quality-ranked by colour harmony so the best fits surface first.
+ *  - Seeded inspiration/shop looks: a small mock catalogue with brands + prices
+ *    (stands in for the affiliate/product feeds ingested for real in v2).
  * Community/UGC is the third tank (added once the social layer lands).
  */
 
-import { hexToHsl, hueDistance, isNeutral } from "./color";
+import { hexToHsl, hueDistance, isNeutral, nameColor, scoreOutfit } from "./color";
 import { generateOutfit } from "./matching";
 import type { Category, SlotKey, WardrobeItem } from "./types";
 import { slotForCategory } from "./types";
@@ -19,6 +20,9 @@ export interface PinPiece {
   category: Category;
   /** Representative hex colour, used for closet matching. */
   color: string;
+  colorName?: string;
+  brand?: string;
+  price?: number;
 }
 
 export interface ExplorePin {
@@ -62,6 +66,12 @@ function colorDistance(a: string, b: string): number {
 }
 const colorClose = (a: string, b: string) => colorDistance(a, b) <= 40;
 
+const ownedItems = (items: WardrobeItem[]) => items.filter((it) => !it.wishlist);
+
+function pieceIsOwned(piece: PinPiece, owned: WardrobeItem[]): boolean {
+  return owned.some((it) => it.category === piece.category && colorClose(it.color, piece.color));
+}
+
 /** How many of a look's pieces the user already owns. */
 export function closetMatch(
   pin: ExplorePin,
@@ -71,15 +81,54 @@ export function closetMatch(
     const n = pin.itemIds?.length ?? 0;
     return { owned: n, total: n };
   }
-  const owned = items.filter((it) => !it.wishlist);
+  const owned = ownedItems(items);
   const pieces = pin.pieces ?? [];
-  let n = 0;
-  for (const p of pieces) {
-    if (owned.some((it) => it.category === p.category && colorClose(it.color, p.color))) {
-      n += 1;
-    }
-  }
+  const n = pieces.filter((p) => pieceIsOwned(p, owned)).length;
   return { owned: n, total: pieces.length };
+}
+
+/** Per-piece owned/missing breakdown for the pin detail. */
+export function ownedPieceFlags(
+  pin: ExplorePin,
+  items: WardrobeItem[],
+): { piece: PinPiece; owned: boolean }[] {
+  const owned = ownedItems(items);
+  return (pin.pieces ?? []).map((piece) => ({ piece, owned: pieceIsOwned(piece, owned) }));
+}
+
+export function missingPieces(pin: ExplorePin, items: WardrobeItem[]): PinPiece[] {
+  return ownedPieceFlags(pin, items)
+    .filter((f) => !f.owned)
+    .map((f) => f.piece);
+}
+
+/** A live shopping-search URL for a piece (wrap with affiliateUrl before opening). */
+export function searchQueryFor(piece: PinPiece): string {
+  const q = [piece.brand, piece.colorName ?? nameColor(piece.color), piece.label]
+    .filter(Boolean)
+    .join(" ");
+  return `https://www.google.com/search?tbm=shop&q=${encodeURIComponent(q)}`;
+}
+
+/** Rank other pins by tag overlap + colour proximity ("more like this"). */
+export function similarPins(
+  pin: ExplorePin,
+  all: ExplorePin[],
+  limit = 6,
+): ExplorePin[] {
+  const tags = new Set(pin.tags);
+  const baseColor = pin.pieces?.[0]?.color ?? pin.tint;
+  return all
+    .filter((p) => p.id !== pin.id)
+    .map((p) => {
+      const shared = p.tags.filter((t) => tags.has(t)).length;
+      const otherColor = p.pieces?.[0]?.color ?? p.tint;
+      const score = shared * 30 + Math.max(0, 40 - colorDistance(baseColor, otherColor));
+      return { p, score };
+    })
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map((x) => x.p);
 }
 
 /** Build a builder draft that recreates a look from the closest owned pieces. */
@@ -95,7 +144,7 @@ export function recreateDraft(
     }
     return draft;
   }
-  const owned = items.filter((it) => !it.wishlist);
+  const owned = ownedItems(items);
   for (const p of pin.pieces ?? []) {
     const cands = owned.filter((it) => it.category === p.category);
     if (!cands.length) continue;
@@ -123,55 +172,56 @@ function tagsFrom(items: WardrobeItem[]): string[] {
   return [...seen].slice(0, 3);
 }
 
+/**
+ * Generate quality-ranked outfit pins from the closet. `exclude` holds pin ids
+ * already shown so successive calls (infinite scroll) surface fresh looks.
+ */
 export function buildClosetLooks(
   items: WardrobeItem[],
   vibe: string | undefined,
-  seed: number,
-  count = 6,
+  count = 8,
+  exclude?: Set<string>,
 ): ExplorePin[] {
   const pool = items.filter((it) => !it.wishlist && it.imageUrl);
   if (pool.length < 2) return [];
-  const out: ExplorePin[] = [];
-  const seen = new Set<string>();
-  for (let i = 0; i < count * 5 && out.length < count; i++) {
+  const seen = new Set(exclude ?? []);
+  const cands: { id: string; ids: string[]; chosen: WardrobeItem[]; score: number }[] = [];
+  for (let i = 0; i < count * 8 && cands.length < count; i++) {
     const draft = generateOutfit(pool, vibe ? { vibe } : {});
     const ids = Object.values(draft).flat();
     if (ids.length < 2) continue;
     const key = ids.slice().sort().join("|");
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const id = `closet-${key}`;
+    if (seen.has(id)) continue;
+    seen.add(id);
     const chosen = ids
-      .map((id) => pool.find((it) => it.id === id))
+      .map((cid) => pool.find((it) => it.id === cid))
       .filter(Boolean) as WardrobeItem[];
-    out.push({
-      id: `closet-${seed}-${key}`,
-      kind: "closet",
-      title: titleFrom(chosen),
-      author: "You",
-      saves: 0,
-      tags: tagsFrom(chosen),
-      ratio: 1.25,
-      tint: chosen[0]?.color ?? "#c9ad8f",
-      itemIds: ids,
-    });
+    const harmony = scoreOutfit(chosen.map((c) => c.color));
+    const vibeBonus = vibe && chosen.some((c) => c.tags.includes(vibe)) ? 8 : 0;
+    cands.push({ id, ids, chosen, score: harmony + vibeBonus });
   }
-  return out;
+  cands.sort((a, b) => b.score - a.score);
+  return cands.map((c, i) => ({
+    id: c.id,
+    kind: "closet",
+    title: titleFrom(c.chosen),
+    author: "You",
+    saves: 0,
+    tags: tagsFrom(c.chosen),
+    ratio: 1.15 + (i % 3) * 0.13,
+    tint: c.chosen[0]?.color ?? "#c9ad8f",
+    itemIds: c.ids,
+  }));
 }
 
 /** Interleave closet looks into the inspiration stream so the feed feels mixed. */
-export function composeFeed(
-  closetLooks: ExplorePin[],
-  seed: number,
-): ExplorePin[] {
-  const inspo = [...INSPIRATION_PINS];
-  // rotate the inspiration order by seed so "load more" surfaces fresh tiles
-  const rot = seed % (inspo.length || 1);
-  const rotated = [...inspo.slice(rot), ...inspo.slice(0, rot)];
+export function composeFeed(closetLooks: ExplorePin[]): ExplorePin[] {
   const out: ExplorePin[] = [];
   let ci = 0;
-  for (let i = 0; i < rotated.length; i++) {
-    out.push(rotated[i]);
-    if (i % 3 === 2 && ci < closetLooks.length) out.push(closetLooks[ci++]);
+  for (let i = 0; i < INSPIRATION_PINS.length; i++) {
+    out.push(INSPIRATION_PINS[i]);
+    if (i % 2 === 1 && ci < closetLooks.length) out.push(closetLooks[ci++]);
   }
   while (ci < closetLooks.length) out.push(closetLooks[ci++]);
   return out;
@@ -192,9 +242,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#c9ad8f",
     imageUrl: unsplash("photo-1483721310020-03333e577078"),
     pieces: [
-      { label: "Linen shirt", category: "top", color: "#e7ddc9" },
-      { label: "Linen trousers", category: "bottom", color: "#d8c7a6" },
-      { label: "Leather sandals", category: "shoes", color: "#8a6b4f" },
+      { label: "Linen shirt", category: "top", color: "#e7ddc9", colorName: "cream", brand: "COS", price: 89 },
+      { label: "Linen trousers", category: "bottom", color: "#d8c7a6", colorName: "sand", brand: "Arket", price: 95 },
+      { label: "Leather sandals", category: "shoes", color: "#8a6b4f", colorName: "tan", brand: "Everlane", price: 120 },
     ],
   },
   {
@@ -208,9 +258,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#6b83a3",
     imageUrl: unsplash("photo-1516257984-b1b4d707412e"),
     pieces: [
-      { label: "Denim jacket", category: "outerwear", color: "#5b7396" },
-      { label: "Straight jeans", category: "bottom", color: "#4a6079" },
-      { label: "White sneakers", category: "shoes", color: "#eeeeee" },
+      { label: "Denim jacket", category: "outerwear", color: "#5b7396", colorName: "blue", brand: "Levi's", price: 110 },
+      { label: "Straight jeans", category: "bottom", color: "#4a6079", colorName: "indigo", brand: "Levi's", price: 98 },
+      { label: "White sneakers", category: "shoes", color: "#eeeeee", colorName: "white", brand: "Common Projects", price: 190 },
     ],
   },
   {
@@ -224,9 +274,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#6f6a66",
     imageUrl: unsplash("photo-1507003211169-0a1dd7228f2d"),
     pieces: [
-      { label: "Wool blazer", category: "outerwear", color: "#3a3a3c" },
-      { label: "Tailored trousers", category: "bottom", color: "#33333a" },
-      { label: "Derby shoes", category: "shoes", color: "#1c1917" },
+      { label: "Wool blazer", category: "outerwear", color: "#3a3a3c", colorName: "charcoal", brand: "Massimo Dutti", price: 250 },
+      { label: "Tailored trousers", category: "bottom", color: "#33333a", colorName: "charcoal", brand: "COS", price: 115 },
+      { label: "Derby shoes", category: "shoes", color: "#1c1917", colorName: "black", brand: "Loake", price: 220 },
     ],
   },
   {
@@ -240,9 +290,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#a5603f",
     imageUrl: unsplash("photo-1519238263530-99bdd11df2ea"),
     pieces: [
-      { label: "Utility overshirt", category: "outerwear", color: "#a5603f" },
-      { label: "Cargo trousers", category: "bottom", color: "#6f6a5a" },
-      { label: "Suede boots", category: "shoes", color: "#7a5233" },
+      { label: "Utility overshirt", category: "outerwear", color: "#a5603f", colorName: "rust", brand: "Carhartt", price: 130 },
+      { label: "Cargo trousers", category: "bottom", color: "#6f6a5a", colorName: "olive", brand: "Dickies", price: 75 },
+      { label: "Suede boots", category: "shoes", color: "#7a5233", colorName: "brown", brand: "Clarks", price: 160 },
     ],
   },
   {
@@ -256,9 +306,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#8b8b5a",
     imageUrl: unsplash("photo-1517841905240-472988babdf9"),
     pieces: [
-      { label: "Crewneck sweat", category: "top", color: "#8b8b5a" },
-      { label: "Track pants", category: "bottom", color: "#4a4a44" },
-      { label: "Runners", category: "shoes", color: "#dcdcdc" },
+      { label: "Crewneck sweat", category: "top", color: "#8b8b5a", colorName: "sage", brand: "Uniqlo", price: 40 },
+      { label: "Track pants", category: "bottom", color: "#4a4a44", colorName: "graphite", brand: "Adidas", price: 65 },
+      { label: "Runners", category: "shoes", color: "#dcdcdc", colorName: "grey", brand: "New Balance", price: 130 },
     ],
   },
   {
@@ -272,8 +322,8 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#7d5b6f",
     imageUrl: unsplash("photo-1495385794356-15371f348c31"),
     pieces: [
-      { label: "Satin slip dress", category: "dress", color: "#7d5b6f" },
-      { label: "Ankle boots", category: "shoes", color: "#20191c" },
+      { label: "Satin slip dress", category: "dress", color: "#7d5b6f", colorName: "plum", brand: "Reformation", price: 180 },
+      { label: "Ankle boots", category: "shoes", color: "#20191c", colorName: "black", brand: "Aritzia", price: 175 },
     ],
   },
   {
@@ -287,9 +337,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#b08968",
     imageUrl: unsplash("photo-1487222477894-8943e31ef7b2"),
     pieces: [
-      { label: "Chunky knit", category: "top", color: "#b08968" },
-      { label: "Wide trousers", category: "bottom", color: "#5c5148" },
-      { label: "Loafers", category: "shoes", color: "#3a2a20" },
+      { label: "Chunky knit", category: "top", color: "#b08968", colorName: "camel", brand: "& Other Stories", price: 120 },
+      { label: "Wide trousers", category: "bottom", color: "#5c5148", colorName: "brown", brand: "COS", price: 110 },
+      { label: "Loafers", category: "shoes", color: "#3a2a20", colorName: "brown", brand: "G.H. Bass", price: 165 },
     ],
   },
   {
@@ -303,9 +353,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#4b4f54",
     imageUrl: unsplash("photo-1523398002811-999ca8dec234"),
     pieces: [
-      { label: "Graphic hoodie", category: "top", color: "#4b4f54" },
-      { label: "Cargo pants", category: "bottom", color: "#3a3d33" },
-      { label: "High-tops", category: "shoes", color: "#e8e8e8" },
+      { label: "Graphic hoodie", category: "top", color: "#4b4f54", colorName: "slate", brand: "Stussy", price: 95 },
+      { label: "Cargo pants", category: "bottom", color: "#3a3d33", colorName: "olive", brand: "Carhartt", price: 90 },
+      { label: "High-tops", category: "shoes", color: "#e8e8e8", colorName: "white", brand: "Nike", price: 120 },
     ],
   },
   {
@@ -319,9 +369,9 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#e3ddd2",
     imageUrl: unsplash("photo-1529626455594-4ff0802cfb7e"),
     pieces: [
-      { label: "White tee", category: "top", color: "#f2efe9" },
-      { label: "Linen shorts", category: "bottom", color: "#e3ddd2" },
-      { label: "Espadrilles", category: "shoes", color: "#c9b48a" },
+      { label: "White tee", category: "top", color: "#f2efe9", colorName: "white", brand: "Everlane", price: 35 },
+      { label: "Linen shorts", category: "bottom", color: "#e3ddd2", colorName: "ecru", brand: "Uniqlo", price: 40 },
+      { label: "Espadrilles", category: "shoes", color: "#c9b48a", colorName: "tan", brand: "Castañer", price: 110 },
     ],
   },
   {
@@ -335,9 +385,41 @@ export const INSPIRATION_PINS: ExplorePin[] = [
     tint: "#9aa7a0",
     imageUrl: unsplash("photo-1490114538077-0a7f8cb49891"),
     pieces: [
-      { label: "Knit polo", category: "top", color: "#9aa7a0" },
-      { label: "Pleated trousers", category: "bottom", color: "#5f5a52" },
-      { label: "Mules", category: "shoes", color: "#c9b9a5" },
+      { label: "Knit polo", category: "top", color: "#9aa7a0", colorName: "sage", brand: "COS", price: 79 },
+      { label: "Pleated trousers", category: "bottom", color: "#5f5a52", colorName: "taupe", brand: "Arket", price: 99 },
+      { label: "Mules", category: "shoes", color: "#c9b9a5", colorName: "beige", brand: "Vagabond", price: 130 },
+    ],
+  },
+  {
+    id: "insp-blazer",
+    kind: "inspiration",
+    title: "Blazer + jeans",
+    author: "@dev",
+    saves: 1320,
+    tags: ["work", "casual", "minimal"],
+    ratio: 1.35,
+    tint: "#3f4a5a",
+    imageUrl: unsplash("photo-1521572163474-6864f9cf17ab"),
+    pieces: [
+      { label: "Navy blazer", category: "outerwear", color: "#2f3a4a", colorName: "navy", brand: "Suitsupply", price: 320 },
+      { label: "Straight jeans", category: "bottom", color: "#3f5066", colorName: "indigo", brand: "A.P.C.", price: 210 },
+      { label: "Leather loafers", category: "shoes", color: "#4a3324", colorName: "brown", brand: "Sebago", price: 180 },
+    ],
+  },
+  {
+    id: "insp-trench",
+    kind: "inspiration",
+    title: "Classic trench",
+    author: "@mila",
+    saves: 2040,
+    tags: ["minimal", "work"],
+    ratio: 1.5,
+    tint: "#c2ab84",
+    imageUrl: unsplash("photo-1479064555552-3ef4979f8908"),
+    pieces: [
+      { label: "Trench coat", category: "outerwear", color: "#c2ab84", colorName: "beige", brand: "Burberry", price: 1890 },
+      { label: "Ribbed top", category: "top", color: "#1c1917", colorName: "black", brand: "Uniqlo", price: 30 },
+      { label: "Tailored trousers", category: "bottom", color: "#2b2b30", colorName: "charcoal", brand: "COS", price: 115 },
     ],
   },
 ];
