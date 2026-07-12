@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Heart, Images, LayoutGrid, Plus, Search, Sparkles, Sun } from "lucide-react";
+import { BarChart3, Heart, Images, LayoutGrid, Plus, Sparkles, Sun } from "lucide-react";
 import { useMemo, useState } from "react";
 import { forgottenItems } from "@/lib/rediscover";
 import { useWardrobe } from "@/lib/store";
@@ -48,17 +48,12 @@ export function WardrobeView() {
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [seasonalView, setSeasonalView] = useState(false);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [stylingItem, setStylingItem] = useState<WardrobeItem | null>(null);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
-  // Least-worn pieces to spotlight for rediscovery.
+  // Least-worn pieces powering the Restyle quick action.
   const forgotten = useMemo(() => forgottenItems(owned, 6), [owned]);
-  const scoped = useMemo(
-    () => (favoritesOnly ? owned.filter((it) => it.favorite) : owned),
-    [owned, favoritesOnly],
-  );
-  const filtered = useMemo(() => filterItems(scoped, filters), [scoped, filters]);
+  const filtered = useMemo(() => filterItems(owned, filters), [owned, filters]);
 
   // All tags currently in use, for the tag filter dropdown.
   const allTags = useMemo(
@@ -99,20 +94,7 @@ export function WardrobeView() {
       )}
 
       {/* Toolbar */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search
-            size={15}
-            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted"
-          />
-          <input
-            className={`${inputClass} !pl-9`}
-            placeholder="Search name, brand, color, tags…"
-            value={filters.search}
-            onChange={(e) => setFilters({ search: e.target.value })}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap items-center gap-2">
           <select
             className={`${inputClass} !w-auto`}
             value={filters.season}
@@ -141,14 +123,6 @@ export function WardrobeView() {
           </select>
           <Button
             variant="outline"
-            onClick={() => setFavoritesOnly((v) => !v)}
-            title={favoritesOnly ? "Show all items" : "Show favourites only"}
-            className={favoritesOnly ? "!border-accent !text-accent" : ""}
-          >
-            <Heart size={15} className={favoritesOnly ? "fill-current" : ""} />
-          </Button>
-          <Button
-            variant="outline"
             onClick={() => setSeasonalView(!seasonalView)}
             title={seasonalView ? "Grid view" : "Group by season"}
           >
@@ -165,44 +139,7 @@ export function WardrobeView() {
               </Button>
             </>
           )}
-        </div>
       </div>
-
-      {/* Rediscover strip — spotlight least-worn pieces to restyle */}
-      {owned.length >= 4 && forgotten.length > 0 && (
-        <div className="rounded-2xl border border-line bg-accent-soft/40 p-4">
-          <div className="mb-3 flex items-center gap-2">
-            <Sparkles size={15} className="text-accent" />
-            <h3 className="text-sm font-semibold">Rediscover your closet</h3>
-            <span className="text-xs text-muted">
-              Pieces you haven&apos;t worn lately — tap for 3 ways to style them.
-            </span>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-1">
-            {forgotten.map((it) => (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => setStylingItem(it)}
-                title={`Style ${it.name}`}
-                className="group relative h-24 w-20 shrink-0 overflow-hidden rounded-xl border border-line bg-surface-2"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={it.imageUrl}
-                  alt={it.name}
-                  className="h-full w-full object-cover"
-                />
-                <span className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-white">
-                    <Sparkles size={10} /> Style
-                  </span>
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Category chips */}
       <div className="flex flex-wrap gap-1.5">
@@ -210,10 +147,10 @@ export function WardrobeView() {
           active={filters.category === "all"}
           onClick={() => setFilters({ category: "all" })}
         >
-          All ({scoped.length})
+          All ({owned.length})
         </Chip>
         {CATEGORIES.map((c) => {
-          const count = scoped.filter((it) => it.category === c.value).length;
+          const count = owned.filter((it) => it.category === c.value).length;
           if (count === 0) return null;
           return (
             <Chip
@@ -230,19 +167,11 @@ export function WardrobeView() {
       {/* Grid */}
       {filtered.length === 0 ? (
         <EmptyState
-          title={
-            owned.length === 0
-              ? "Your wardrobe is empty"
-              : favoritesOnly && scoped.length === 0
-                ? "No favourites yet"
-                : "No matches"
-          }
+          title={owned.length === 0 ? "Your wardrobe is empty" : "No matches"}
           subtitle={
             owned.length === 0
               ? "Add your first piece — paste an image link from any store."
-              : favoritesOnly && scoped.length === 0
-                ? "Tap the heart on any item to add it to your favourites."
-                : "Try loosening the search or filters."
+              : "Try loosening the filters."
           }
           action={
             owned.length === 0 && (

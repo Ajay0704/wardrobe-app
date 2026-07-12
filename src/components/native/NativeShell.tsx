@@ -3,6 +3,7 @@
 import {
   Bell,
   Calendar,
+  ChevronLeft,
   Compass,
   Home,
   Images,
@@ -13,7 +14,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWardrobe, type View } from "@/lib/store";
 import { profileInitials } from "@/lib/profile";
 import { AppViews } from "../AppViews";
@@ -56,12 +57,31 @@ export function NativeShell() {
   const [createOpen, setCreateOpen] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
+  // Remember the last main tab so sub-views (Insights, Wishlist, Calendar,
+  // Settings, You) get a back button that returns where the user came from.
+  const lastMain = useRef<View>("today");
+  useEffect(() => {
+    if (MAIN_VIEWS.has(view)) lastMain.current = view;
+  }, [view]);
+
   return (
     <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
       <header className="native-topbar">
-        <span className="brand-wordmark-name !text-xl">
-          {TITLES[view] ?? "Wardrobe"}
-        </span>
+        <div className="flex items-center gap-1.5">
+          {!showActions && (
+            <button
+              type="button"
+              aria-label="Back"
+              onClick={() => setView(lastMain.current)}
+              className="-ml-1.5 flex h-8 w-8 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-2"
+            >
+              <ChevronLeft size={22} />
+            </button>
+          )}
+          <span className="brand-wordmark-name !text-xl">
+            {TITLES[view] ?? "Wardrobe"}
+          </span>
+        </div>
         <div className="flex items-center gap-3.5">
           <SyncBadge />
           {showActions && (
