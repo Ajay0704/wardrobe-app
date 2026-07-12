@@ -6,6 +6,7 @@ import {
   Bell,
   Bot,
   CalendarDays,
+  Check,
   ChevronRight,
   Coins,
   DollarSign,
@@ -18,19 +19,25 @@ import {
   Target,
   Thermometer,
   User,
+  X,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo } from "react";
-import { currencySymbol, DEFAULT_CURRENCY } from "@/lib/currency";
-import type { SettingsSection } from "@/lib/profile";
+import { useEffect, useMemo, useState } from "react";
+import { CURRENCIES, currencySymbol, DEFAULT_CURRENCY } from "@/lib/currency";
+import { STYLE_QUIZ_VIBES } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
+import { NotificationsPanel } from "./SettingsView";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { Chip } from "./ui";
+
+type SheetKind = "currency" | "vibes" | "notifications";
 
 /**
- * "My page" — profile, plan/closet stats, a highlights row, and grouped settings
- * (Account · Customer service · Terms · Sign in). Layout modelled on Acloset;
- * rows wire to our real screens where we have them, placeholders otherwise.
+ * "My page" — profile, plan/closet stats, a highlights row, and grouped settings.
+ * Layout modelled on Acloset. Every row that does something is handled inline
+ * (a native sheet or one of our own screens) — nothing here opens the old
+ * SettingsView. Not-yet-built rows show a "coming soon" toast.
  */
 export function YouView() {
   const {
@@ -40,24 +47,31 @@ export function YouView() {
     theme,
     setTheme,
     setView,
-    setSettingsSection,
+    updateProfile,
     setAuthUser,
     setSyncStatus,
   } = useWardrobe();
 
+  const [sheet, setSheet] = useState<SheetKind | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [isNative, setIsNative] = useState(false);
+  useEffect(() => {
+    setIsNative(document.documentElement.classList.contains("native-app"));
+  }, []);
+
   const owned = useMemo(() => items.filter((it) => !it.wishlist).length, [items]);
   const currency = currencySymbol(profile.currency ?? DEFAULT_CURRENCY);
+  const closetPct = Math.min(100, Math.round((owned / 100) * 100));
 
-  const openSettings = (section: SettingsSection) => {
-    setSettingsSection(section);
-    setView("settings");
+  const soon = (what: string) => {
+    setToast(`${what} — coming soon`);
+    window.setTimeout(() => setToast(null), 2000);
   };
   const logOut = () => {
     setAuthUser(null);
     setSyncStatus("offline");
     void signOut();
   };
-  const closetPct = Math.min(100, Math.round((owned / 100) * 100));
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
@@ -86,21 +100,21 @@ export function YouView() {
       {/* Plan / Bean / Closet stats */}
       <div className="rounded-2xl border border-line bg-surface p-5">
         <div className="flex">
-          <div className="flex-1">
+          <button type="button" onClick={() => soon("Plans")} className="flex-1 text-left">
             <div className="flex items-center gap-1 text-sm text-muted">
               My plan <ChevronRight size={14} />
             </div>
             <p className="mt-0.5 text-lg font-semibold">Free</p>
-          </div>
+          </button>
           <div className="w-px bg-line" />
-          <div className="flex-1 pl-5">
+          <button type="button" onClick={() => soon("Beans")} className="flex-1 pl-5 text-left">
             <div className="flex items-center gap-1 text-sm text-muted">
               My Bean <ChevronRight size={14} />
             </div>
             <p className="mt-0.5 flex items-center gap-1.5 text-lg font-semibold">
               <Coins size={16} className="text-accent" /> 0
             </p>
-          </div>
+          </button>
         </div>
         <div className="my-4 border-t border-line" />
         <button type="button" onClick={() => setView("wardrobe")} className="block w-full text-left">
@@ -115,35 +129,39 @@ export function YouView() {
             <div className="h-full rounded-full bg-accent" style={{ width: `${closetPct}%` }} />
           </div>
         </button>
-        <div className="mt-4 border-t border-line pt-3 text-center text-sm font-medium text-accent">
+        <button
+          type="button"
+          onClick={() => soon("Extra closet slots")}
+          className="mt-4 block w-full border-t border-line pt-3 text-center text-sm font-medium text-accent"
+        >
           Get extra closet slots for free! ›
-        </div>
+        </button>
       </div>
 
       {/* Highlights row */}
       <div className="-mx-4 flex gap-3 overflow-x-auto px-4">
-        <Highlight icon={Target} label="Mission" tint="#e8f0fe" fg="#2f6bd8" />
+        <Highlight icon={Target} label="Mission" tint="#e8f0fe" fg="#2f6bd8" onClick={() => soon("Mission")} />
         <Highlight icon={BarChart3} label="Style stats" tint="#e9eefb" fg="#3a5bd0" onClick={() => setView("insights")} />
-        <Highlight icon={FileText} label="Monthly report" tint="#fdeee0" fg="#c67a3e" />
+        <Highlight icon={FileText} label="Monthly report" tint="#fdeee0" fg="#c67a3e" onClick={() => soon("Monthly report")} />
       </div>
 
       {/* Account settings */}
       <SettingsCard label="Account Settings">
-        <SRow icon={User} label="My information" onClick={() => openSettings("account")} />
-        <SRow icon={Bot} label="Outfit suggestion settings" onClick={() => openSettings("preferences")} />
-        <SRow icon={Bell} label="Notifications" onClick={() => openSettings("notifications")} />
-        <SRow icon={History} label="Purchase Info" />
-        <SRow icon={CalendarDays} label="Week start day" value="Sunday" />
-        <SRow icon={Tag} label="Custom Brands" onClick={() => openSettings("preferences")} />
-        <SRow icon={Thermometer} label="Temperature Unit" value="°C" />
-        <SRow icon={DollarSign} label="Currency" value={currency} onClick={() => openSettings("preferences")} />
-        <SRow icon={Globe} label="Country" value="United States" />
-        <SRow icon={Globe} label="Language" value="English" />
+        <SRow icon={User} label="My information" onClick={() => setView("profile")} />
+        <SRow icon={Bot} label="Outfit suggestion settings" onClick={() => setSheet("vibes")} />
+        <SRow icon={Bell} label="Notifications" onClick={() => setSheet("notifications")} />
+        <SRow icon={History} label="Purchase Info" onClick={() => soon("Purchase info")} />
+        <SRow icon={CalendarDays} label="Week start day" value="Sunday" onClick={() => soon("Week start day")} />
+        <SRow icon={Tag} label="Custom Brands" onClick={() => soon("Custom brands")} />
+        <SRow icon={Thermometer} label="Temperature Unit" value="°C" onClick={() => soon("Temperature unit")} />
+        <SRow icon={DollarSign} label="Currency" value={currency} onClick={() => setSheet("currency")} />
+        <SRow icon={Globe} label="Country" value="United States" onClick={() => soon("Country")} />
+        <SRow icon={Globe} label="Language" value="English" onClick={() => soon("Language")} />
         <SRow icon={Luggage} label="Packing & trips" onClick={() => setView("travel")} />
         <SRow icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} />
-        <SRow icon={Settings} label="Navigation setting" />
+        <SRow icon={Settings} label="Navigation setting" onClick={() => soon("Navigation setting")} />
         <SRow
-          icon={theme === "dark" ? ArrowDownUp : ArrowDownUp}
+          icon={ArrowDownUp}
           label={theme === "dark" ? "Light mode" : "Dark mode"}
           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           last
@@ -152,24 +170,124 @@ export function YouView() {
 
       {/* Customer service */}
       <SettingsCard label="Wardrobe Customer Service">
-        <SRow label="FAQ" />
-        <SRow label="Notice" />
-        <SRow label="Feedback & Suggestions" />
-        <SRow label="Visit our Instagram" last />
+        <SRow label="FAQ" onClick={() => soon("FAQ")} />
+        <SRow label="Notice" onClick={() => soon("Notice")} />
+        <SRow label="Feedback & Suggestions" onClick={() => soon("Feedback")} />
+        <SRow label="Visit our Instagram" onClick={() => soon("Instagram")} last />
       </SettingsCard>
 
       {/* Terms */}
       <SettingsCard label="Terms of Service" right="Ver 1.0.0">
-        <SRow label="Service Terms" chevron />
-        <SRow label="Privacy policy" chevron last />
+        <SRow label="Service Terms" chevron onClick={() => soon("Service terms")} />
+        <SRow label="Privacy policy" chevron onClick={() => soon("Privacy policy")} last />
       </SettingsCard>
 
       {/* Sign in */}
       <SettingsCard label="Sign In">
-        <SRow label="Change sign in method" chevron />
+        <SRow label="Change sign in method" chevron onClick={() => soon("Change sign-in method")} />
         {authUser && <SRow label="Sign Out" chevron onClick={logOut} />}
-        <SRow label="Delete Account" chevron danger last />
+        <SRow label="Delete Account" chevron danger onClick={() => soon("Delete account")} last />
       </SettingsCard>
+
+      {/* --- inline sheets (never the old SettingsView) --- */}
+      {sheet === "currency" && (
+        <Sheet title="Currency" onClose={() => setSheet(null)}>
+          {CURRENCIES.map((c) => {
+            const active = (profile.currency ?? DEFAULT_CURRENCY) === c.code;
+            return (
+              <button
+                key={c.code}
+                type="button"
+                onClick={() => {
+                  updateProfile({ currency: c.code });
+                  setSheet(null);
+                }}
+                className="flex w-full items-center gap-3 border-b border-line px-1 py-3.5 text-left last:border-none"
+              >
+                <span className="w-8 text-center text-lg">{c.symbol}</span>
+                <span className="flex-1">
+                  {c.label} <span className="text-muted">· {c.code}</span>
+                </span>
+                {active && <Check size={18} className="text-accent" />}
+              </button>
+            );
+          })}
+        </Sheet>
+      )}
+
+      {sheet === "vibes" && (
+        <Sheet title="Outfit suggestion settings" onClose={() => setSheet(null)}>
+          <p className="pb-3 text-sm text-muted">
+            Pick up to three style vibes — we use them for Today and Generate outfit.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {STYLE_QUIZ_VIBES.map((v) => {
+              const cur = profile.styleVibes ?? [];
+              const active = cur.includes(v);
+              return (
+                <Chip
+                  key={v}
+                  active={active}
+                  onClick={() => {
+                    if (active) {
+                      updateProfile({ styleVibes: cur.filter((x) => x !== v) });
+                      return;
+                    }
+                    const next = cur.length >= 3 ? [...cur.slice(1), v] : [...cur, v];
+                    updateProfile({ styleVibes: next });
+                  }}
+                >
+                  {v}
+                </Chip>
+              );
+            })}
+          </div>
+        </Sheet>
+      )}
+
+      {sheet === "notifications" && (
+        <Sheet title="Notifications" onClose={() => setSheet(null)}>
+          <NotificationsPanel native={isNative} />
+        </Sheet>
+      )}
+
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
+          <p className="rounded-full bg-foreground/90 px-4 py-2 text-sm text-background shadow-lg">
+            {toast}
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Sheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
+      <div
+        className="native-sheet max-h-[85vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={title}
+      >
+        <div className="native-sheet-handle" />
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="heading text-lg">{title}</h2>
+          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
+            <X size={20} />
+          </button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

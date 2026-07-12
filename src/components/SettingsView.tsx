@@ -439,7 +439,7 @@ function SupportRow({
   );
 }
 
-function NotificationsPanel({ native }: { native: boolean }) {
+export function NotificationsPanel({ native }: { native: boolean }) {
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const webReady = pushConfigured();
