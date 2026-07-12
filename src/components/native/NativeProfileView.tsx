@@ -8,12 +8,18 @@ import {
   Shirt,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import { INSPIRATION_PINS } from "@/lib/explore";
+import { useEffect, useMemo, useState } from "react";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { ProfileAvatar } from "../ProfileAvatar";
+
+/** A saved external product (fetched from the Explore feed by id). */
+interface SavedProduct {
+  id: string;
+  title: string;
+  imageUrl: string;
+}
 
 type Tab = "outfits" | "items" | "saved";
 
@@ -39,10 +45,23 @@ export function NativeProfileView() {
     for (const it of items) m.set(it.id, it);
     return m;
   }, [items]);
-  const savedPins = useMemo(
-    () => INSPIRATION_PINS.filter((p) => savedPinIds.includes(p.id)),
-    [savedPinIds],
-  );
+  const [savedProducts, setSavedProducts] = useState<SavedProduct[]>([]);
+  useEffect(() => {
+    if (!savedPinIds.length) {
+      setSavedProducts([]);
+      return;
+    }
+    let alive = true;
+    fetch(`/api/explore/feed?ids=${encodeURIComponent(savedPinIds.join(","))}`)
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d: { items?: SavedProduct[] }) => {
+        if (alive) setSavedProducts(d.items ?? []);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [savedPinIds]);
 
   const name = profile.displayName?.trim() || "You";
   const handle = useMemo(() => profileHandle(profile), [profile]);
@@ -81,7 +100,7 @@ export function NativeProfileView() {
         <div className="flex w-full max-w-xs items-center justify-around py-1">
           <Stat n={outfits.length} label="Outfits" onClick={() => setView("outfits")} />
           <Stat n={owned.length} label="Items" onClick={() => setView("wardrobe")} />
-          <Stat n={savedPins.length} label="Saved" onClick={() => setTab("saved")} />
+          <Stat n={savedPinIds.length} label="Saved" onClick={() => setTab("saved")} />
         </div>
 
         {profile.bio?.trim() && (
@@ -170,22 +189,21 @@ export function NativeProfileView() {
           ))}
 
         {tab === "saved" &&
-          (savedPins.length ? (
+          (savedProducts.length ? (
             <Grid>
-              {savedPins.map((p) => (
+              {savedProducts.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => setView("explore")}
                   className="aspect-square overflow-hidden bg-surface-2"
-                  style={{ background: p.tint }}
                 >
                   <Thumb src={p.imageUrl} alt={p.title} />
                 </button>
               ))}
             </Grid>
           ) : (
-            <Empty icon={Bookmark} label="Nothing saved yet" hint="Tap the heart on Explore looks to save them." />
+            <Empty icon={Bookmark} label="Nothing saved yet" hint="Tap the heart on Explore products to save them." />
           ))}
       </div>
 
