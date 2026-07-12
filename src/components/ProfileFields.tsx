@@ -1,7 +1,7 @@
 "use client";
 
 import { Field, inputClass } from "./ui";
-import type { UserProfile } from "@/lib/profile";
+import { profileHandle, sanitizeHandle, type UserProfile } from "@/lib/profile";
 
 /** Shared profile fields — used in Settings and Sign up. */
 export function ProfileFields({
@@ -26,6 +26,29 @@ export function ProfileFields({
           onChange={(e) => onChange({ displayName: e.target.value })}
           placeholder="Ajay"
         />
+      </Field>
+      <Field label="Username">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted">
+            @
+          </span>
+          <input
+            className={inputClass}
+            style={{ paddingLeft: "1.75rem" }}
+            value={profile.username ?? ""}
+            onChange={(e) =>
+              onChange({ username: sanitizeHandle(e.target.value) || undefined })
+            }
+            placeholder={profileHandle({ ...profile, username: undefined })}
+            maxLength={30}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+          />
+        </div>
+        <span className="mt-1 block text-xs text-muted">
+          Your public @handle. Letters, numbers, dots and underscores.
+        </span>
       </Field>
       <Field label="Bio">
         <textarea

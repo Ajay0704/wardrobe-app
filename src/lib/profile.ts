@@ -9,6 +9,8 @@ export interface UserProfile {
   /** Profile photo — direct URL or data: URL from upload. */
   avatarUrl?: string;
   displayName: string;
+  /** Public @handle shown on the social profile. Falls back to email/name. */
+  username?: string;
   email: string;
   phone?: string;
   bio?: string;
@@ -109,6 +111,21 @@ export const STYLE_QUIZ_VIBES = [
 export interface AuthUser {
   id: string;
   email: string;
+}
+
+/** Strip a handle to allowed characters (a–z, 0–9, dot, underscore). */
+export function sanitizeHandle(raw: string): string {
+  return raw.replace(/[^a-z0-9._]/gi, "").toLowerCase();
+}
+
+/** Public @handle: an explicit username if set, else derived from email/name. */
+export function profileHandle(
+  profile: Pick<UserProfile, "username" | "email" | "displayName">,
+): string {
+  const explicit = sanitizeHandle(profile.username?.trim() ?? "");
+  if (explicit) return explicit;
+  const base = profile.email?.split("@")[0] || profile.displayName || "you";
+  return sanitizeHandle(base) || "you";
 }
 
 /** Initials for avatar fallback when no photo is set. */

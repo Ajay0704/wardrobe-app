@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { INSPIRATION_PINS } from "@/lib/explore";
-import { profileInitials } from "@/lib/profile";
+import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -45,11 +45,7 @@ export function NativeProfileView() {
   );
 
   const name = profile.displayName?.trim() || "You";
-  const handle = useMemo(() => {
-    const base =
-      profile.email?.split("@")[0] || profile.displayName || "you";
-    return base.replace(/[^a-z0-9._]/gi, "").toLowerCase() || "you";
-  }, [profile.email, profile.displayName]);
+  const handle = useMemo(() => profileHandle(profile), [profile]);
 
   const flash = (msg: string) => {
     setToast(msg);
