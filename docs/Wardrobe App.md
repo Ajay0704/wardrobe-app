@@ -17,6 +17,7 @@ Last updated: 2026-07-11
 - [[Phase 0-1 status]]
 - [[Browser extension]]
 - [[Photo to product]]
+- [[Share Closet]]
 - [[iOS Capacitor]]
 - [[Claude Code handoff — iOS Capacitor]]
 - [[Linear]]

@@ -81,3 +81,33 @@ create policy "Users upload own wardrobe images"
     bucket_id = 'wardrobe-images'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
+
+-- ---------------------------------------------------------------------------
+-- Share Closet — public ask-friends links + guest replies
+-- ---------------------------------------------------------------------------
+create table if not exists public.closet_shares (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users (id) on delete set null,
+  question text not null,
+  items jsonb not null default '[]'::jsonb,
+  owner_name text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists closet_shares_user_id_idx
+  on public.closet_shares (user_id);
+
+create table if not exists public.closet_share_replies (
+  id uuid primary key default gen_random_uuid(),
+  share_id uuid not null references public.closet_shares (id) on delete cascade,
+  author_name text not null default 'Friend',
+  message text not null,
+  suggested_item_ids jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists closet_share_replies_share_id_idx
+  on public.closet_share_replies (share_id);
+
+alter table public.closet_shares enable row level security;
+alter table public.closet_share_replies enable row level security;
