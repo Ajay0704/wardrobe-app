@@ -96,11 +96,10 @@ export function CanvasBuilderView() {
   const [dragging, setDragging] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOffset: number } | null>(null);
-  const PEEK = 40; // grab bar stays visible when collapsed (easy to pull back up)
-  // Clearance kept below the board for the floating editor toolbar (~52px pill)
-  // plus a gap above the toolbar and above the sheet — so the board fits fully
-  // above both with no overlap, and a visible gap sits between it and the sheet.
-  const TOOLBAR_CLEARANCE = 74;
+  // Collapsed peek is tall enough that the grab bar sits well above the iOS
+  // home-swipe strip at the very bottom (avoids fighting the system gesture).
+  const PEEK = 72;
+  const BOARD_GAP = 14; // gap kept between the board bottom and the sheet top
   const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
 
   useEffect(() => {
@@ -114,16 +113,21 @@ export function CanvasBuilderView() {
   }, []);
 
   // Contain-fit the board into the space above the sheet, keeping its 3:4/1:1
-  // aspect. Recomputes as the sheet slides (offset), so the board grows when
-  // the sheet collapses and shrinks back when it expands.
-  const stageRef = useRef<HTMLDivElement>(null);
+  // aspect. Measured from the stable outer area minus the *target* reserve for
+  // the current offset — not the transitioning padded stage — so the size is
+  // correct immediately when a tool tap expands the sheet (no lag/overlap).
+  const areaRef = useRef<HTMLDivElement>(null);
   const [board, setBoard] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
     const fit = () => {
-      const el = stageRef.current;
+      const el = areaRef.current;
       if (!el) return;
+      const reserveNum =
+        maxOffset === 0
+          ? Math.round(window.innerHeight * 0.44)
+          : maxOffset + PEEK - offset;
       const availW = el.clientWidth - 32;
-      const availH = el.clientHeight - 8;
+      const availH = el.clientHeight - reserveNum - BOARD_GAP - 8;
       if (availW <= 0 || availH <= 0) return;
       const ratio = aspect === "3:4" ? 3 / 4 : 1; // w / h
       let w = availH * ratio;
@@ -290,13 +294,14 @@ export function CanvasBuilderView() {
       {/* board — reserves the space above the sheet (shrinks as the sheet
           slides down), then contain-fits the 3:4/1:1 board into it */}
       <div
+        ref={areaRef}
         className="relative min-h-0 flex-1"
         style={{
-          paddingBottom: `calc(${reserveCss} + ${TOOLBAR_CLEARANCE}px)`,
+          paddingBottom: `calc(${reserveCss} + ${BOARD_GAP}px)`,
           transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
-        <div ref={stageRef} className="flex h-full items-start justify-center px-4 pt-1">
+        <div className="flex h-full items-start justify-center px-4 pt-1">
           <div
             className="relative overflow-hidden rounded-3xl border border-line touch-none"
             style={{
@@ -430,44 +435,40 @@ export function CanvasBuilderView() {
             );
           })}
 
-          </div>
-        </div>
-
-        {/* editor toolbar — anchored just above the sheet so it rides down
-            with the sheet as it collapses; chevron tucks it into a corner */}
-        <div
-          className={`pointer-events-none absolute inset-x-0 z-40 flex px-4 ${
-            toolbarOpen ? "justify-center" : "justify-end"
-          }`}
-          style={{
-            bottom: `calc(${reserveCss} + 10px)`,
-            transition: dragging ? "none" : "bottom 260ms cubic-bezier(0.22,1,0.36,1)",
-          }}
-        >
-          {toolbarOpen ? (
-            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
-              {toolBtn("items", <LayoutGrid size={20} />, "Items")}
-              {toolBtn("background", <ImageIcon size={20} />, "Background")}
-              {toolBtn("text", <Type size={20} />, "Text")}
-              {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
-              <span className="mx-0.5 h-6 w-px bg-line" />
+          {/* editor toolbar — docked at the bottom inside the canvas board, so
+              it stays with the board as it resizes with the sheet */}
+          <div
+            className={`pointer-events-none absolute inset-x-0 bottom-3 z-40 flex px-3 ${
+              toolbarOpen ? "justify-center" : "justify-end"
+            }`}
+          >
+            {toolbarOpen ? (
+              <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-line bg-white/95 px-1.5 py-1.5 shadow-lg backdrop-blur-sm">
+                {toolBtn("items", <LayoutGrid size={20} />, "Items")}
+                {toolBtn("background", <ImageIcon size={20} />, "Background")}
+                {toolBtn("text", <Type size={20} />, "Text")}
+                {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
+                <span className="mx-0.5 h-6 w-px bg-line" />
+                <button
+                  onClick={() => setToolbarOpen(false)}
+                  className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
+                  aria-label="Hide toolbar"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            ) : (
               <button
-                onClick={() => setToolbarOpen(false)}
-                className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
-                aria-label="Hide toolbar"
+                onClick={() => setToolbarOpen(true)}
+                aria-label="Show toolbar"
+                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
               >
-                <ChevronRight size={20} />
+                <LayoutGrid size={22} />
               </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setToolbarOpen(true)}
-              aria-label="Show toolbar"
-              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
-            >
-              <LayoutGrid size={22} />
-            </button>
-          )}
+            )}
+          </div>
+
+          </div>
         </div>
       </div>
 
