@@ -90,12 +90,13 @@ export function CanvasBuilderView() {
   const [saveName, setSaveName] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [aspect, setAspect] = useState<"3:4" | "1:1">("3:4");
-  const [offset, setOffset] = useState(0); // sheet px offset: 0 = open, maxOffset = collapsed peek
+  const [toolbarOpen, setToolbarOpen] = useState(true);
+  const [offset, setOffset] = useState(0); // sheet px offset: 0 = open, maxOffset = fully hidden
   const [maxOffset, setMaxOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOffset: number } | null>(null);
-  const PEEK = 62;
+  const PEEK = 0; // sheet slides fully out of view when collapsed
   const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
 
   useEffect(() => {
@@ -285,7 +286,7 @@ export function CanvasBuilderView() {
           transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
-        <div ref={stageRef} className="flex h-full items-center justify-center px-4 pt-1">
+        <div ref={stageRef} className="flex h-full items-start justify-center px-4 pt-1">
           <div
             className="relative overflow-hidden rounded-3xl border border-line touch-none"
             style={{
@@ -419,21 +420,32 @@ export function CanvasBuilderView() {
             );
           })}
 
-          {/* on-board editor toolbar */}
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
-            {toolBtn("items", <LayoutGrid size={20} />, "Items")}
-            {toolBtn("background", <ImageIcon size={20} />, "Background")}
-            {toolBtn("text", <Type size={20} />, "Text")}
-            {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
-            <span className="mx-0.5 h-6 w-px bg-line" />
+          {/* on-board editor toolbar — the chevron collapses it into a
+              corner button so it gets out of the way of the canvas */}
+          {toolbarOpen ? (
+            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
+              {toolBtn("items", <LayoutGrid size={20} />, "Items")}
+              {toolBtn("background", <ImageIcon size={20} />, "Background")}
+              {toolBtn("text", <Type size={20} />, "Text")}
+              {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
+              <span className="mx-0.5 h-6 w-px bg-line" />
+              <button
+                onClick={() => setToolbarOpen(false)}
+                className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
+                aria-label="Hide toolbar"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
+          ) : (
             <button
-              onClick={() => setOffset((o) => (o > maxOffset * 0.5 ? 0 : maxOffset))}
-              className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
-              aria-label="Toggle panel"
+              onClick={() => setToolbarOpen(true)}
+              aria-label="Show toolbar"
+              className="absolute bottom-3 right-3 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
             >
-              <ChevronRight size={20} />
+              <LayoutGrid size={22} />
             </button>
-          </div>
+          )}
           </div>
         </div>
       </div>
