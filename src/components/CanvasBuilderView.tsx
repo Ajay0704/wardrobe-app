@@ -96,7 +96,7 @@ export function CanvasBuilderView() {
   const [dragging, setDragging] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOffset: number } | null>(null);
-  const PEEK = 0; // sheet slides fully out of view when collapsed
+  const PEEK = 40; // grab bar stays visible when collapsed (easy to pull back up)
   const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
 
   useEffect(() => {
@@ -461,15 +461,18 @@ export function CanvasBuilderView() {
           transition: dragging ? "none" : "transform 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
-        {/* draggable header — stays visible as a peek when collapsed */}
+        {/* draggable header — a slim grab bar (h = PEEK) stays visible at the
+            screen bottom when collapsed, so the sheet can always be pulled up */}
         <div
-          className="shrink-0 cursor-grab touch-none select-none pt-2"
+          className="shrink-0 cursor-grab touch-none select-none"
           onPointerDown={startDrag}
           onPointerMove={moveDrag}
           onPointerUp={endDrag}
         >
-          <span className="mx-auto block h-1 w-10 rounded-full bg-line" />
-          <h3 className="pb-2 pt-2 text-center text-base font-semibold">{SHEET_TITLE[mode]}</h3>
+          <div className="flex h-10 items-center justify-center">
+            <span className="h-1 w-10 rounded-full bg-line" />
+          </div>
+          <h3 className="pb-2 text-center text-base font-semibold">{SHEET_TITLE[mode]}</h3>
         </div>
 
           {/* ITEMS */}
