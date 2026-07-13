@@ -30,7 +30,6 @@ import { unreadCount } from "@/lib/notifications";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
-import { SyncBadge } from "../SyncBadge";
 
 type Tab = { view: View; label: string; Icon: LucideIcon };
 
@@ -177,7 +176,6 @@ export function NativeShell() {
           )}
         </div>
         <div className="flex items-center gap-3.5">
-          <SyncBadge />
           {showActions && (
             <>
               <button
