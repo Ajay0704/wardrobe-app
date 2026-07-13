@@ -81,6 +81,7 @@ export function WardrobeView() {
   const [mainTab, setMainTab] = useState<MainTabKey>("all");
   const [subCat, setSubCat] = useState<Category | "all">("all");
   const [sheet, setSheet] = useState<null | "closets" | "filter" | "sort">(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
   // Least-worn pieces powering the Restyle quick action.
@@ -171,8 +172,9 @@ export function WardrobeView() {
 
       {isNative ? (
         <>
-          {/* All Clothes header — opens the closets sheet */}
-          <div className="-mt-2 flex items-center justify-between">
+          {/* All Clothes header — closets sheet on the left; sort and the
+              overflow menu (filter + season grouping) at the right end */}
+          <div className="-mt-2 flex items-center justify-between gap-2">
             <button
               type="button"
               onClick={() => setSheet("closets")}
@@ -181,38 +183,63 @@ export function WardrobeView() {
               All Clothes
               <ChevronDown size={18} className="text-muted" />
             </button>
-            <button
-              type="button"
-              aria-label={seasonalView ? "Grid view" : "Group by season"}
-              onClick={() => setSeasonalView((v) => !v)}
-              className="text-muted"
-            >
-              <MoreVertical size={20} />
-            </button>
-          </div>
-
-          {/* Filter + sort */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              aria-label="Filters"
-              onClick={() => setSheet("filter")}
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border ${
-                filters.season !== "all" || filters.tag !== "all"
-                  ? "border-accent text-accent"
-                  : "border-line text-foreground"
-              }`}
-            >
-              <SlidersHorizontal size={17} />
-            </button>
-            <button
-              type="button"
-              onClick={() => setSheet("sort")}
-              className="flex h-11 items-center gap-2 rounded-xl border border-line bg-surface px-4 text-sm font-medium"
-            >
-              {sortLabel}
-              <ChevronDown size={16} className="text-muted" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSheet("sort")}
+                className="flex h-9 items-center gap-1.5 rounded-xl border border-line bg-surface px-3 text-[13px] font-medium"
+              >
+                {sortLabel}
+                <ChevronDown size={15} className="text-muted" />
+              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-label="More options"
+                  onClick={() => setMenuOpen((v) => !v)}
+                  className="relative -mr-1 flex h-9 w-9 items-center justify-center text-muted"
+                >
+                  <MoreVertical size={20} />
+                  {(filters.season !== "all" || filters.tag !== "all") && (
+                    <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
+                  )}
+                </button>
+                {menuOpen && (
+                  <>
+                    <div
+                      className="fixed inset-0 z-40"
+                      onClick={() => setMenuOpen(false)}
+                    />
+                    <div className="absolute right-0 top-full z-50 mt-2 w-48 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg shadow-black/10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setSheet("filter");
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-surface-2"
+                      >
+                        <SlidersHorizontal size={17} /> Filter
+                        {(filters.season !== "all" || filters.tag !== "all") && (
+                          <span className="ml-auto h-2 w-2 rounded-full bg-accent" />
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMenuOpen(false);
+                          setSeasonalView((v) => !v);
+                        }}
+                        className="flex w-full items-center gap-3 border-t border-line px-4 py-3 text-left text-sm hover:bg-surface-2"
+                      >
+                        {seasonalView ? <LayoutGrid size={17} /> : <Sun size={17} />}
+                        {seasonalView ? "Grid view" : "Group by season"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Main category tabs */}
