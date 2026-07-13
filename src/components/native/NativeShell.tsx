@@ -29,6 +29,8 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { unreadCount } from "@/lib/notifications";
 import { unreadCount as chatUnreadCount } from "@/lib/chat";
+import { isImportEnabled } from "@/lib/import";
+import { EmailImportSheet } from "../import/EmailImportSheet";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -78,6 +80,8 @@ export function NativeShell() {
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
+  const [emailImportOpen, setEmailImportOpen] = useState(false);
+  const [importAllowed, setImportAllowed] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
   // Refresh the bell badge whenever we land on a screen — cheap, RLS-scoped
@@ -89,6 +93,9 @@ export function NativeShell() {
     });
     void chatUnreadCount().then((n) => {
       if (alive) setChatUnread(n);
+    });
+    void isImportEnabled().then((on) => {
+      if (alive) setImportAllowed(on);
     });
     return () => {
       alive = false;
@@ -276,7 +283,13 @@ export function NativeShell() {
             <SheetRow icon={Clipboard} label="Clipboard" onClick={soon} />
             <SheetRow icon={Search} label="Search item" onClick={soon} />
             <SheetRow icon={ShoppingBag} label="Import from Online Stores" onClick={soon} />
-            <SheetRow icon={Mail} label="Import from Email" onClick={soon} />
+            <SheetRow
+              icon={Mail}
+              label="Import from Email"
+              onClick={() =>
+                importAllowed ? runSheet(() => setEmailImportOpen(true)) : soon()
+              }
+            />
 
             <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
               Closet
@@ -293,6 +306,8 @@ export function NativeShell() {
           </div>
         </div>
       )}
+
+      {emailImportOpen && <EmailImportSheet onClose={() => setEmailImportOpen(false)} />}
 
       {/* Floating chat button — bottom-right above the tab bar, on main views only */}
       {showActions && (

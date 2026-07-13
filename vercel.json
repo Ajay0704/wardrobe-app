@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/ingest-feed",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/import-cleanup",
+      "schedule": "0 4 * * *"
     }
   ]
 }
