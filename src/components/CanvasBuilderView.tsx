@@ -14,7 +14,7 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
 
@@ -89,9 +89,49 @@ export function CanvasBuilderView() {
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(true);
   const [aspect, setAspect] = useState<"3:4" | "1:1">("3:4");
-  const dragStartY = useRef<number | null>(null);
+  const [offset, setOffset] = useState(0); // sheet px offset: 0 = open, maxOffset = collapsed peek
+  const [maxOffset, setMaxOffset] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ startY: number; startOffset: number } | null>(null);
+  const PEEK = 62;
+  const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
+
+  useEffect(() => {
+    const measure = () => {
+      const h = sheetRef.current?.offsetHeight ?? 0;
+      setMaxOffset(Math.max(0, h - PEEK));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    return () => window.removeEventListener("resize", measure);
+  }, []);
+
+  const expand = () => setOffset(0);
+  const startDrag = (e: React.PointerEvent) => {
+    drag.current = { startY: e.clientY, startOffset: offset };
+    setDragging(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+  const moveDrag = (e: React.PointerEvent) => {
+    if (!drag.current) return;
+    const next = drag.current.startOffset + (e.clientY - drag.current.startY);
+    setOffset(Math.min(Math.max(next, 0), maxOffset));
+  };
+  const endDrag = (e: React.PointerEvent) => {
+    const dc = drag.current;
+    if (!dc) return;
+    const d = e.clientY - dc.startY;
+    drag.current = null;
+    setDragging(false);
+    if (Math.abs(d) < 6) {
+      setOffset(dc.startOffset > maxOffset * 0.5 ? 0 : maxOffset); // tap toggles
+    } else {
+      const cur = Math.min(Math.max(dc.startOffset + d, 0), maxOffset);
+      setOffset(cur > maxOffset * 0.4 ? maxOffset : 0); // snap to nearest
+    }
+  };
 
   const flash = (m: string) => {
     setToast(m);
@@ -100,7 +140,7 @@ export function CanvasBuilderView() {
 
   const openTool = (m: Mode) => {
     setMode(m);
-    setSheetOpen(true);
+    expand();
   };
 
   const pieces = useMemo(() => {
@@ -165,7 +205,7 @@ export function CanvasBuilderView() {
   };
 
   const toolBtn = (m: Mode, icon: React.ReactNode, label: string) => {
-    const active = mode === m && sheetOpen;
+    const active = mode === m && expanded;
     return (
       <button
         onClick={() => openTool(m)}
@@ -351,7 +391,7 @@ export function CanvasBuilderView() {
             {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
             <span className="mx-0.5 h-6 w-px bg-line" />
             <button
-              onClick={() => setSheetOpen((o) => !o)}
+              onClick={() => setOffset((o) => (o > maxOffset * 0.5 ? 0 : maxOffset))}
               className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
               aria-label="Toggle panel"
             >
@@ -365,27 +405,24 @@ export function CanvasBuilderView() {
       {/* bottom sheet — fixed-height overlay that slides up/down (smooth),
           so switching tools never resizes the board */}
       <div
-        className={`absolute inset-x-0 bottom-0 z-[72] flex flex-col rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(28,25,23,0.08)] transition-transform duration-300 ease-out ${sheetOpen ? "translate-y-0" : "translate-y-full"}`}
-        style={{ height: "var(--sheet-h)" }}
-        onPointerDown={() => setSelectedId(null)}
+        ref={sheetRef}
+        className="absolute inset-x-0 bottom-0 z-[72] flex flex-col rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(28,25,23,0.08)]"
+        style={{
+          height: "var(--sheet-h)",
+          transform: `translateY(${offset}px)`,
+          transition: dragging ? "none" : "transform 260ms cubic-bezier(0.22,1,0.36,1)",
+        }}
       >
-          <button
-            type="button"
-            aria-label="Collapse sheet"
-            onPointerDown={(e) => {
-              dragStartY.current = e.clientY;
-            }}
-            onPointerUp={(e) => {
-              const dy = dragStartY.current == null ? 0 : e.clientY - dragStartY.current;
-              dragStartY.current = null;
-              if (dy > 24) setSheetOpen(false);
-            }}
-            onClick={() => setSheetOpen(false)}
-            className="mx-auto flex h-7 w-full max-w-[140px] items-center justify-center"
-          >
-            <span className="h-1 w-10 rounded-full bg-line" />
-          </button>
-          <h3 className="pb-2.5 text-center text-base font-semibold">{SHEET_TITLE[mode]}</h3>
+        {/* draggable header — stays visible as a peek when collapsed */}
+        <div
+          className="shrink-0 cursor-grab touch-none select-none pt-2"
+          onPointerDown={startDrag}
+          onPointerMove={moveDrag}
+          onPointerUp={endDrag}
+        >
+          <span className="mx-auto block h-1 w-10 rounded-full bg-line" />
+          <h3 className="pb-2 pt-2 text-center text-base font-semibold">{SHEET_TITLE[mode]}</h3>
+        </div>
 
           {/* ITEMS */}
           {mode === "items" && (
@@ -534,17 +571,6 @@ export function CanvasBuilderView() {
             </>
           )}
       </div>
-
-      {!sheetOpen && (
-        <button
-          type="button"
-          aria-label="Open panel"
-          onClick={() => setSheetOpen(true)}
-          className="absolute bottom-[max(20px,env(safe-area-inset-bottom))] right-5 z-[75] flex h-14 w-14 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-xl"
-        >
-          <LayoutGrid size={24} />
-        </button>
-      )}
 
       {/* name + save */}
       {saving && (
