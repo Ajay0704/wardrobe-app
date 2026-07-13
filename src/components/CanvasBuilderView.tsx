@@ -180,7 +180,10 @@ export function CanvasBuilderView() {
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+    <div
+      className="fixed inset-0 z-[70] flex flex-col bg-background"
+      style={{ "--sheet-h": "44vh" } as React.CSSProperties}
+    >
       {/* header */}
       <div className="flex items-center justify-between px-4 pb-3 pt-[max(14px,env(safe-area-inset-top))]">
         <button
@@ -202,21 +205,22 @@ export function CanvasBuilderView() {
       </div>
 
       {/* aspect toggle */}
-      <div className="flex items-center justify-center gap-7 pb-2">
+      <div className="flex items-center justify-center gap-7 pb-1.5">
         <AspectBtn active={aspect === "3:4"} label="3:4" onClick={() => setAspect("3:4")} />
         <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
       </div>
 
-      {/* board */}
-      <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-3">
-        <div
-          className="relative max-w-full overflow-hidden rounded-3xl border border-line touch-none"
-          style={{
-            height: "100%",
-            aspectRatio: aspect === "3:4" ? "3 / 4" : "1 / 1",
-            background: canvasBg || "#ffffff",
-          }}
-        >
+      {/* board — sized to the reserved area above the sheet, so switching
+          tools (or collapsing the sheet) never resizes it */}
+      <div className="relative min-h-0 flex-1" style={{ paddingBottom: "var(--sheet-h)" }}>
+        <div className="flex h-full items-center justify-center px-4 pt-1">
+          <div
+            className="relative h-full max-w-full overflow-hidden rounded-3xl border border-line touch-none"
+            style={{
+              aspectRatio: aspect === "3:4" ? "3 / 4" : "1 / 1",
+              background: canvasBg || "#ffffff",
+            }}
+          >
           {canvasDraft.length === 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center text-muted">
               <LayoutGrid size={26} strokeWidth={1.6} />
@@ -354,15 +358,17 @@ export function CanvasBuilderView() {
               <ChevronRight size={20} />
             </button>
           </div>
+          </div>
         </div>
       </div>
 
-      {/* bottom sheet (collapsible) — contents switch with the active tool */}
-      {sheetOpen && (
-        <div
-          className="flex max-h-[46%] flex-col rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(28,25,23,0.08)]"
-          onPointerDown={() => setSelectedId(null)}
-        >
+      {/* bottom sheet — fixed-height overlay that slides up/down (smooth),
+          so switching tools never resizes the board */}
+      <div
+        className={`absolute inset-x-0 bottom-0 z-[72] flex flex-col rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(28,25,23,0.08)] transition-transform duration-300 ease-out ${sheetOpen ? "translate-y-0" : "translate-y-full"}`}
+        style={{ height: "var(--sheet-h)" }}
+        onPointerDown={() => setSelectedId(null)}
+      >
           <button
             type="button"
             aria-label="Collapse sheet"
@@ -527,8 +533,7 @@ export function CanvasBuilderView() {
               </div>
             </>
           )}
-        </div>
-      )}
+      </div>
 
       {!sheetOpen && (
         <button
