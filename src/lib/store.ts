@@ -104,6 +104,8 @@ interface WardrobeState {
   savedPinIds: string[];
   /** Freeform canvas items. */
   canvasDraft: CanvasItem[];
+  /** Board background for the canvas composer (CSS color/gradient, or null). */
+  canvasBg: string | null;
 
   addItem: (item: Omit<WardrobeItem, "id" | "createdAt">) => void;
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
@@ -155,8 +157,11 @@ interface WardrobeState {
   setDraft: (draft: Record<SlotKey, string[]>) => void;
   setCanvasDraft: (items: CanvasItem[]) => void;
   addCanvasItem: (itemId: string) => void;
+  addCanvasText: (text: string, color: string) => void;
+  addCanvasSticker: (emoji: string) => void;
   updateCanvasItem: (id: string, patch: Partial<CanvasItem>) => void;
   removeCanvasItem: (id: string) => void;
+  setCanvasBg: (bg: string | null) => void;
   /** Save/unsave an Explore pin. */
   toggleSavePin: (id: string) => void;
   /** Replace persisted fields from a remote snapshot (Supabase pull). */
@@ -293,6 +298,7 @@ export const useWardrobe = create<WardrobeState>()(
       draft: emptyDraft(),
       savedPinIds: [],
       canvasDraft: [],
+      canvasBg: null,
 
       addItem: (item) =>
         set((s) => ({
@@ -449,6 +455,7 @@ export const useWardrobe = create<WardrobeState>()(
           profile: { ...DEFAULT_PROFILE },
           draft: emptyDraft(),
           canvasDraft: [],
+          canvasBg: null,
           theme: "light",
         }),
 
@@ -503,7 +510,8 @@ export const useWardrobe = create<WardrobeState>()(
           },
         })),
 
-      clearDraft: () => set({ draft: emptyDraft(), canvasDraft: [] }),
+      clearDraft: () =>
+        set({ draft: emptyDraft(), canvasDraft: [], canvasBg: null }),
       setDraft: (draft) => set({ draft }),
       setCanvasDraft: (items) => set({ canvasDraft: items }),
       addCanvasItem: (itemId) => set((s) => ({
@@ -511,6 +519,7 @@ export const useWardrobe = create<WardrobeState>()(
           ...s.canvasDraft,
           {
             id: uid(),
+            kind: "item",
             itemId,
             x: 100 + s.canvasDraft.length * 20,
             y: 100 + s.canvasDraft.length * 20,
@@ -519,8 +528,43 @@ export const useWardrobe = create<WardrobeState>()(
             rotation: 0,
             zIndex: s.canvasDraft.length,
             flipped: false,
-          }
-        ]
+          },
+        ],
+      })),
+      addCanvasText: (text, color) => set((s) => ({
+        canvasDraft: [
+          ...s.canvasDraft,
+          {
+            id: uid(),
+            kind: "text",
+            text,
+            color,
+            x: 90,
+            y: 110,
+            width: 200,
+            height: 64,
+            rotation: 0,
+            zIndex: s.canvasDraft.length,
+            flipped: false,
+          },
+        ],
+      })),
+      addCanvasSticker: (emoji) => set((s) => ({
+        canvasDraft: [
+          ...s.canvasDraft,
+          {
+            id: uid(),
+            kind: "sticker",
+            emoji,
+            x: 120 + s.canvasDraft.length * 16,
+            y: 120 + s.canvasDraft.length * 16,
+            width: 96,
+            height: 96,
+            rotation: 0,
+            zIndex: s.canvasDraft.length,
+            flipped: false,
+          },
+        ],
       })),
       updateCanvasItem: (id, patch) => set((s) => ({
         canvasDraft: s.canvasDraft.map(it => it.id === id ? { ...it, ...patch } : it)
@@ -528,6 +572,7 @@ export const useWardrobe = create<WardrobeState>()(
       removeCanvasItem: (id) => set((s) => ({
         canvasDraft: s.canvasDraft.filter(it => it.id !== id)
       })),
+      setCanvasBg: (bg) => set({ canvasBg: bg }),
       toggleSavePin: (id) =>
         set((s) => ({
           savedPinIds: s.savedPinIds.includes(id)
@@ -603,6 +648,7 @@ export const useWardrobe = create<WardrobeState>()(
           theme: s.theme,
           draft: s.draft,
           canvasDraft: s.canvasDraft,
+          canvasBg: s.canvasBg,
           savedPinIds: s.savedPinIds,
         }),
     },

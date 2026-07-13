@@ -181,10 +181,15 @@ export function slotForCategory(category: Category): SlotKey {
   return slot ? slot.key : "accessories";
 }
 
-/** Freeform Canvas item representing a piece on the moodboard workspace */
+/** Freeform Canvas element on the outfit moodboard workspace */
 export interface CanvasItem {
   id: string; // unique ID for the canvas element
-  itemId: string; // WardrobeItem ID for tracking what it is
+  /** What kind of element this is. Defaults to "item" for older drafts. */
+  kind?: "item" | "text" | "sticker";
+  itemId?: string; // WardrobeItem ID — set when kind === "item"
+  text?: string; // kind === "text"
+  color?: string; // text color for kind === "text"
+  emoji?: string; // glyph for kind === "sticker"
   x: number;
   y: number;
   width: number;

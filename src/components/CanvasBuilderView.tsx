@@ -14,9 +14,11 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
+
+type Mode = "items" | "background" | "text" | "sticker";
 
 /* Category tabs → which item categories each shows. */
 const TABS: { key: string; label: string; cats: Category[] | null }[] = [
@@ -26,21 +28,53 @@ const TABS: { key: string; label: string; cats: Category[] | null }[] = [
   { key: "shoes", label: "Shoes", cats: ["shoes"] },
 ];
 
+const SHEET_TITLE: Record<Mode, string> = {
+  items: "Select item",
+  background: "Backgrounds",
+  text: "Text",
+  sticker: "Stickers",
+};
+
+const TEXT_COLORS = ["#1c1917", "#ffffff", "#b05e3c", "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#ec4899"];
+
+const BG_SOLIDS = ["#ffffff", "#faf9f7", "#f3f1ed", "#ece4d4", "#f6e9e2", "#e6ece2", "#e4eef3", "#1c1917"];
+const BG_GRADIENTS = [
+  "linear-gradient(180deg,#faf9f7,#e7e4de)",
+  "linear-gradient(135deg,#f6e9e2,#e4eef3)",
+  "linear-gradient(135deg,#e6ece2,#faf9f7)",
+  "radial-gradient(circle at 50% 30%,#f6e9e2,#faf9f7)",
+  "linear-gradient(180deg,#e4eef3,#faf9f7)",
+  "linear-gradient(135deg,#1c1917,#57534e)",
+];
+
+const STICKERS: Record<string, string[]> = {
+  Smileys: ["😀", "😄", "😍", "🥰", "😎", "🤩", "😌", "🙃", "😴", "😭", "🥺", "🤔", "😇", "🥳", "😤", "🫶"],
+  Hearts: ["❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "💗", "💕", "💖", "💘", "💝", "💞", "✨", "💫"],
+  Nature: ["🌸", "🌷", "🌿", "🍀", "🌵", "🌻", "🍁", "🍂", "🔥", "⭐", "🌙", "☀️", "☁️", "🌈", "🌊", "❄️"],
+  Fashion: ["👑", "👜", "👛", "🎒", "👟", "👠", "👢", "🕶️", "🧢", "🧣", "💍", "💄", "👗", "👖", "🧥", "🛍️"],
+  Fun: ["🎉", "🎈", "🎀", "💯", "⚡", "💫", "🍿", "☕", "🍦", "🍩", "🎧", "📸", "💬", "🏷️", "✅", "🌟"],
+};
+const STICKER_CATS = Object.keys(STICKERS);
+
 const shortDate = (ms: number) => new Date(ms).toLocaleDateString("en-US");
 
 /**
  * Acloset-style outfit maker. Full-screen over the shell: a white board where
- * cutout pieces are dragged / resized / flipped / layered, an on-board editor
- * toolbar, and a "Select item" sheet to drop pieces in. Builds on the shared
- * canvasDraft store; text / sticker / photo tools are stubbed for v1.
+ * cutout pieces + text + emoji stickers are dragged / resized / flipped /
+ * layered, an on-board editor toolbar, a board-background picker, and a
+ * collapsible "Select item" sheet whose contents switch with the active tool.
  */
 export function CanvasBuilderView() {
   const {
     items,
     canvasDraft,
+    canvasBg,
     addCanvasItem,
+    addCanvasText,
+    addCanvasSticker,
     updateCanvasItem,
     removeCanvasItem,
+    setCanvasBg,
     clearDraft,
     saveOutfit,
     setView,
@@ -48,15 +82,26 @@ export function CanvasBuilderView() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("all");
+  const [mode, setMode] = useState<Mode>("items");
+  const [stickerCat, setStickerCat] = useState(STICKER_CATS[0]);
+  const [textInput, setTextInput] = useState("");
+  const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [toast, setToast] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(true);
+  const [aspect, setAspect] = useState<"3:4" | "1:1">("3:4");
+  const dragStartY = useRef<number | null>(null);
 
   const flash = (m: string) => {
     setToast(m);
     window.setTimeout(() => setToast(null), 1800);
   };
-  const soon = (what: string) => flash(`${what} — coming soon`);
+
+  const openTool = (m: Mode) => {
+    setMode(m);
+    setSheetOpen(true);
+  };
 
   const pieces = useMemo(() => {
     const t = TABS.find((x) => x.key === tab)!;
@@ -76,16 +121,30 @@ export function CanvasBuilderView() {
     setSelectedId(id);
     bringToFront(id);
   };
-
-  const addPiece = (itemId: string) => {
-    addCanvasItem(itemId);
-    // The store assigns the id; grab the freshly appended item to select it.
+  const selectLast = () => {
     window.setTimeout(() => {
       const d = useWardrobe.getState().canvasDraft;
       const last = d[d.length - 1];
       if (last) setSelectedId(last.id);
     }, 0);
+  };
+
+  const addPiece = (itemId: string) => {
+    addCanvasItem(itemId);
+    selectLast();
     flash("Added to your look");
+  };
+  const addText = () => {
+    const t = textInput.trim();
+    if (!t) return;
+    addCanvasText(t, textColor);
+    setTextInput("");
+    selectLast();
+    flash("Text added");
+  };
+  const addSticker = (emoji: string) => {
+    addCanvasSticker(emoji);
+    selectLast();
   };
 
   const close = () => {
@@ -94,8 +153,8 @@ export function CanvasBuilderView() {
   };
 
   const doSave = () => {
-    const ids = [...new Set(canvasDraft.map((c) => c.itemId))];
-    if (ids.length === 0) return;
+    const ids = [...new Set(canvasDraft.filter((c) => c.itemId).map((c) => c.itemId as string))];
+    if (canvasDraft.length === 0) return;
     const name = saveName.trim() || `Look · ${new Date().toLocaleDateString("en-US")}`;
     saveOutfit(name, "", ids);
     clearDraft();
@@ -103,6 +162,21 @@ export function CanvasBuilderView() {
     setSaveName("");
     setSelectedId(null);
     setView("outfits");
+  };
+
+  const toolBtn = (m: Mode, icon: React.ReactNode, label: string) => {
+    const active = mode === m && sheetOpen;
+    return (
+      <button
+        onClick={() => openTool(m)}
+        aria-label={label}
+        className={`flex h-10 w-11 items-center justify-center rounded-xl ${
+          active ? "bg-accent-soft text-accent" : "text-muted"
+        }`}
+      >
+        {icon}
+      </button>
+    );
   };
 
   return (
@@ -127,9 +201,22 @@ export function CanvasBuilderView() {
         </button>
       </div>
 
+      {/* aspect toggle */}
+      <div className="flex items-center justify-center gap-7 pb-2">
+        <AspectBtn active={aspect === "3:4"} label="3:4" onClick={() => setAspect("3:4")} />
+        <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
+      </div>
+
       {/* board */}
-      <div className="min-h-0 flex-1 px-4 pb-3">
-        <div className="relative h-full w-full overflow-hidden rounded-3xl border border-line bg-white touch-none">
+      <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-3">
+        <div
+          className="relative max-w-full overflow-hidden rounded-3xl border border-line touch-none"
+          style={{
+            height: "100%",
+            aspectRatio: aspect === "3:4" ? "3 / 4" : "1 / 1",
+            background: canvasBg || "#ffffff",
+          }}
+        >
           {canvasDraft.length === 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center text-muted">
               <LayoutGrid size={26} strokeWidth={1.6} />
@@ -138,16 +225,59 @@ export function CanvasBuilderView() {
           )}
 
           {canvasDraft.map((c) => {
-            const item = items.find((i) => i.id === c.itemId);
-            if (!item) return null;
             const isSel = selectedId === c.id;
+            let content: React.ReactNode;
+            if (c.kind === "text") {
+              content = (
+                <div
+                  className="pointer-events-none flex h-full w-full items-center justify-center text-center"
+                  style={{
+                    color: c.color || "#1c1917",
+                    fontSize: Math.max(12, c.height * 0.5),
+                    fontWeight: 600,
+                    lineHeight: 1.1,
+                    transform: c.flipped ? "scaleX(-1)" : "scaleX(1)",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {c.text}
+                </div>
+              );
+            } else if (c.kind === "sticker") {
+              content = (
+                <div
+                  className="pointer-events-none flex h-full w-full items-center justify-center"
+                  style={{
+                    fontSize: Math.min(c.width, c.height) * 0.82,
+                    lineHeight: 1,
+                    transform: c.flipped ? "scaleX(-1)" : "scaleX(1)",
+                  }}
+                >
+                  {c.emoji}
+                </div>
+              );
+            } else {
+              const item = items.find((i) => i.id === c.itemId);
+              if (!item) return null;
+              content = (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={item.imageUrl}
+                  alt={item.name}
+                  draggable={false}
+                  className="pointer-events-none h-full w-full object-contain"
+                  style={{ transform: c.flipped ? "scaleX(-1)" : "scaleX(1)" }}
+                />
+              );
+            }
+
             return (
               <Rnd
                 key={c.id}
                 size={{ width: c.width, height: c.height }}
                 position={{ x: c.x, y: c.y }}
                 bounds="parent"
-                lockAspectRatio
+                lockAspectRatio={c.kind !== "text"}
                 onDragStart={() => select(c.id)}
                 onDragStop={(_e, d) => updateCanvasItem(c.id, { x: d.x, y: d.y })}
                 onResizeStop={(_e, _dir, ref, _delta, pos) =>
@@ -174,17 +304,21 @@ export function CanvasBuilderView() {
                 >
                   {isSel && (
                     <div className="absolute -top-12 left-0 right-0 z-50 flex items-center justify-between">
-                      <button
-                        type="button"
-                        aria-label="Flip"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          updateCanvasItem(c.id, { flipped: !c.flipped });
-                        }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white shadow-md"
-                      >
-                        <FlipHorizontal size={17} />
-                      </button>
+                      {c.kind !== "text" ? (
+                        <button
+                          type="button"
+                          aria-label="Flip"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            updateCanvasItem(c.id, { flipped: !c.flipped });
+                          }}
+                          className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white shadow-md"
+                        >
+                          <FlipHorizontal size={17} />
+                        </button>
+                      ) : (
+                        <span />
+                      )}
                       <button
                         type="button"
                         aria-label="Delete"
@@ -199,14 +333,7 @@ export function CanvasBuilderView() {
                       </button>
                     </div>
                   )}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    draggable={false}
-                    className="pointer-events-none h-full w-full object-contain"
-                    style={{ transform: c.flipped ? "scaleX(-1)" : "scaleX(1)" }}
-                  />
+                  {content}
                 </div>
               </Rnd>
             );
@@ -214,88 +341,205 @@ export function CanvasBuilderView() {
 
           {/* on-board editor toolbar */}
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
-            <button className="flex h-10 w-11 items-center justify-center rounded-xl bg-accent-soft text-accent" aria-label="Canvas">
-              <LayoutGrid size={20} />
-            </button>
-            <button onClick={() => soon("Photos")} className="flex h-10 w-11 items-center justify-center rounded-xl text-muted" aria-label="Add photo">
-              <ImageIcon size={20} />
-            </button>
-            <button onClick={() => soon("Text")} className="flex h-10 w-11 items-center justify-center rounded-xl text-muted" aria-label="Add text">
-              <Type size={20} />
-            </button>
-            <button onClick={() => soon("Stickers")} className="flex h-10 w-11 items-center justify-center rounded-xl text-muted" aria-label="Stickers">
-              <Sticker size={20} />
-            </button>
+            {toolBtn("items", <LayoutGrid size={20} />, "Items")}
+            {toolBtn("background", <ImageIcon size={20} />, "Background")}
+            {toolBtn("text", <Type size={20} />, "Text")}
+            {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
             <span className="mx-0.5 h-6 w-px bg-line" />
-            <button onClick={() => soon("More tools")} className="flex h-10 w-9 items-center justify-center rounded-xl text-muted" aria-label="More">
+            <button
+              onClick={() => setSheetOpen((o) => !o)}
+              className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
+              aria-label="Toggle panel"
+            >
               <ChevronRight size={20} />
             </button>
           </div>
         </div>
       </div>
 
-      {/* Select-item sheet */}
-      <div
-        className="flex max-h-[44%] flex-col rounded-t-3xl border-t border-line bg-surface"
-        onPointerDown={() => setSelectedId(null)}
-      >
-        <div className="mx-auto mt-2.5 h-1 w-10 rounded-full bg-line" />
-        <h3 className="py-2.5 text-center text-base font-semibold">Select item</h3>
-
-        <div className="flex gap-2.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
-          <button onClick={() => soon("Filters")} className="flex h-9 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted">
-            <SlidersHorizontal size={17} />
+      {/* bottom sheet (collapsible) — contents switch with the active tool */}
+      {sheetOpen && (
+        <div
+          className="flex max-h-[46%] flex-col rounded-t-3xl border-t border-line bg-surface shadow-[0_-8px_30px_rgba(28,25,23,0.08)]"
+          onPointerDown={() => setSelectedId(null)}
+        >
+          <button
+            type="button"
+            aria-label="Collapse sheet"
+            onPointerDown={(e) => {
+              dragStartY.current = e.clientY;
+            }}
+            onPointerUp={(e) => {
+              const dy = dragStartY.current == null ? 0 : e.clientY - dragStartY.current;
+              dragStartY.current = null;
+              if (dy > 24) setSheetOpen(false);
+            }}
+            onClick={() => setSheetOpen(false)}
+            className="mx-auto flex h-7 w-full max-w-[140px] items-center justify-center"
+          >
+            <span className="h-1 w-10 rounded-full bg-line" />
           </button>
-          <button onClick={() => soon("Filters")} className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
-            All clothes <ChevronDown size={14} className="text-muted" />
-          </button>
-          <button onClick={() => soon("Sort")} className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
-            Recently added <ChevronDown size={14} className="text-muted" />
-          </button>
-        </div>
+          <h3 className="pb-2.5 text-center text-base font-semibold">{SHEET_TITLE[mode]}</h3>
 
-        <div className="flex gap-6 border-b border-line px-5">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              onClick={() => setTab(t.key)}
-              className={`relative pb-3 pt-1 text-[15px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
-            >
-              {t.label}
-              {tab === t.key && (
-                <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
-              )}
-            </button>
-          ))}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto pb-[max(10px,env(safe-area-inset-bottom))]">
-          {pieces.length === 0 ? (
-            <p className="px-5 py-8 text-center text-sm text-muted">
-              No pieces here yet — add clothes to your closet first.
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-px bg-line">
-              {pieces.map((item) => (
-                <button
-                  key={item.id}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={() => addPiece(item.id)}
-                  className="bg-surface px-2.5 pb-3 pt-2.5 text-left"
-                >
-                  <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-surface-2">
-                    <PieceThumb item={item} />
-                  </div>
-                  <p className="mt-2 truncate text-[10.5px] font-semibold uppercase tracking-wide">
-                    {item.brand || "No Brand"}
-                  </p>
-                  <p className="text-[10px] text-muted">{shortDate(item.createdAt)}</p>
+          {/* ITEMS */}
+          {mode === "items" && (
+            <>
+              <div className="flex gap-2.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+                <button className="flex h-9 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted">
+                  <SlidersHorizontal size={17} />
                 </button>
-              ))}
+                <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
+                  All clothes <ChevronDown size={14} className="text-muted" />
+                </button>
+                <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
+                  Recently added <ChevronDown size={14} className="text-muted" />
+                </button>
+              </div>
+              <div className="flex gap-6 border-b border-line px-5">
+                {TABS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTab(t.key)}
+                    className={`relative pb-3 pt-1 text-[15px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
+                  >
+                    {t.label}
+                    {tab === t.key && (
+                      <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-foreground" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto pb-[max(10px,env(safe-area-inset-bottom))]">
+                {pieces.length === 0 ? (
+                  <p className="px-5 py-8 text-center text-sm text-muted">
+                    No pieces here yet — add clothes to your closet first.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-3 gap-px bg-line">
+                    {pieces.map((item) => (
+                      <button
+                        key={item.id}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={() => addPiece(item.id)}
+                        className="bg-surface px-2.5 pb-3 pt-2.5 text-left"
+                      >
+                        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-surface-2">
+                          <PieceThumb item={item} />
+                        </div>
+                        <p className="mt-2 truncate text-[10.5px] font-semibold uppercase tracking-wide">
+                          {item.brand || "No Brand"}
+                        </p>
+                        <p className="text-[10px] text-muted">{shortDate(item.createdAt)}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* BACKGROUND */}
+          {mode === "background" && (
+            <div
+              className="min-h-0 flex-1 overflow-y-auto px-4 pb-[max(16px,env(safe-area-inset-bottom))]"
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <div className="grid grid-cols-4 gap-3">
+                <button
+                  onClick={() => setCanvasBg(null)}
+                  className={`flex aspect-square items-center justify-center rounded-xl border bg-white text-xs text-muted ${!canvasBg ? "border-accent ring-1 ring-accent" : "border-line"}`}
+                >
+                  None
+                </button>
+                {[...BG_SOLIDS, ...BG_GRADIENTS].map((bg) => (
+                  <button
+                    key={bg}
+                    onClick={() => setCanvasBg(bg)}
+                    style={{ background: bg }}
+                    className={`aspect-square rounded-xl border ${canvasBg === bg ? "border-accent ring-1 ring-accent" : "border-line"}`}
+                  />
+                ))}
+              </div>
             </div>
           )}
+
+          {/* TEXT */}
+          {mode === "text" && (
+            <div className="px-4 pb-[max(16px,env(safe-area-inset-bottom))]" onPointerDown={(e) => e.stopPropagation()}>
+              <input
+                value={textInput}
+                onChange={(e) => setTextInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addText()}
+                placeholder="Type something…"
+                className="w-full rounded-xl border border-line bg-background px-4 py-3 text-sm outline-none focus:border-accent"
+              />
+              <div className="mt-3 flex flex-wrap gap-2.5">
+                {TEXT_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setTextColor(c)}
+                    style={{ background: c }}
+                    className={`h-8 w-8 rounded-full border ${textColor === c ? "border-accent ring-2 ring-accent ring-offset-1" : "border-line"}`}
+                  />
+                ))}
+              </div>
+              <button
+                onClick={addText}
+                disabled={!textInput.trim()}
+                className="mt-4 w-full rounded-xl bg-accent py-3 text-sm font-medium text-accent-foreground disabled:opacity-40"
+              >
+                Add to canvas
+              </button>
+            </div>
+          )}
+
+          {/* STICKER */}
+          {mode === "sticker" && (
+            <>
+              <div className="flex gap-2.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
+                {STICKER_CATS.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setStickerCat(cat)}
+                    className={`h-9 shrink-0 rounded-full px-4 text-[13px] ${
+                      stickerCat === cat ? "bg-foreground text-background" : "border border-line text-foreground"
+                    }`}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
+              <div
+                className="min-h-0 flex-1 overflow-y-auto px-3 pb-[max(16px,env(safe-area-inset-bottom))]"
+                onPointerDown={(e) => e.stopPropagation()}
+              >
+                <div className="grid grid-cols-5 gap-1">
+                  {STICKERS[stickerCat].map((emoji, i) => (
+                    <button
+                      key={`${emoji}-${i}`}
+                      onClick={() => addSticker(emoji)}
+                      className="flex aspect-square items-center justify-center rounded-xl text-3xl hover:bg-surface-2"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </div>
+      )}
+
+      {!sheetOpen && (
+        <button
+          type="button"
+          aria-label="Open panel"
+          onClick={() => setSheetOpen(true)}
+          className="absolute bottom-[max(20px,env(safe-area-inset-bottom))] right-5 z-[75] flex h-14 w-14 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-xl"
+        >
+          <LayoutGrid size={24} />
+        </button>
+      )}
 
       {/* name + save */}
       {saving && (
@@ -322,11 +566,36 @@ export function CanvasBuilderView() {
       )}
 
       {toast && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-[46%] z-[90] flex justify-center px-4">
+        <div className="pointer-events-none absolute inset-x-0 bottom-[48%] z-[90] flex justify-center px-4">
           <p className="rounded-full bg-foreground/90 px-4 py-2 text-sm text-background shadow-lg">{toast}</p>
         </div>
       )}
     </div>
+  );
+}
+
+function AspectBtn({
+  active,
+  label,
+  square,
+  onClick,
+}: {
+  active: boolean;
+  label: string;
+  square?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" onClick={onClick} className="flex flex-col items-center gap-1">
+      <span
+        className={`rounded-[3px] border-2 ${square ? "h-[22px] w-[22px]" : "h-[26px] w-[19px]"} ${
+          active ? "border-foreground bg-foreground/10" : "border-muted/50"
+        }`}
+      />
+      <span className={`text-[11px] ${active ? "font-medium text-foreground" : "text-muted"}`}>
+        {label}
+      </span>
+    </button>
   );
 }
 
