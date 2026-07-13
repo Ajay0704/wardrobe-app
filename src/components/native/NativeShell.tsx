@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Bell,
   Calendar,
   Camera,
   ChevronDown,
@@ -25,6 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { unreadCount } from "@/lib/notifications";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -46,6 +48,7 @@ const TITLES: Partial<Record<View, string>> = {
   profile: "My Profile",
   social: "Profile",
   settings: "Settings",
+  notifications: "Notifications",
 };
 
 // Main tabbed screens — the header actions (calendar/bell/profile) show here.
@@ -69,7 +72,20 @@ export function NativeShell() {
   const [createOpen, setCreateOpen] = useState(false);
   const [closetMenuOpen, setClosetMenuOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
+  const [unread, setUnread] = useState(0);
   const showActions = MAIN_VIEWS.has(view);
+
+  // Refresh the bell badge whenever we land on a screen — cheap, RLS-scoped
+  // count. Returning from the notifications screen (which marks all read) clears it.
+  useEffect(() => {
+    let alive = true;
+    void unreadCount().then((n) => {
+      if (alive) setUnread(n);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [view]);
 
   // Navigation history so the back button returns to the actual previous view
   // (e.g. My page → My Profile → back → My page), not just the last main tab.
@@ -163,6 +179,22 @@ export function NativeShell() {
           <SyncBadge />
           {showActions && (
             <>
+              <button
+                type="button"
+                aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
+                onClick={() => {
+                  setUnread(0);
+                  setView("notifications");
+                }}
+                className="relative text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <Bell size={21} strokeWidth={1.8} />
+                {unread > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground">
+                    {unread > 9 ? "9+" : unread}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 aria-label="Calendar"

@@ -17,7 +17,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   addComment,
   createPost,
@@ -32,6 +32,7 @@ import {
   votePoll,
   type Comment,
   type CommunityPost,
+  type PostAuthor,
   type PostKind,
 } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
@@ -58,6 +59,16 @@ export function CommunityFeed() {
   const ioRef = useRef<IntersectionObserver | null>(null);
   const moreRef = useRef<() => void>(() => {});
   const myId = authUser?.id ?? null;
+  // Identity stamped onto likes / votes / follows so the notification trigger
+  // can name the actor (there's no profiles table to look them up server-side).
+  const myAuthor = useMemo<PostAuthor>(
+    () => ({
+      name: profile.displayName?.trim() || "Someone",
+      handle: profileHandle(profile),
+      avatar: profile.avatarUrl,
+    }),
+    [profile],
+  );
 
   const flash = (m: string) => {
     setToast(m);
@@ -93,7 +104,7 @@ export function CommunityFeed() {
       else s.delete(authorId);
       return s;
     });
-    void toggleFollow(authorId, next).catch(() => {});
+    void toggleFollow(authorId, next, myAuthor).catch(() => {});
   };
 
   const loadMore = useCallback(() => {
@@ -168,6 +179,7 @@ export function CommunityFeed() {
             key={p.id}
             post={p}
             myId={myId}
+            myAuthor={myAuthor}
             following={following.has(p.authorId)}
             onToggleFollow={onToggleFollow}
             onDeleted={() => setPosts((prev) => prev.filter((x) => x.id !== p.id))}
@@ -267,12 +279,14 @@ function TypePicker({
 function PostCard({
   post,
   myId,
+  myAuthor,
   following,
   onToggleFollow,
   onDeleted,
 }: {
   post: CommunityPost;
   myId: string | null;
+  myAuthor: PostAuthor;
   following: boolean;
   onToggleFollow: (authorId: string, next: boolean) => void;
   onDeleted: () => void;
@@ -298,7 +312,7 @@ function PostCard({
     const next = !liked;
     setLiked(next);
     setLikes((n) => n + (next ? 1 : -1));
-    void toggleLike(post.id, next).catch(() => {
+    void toggleLike(post.id, next, myAuthor).catch(() => {
       setLiked(!next);
       setLikes((n) => n + (next ? -1 : 1));
     });
@@ -316,7 +330,7 @@ function PostCard({
     if (myVote !== null) return;
     setMyVote(i);
     setCounts((c) => c.map((v, idx) => (idx === i ? v + 1 : v)));
-    void votePoll(post.id, i).catch(() => {});
+    void votePoll(post.id, i, myAuthor).catch(() => {});
   };
 
   const total = counts.reduce((a, b) => a + b, 0);

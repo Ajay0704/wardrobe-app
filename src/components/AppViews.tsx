@@ -16,6 +16,7 @@ import { YouView } from "./YouView";
 import { ExploreView } from "./ExploreView";
 import { ProfileView } from "./ProfileView";
 import { NativeProfileView } from "./native/NativeProfileView";
+import { NotificationsView } from "./NotificationsView";
 import { ItemForm } from "./ItemForm";
 import { BulkImport } from "./BulkImport";
 
@@ -52,6 +53,7 @@ export function AppViews() {
       {view === "profile" && <ProfileView />}
       {view === "social" && <NativeProfileView />}
       {view === "settings" && <SettingsView />}
+      {view === "notifications" && <NotificationsView />}
 
       {addOpen && <ItemForm onClose={() => setAddOpen(false)} />}
       {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}

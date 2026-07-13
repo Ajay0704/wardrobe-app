@@ -204,12 +204,24 @@ async function hydrateViewerState(page: CommunityPost[]): Promise<void> {
   }
 }
 
-export async function toggleLike(postId: string, liked: boolean): Promise<void> {
+export async function toggleLike(
+  postId: string,
+  liked: boolean,
+  author?: PostAuthor,
+): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   const uid = await currentUserId();
   if (!uid) return;
-  if (liked) await sb.from("post_likes").insert({ post_id: postId, user_id: uid });
+  if (liked)
+    await sb.from("post_likes").insert({
+      post_id: postId,
+      user_id: uid,
+      // denormalized so the notification trigger can name the liker
+      actor_name: author?.name ?? null,
+      actor_handle: author?.handle ?? null,
+      actor_avatar: author?.avatar ?? null,
+    });
   else await sb.from("post_likes").delete().eq("post_id", postId).eq("user_id", uid);
 }
 
@@ -222,12 +234,23 @@ export async function toggleSave(postId: string, saved: boolean): Promise<void> 
   else await sb.from("post_saves").delete().eq("post_id", postId).eq("user_id", uid);
 }
 
-export async function votePoll(postId: string, optionIdx: number): Promise<void> {
+export async function votePoll(
+  postId: string,
+  optionIdx: number,
+  author?: PostAuthor,
+): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   const uid = await currentUserId();
   if (!uid) return;
-  await sb.from("poll_votes").insert({ post_id: postId, user_id: uid, option_idx: optionIdx });
+  await sb.from("poll_votes").insert({
+    post_id: postId,
+    user_id: uid,
+    option_idx: optionIdx,
+    actor_name: author?.name ?? null,
+    actor_handle: author?.handle ?? null,
+    actor_avatar: author?.avatar ?? null,
+  });
 }
 
 /** Delete one of the current user's posts (RLS enforces ownership). */
@@ -318,12 +341,23 @@ export async function fetchFollowCounts(
   return { followers: followers.count ?? 0, following: following.count ?? 0 };
 }
 
-export async function toggleFollow(targetId: string, follow: boolean): Promise<void> {
+export async function toggleFollow(
+  targetId: string,
+  follow: boolean,
+  author?: PostAuthor,
+): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   const uid = await currentUserId();
   if (!uid || uid === targetId) return;
-  if (follow) await sb.from("follows").insert({ follower_id: uid, following_id: targetId });
+  if (follow)
+    await sb.from("follows").insert({
+      follower_id: uid,
+      following_id: targetId,
+      actor_name: author?.name ?? null,
+      actor_handle: author?.handle ?? null,
+      actor_avatar: author?.avatar ?? null,
+    });
   else await sb.from("follows").delete().eq("follower_id", uid).eq("following_id", targetId);
 }
 

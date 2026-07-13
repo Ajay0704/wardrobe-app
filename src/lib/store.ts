@@ -44,7 +44,8 @@ export type View =
   | "explore"
   | "profile"
   | "social"
-  | "settings";
+  | "settings"
+  | "notifications";
 
 export interface Filters {
   search: string;
