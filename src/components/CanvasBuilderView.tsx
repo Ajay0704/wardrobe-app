@@ -246,6 +246,12 @@ export function CanvasBuilderView() {
     );
   };
 
+  // Space reserved for the sheet (shrinks as it slides down). Both the board
+  // padding and the floating toolbar anchor off this so the toolbar rides down
+  // with the sheet and stays just above it.
+  const reserve = maxOffset === 0 ? null : maxOffset + PEEK - offset;
+  const reserveCss = reserve === null ? "var(--sheet-h)" : `${reserve}px`;
+
   return (
     <div
       className="fixed inset-0 z-[70] flex flex-col bg-background"
@@ -282,7 +288,7 @@ export function CanvasBuilderView() {
       <div
         className="relative min-h-0 flex-1"
         style={{
-          paddingBottom: maxOffset === 0 ? "var(--sheet-h)" : `${maxOffset + PEEK - offset}px`,
+          paddingBottom: reserveCss,
           transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
@@ -420,10 +426,22 @@ export function CanvasBuilderView() {
             );
           })}
 
-          {/* on-board editor toolbar — the chevron collapses it into a
-              corner button so it gets out of the way of the canvas */}
+          </div>
+        </div>
+
+        {/* editor toolbar — anchored just above the sheet so it rides down
+            with the sheet as it collapses; chevron tucks it into a corner */}
+        <div
+          className={`pointer-events-none absolute inset-x-0 z-40 flex px-4 ${
+            toolbarOpen ? "justify-center" : "justify-end"
+          }`}
+          style={{
+            bottom: `calc(${reserveCss} + 10px)`,
+            transition: dragging ? "none" : "bottom 260ms cubic-bezier(0.22,1,0.36,1)",
+          }}
+        >
           {toolbarOpen ? (
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-line bg-white px-1.5 py-1.5 shadow-lg">
               {toolBtn("items", <LayoutGrid size={20} />, "Items")}
               {toolBtn("background", <ImageIcon size={20} />, "Background")}
               {toolBtn("text", <Type size={20} />, "Text")}
@@ -441,12 +459,11 @@ export function CanvasBuilderView() {
             <button
               onClick={() => setToolbarOpen(true)}
               aria-label="Show toolbar"
-              className="absolute bottom-3 right-3 flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
             >
               <LayoutGrid size={22} />
             </button>
           )}
-          </div>
         </div>
       </div>
 
