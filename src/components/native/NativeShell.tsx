@@ -188,19 +188,6 @@ export function NativeShell() {
             <>
               <button
                 type="button"
-                aria-label={chatUnread > 0 ? `Messages, ${chatUnread} unread` : "Messages"}
-                onClick={() => setView("messages")}
-                className="relative text-foreground/80 transition-colors hover:text-foreground"
-              >
-                <MessageCircle size={21} strokeWidth={1.8} />
-                {chatUnread > 0 && (
-                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground">
-                    {chatUnread > 9 ? "9+" : chatUnread}
-                  </span>
-                )}
-              </button>
-              <button
-                type="button"
                 aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
                 onClick={() => {
                   setUnread(0);
@@ -305,6 +292,24 @@ export function NativeShell() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Floating chat button — bottom-right above the tab bar, on main views only */}
+      {showActions && (
+        <button
+          type="button"
+          aria-label={chatUnread > 0 ? `Messages, ${chatUnread} unread` : "Messages"}
+          onClick={() => setView("messages")}
+          className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg shadow-black/20"
+          style={{ bottom: "calc(env(safe-area-inset-bottom) + 84px)" }}
+        >
+          <MessageCircle size={24} strokeWidth={1.9} />
+          {chatUnread > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 flex h-5 min-w-[20px] items-center justify-center rounded-full border-2 border-background bg-foreground px-1 text-[11px] font-semibold leading-none text-background">
+              {chatUnread > 9 ? "9+" : chatUnread}
+            </span>
+          )}
+        </button>
       )}
     </div>
   );
