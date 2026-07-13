@@ -171,7 +171,7 @@ export function NativeShell() {
           ) : (
             <span className="brand-wordmark-name !text-xl">
               {view === "today"
-                ? `Hello, ${profile.displayName?.trim() || "there"}`
+                ? "" /* Home's greeting lives in the in-content masthead */
                 : (TITLES[view] ?? "Wardrobe")}
             </span>
           )}
