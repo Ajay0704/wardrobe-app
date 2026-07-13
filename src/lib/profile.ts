@@ -134,7 +134,7 @@ export function profileHandle(
 }
 
 /** Initials for avatar fallback when no photo is set. */
-export function profileInitials(profile: UserProfile): string {
+export function profileInitials(profile: Pick<UserProfile, "displayName">): string {
   const name = profile.displayName.trim();
   if (!name) return "?";
   const parts = name.split(/\s+/).filter(Boolean);

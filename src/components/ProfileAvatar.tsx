@@ -9,7 +9,7 @@ export function ProfileAvatar({
   onClick,
   active,
 }: {
-  profile: UserProfile;
+  profile: Pick<UserProfile, "avatarUrl" | "displayName">;
   size?: number;
   onClick?: () => void;
   active?: boolean;

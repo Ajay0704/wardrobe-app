@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
+import { ensureProfile } from "@/lib/chat";
 import {
   absorbWishlistClips,
   pullSnapshot,
@@ -41,6 +42,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const pullGen = useRef(0);
   const lastAbsorbAt = useRef(0);
   const absorbInFlight = useRef(false);
+  const profileDirty = useRef(false);
 
   const syncPull = useCallback(
     async (uid: string) => {
@@ -204,6 +206,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSyncStatus("connecting");
         void syncPull(sessionUser.id).then(() => {
           void healInBackground(sessionUser.id);
+          // Backfill the public directory so username search can find this user.
+          void ensureProfile(useWardrobe.getState().profile, sessionUser.id);
         });
       }
     });
@@ -288,6 +292,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
+      // Keep the public directory (profiles) in sync when the profile changes.
+      if (state.profile !== prev.profile) profileDirty.current = true;
+
       if (timer.current) clearTimeout(timer.current);
       setSyncStatus("syncing");
 
@@ -312,6 +319,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         });
         if (result.ok) setSyncStatus("synced");
         else setSyncStatus("error", result.error);
+        if (profileDirty.current) {
+          profileDirty.current = false;
+          void ensureProfile(profile, uid);
+        }
       }, 600);
     });
 

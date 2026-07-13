@@ -16,6 +16,7 @@ import {
   Landmark,
   LayoutGrid,
   Mail,
+  MessageCircle,
   Plus,
   ScanLine,
   Search,
@@ -27,6 +28,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { unreadCount } from "@/lib/notifications";
+import { unreadCount as chatUnreadCount } from "@/lib/chat";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -38,6 +40,8 @@ const TITLES: Partial<Record<View, string>> = {
   wardrobe: "Closet",
   builder: "Build an outfit",
   outfits: "Outfits",
+  messages: "Messages",
+  chat: "",
   calendar: "Calendar",
   wishlist: "Wishlist",
   travel: "Packing",
@@ -73,6 +77,7 @@ export function NativeShell() {
   const [closetMenuOpen, setClosetMenuOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
+  const [chatUnread, setChatUnread] = useState(0);
   const showActions = MAIN_VIEWS.has(view);
 
   // Refresh the bell badge whenever we land on a screen — cheap, RLS-scoped
@@ -81,6 +86,9 @@ export function NativeShell() {
     let alive = true;
     void unreadCount().then((n) => {
       if (alive) setUnread(n);
+    });
+    void chatUnreadCount().then((n) => {
+      if (alive) setChatUnread(n);
     });
     return () => {
       alive = false;
@@ -178,6 +186,19 @@ export function NativeShell() {
         <div className="flex items-center gap-3.5">
           {showActions && (
             <>
+              <button
+                type="button"
+                aria-label={chatUnread > 0 ? `Messages, ${chatUnread} unread` : "Messages"}
+                onClick={() => setView("messages")}
+                className="relative text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <MessageCircle size={21} strokeWidth={1.8} />
+                {chatUnread > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold leading-none text-accent-foreground">
+                    {chatUnread > 9 ? "9+" : chatUnread}
+                  </span>
+                )}
+              </button>
               <button
                 type="button"
                 aria-label={unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}

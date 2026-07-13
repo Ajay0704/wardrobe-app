@@ -47,6 +47,8 @@ export type View =
   | "social"
   | "settings"
   | "notifications"
+  | "messages"
+  | "chat"
   | "photoDetail";
 
 /** An Explore tile the user tapped through to the photo-detail screen. */
@@ -89,6 +91,8 @@ interface WardrobeState {
   theme: ThemeMode;
   view: View;
   photoCard: PhotoCard | null;
+  /** Conversation currently open in the chat view. */
+  activeThreadId: string | null;
   /** Which section the Settings view opens to. */
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
@@ -145,6 +149,7 @@ interface WardrobeState {
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
   openPhoto: (card: PhotoCard) => void;
+  openThread: (id: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
   setBulkOpen: (open: boolean) => void;
@@ -290,6 +295,7 @@ export const useWardrobe = create<WardrobeState>()(
       theme: "light",
       view: "explore",
       photoCard: null,
+      activeThreadId: null,
       settingsSection: "profile",
       addOpen: false,
       bulkOpen: false,
@@ -474,6 +480,7 @@ export const useWardrobe = create<WardrobeState>()(
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),
       openPhoto: (card) => set({ photoCard: card, view: "photoDetail" }),
+      openThread: (id) => set({ activeThreadId: id, view: "chat" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),
