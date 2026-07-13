@@ -268,7 +268,7 @@ export function PhotoDetailView() {
 
       {/* Choice sheet */}
       {sheetOpen && detection && (
-        <div className="fixed inset-0 z-40" onClick={() => setSheetOpen(false)}>
+        <div className="fixed inset-0 z-[60]" onClick={() => setSheetOpen(false)}>
           <div className="absolute inset-0 bg-black/30" />
           <div
             className="absolute inset-x-0 bottom-0 rounded-t-3xl border-t border-line bg-surface p-4 pb-8 shadow-xl"
@@ -302,7 +302,7 @@ export function PhotoDetailView() {
 
       {/* Shop this piece — full overlay with the two interleaved feeds */}
       {shopFor && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-background">
+        <div className="fixed inset-0 z-[70] flex flex-col bg-background">
           <div className="flex items-center gap-2 border-b border-line px-3 py-3">
             <button type="button" aria-label="Back" onClick={() => setShopFor(null)} className="flex h-9 w-9 items-center justify-center rounded-xl bg-surface-2">
               <ChevronLeft size={20} />
