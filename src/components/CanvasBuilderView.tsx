@@ -97,6 +97,10 @@ export function CanvasBuilderView() {
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOffset: number } | null>(null);
   const PEEK = 40; // grab bar stays visible when collapsed (easy to pull back up)
+  // Clearance kept below the board for the floating editor toolbar (~52px pill)
+  // plus a gap above the toolbar and above the sheet — so the board fits fully
+  // above both with no overlap, and a visible gap sits between it and the sheet.
+  const TOOLBAR_CLEARANCE = 74;
   const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
 
   useEffect(() => {
@@ -288,7 +292,7 @@ export function CanvasBuilderView() {
       <div
         className="relative min-h-0 flex-1"
         style={{
-          paddingBottom: reserveCss,
+          paddingBottom: `calc(${reserveCss} + ${TOOLBAR_CLEARANCE}px)`,
           transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
