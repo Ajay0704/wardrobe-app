@@ -45,7 +45,15 @@ export type View =
   | "profile"
   | "social"
   | "settings"
-  | "notifications";
+  | "notifications"
+  | "photoDetail";
+
+/** An Explore tile the user tapped through to the photo-detail screen. */
+export interface PhotoCard {
+  id: string;
+  image: string;
+  title?: string;
+}
 
 export interface Filters {
   search: string;
@@ -79,6 +87,7 @@ interface WardrobeState {
   passwordRecovery: boolean;
   theme: ThemeMode;
   view: View;
+  photoCard: PhotoCard | null;
   /** Which section the Settings view opens to. */
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
@@ -130,6 +139,7 @@ interface WardrobeState {
 
   setTheme: (t: ThemeMode) => void;
   setView: (v: View) => void;
+  openPhoto: (card: PhotoCard) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
   setBulkOpen: (open: boolean) => void;
@@ -266,6 +276,7 @@ export const useWardrobe = create<WardrobeState>()(
       passwordRecovery: false,
       theme: "light",
       view: "explore",
+      photoCard: null,
       settingsSection: "profile",
       addOpen: false,
       bulkOpen: false,
@@ -445,6 +456,7 @@ export const useWardrobe = create<WardrobeState>()(
 
       setTheme: (theme) => set({ theme }),
       setView: (view) => set({ view }),
+      openPhoto: (card) => set({ photoCard: card, view: "photoDetail" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),

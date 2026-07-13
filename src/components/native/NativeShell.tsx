@@ -49,6 +49,7 @@ const TITLES: Partial<Record<View, string>> = {
   social: "Profile",
   settings: "Settings",
   notifications: "Notifications",
+  photoDetail: "",
 };
 
 // Main tabbed screens — the header actions (calendar/bell/profile) show here.

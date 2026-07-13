@@ -91,7 +91,7 @@ function lookMatch(pieces: Piece[], items: WardrobeItem[]): { owned: number; tot
  */
 export function ExploreView() {
   const isNative = useIsNativeApp();
-  const { items, profile, savedPinIds, toggleSavePin, addItem } = useWardrobe();
+  const { items, profile, savedPinIds, toggleSavePin, addItem, openPhoto } = useWardrobe();
   const gender = profile.shopGender ?? "all";
 
   const [tab, setTab] = useState<"foryou" | "saved" | "following">("foryou");
@@ -295,7 +295,13 @@ export function ExploreView() {
               card={card}
               items={items}
               saved={savedPinIds.includes(card.id)}
-              onOpen={() => setOpen(card)}
+              onOpen={() =>
+                openPhoto({
+                  id: card.id,
+                  image: card.heroImage ?? card.pieces[0]?.imageUrl ?? "",
+                  title: card.title,
+                })
+              }
               onSave={() => toggleSavePin(card.id)}
             />
           ))}
