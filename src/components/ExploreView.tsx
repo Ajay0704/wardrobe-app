@@ -5,6 +5,7 @@ import {
   Check,
   Heart,
   RefreshCw,
+  Send,
   Shirt,
   ShoppingBag,
   Sparkles,
@@ -15,8 +16,27 @@ import { affiliateUrl } from "@/lib/affiliate";
 import { openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
+import type { ChatPayload } from "@/lib/chat";
 import { CommunityFeed } from "./community/CommunityFeed";
+import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 import { useIsNativeApp } from "./NativeAppClass";
+
+/** Build a self-contained shared-look payload from a feed card. */
+function cardToPayload(card: FeedCard): ChatPayload {
+  return {
+    title: card.title,
+    pieces: card.pieces.map((p) => ({
+      id: p.id,
+      name: p.title,
+      imageUrl: p.imageUrl,
+      brand: p.brand,
+      category: p.category,
+      productUrl: p.productUrl,
+      price: p.price,
+      currency: p.currency,
+    })),
+  };
+}
 
 /* --------------------------------------------------------------- types */
 
@@ -102,6 +122,7 @@ export function ExploreView() {
   const [done, setDone] = useState(false);
   const [savedCards, setSavedCards] = useState<FeedCard[]>([]);
   const [open, setOpen] = useState<FeedCard | null>(null);
+  const [shareCard, setShareCard] = useState<FeedCard | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const ioRef = useRef<IntersectionObserver | null>(null);
   const loadMoreRef = useRef<() => void>(() => {});
@@ -325,11 +346,20 @@ export function ExploreView() {
           onClose={() => setOpen(null)}
           onOpenMore={(c) => setOpen(c)}
           onSave={() => toggleSavePin(open.id)}
+          onShare={() => setShareCard(open)}
           onShopPiece={shopPiece}
           onWishlistLook={() => {
             open.pieces.forEach((p) => wishlistPiece(p, open.vibes));
             flash(`Added ${open.pieces.length} to wishlist`);
           }}
+        />
+      )}
+
+      {shareCard && (
+        <ShareToChatSheet
+          kind="look"
+          payload={cardToPayload(shareCard)}
+          onClose={() => setShareCard(null)}
         />
       )}
 
@@ -476,6 +506,7 @@ function Sheet({
   onClose,
   onOpenMore,
   onSave,
+  onShare,
   onShopPiece,
   onWishlistLook,
 }: {
@@ -486,6 +517,7 @@ function Sheet({
   onClose: () => void;
   onOpenMore: (c: FeedCard) => void;
   onSave: () => void;
+  onShare: () => void;
   onShopPiece: (p: Piece) => void;
   onWishlistLook: () => void;
 }) {
@@ -566,6 +598,7 @@ function Sheet({
             <ActionBtn icon={Bookmark} label="Wishlist" onClick={onWishlistLook} />
           )}
           <ActionBtn icon={Heart} label={saved ? "Saved" : "Save"} active={saved} onClick={onSave} />
+          <ActionBtn icon={Send} label="Send" onClick={onShare} />
         </div>
 
         {more.length > 0 && (

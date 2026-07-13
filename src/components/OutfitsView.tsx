@@ -1,11 +1,13 @@
 "use client";
 
-import { Check, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { outfitPayload } from "@/lib/chat";
 import { outfitScore } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { Outfit, WardrobeItem } from "@/lib/types";
 import { formatDisplayDate } from "@/lib/types";
+import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 
 export function OutfitsView() {
   const {
@@ -18,6 +20,7 @@ export function OutfitsView() {
     clearDraft,
   } = useWardrobe();
   const [toast, setToast] = useState<string | null>(null);
+  const [shareOutfit, setShareOutfit] = useState<Outfit | null>(null);
 
   const resolve = (ids: string[]) =>
     ids
@@ -124,6 +127,15 @@ export function OutfitsView() {
           score={scoreOf(featured)}
           onWore={() => wore(featured.id, featured.itemIds)}
           onEdit={() => editLook(featured.id)}
+          onShare={() => setShareOutfit(featured)}
+        />
+      )}
+
+      {shareOutfit && (
+        <ShareToChatSheet
+          kind="outfit"
+          payload={outfitPayload(shareOutfit, resolve(shareOutfit.itemIds))}
+          onClose={() => setShareOutfit(null)}
         />
       )}
 
@@ -177,6 +189,14 @@ export function OutfitsView() {
                     </button>
                     <button
                       type="button"
+                      aria-label="Send look"
+                      onClick={() => setShareOutfit(outfit)}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-foreground"
+                    >
+                      <Send size={13} />
+                    </button>
+                    <button
+                      type="button"
                       aria-label="Delete look"
                       onClick={() => deleteOutfit(outfit.id)}
                       className="flex h-8 w-8 items-center justify-center rounded-lg text-muted"
@@ -201,12 +221,14 @@ function FeaturedLook({
   score,
   onWore,
   onEdit,
+  onShare,
 }: {
   outfit: Outfit;
   items: WardrobeItem[];
   score: number | null;
   onWore: () => void;
   onEdit: () => void;
+  onShare: () => void;
 }) {
   return (
     <article className="mt-5 overflow-hidden rounded-3xl border border-line bg-surface">
@@ -248,6 +270,14 @@ function FeaturedLook({
             className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-foreground"
           >
             <Pencil size={16} />
+          </button>
+          <button
+            type="button"
+            aria-label="Send look"
+            onClick={onShare}
+            className="flex h-10 w-10 items-center justify-center rounded-xl border border-line text-foreground"
+          >
+            <Send size={16} />
           </button>
         </div>
       </div>

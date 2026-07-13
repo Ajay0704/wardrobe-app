@@ -1,18 +1,24 @@
 "use client";
 
-import { ChevronLeft, Send } from "lucide-react";
+import { ChevronLeft, Flag, MoreVertical, Plus, Send, UserX } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  blockUser,
   fetchConversations,
   fetchMessages,
   markRead,
+  reportUser,
   sendMessage,
   type ChatConversation,
+  type ChatKind,
   type ChatMessage,
+  type ChatPayload,
 } from "@/lib/chat";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { ProfileAvatar } from "../ProfileAvatar";
+import { AttachSheet } from "./AttachSheet";
+import { ShareCard } from "./ShareCard";
 
 const POLL_MS = 20_000;
 
@@ -29,7 +35,34 @@ export function ChatView() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [attachOpen, setAttachOpen] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const myAuthor = {
+    name: profile.displayName?.trim() || "You",
+    handle: profileHandle(profile),
+    avatar: profile.avatarUrl,
+  };
+
+  const otherId = !meta?.isGroup ? meta?.otherIds[0] : undefined;
+  const flash = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(null), 1800);
+  };
+  const block = async () => {
+    setMenuOpen(false);
+    if (!otherId) return;
+    await blockUser(otherId);
+    setView("messages");
+  };
+  const report = async () => {
+    setMenuOpen(false);
+    if (!otherId) return;
+    await reportUser(otherId);
+    flash("Reported. Thanks for flagging.");
+  };
 
   const refresh = useCallback(async () => {
     if (!convId) return;
@@ -90,15 +123,7 @@ export function ChatView() {
     if (!body || busy || !convId || !authUser) return;
     setBusy(true);
     try {
-      const m = await sendMessage(
-        convId,
-        { kind: "text", body },
-        {
-          name: profile.displayName?.trim() || "You",
-          handle: profileHandle(profile),
-          avatar: profile.avatarUrl,
-        },
-      );
+      const m = await sendMessage(convId, { kind: "text", body }, myAuthor);
       if (m) {
         setMessages((prev) => [...prev, m]);
         setText("");
@@ -107,6 +132,17 @@ export function ChatView() {
       // keep the text so they can retry
     } finally {
       setBusy(false);
+    }
+  };
+
+  const pickAttachment = async (kind: ChatKind, payload: ChatPayload) => {
+    setAttachOpen(false);
+    if (!convId || !authUser) return;
+    try {
+      const m = await sendMessage(convId, { kind, payload }, myAuthor);
+      if (m) setMessages((prev) => [...prev, m]);
+    } catch {
+      flash("Couldn't send that.");
     }
   };
 
@@ -127,6 +163,39 @@ export function ChatView() {
           <p className="truncate font-semibold">{meta?.title ?? "Conversation"}</p>
           {meta?.isGroup && <p className="truncate text-xs text-muted">{meta.memberCount} people</p>}
         </div>
+        {otherId && (
+          <div className="relative">
+            <button
+              type="button"
+              aria-label="More options"
+              onClick={() => setMenuOpen((v) => !v)}
+              className="flex h-9 w-9 items-center justify-center rounded-full text-muted hover:bg-surface-2"
+            >
+              <MoreVertical size={20} />
+            </button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-[71]" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-full z-[72] mt-1 w-44 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg shadow-black/10">
+                  <button
+                    type="button"
+                    onClick={report}
+                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm hover:bg-surface-2"
+                  >
+                    <Flag size={16} /> Report
+                  </button>
+                  <button
+                    type="button"
+                    onClick={block}
+                    className="flex w-full items-center gap-3 border-t border-line px-4 py-3 text-left text-sm text-red-600 hover:bg-surface-2 dark:text-red-400"
+                  >
+                    <UserX size={16} /> Block
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* messages */}
@@ -142,21 +211,17 @@ export function ChatView() {
                   {!mine && meta?.isGroup && (
                     <p className="mb-0.5 px-1 text-[11px] text-muted">{m.senderName}</p>
                   )}
-                  <div
-                    className={`rounded-2xl px-3.5 py-2 text-sm ${
-                      mine
-                        ? "bg-accent text-accent-foreground"
-                        : "bg-surface-2 text-foreground"
-                    }`}
-                  >
-                    {m.kind === "text" ? (
-                      m.body
-                    ) : (
-                      <span className="italic opacity-80">
-                        {m.kind === "image" ? "Photo" : "Shared content"}
-                      </span>
-                    )}
-                  </div>
+                  {m.kind === "text" ? (
+                    <div
+                      className={`rounded-2xl px-3.5 py-2 text-sm ${
+                        mine ? "bg-accent text-accent-foreground" : "bg-surface-2 text-foreground"
+                      }`}
+                    >
+                      {m.body}
+                    </div>
+                  ) : (
+                    <ShareCard kind={m.kind} payload={m.payload} />
+                  )}
                 </div>
               </div>
             );
@@ -167,6 +232,15 @@ export function ChatView() {
 
       {/* composer */}
       <div className="flex items-center gap-2 border-t border-line px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        <button
+          type="button"
+          onClick={() => setAttachOpen(true)}
+          disabled={!authUser}
+          aria-label="Share content"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-foreground disabled:opacity-40"
+        >
+          <Plus size={20} />
+        </button>
         <input
           className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
           placeholder={authUser ? "Message…" : "Sign in to message"}
@@ -192,6 +266,16 @@ export function ChatView() {
           <Send size={17} />
         </button>
       </div>
+
+      {toast && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[80] flex justify-center px-4">
+          <p className="rounded-full bg-foreground/90 px-4 py-2 text-sm text-background shadow-lg">
+            {toast}
+          </p>
+        </div>
+      )}
+
+      {attachOpen && <AttachSheet onClose={() => setAttachOpen(false)} onPick={pickAttachment} />}
     </div>
   );
 }

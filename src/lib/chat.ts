@@ -9,6 +9,7 @@
 
 import { profileHandle, type UserProfile } from "./profile";
 import { getSupabase } from "./supabase/client";
+import type { Outfit, WardrobeItem } from "./types";
 
 export type ChatKind = "text" | "image" | "outfit" | "item" | "look";
 
@@ -69,6 +70,35 @@ export interface SearchUser {
   username: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+}
+
+/* -------------------------------------------------- shared-content payloads */
+
+/** Compact a closet item into a self-contained shared piece. */
+export function itemToPiece(it: WardrobeItem): SharedPiece {
+  return {
+    id: it.id,
+    name: it.name,
+    imageUrl: it.imageUrl,
+    brand: it.brand,
+    category: it.category,
+    productUrl: it.productUrl,
+    price: it.price,
+  };
+}
+
+/** Snapshot a saved outfit (resolving its item ids) so it renders cross-user. */
+export function outfitPayload(outfit: Outfit, items: WardrobeItem[]): ChatPayload {
+  const pieces = outfit.itemIds
+    .map((id) => items.find((i) => i.id === id))
+    .filter((i): i is WardrobeItem => !!i)
+    .map(itemToPiece);
+  return { title: outfit.name, pieces };
+}
+
+/** Snapshot a single closet item. */
+export function itemPayload(it: WardrobeItem): ChatPayload {
+  return { title: it.name, pieces: [itemToPiece(it)] };
 }
 
 async function currentUserId(): Promise<string | null> {
