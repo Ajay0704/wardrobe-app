@@ -14,7 +14,7 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
 
@@ -107,6 +107,32 @@ export function CanvasBuilderView() {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+
+  // Contain-fit the board into the space above the sheet, keeping its 3:4/1:1
+  // aspect. Recomputes as the sheet slides (offset), so the board grows when
+  // the sheet collapses and shrinks back when it expands.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [board, setBoard] = useState({ w: 0, h: 0 });
+  useLayoutEffect(() => {
+    const fit = () => {
+      const el = stageRef.current;
+      if (!el) return;
+      const availW = el.clientWidth - 32;
+      const availH = el.clientHeight - 8;
+      if (availW <= 0 || availH <= 0) return;
+      const ratio = aspect === "3:4" ? 3 / 4 : 1; // w / h
+      let w = availH * ratio;
+      let h = availH;
+      if (w > availW) {
+        w = availW;
+        h = availW / ratio;
+      }
+      setBoard({ w: Math.round(w), h: Math.round(h) });
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [offset, aspect, maxOffset]);
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
@@ -250,15 +276,25 @@ export function CanvasBuilderView() {
         <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
       </div>
 
-      {/* board — sized to the reserved area above the sheet, so switching
-          tools (or collapsing the sheet) never resizes it */}
-      <div className="relative min-h-0 flex-1" style={{ paddingBottom: "var(--sheet-h)" }}>
-        <div className="flex h-full items-center justify-center px-4 pt-1">
+      {/* board — reserves the space above the sheet (shrinks as the sheet
+          slides down), then contain-fits the 3:4/1:1 board into it */}
+      <div
+        className="relative min-h-0 flex-1"
+        style={{
+          paddingBottom: maxOffset === 0 ? "var(--sheet-h)" : `${maxOffset + PEEK - offset}px`,
+          transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
+        }}
+      >
+        <div ref={stageRef} className="flex h-full items-center justify-center px-4 pt-1">
           <div
-            className="relative h-full max-w-full overflow-hidden rounded-3xl border border-line touch-none"
+            className="relative overflow-hidden rounded-3xl border border-line touch-none"
             style={{
-              aspectRatio: aspect === "3:4" ? "3 / 4" : "1 / 1",
+              width: board.w || undefined,
+              height: board.h || undefined,
               background: canvasBg || "#ffffff",
+              transition: dragging
+                ? "none"
+                : "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
             }}
           >
           {canvasDraft.length === 0 && (
