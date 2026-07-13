@@ -443,46 +443,51 @@ export function CanvasBuilderView() {
             );
           })}
 
-          {/* editor toolbar — docked at the bottom inside the canvas board, so
-              it stays with the board as it resizes with the sheet */}
-          <div
-            className={`pointer-events-none absolute inset-x-0 bottom-3 z-40 flex px-3 ${
-              toolbarOpen ? "justify-center" : "justify-end"
-            }`}
-          >
-            {toolbarOpen ? (
-              <div
-                className={`pointer-events-auto flex items-center rounded-2xl border border-line bg-white/95 shadow-lg backdrop-blur-sm ${
-                  compactBar ? "gap-0.5 px-1 py-1" : "gap-1 px-1.5 py-1.5"
-                }`}
-              >
-                {toolBtn("items", LayoutGrid, "Items")}
-                {toolBtn("background", ImageIcon, "Background")}
-                {toolBtn("text", Type, "Text")}
-                {toolBtn("sticker", Sticker, "Stickers")}
-                <span className={`mx-0.5 w-px bg-line ${compactBar ? "h-5" : "h-6"}`} />
-                <button
-                  onClick={() => setToolbarOpen(false)}
-                  className={`flex items-center justify-center rounded-xl text-muted ${
-                    compactBar ? "h-8 w-8" : "h-10 w-9"
-                  }`}
-                  aria-label="Hide toolbar"
-                >
-                  <ChevronRight size={compactBar ? 17 : 20} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setToolbarOpen(true)}
-                aria-label="Show toolbar"
-                className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
-              >
-                <LayoutGrid size={22} />
-              </button>
-            )}
           </div>
+        </div>
 
-          </div>
+        {/* editor toolbar — anchored just above the sheet so it rides down with
+            the sheet when it's pulled down, while keeping its position at the
+            canvas bottom when the sheet is up */}
+        <div
+          className={`pointer-events-none absolute inset-x-0 z-40 flex px-4 ${
+            toolbarOpen ? "justify-center" : "justify-end"
+          }`}
+          style={{
+            bottom: `calc(${reserveCss} + 26px)`,
+            transition: dragging ? "none" : "bottom 260ms cubic-bezier(0.22,1,0.36,1)",
+          }}
+        >
+          {toolbarOpen ? (
+            <div
+              className={`pointer-events-auto flex items-center rounded-2xl border border-line bg-white/95 shadow-lg backdrop-blur-sm ${
+                compactBar ? "gap-0.5 px-1 py-1" : "gap-1 px-1.5 py-1.5"
+              }`}
+            >
+              {toolBtn("items", LayoutGrid, "Items")}
+              {toolBtn("background", ImageIcon, "Background")}
+              {toolBtn("text", Type, "Text")}
+              {toolBtn("sticker", Sticker, "Stickers")}
+              <span className={`mx-0.5 w-px bg-line ${compactBar ? "h-5" : "h-6"}`} />
+              <button
+                onClick={() => setToolbarOpen(false)}
+                className={`flex items-center justify-center rounded-xl text-muted ${
+                  compactBar ? "h-8 w-8" : "h-10 w-9"
+                }`}
+                aria-label="Hide toolbar"
+              >
+                <ChevronRight size={compactBar ? 17 : 20} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setToolbarOpen(true)}
+              aria-label="Show toolbar"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
+            >
+              <LayoutGrid size={22} />
+            </button>
+          )}
         </div>
       </div>
 
