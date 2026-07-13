@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { NativeHomeView } from "./native/NativeHomeView";
 import { WardrobeView } from "./WardrobeView";
-import { OutfitBuilderView } from "./OutfitBuilderView";
+import { CanvasBuilderView } from "./CanvasBuilderView";
 import { OutfitsView } from "./OutfitsView";
 import { WishlistView } from "./WishlistView";
 import { TravelView } from "./TravelView";
@@ -43,7 +43,7 @@ export function AppViews() {
     <>
       {view === "today" && (isNative ? <NativeHomeView /> : <TodayView />)}
       {view === "wardrobe" && <WardrobeView />}
-      {view === "builder" && <OutfitBuilderView />}
+      {view === "builder" && <CanvasBuilderView />}
       {view === "outfits" && <OutfitsView />}
       {view === "calendar" && <CalendarView />}
       {view === "wishlist" && <WishlistView />}

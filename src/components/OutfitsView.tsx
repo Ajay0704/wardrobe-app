@@ -1,17 +1,22 @@
 "use client";
 
-import { Check, Pencil, Trash2, Wand2 } from "lucide-react";
+import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { outfitScore } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { formatDisplayDate } from "@/lib/types";
-import { OutfitPreview } from "./OutfitPreview";
-import { Button, EmptyState, MatchBadge } from "./ui";
 
 export function OutfitsView() {
-  const { outfits, items, loadOutfitIntoDraft, deleteOutfit, logWear } =
-    useWardrobe();
+  const {
+    outfits,
+    items,
+    loadOutfitIntoDraft,
+    deleteOutfit,
+    logWear,
+    setView,
+    clearDraft,
+  } = useWardrobe();
   const [toast, setToast] = useState<string | null>(null);
 
   const resolve = (ids: string[]) =>
@@ -24,100 +29,120 @@ export function OutfitsView() {
     [outfits],
   );
 
+  const newLook = () => {
+    clearDraft();
+    setView("builder");
+  };
+
   const wore = (outfitId: string, itemIds: string[]) => {
     logWear({ outfitId, itemIds });
     setToast("Logged as worn today");
     window.setTimeout(() => setToast(null), 2000);
   };
 
+  const editLook = (id: string) => {
+    loadOutfitIntoDraft(id);
+    setView("builder");
+  };
+
   if (sorted.length === 0) {
     return (
-      <EmptyState
-        title="No saved outfits yet"
-        subtitle="Build a look in the Outfit Builder and save your favorites here."
-        action={
-          <Button onClick={() => useWardrobe.getState().setView("builder")}>
-            <Wand2 size={15} /> Open builder
-          </Button>
-        }
-      />
+      <div className="flex flex-col items-center px-6 py-16 text-center">
+        <h1 className="heading text-2xl">No looks yet</h1>
+        <p className="mt-2 max-w-xs text-sm leading-relaxed text-muted">
+          Compose your first outfit on the canvas — drag your pieces, arrange
+          them, and save the look here.
+        </p>
+        <button
+          type="button"
+          onClick={newLook}
+          className="mt-6 inline-flex items-center gap-2 rounded-xl bg-accent px-6 py-3 text-sm font-medium text-accent-foreground"
+        >
+          <Plus size={16} /> New look
+        </button>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="pb-6">
       <div>
-        <h2 className="heading text-2xl">Saved outfits</h2>
-        <p className="mt-1 text-sm text-muted">
+        <h1 className="heading text-2xl">Outfits</h1>
+        <p className="mt-0.5 text-sm text-muted">
           {sorted.length} look{sorted.length === 1 ? "" : "s"} in your collection
         </p>
       </div>
 
+      <button
+        type="button"
+        onClick={newLook}
+        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-medium text-accent-foreground"
+      >
+        <Plus size={17} /> New look
+      </button>
+
       {toast && (
-        <p className="rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm">
+        <p className="mt-4 rounded-xl border border-line bg-surface-2 px-3 py-2 text-sm">
           {toast}
         </p>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3">
         {sorted.map((outfit) => {
           const outfitItems = resolve(outfit.itemIds);
           const score =
             outfitItems.length >= 2 ? outfitScore(outfitItems) : null;
-
           return (
             <article
               key={outfit.id}
-              className="animate-fade-up overflow-hidden rounded-2xl border border-line bg-surface"
+              className="overflow-hidden rounded-2xl border border-line bg-surface"
             >
-              <OutfitPreview items={outfitItems} compact showScore={false} />
+              <div className="relative">
+                <LookThumb items={outfitItems} />
+                {score !== null && (
+                  <span className="absolute right-2 top-2 z-10 rounded-full bg-background/90 px-2 py-0.5 text-[10px] font-semibold text-accent shadow-sm">
+                    {score}%
+                  </span>
+                )}
+              </div>
 
-              <div className="space-y-2 p-4">
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <h3 className="font-medium">{outfit.name}</h3>
-                    {outfit.notes && (
-                      <p className="mt-0.5 line-clamp-2 text-xs text-muted">
-                        {outfit.notes}
-                      </p>
-                    )}
-                  </div>
-                  {score !== null && <MatchBadge score={score} />}
+              <div className="space-y-2 p-3">
+                <div>
+                  <h3 className="truncate font-medium">{outfit.name}</h3>
+                  <p className="mt-0.5 text-xs text-muted">
+                    {outfitItems.length} piece
+                    {outfitItems.length === 1 ? "" : "s"}
+                    {outfit.wearCount ? ` · worn ${outfit.wearCount}×` : ""}
+                    {outfit.lastWornAt
+                      ? ` · ${formatDisplayDate(outfit.lastWornAt)}`
+                      : ""}
+                  </p>
                 </div>
 
-                <p className="text-xs text-muted">
-                  {outfitItems.length} piece
-                  {outfitItems.length === 1 ? "" : "s"}
-                  {outfit.wearCount
-                    ? ` · worn ${outfit.wearCount}×`
-                    : ""}
-                  {outfit.lastWornAt
-                    ? ` · last ${formatDisplayDate(outfit.lastWornAt)}`
-                    : ""}
-                </p>
-
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <Button
-                    className="flex-1 !py-1.5 text-xs"
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
                     onClick={() => wore(outfit.id, outfit.itemIds)}
+                    className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-accent py-2 text-xs font-medium text-accent-foreground"
                   >
                     <Check size={13} /> I wore this
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="!py-1.5 text-xs"
-                    onClick={() => loadOutfitIntoDraft(outfit.id)}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Edit look"
+                    onClick={() => editLook(outfit.id)}
+                    className="flex h-8 w-8 items-center justify-center rounded-lg border border-line text-foreground"
                   >
-                    <Pencil size={13} /> Edit
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className="!px-3 !py-1.5"
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Delete look"
                     onClick={() => deleteOutfit(outfit.id)}
-                    title="Delete outfit"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-muted"
                   >
                     <Trash2 size={14} />
-                  </Button>
+                  </button>
                 </div>
               </div>
             </article>
@@ -125,5 +150,42 @@ export function OutfitsView() {
         })}
       </div>
     </div>
+  );
+}
+
+/** Compact canvas-style thumbnail — item cutouts on a soft board. */
+function LookThumb({ items }: { items: WardrobeItem[] }) {
+  const cells = items.slice(0, 4);
+  if (cells.length <= 1) {
+    return (
+      <div className="flex aspect-[4/5] items-center justify-center bg-surface-2/50 p-5">
+        {cells[0] && <ThumbImg item={cells[0]} />}
+      </div>
+    );
+  }
+  return (
+    <div className="grid aspect-[4/5] grid-cols-2 gap-1 bg-surface-2/50 p-2">
+      {cells.map((it) => (
+        <div key={it.id} className="flex items-center justify-center overflow-hidden">
+          <ThumbImg item={it} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ThumbImg({ item }: { item: WardrobeItem }) {
+  const [err, setErr] = useState(false);
+  if (err || !item.imageUrl) {
+    return <div className="h-full w-full rounded-lg" style={{ background: item.color }} />;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={item.imageUrl}
+      alt={item.name}
+      onError={() => setErr(true)}
+      className="max-h-full max-w-full object-contain"
+    />
   );
 }

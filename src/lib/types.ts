@@ -180,3 +180,17 @@ export function slotForCategory(category: Category): SlotKey {
   const slot = SLOT_CONFIG.find((s) => s.categories.includes(category));
   return slot ? slot.key : "accessories";
 }
+
+/** Freeform Canvas item representing a piece on the moodboard workspace */
+export interface CanvasItem {
+  id: string; // unique ID for the canvas element
+  itemId: string; // WardrobeItem ID for tracking what it is
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  zIndex: number;
+  flipped: boolean;
+}
+

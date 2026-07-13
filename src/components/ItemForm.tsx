@@ -169,6 +169,7 @@ export function ItemForm({
       const src = await resolveImageSource(file, authUser?.id ?? null);
       setImageUrl(src);
       void runAnalyze(src); // auto-tag in the background
+      void autoCutout(src); // auto background-removal → clean cutout
     } catch (err) {
       setAnalyzeMsg(
         err instanceof Error ? err.message : "Couldn't upload that image.",
@@ -234,27 +235,51 @@ export function ItemForm({
     }
   };
 
-  /** Remove the background on-device (private, free) for a clean cutout. */
+  /**
+   * Remove the background on-device (private, free) → clean cutout PNG.
+   * Shared core; used by the manual button and by the automatic pass on add.
+   */
+  const cutoutSrc = async (src: string): Promise<string> => {
+    const { removeBackground } = await import("@imgly/background-removal");
+    // Fetch into a blob first so CORS-restricted remote hosts (and data URLs)
+    // are handled consistently by the WASM pipeline.
+    let input: Blob | string = src;
+    if (src.startsWith("http")) {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error("fetch-failed");
+      input = await res.blob();
+    }
+    const blob = await removeBackground(input);
+    const file = new File([blob], "cutout.png", { type: "image/png" });
+    return resolveImageSource(file, authUser?.id ?? null);
+  };
+
+  /** Manual "remove background" button. */
   const handleRemoveBg = async () => {
     if (!imageUrl) return;
     setRemovingBg(true);
     setAnalyzeMsg("");
     try {
-      const { removeBackground } = await import("@imgly/background-removal");
-      // Fetch into a blob first so CORS-restricted remote hosts (and data URLs)
-      // are handled consistently by the WASM pipeline.
-      let input: Blob | string = imageUrl;
-      if (imageUrl.startsWith("http")) {
-        const res = await fetch(imageUrl);
-        if (!res.ok) throw new Error("fetch-failed");
-        input = await res.blob();
-      }
-      const blob = await removeBackground(input);
-      const file = new File([blob], "cutout.png", { type: "image/png" });
-      setImageUrl(await resolveImageSource(file, authUser?.id ?? null));
+      setImageUrl(await cutoutSrc(imageUrl));
       setAnalyzeMsg("Background removed.");
     } catch {
       setAnalyzeMsg("Background removal failed — kept the original image.");
+    } finally {
+      setRemovingBg(false);
+    }
+  };
+
+  /**
+   * Automatic cutout after a photo is added (upload/camera). Shows the original
+   * immediately, then swaps in the cutout when ready; silently keeps the
+   * original if removal fails so an add never gets blocked.
+   */
+  const autoCutout = async (src: string) => {
+    setRemovingBg(true);
+    try {
+      setImageUrl(await cutoutSrc(src));
+    } catch {
+      /* keep original */
     } finally {
       setRemovingBg(false);
     }

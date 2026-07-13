@@ -16,6 +16,7 @@ import type {
   SlotKey,
   Trip,
   WardrobeItem,
+  CanvasItem,
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
 import { demoItems } from "./demo-data";
@@ -101,6 +102,8 @@ interface WardrobeState {
   draft: Record<SlotKey, string[]>;
   /** Explore pins saved to the user's board. */
   savedPinIds: string[];
+  /** Freeform canvas items. */
+  canvasDraft: CanvasItem[];
 
   addItem: (item: Omit<WardrobeItem, "id" | "createdAt">) => void;
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
@@ -150,6 +153,10 @@ interface WardrobeState {
   removeFromDraft: (slot: SlotKey, itemId: string) => void;
   clearDraft: () => void;
   setDraft: (draft: Record<SlotKey, string[]>) => void;
+  setCanvasDraft: (items: CanvasItem[]) => void;
+  addCanvasItem: (itemId: string) => void;
+  updateCanvasItem: (id: string, patch: Partial<CanvasItem>) => void;
+  removeCanvasItem: (id: string) => void;
   /** Save/unsave an Explore pin. */
   toggleSavePin: (id: string) => void;
   /** Replace persisted fields from a remote snapshot (Supabase pull). */
@@ -161,6 +168,7 @@ interface WardrobeState {
     profile?: UserProfile;
     theme: ThemeMode;
     draft: Record<SlotKey, string[]>;
+    canvasDraft?: CanvasItem[];
   }) => void;
 }
 
@@ -284,6 +292,7 @@ export const useWardrobe = create<WardrobeState>()(
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
+      canvasDraft: [],
 
       addItem: (item) =>
         set((s) => ({
@@ -439,6 +448,7 @@ export const useWardrobe = create<WardrobeState>()(
           calendar: [],
           profile: { ...DEFAULT_PROFILE },
           draft: emptyDraft(),
+          canvasDraft: [],
           theme: "light",
         }),
 
@@ -493,8 +503,31 @@ export const useWardrobe = create<WardrobeState>()(
           },
         })),
 
-      clearDraft: () => set({ draft: emptyDraft() }),
+      clearDraft: () => set({ draft: emptyDraft(), canvasDraft: [] }),
       setDraft: (draft) => set({ draft }),
+      setCanvasDraft: (items) => set({ canvasDraft: items }),
+      addCanvasItem: (itemId) => set((s) => ({
+        canvasDraft: [
+          ...s.canvasDraft,
+          {
+            id: uid(),
+            itemId,
+            x: 100 + s.canvasDraft.length * 20,
+            y: 100 + s.canvasDraft.length * 20,
+            width: 150,
+            height: 150,
+            rotation: 0,
+            zIndex: s.canvasDraft.length,
+            flipped: false,
+          }
+        ]
+      })),
+      updateCanvasItem: (id, patch) => set((s) => ({
+        canvasDraft: s.canvasDraft.map(it => it.id === id ? { ...it, ...patch } : it)
+      })),
+      removeCanvasItem: (id) => set((s) => ({
+        canvasDraft: s.canvasDraft.filter(it => it.id !== id)
+      })),
       toggleSavePin: (id) =>
         set((s) => ({
           savedPinIds: s.savedPinIds.includes(id)
@@ -521,6 +554,7 @@ export const useWardrobe = create<WardrobeState>()(
             profile,
             theme: (data.theme === "dark" ? "dark" : "light") as ThemeMode,
             draft: normalizeDraft(data.draft),
+            canvasDraft: Array.isArray(data.canvasDraft) ? data.canvasDraft : get().canvasDraft,
           });
           return {
             ...scrubbed,
@@ -552,6 +586,7 @@ export const useWardrobe = create<WardrobeState>()(
             ? p.calendar.map(normalizeCalendarEntry)
             : current.calendar,
           draft: normalizeDraft(p.draft),
+          canvasDraft: Array.isArray((p as any).canvasDraft) ? (p as any).canvasDraft : current.canvasDraft,
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
           theme: p.theme === "dark" ? "dark" : "light",
           // Launch screen comes from profile.startView (not last-visited tab).
@@ -567,6 +602,7 @@ export const useWardrobe = create<WardrobeState>()(
           profile: s.profile,
           theme: s.theme,
           draft: s.draft,
+          canvasDraft: s.canvasDraft,
           savedPinIds: s.savedPinIds,
         }),
     },
