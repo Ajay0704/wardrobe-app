@@ -1,17 +1,20 @@
 /**
- * Image embeddings for the shop feeds (AJA-97). One model embeds both the
- * grabbed-garment crop (/api/detect) and the catalog images, so garments and
- * products are comparable by the same nearest-neighbor query.
+ * Image embeddings for the shop feeds (AJA-97).
  *
- * Model: Hugging Face SigLIP (768-d). When HF_TOKEN is absent — or any call
- * fails — we fall back to a DETERMINISTIC stub vector so the whole pipeline
- * runs in dev: the category/compat filters in the RPCs still give correct
- * grouping; only the within-category visual ordering is placeholder until a
- * token is set. Swap nothing in the callers when the token lands.
+ * Slice 1 uses a DETERMINISTIC STUB. HF's serverless tier does not serve image
+ * feature-extraction for SigLIP/CLIP ("Model not supported by provider
+ * hf-inference"), so there is no free HF path for real image embeddings — and
+ * calling the dead endpoint on every /api/detect just adds latency. The stub
+ * keeps the whole pipeline correct: the match_similar / match_complements RPCs
+ * still filter by category + outfit_compat, so results are grouped right; only
+ * within-category *visual* ranking is placeholder.
+ *
+ * Slice 2 wires a real provider (Replicate CLIP / Cohere / Jina) by replacing
+ * the two embed functions below. The DB (halfvec(768)), the RPCs, and every
+ * caller stay the same — only set EMBED_DIM to the chosen model's dimension.
  */
 
 export const EMBED_DIM = 768;
-const HF_MODEL = process.env.HF_EMBED_MODEL || "google/siglip-base-patch16-224";
 
 /** Postgres vector/halfvec literal, e.g. "[0.1,0.2,...]". */
 export function toVectorLiteral(vec: number[]): string {
@@ -27,7 +30,6 @@ function l2normalize(v: number[]): number[] {
 
 /** Deterministic unit vector seeded by a string — stable across calls. */
 function stubVector(seed: string): number[] {
-  // xorshift32 seeded by a cheap string hash → reproducible pseudo-random dirs.
   let h = 2166136261 >>> 0;
   for (let i = 0; i < seed.length; i++) {
     h ^= seed.charCodeAt(i);
@@ -43,66 +45,12 @@ function stubVector(seed: string): number[] {
   return l2normalize(out);
 }
 
-/** HF feature-extraction can return number[] or number[][] (per-token) — pool to one vector. */
-function poolToVector(data: unknown): number[] | null {
-  if (Array.isArray(data) && typeof data[0] === "number") return data as number[];
-  if (Array.isArray(data) && Array.isArray(data[0])) {
-    const rows = data as number[][];
-    const dim = rows[0].length;
-    const acc = new Array(dim).fill(0);
-    for (const r of rows) for (let i = 0; i < dim; i++) acc[i] += r[i];
-    return acc.map((x) => x / rows.length);
-  }
-  return null;
+/** Embed image bytes (a server-side crop). Slice 2: call the real model here. */
+export async function embedImageBytes(bytes: Buffer): Promise<number[]> {
+  return stubVector(bytes.toString("base64").slice(0, 96));
 }
 
-async function embedViaHF(bytes: Buffer, contentType: string, seed: string): Promise<number[]> {
-  const token = process.env.HF_TOKEN;
-  if (!token) return stubVector(seed);
-  try {
-    const resp = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": contentType,
-        Accept: "application/json",
-      },
-      body: new Uint8Array(bytes),
-    });
-    if (!resp.ok) {
-      console.warn(`[embed] HF ${resp.status}; falling back to stub`);
-      return stubVector(seed);
-    }
-    const vec = poolToVector(await resp.json());
-    if (!vec) {
-      console.warn("[embed] unexpected HF shape; stub");
-      return stubVector(seed);
-    }
-    if (vec.length !== EMBED_DIM) {
-      console.warn(`[embed] HF dim ${vec.length} != ${EMBED_DIM}; stub`);
-      return stubVector(seed);
-    }
-    return l2normalize(vec);
-  } catch (e) {
-    console.warn("[embed] HF error; stub:", (e as Error).message);
-    return stubVector(seed);
-  }
-}
-
-/** Embed already-fetched image bytes (e.g. a server-side crop). */
-export async function embedImageBytes(bytes: Buffer, contentType = "image/jpeg"): Promise<number[]> {
-  return embedViaHF(bytes, contentType, bytes.toString("base64").slice(0, 96));
-}
-
-/** Fetch an image URL and embed it. Used for catalog backfill. */
+/** Embed an image URL (catalog backfill). Slice 2: call the real model here. */
 export async function embedImageFromUrl(url: string): Promise<number[]> {
-  if (!process.env.HF_TOKEN) return stubVector(url);
-  try {
-    const img = await fetch(url);
-    if (!img.ok) return stubVector(url);
-    const buf = Buffer.from(await img.arrayBuffer());
-    return embedViaHF(buf, img.headers.get("content-type") || "image/jpeg", url);
-  } catch {
-    return stubVector(url);
-  }
+  return stubVector(url);
 }

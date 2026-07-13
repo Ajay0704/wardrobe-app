@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     return Response.json({ error: `Crop failed: ${(e as Error).message}` }, { status: 500 });
   }
 
-  const embedding = await embedImageBytes(cropBuf, "image/jpeg");
+  const embedding = await embedImageBytes(cropBuf);
   const { category, name } = classify(box);
   const attributes: Record<string, unknown> = {};
   const detectionId = crypto.randomUUID();
