@@ -13,6 +13,7 @@ import {
   Trash2,
   Type,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWardrobe } from "@/lib/store";
@@ -239,17 +240,20 @@ export function CanvasBuilderView() {
     setView("outfits");
   };
 
-  const toolBtn = (m: Mode, icon: React.ReactNode, label: string) => {
+  // The toolbar shrinks while the sheet is up (small canvas) so it never
+  // overfills the board, and returns to full size when the sheet is down.
+  const compactBar = expanded;
+  const toolBtn = (m: Mode, Icon: LucideIcon, label: string) => {
     const active = mode === m && expanded;
     return (
       <button
         onClick={() => openTool(m)}
         aria-label={label}
-        className={`flex h-10 w-11 items-center justify-center rounded-xl ${
-          active ? "bg-accent-soft text-accent" : "text-muted"
-        }`}
+        className={`flex items-center justify-center rounded-xl ${
+          compactBar ? "h-8 w-9" : "h-10 w-11"
+        } ${active ? "bg-accent-soft text-accent" : "text-muted"}`}
       >
-        {icon}
+        <Icon size={compactBar ? 17 : 20} />
       </button>
     );
   };
@@ -285,11 +289,15 @@ export function CanvasBuilderView() {
         </button>
       </div>
 
-      {/* aspect toggle */}
-      <div className="flex items-center justify-center gap-7 pb-1.5">
-        <AspectBtn active={aspect === "3:4"} label="3:4" onClick={() => setAspect("3:4")} />
-        <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
-      </div>
+      {/* aspect toggle — only while the canvas is large (sheet down). The ratio
+          choice isn't useful on the small canvas, and hiding it frees space so
+          the canvas grows a little when the sheet is up. */}
+      {!expanded && (
+        <div className="flex items-center justify-center gap-7 pb-1.5">
+          <AspectBtn active={aspect === "3:4"} label="3:4" onClick={() => setAspect("3:4")} />
+          <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
+        </div>
+      )}
 
       {/* board — reserves the space above the sheet (shrinks as the sheet
           slides down), then contain-fits the 3:4/1:1 board into it */}
@@ -443,18 +451,24 @@ export function CanvasBuilderView() {
             }`}
           >
             {toolbarOpen ? (
-              <div className="pointer-events-auto flex items-center gap-1 rounded-2xl border border-line bg-white/95 px-1.5 py-1.5 shadow-lg backdrop-blur-sm">
-                {toolBtn("items", <LayoutGrid size={20} />, "Items")}
-                {toolBtn("background", <ImageIcon size={20} />, "Background")}
-                {toolBtn("text", <Type size={20} />, "Text")}
-                {toolBtn("sticker", <Sticker size={20} />, "Stickers")}
-                <span className="mx-0.5 h-6 w-px bg-line" />
+              <div
+                className={`pointer-events-auto flex items-center rounded-2xl border border-line bg-white/95 shadow-lg backdrop-blur-sm ${
+                  compactBar ? "gap-0.5 px-1 py-1" : "gap-1 px-1.5 py-1.5"
+                }`}
+              >
+                {toolBtn("items", LayoutGrid, "Items")}
+                {toolBtn("background", ImageIcon, "Background")}
+                {toolBtn("text", Type, "Text")}
+                {toolBtn("sticker", Sticker, "Stickers")}
+                <span className={`mx-0.5 w-px bg-line ${compactBar ? "h-5" : "h-6"}`} />
                 <button
                   onClick={() => setToolbarOpen(false)}
-                  className="flex h-10 w-9 items-center justify-center rounded-xl text-muted"
+                  className={`flex items-center justify-center rounded-xl text-muted ${
+                    compactBar ? "h-8 w-8" : "h-10 w-9"
+                  }`}
                   aria-label="Hide toolbar"
                 >
-                  <ChevronRight size={20} />
+                  <ChevronRight size={compactBar ? 17 : 20} />
                 </button>
               </div>
             ) : (
