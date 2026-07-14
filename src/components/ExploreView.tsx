@@ -19,6 +19,7 @@ import type { Category, WardrobeItem } from "@/lib/types";
 import type { ChatPayload } from "@/lib/chat";
 import { CommunityFeed } from "./community/CommunityFeed";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
+import { ShopSearchView } from "./shop/ShopSearchView";
 import { useIsNativeApp } from "./NativeAppClass";
 
 /** Build a self-contained shared-look payload from a feed card. */
@@ -114,7 +115,7 @@ export function ExploreView() {
   const { items, profile, savedPinIds, toggleSavePin, addItem, openPhoto } = useWardrobe();
   const gender = profile.shopGender ?? "all";
 
-  const [tab, setTab] = useState<"foryou" | "saved" | "following">("foryou");
+  const [tab, setTab] = useState<"foryou" | "saved" | "following" | "shop">("foryou");
   const [chip, setChip] = useState("All");
   const [cards, setCards] = useState<FeedCard[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -260,6 +261,15 @@ export function ExploreView() {
         >
           Following
         </button>
+        <button
+          type="button"
+          onClick={() => setTab("shop")}
+          className={`-mb-px border-b-2 pb-2 font-medium transition-colors ${
+            tab === "shop" ? "border-accent text-accent" : "border-transparent text-muted"
+          }`}
+        >
+          Shop
+        </button>
         {tab === "foryou" && (
           <button
             type="button"
@@ -283,6 +293,8 @@ export function ExploreView() {
 
       {tab === "following" ? (
         <CommunityFeed />
+      ) : tab === "shop" ? (
+        <ShopSearchView />
       ) : (
        <>
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
