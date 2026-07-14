@@ -63,6 +63,15 @@ export interface WardrobeItem {
   brand?: string;
   price?: number;
   notes?: string;
+  /**
+   * Structured attributes used by closet-aware shop search (AJA-116) for
+   * apples-to-apples comparison against catalog products. All optional and
+   * null until populated — the pairing/ownership logic degrades gracefully
+   * (skips the check, still counts by category) when any is missing.
+   */
+  fit?: string; // 'slim' | 'straight' | 'relaxed' | 'wide' | 'oversized' | ...
+  tone?: string; // colour group: 'neutral' | 'warm' | 'cool' | 'black' | 'white' | ...
+  formality?: string; // 'casual' | 'smart-casual' | 'formal' | 'statement' | ...
   /** Wishlist items are things the user wants to buy, not yet owned. */
   wishlist: boolean;
   /** Favourited pieces the user loves — independent of wishlist. */
