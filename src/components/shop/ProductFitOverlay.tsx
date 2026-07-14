@@ -133,8 +133,8 @@ export function ProductFitOverlay({
     );
 
   return (
-    <div className="native-app fixed inset-0 z-[70] flex flex-col bg-surface">
-      <header className="flex items-center gap-2 border-b border-line px-2 py-2">
+    <div className="fixed inset-0 z-[70] flex flex-col bg-surface">
+      <header className="flex items-center gap-2 border-b border-line px-2 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={onClose}
