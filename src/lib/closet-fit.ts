@@ -17,6 +17,7 @@
  * `scoreAgainstCloset` (ownership note + category breakdown + matched ids).
  */
 import type { WardrobeItem } from "./types";
+import { CATEGORY_LABEL, type Category } from "./types";
 
 /** Minimal product attributes the comparison reads (subset of a shop_products row). */
 export interface ProductAttrs {
@@ -206,4 +207,66 @@ export function closetSignal(
     if (engine.pairs(product, item)) pairCount++;
   }
   return { owned: own.status, pairCount };
+}
+
+// ---------------------------------------------------------------- full score (product detail)
+export interface Ownership {
+  status: OwnStatus;
+  matchedGarmentId?: string;
+  note: string;
+}
+
+export interface Pairing {
+  total: number;
+  byCategory: Record<string, number>; // e.g. { top: 2, bottom: 1, shoes: 1 }
+  matches: string[]; // ids of the closet items this product pairs with
+}
+
+export interface ClosetFit {
+  ownership: Ownership;
+  pairing: Pairing;
+}
+
+function categoryLabel(category: string): string {
+  return CATEGORY_LABEL[category as Category] ?? category;
+}
+
+function ownershipNote(status: OwnStatus, product: ProductAttrs): string {
+  const type = categoryLabel(product.category).replace(/s$/, "").toLowerCase();
+  switch (status) {
+    case "exact":
+      return "You already own this.";
+    case "similar":
+      return "Close to something you own.";
+    case "type":
+      return `You own a ${type} already — this one's a different fit or colour.`;
+    case "none":
+    default:
+      return "New to your closet.";
+  }
+}
+
+/**
+ * Full closet fit for the product-detail screen: ownership verdict + a pairing
+ * score broken down by category with the matched closet-item ids. Same rule
+ * engine (COMPAT_ENGINE) as the lightweight signal, so grid and detail agree.
+ */
+export function scoreAgainstCloset(
+  product: ProductAttrs,
+  closet: WardrobeItem[],
+  compat: CompatIndex,
+  engine: Compatibility = getCompatEngine(compat),
+): ClosetFit {
+  const own = ownershipAgainst(product, closet);
+  const ownership: Ownership = { ...own, note: ownershipNote(own.status, product) };
+
+  const byCategory: Record<string, number> = {};
+  const matches: string[] = [];
+  for (const item of closet) {
+    if (engine.pairs(product, item)) {
+      matches.push(item.id);
+      byCategory[item.category] = (byCategory[item.category] ?? 0) + 1;
+    }
+  }
+  return { ownership, pairing: { total: matches.length, byCategory, matches } };
 }

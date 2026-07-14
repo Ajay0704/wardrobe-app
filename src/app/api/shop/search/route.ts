@@ -15,70 +15,23 @@
 import { requireUser } from "@/lib/auth-server";
 import { adminClient } from "@/lib/supabase/admin";
 import { EMBED_DIM } from "@/lib/embed";
+import { buildCompatIndex, closetSignal } from "@/lib/closet-fit";
 import {
-  buildCompatIndex,
-  closetSignal,
-  type CompatRow,
-  type ProductAttrs,
-} from "@/lib/closet-fit";
-import type { WardrobeItem } from "@/lib/types";
+  PRODUCT_COLS,
+  loadCloset,
+  loadCompat,
+  toProductAttrs,
+  type ProductRow,
+} from "@/lib/shop-fit-server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
 
 const SEARCH_MODE = (process.env.SEARCH_MODE || "keyword").toLowerCase();
 const DEFAULT_LIMIT = 20;
-const COLS =
-  "id,brand,title,category,price_cents,currency,image_url,buy_url,fit,tone,formality,attributes";
-
-interface Row {
-  id: string;
-  brand: string | null;
-  title: string;
-  category: string;
-  price_cents: number | null;
-  currency: string | null;
-  image_url: string;
-  buy_url: string;
-  fit: string | null;
-  tone: string | null;
-  formality: string | null;
-  attributes: Record<string, unknown> | null;
-}
 
 function clampLimit(n: unknown): number {
   return Math.min(Math.max(Number(n) || DEFAULT_LIMIT, 1), 30);
-}
-
-function toAttrs(r: Row): ProductAttrs {
-  const a = r.attributes ?? {};
-  return {
-    id: r.id,
-    category: r.category,
-    fit: r.fit ?? (a.fit as string | undefined) ?? null,
-    tone: r.tone ?? (a.tone as string | undefined) ?? (a.color as string | undefined) ?? null,
-    formality: r.formality ?? (a.formality as string | undefined) ?? null,
-    colorName: (a.colorName as string | undefined) ?? null,
-  };
-}
-
-/** The caller's OWNED closet from the wardrobe snapshot (excludes wishlist). */
-async function loadCloset(admin: SupabaseClient, userId: string): Promise<WardrobeItem[]> {
-  if (!userId || userId === "local-dev") return [];
-  const { data } = await admin
-    .from("wardrobe_snapshots")
-    .select("items")
-    .eq("user_id", userId)
-    .maybeSingle();
-  const items = (data?.items ?? []) as WardrobeItem[];
-  return Array.isArray(items) ? items.filter((i) => !i.wishlist) : [];
-}
-
-async function loadCompat(admin: SupabaseClient): Promise<CompatRow[]> {
-  const { data } = await admin
-    .from("outfit_compat")
-    .select("source_category,target_category,weight");
-  return (data ?? []) as CompatRow[];
 }
 
 /** Keyword search: FTS on search_tsv, ilike fallback. Keyset by id. */
@@ -87,9 +40,9 @@ async function keywordSearch(
   q: string,
   cursorId: string | null,
   limit: number,
-): Promise<Row[]> {
+): Promise<ProductRow[]> {
   const base = () => {
-    let query = admin.from("shop_products").select(COLS).eq("in_stock", true);
+    let query = admin.from("shop_products").select(PRODUCT_COLS).eq("in_stock", true);
     if (cursorId) query = query.gt("id", cursorId);
     return query;
   };
@@ -98,7 +51,7 @@ async function keywordSearch(
     .textSearch("search_tsv", q, { type: "websearch" })
     .order("id", { ascending: true })
     .limit(limit);
-  if (!fts.error) return (fts.data ?? []) as Row[];
+  if (!fts.error) return (fts.data ?? []) as ProductRow[];
 
   // Fallback (migration not applied yet): ilike across title/brand/category.
   const pat = `%${q.replace(/[%_,()]/g, " ").trim()}%`;
@@ -106,7 +59,7 @@ async function keywordSearch(
     .or(`title.ilike.${pat},brand.ilike.${pat},category.ilike.${pat}`)
     .order("id", { ascending: true })
     .limit(limit);
-  return (il.data ?? []) as Row[];
+  return (il.data ?? []) as ProductRow[];
 }
 
 /**
@@ -125,7 +78,7 @@ async function semanticSearch(
   q: string,
   _cursorId: string | null,
   _limit: number,
-): Promise<Row[]> {
+): Promise<ProductRow[]> {
   const embedding = await embedQueryText(q);
   if (embedding.length !== EMBED_DIM) {
     throw new Error(
@@ -149,7 +102,7 @@ async function handle(
   const limit = clampLimit(params.limit);
   const cursorId = params.cursor || null;
 
-  let rows: Row[];
+  let rows: ProductRow[];
   try {
     rows =
       SEARCH_MODE === "semantic"
@@ -175,7 +128,7 @@ async function handle(
     imageUrl: r.image_url,
     buyUrl: r.buy_url,
     category: r.category,
-    closetSignal: closetSignal(toAttrs(r), closet, compat),
+    closetSignal: closetSignal(toProductAttrs(r), closet, compat),
   }));
 
   const nextCursor =
