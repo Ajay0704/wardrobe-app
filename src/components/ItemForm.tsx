@@ -6,10 +6,10 @@ import {
   ExternalLink,
   Link2,
   Pipette,
-  Scissors,
   Search,
   Sparkles,
   Upload,
+  Wand2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useState } from "react";
@@ -552,7 +552,7 @@ export function ItemForm({
                 disabled={removingBg || uploading}
                 className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
               >
-                <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
+                <Wand2 size={13} /> {removingBg ? "Beautifying…" : "Beautify"}
               </button>
               {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (
                 <button
