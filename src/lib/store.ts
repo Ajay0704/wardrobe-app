@@ -115,9 +115,17 @@ interface WardrobeState {
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
   deleteItem: (id: string) => void;
 
-  saveOutfit: (name: string, notes: string, itemIds: string[]) => void;
+  saveOutfit: (
+    name: string,
+    notes: string,
+    itemIds: string[],
+    layout?: CanvasItem[],
+    canvasBg?: string | null,
+  ) => void;
   deleteOutfit: (id: string) => void;
   loadOutfitIntoDraft: (id: string) => void;
+  /** Restore a saved outfit's board layout into the freeform canvas + open the builder. */
+  loadOutfitBoardIntoCanvas: (id: string) => void;
 
   addTrip: (trip: Omit<Trip, "id" | "createdAt">) => string;
   updateTrip: (id: string, patch: Partial<Trip>) => void;
@@ -218,6 +226,26 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
   };
 }
 
+function normalizeCanvasItem(raw: Partial<CanvasItem> | null | undefined): CanvasItem {
+  const c = (raw ?? {}) as Partial<CanvasItem>;
+  const num = (v: unknown, d: number) => (typeof v === "number" && Number.isFinite(v) ? v : d);
+  return {
+    id: typeof c.id === "string" ? c.id : uid(),
+    kind: c.kind === "text" || c.kind === "sticker" ? c.kind : "item",
+    itemId: typeof c.itemId === "string" ? c.itemId : undefined,
+    text: typeof c.text === "string" ? c.text : undefined,
+    color: typeof c.color === "string" ? c.color : undefined,
+    emoji: typeof c.emoji === "string" ? c.emoji : undefined,
+    x: num(c.x, 0),
+    y: num(c.y, 0),
+    width: num(c.width, 150),
+    height: num(c.height, 150),
+    rotation: num(c.rotation, 0),
+    zIndex: num(c.zIndex, 0),
+    flipped: Boolean(c.flipped),
+  };
+}
+
 function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
   const o = (raw ?? {}) as Partial<Outfit>;
   return {
@@ -227,6 +255,8 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
     itemIds: Array.isArray(o.itemIds)
       ? o.itemIds.filter((x): x is string => typeof x === "string")
       : [],
+    layout: Array.isArray(o.layout) ? o.layout.map(normalizeCanvasItem) : undefined,
+    canvasBg: typeof o.canvasBg === "string" ? o.canvasBg : undefined,
     wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
     lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
@@ -339,11 +369,19 @@ export const useWardrobe = create<WardrobeState>()(
           ) as Record<SlotKey, string[]>,
         })),
 
-      saveOutfit: (name, notes, itemIds) => {
+      saveOutfit: (name, notes, itemIds, layout, canvasBg) => {
         recordOutfitCreated();
         set((s) => ({
           outfits: [
-            { id: uid(), name, notes, itemIds, createdAt: Date.now() },
+            {
+              id: uid(),
+              name,
+              notes,
+              itemIds,
+              layout: layout && layout.length ? layout : undefined,
+              canvasBg: canvasBg ?? undefined,
+              createdAt: Date.now(),
+            },
             ...s.outfits,
           ],
         }));
@@ -447,6 +485,30 @@ export const useWardrobe = create<WardrobeState>()(
           if (draft[slot].length < max) draft[slot].push(itemId);
         }
         set({ draft, view: "builder" });
+      },
+
+      loadOutfitBoardIntoCanvas: (id) => {
+        const { outfits } = get();
+        const outfit = outfits.find((o) => o.id === id);
+        if (!outfit) return;
+        // Fresh objects (clone) so editing the canvas never mutates the saved layout.
+        const canvasDraft: CanvasItem[] =
+          outfit.layout && outfit.layout.length
+            ? outfit.layout.map(normalizeCanvasItem)
+            : // Legacy outfit with no saved board: auto-place its items in a stack.
+              outfit.itemIds.map((itemId, i) => ({
+                id: uid(),
+                kind: "item" as const,
+                itemId,
+                x: 90,
+                y: 40 + i * 130,
+                width: 150,
+                height: 150,
+                rotation: 0,
+                zIndex: i,
+                flipped: false,
+              }));
+        set({ canvasDraft, canvasBg: outfit.canvasBg ?? null, view: "builder" });
       },
 
       updateProfile: (patch) =>

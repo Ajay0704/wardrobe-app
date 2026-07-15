@@ -8,6 +8,7 @@ import {
   Image as ImageIcon,
   LayoutGrid,
   Maximize2,
+  RotateCw,
   SlidersHorizontal,
   Sticker,
   Trash2,
@@ -228,11 +229,35 @@ export function CanvasBuilderView() {
     setView("outfits");
   };
 
+  // Drag the rotate handle: angle from the item's center to the pointer. react-rnd doesn't
+  // rotate, so we compute it and write CanvasItem.rotation (applied as a transform on render).
+  const startRotate = (e: React.PointerEvent, id: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const wrapper = (e.currentTarget as HTMLElement).closest("[data-canvas-wrapper]");
+    if (!wrapper) return;
+    const box = wrapper.getBoundingClientRect();
+    const cx = box.left + box.width / 2;
+    const cy = box.top + box.height / 2;
+    const move = (ev: PointerEvent) => {
+      const deg = Math.round((Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90);
+      updateCanvasItem(id, { rotation: deg });
+    };
+    const up = () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+  };
+
   const doSave = () => {
     const ids = [...new Set(canvasDraft.filter((c) => c.itemId).map((c) => c.itemId as string))];
     if (canvasDraft.length === 0) return;
     const name = saveName.trim() || `Look · ${new Date().toLocaleDateString("en-US")}`;
-    saveOutfit(name, "", ids);
+    // Persist the full board layout (positions/sizes/rotation/z + text/stickers + bg),
+    // not just the item ids, so the board restores exactly on reopen.
+    saveOutfit(name, "", ids, canvasDraft, canvasBg);
     clearDraft();
     setSaving(false);
     setSaveName("");
@@ -403,6 +428,7 @@ export function CanvasBuilderView() {
                 className="touch-none"
               >
                 <div
+                  data-canvas-wrapper
                   className={`relative h-full w-full rounded-xl ${isSel ? "ring-2 ring-accent ring-offset-2" : ""}`}
                   onPointerDown={() => select(c.id)}
                 >
@@ -425,6 +451,16 @@ export function CanvasBuilderView() {
                       )}
                       <button
                         type="button"
+                        aria-label="Rotate"
+                        onPointerDown={(e) => startRotate(e, c.id)}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        className="flex h-9 w-9 cursor-grab items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md active:cursor-grabbing"
+                      >
+                        <RotateCw size={16} />
+                      </button>
+                      <button
+                        type="button"
                         aria-label="Delete"
                         onClick={(e) => {
                           e.stopPropagation();
@@ -437,7 +473,15 @@ export function CanvasBuilderView() {
                       </button>
                     </div>
                   )}
-                  {content}
+                  <div
+                    className="h-full w-full"
+                    style={{
+                      transform: `rotate(${c.rotation}deg)`,
+                      filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.18))",
+                    }}
+                  >
+                    {content}
+                  </div>
                 </div>
               </Rnd>
             );

@@ -93,6 +93,14 @@ export interface Outfit {
   notes?: string;
   /** References into the items collection. Missing ids are ignored at render. */
   itemIds: string[];
+  /**
+   * Outfit-board layout recipe: each placed garment/text/sticker with its exact
+   * x/y/size/rotation/z-order, so the board restores precisely. Absent for outfits
+   * saved before boards existed (they fall back to an auto-placed layout).
+   */
+  layout?: CanvasItem[];
+  /** Board background (solid/gradient) saved with the layout. */
+  canvasBg?: string | null;
   wearCount?: number;
   lastWornAt?: string;
   createdAt: number;
