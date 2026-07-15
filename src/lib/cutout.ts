@@ -1,44 +1,78 @@
 /**
- * Garment background-removal (AJA-116/cutout). The ONE place cutouts happen, behind a
- * swappable engine seam so a higher-quality engine (remove.bg / PhotoRoom API, SAM-3 via
- * Replicate, Apple Vision on-device) can be dropped in later without touching callers.
- *
- * Default engine = on-device @imgly (WASM, free, no keys), hardened: runs off the main
- * thread (proxyToWorker), uses the fp16 model (quality/size balance), outputs a transparent
- * PNG, and reports progress. Every cutout is stamped with the engine + version that made it.
+ * Garment cutout (AJA-116/117/118). The ONE place cutouts happen, behind a swappable
+ * REMOVAL_ENGINE seam:
+ *   - "imgly" (default) — on-device @imgly WASM background removal (subject vs background).
+ *   - "garment"         — clothes-aware SegFormer via /api/cutout: extracts JUST the garment
+ *                         for the item's category (top/bottom/dress/…), not the whole person.
+ * A non-imgly engine that fails (missing key, provider error, empty mask) falls back to imgly,
+ * so a cutout never hard-fails. Every result is stamped with the engine that produced it.
  */
 import { resolveImageSource } from "./supabase/storage";
+import { authHeaders } from "./supabase/client";
 
 const IMGLY_VERSION = "1.7.0";
 
 export interface CutoutResult {
   /** Re-hosted image source (Storage URL when signed in, else a data URL). */
   url: string;
-  /** Stamp of the engine that produced it, e.g. "imgly@1.7.0". */
+  /** Stamp of the engine that produced it, e.g. "imgly@1.7.0" or "garment@segformer_b2_clothes". */
   engine: string;
 }
 
-/** REMOVAL_ENGINE seam: one method that turns an image into a background-removed PNG. */
+export interface CutoutOptions {
+  onProgress?: (fraction: number) => void;
+  /** Wardrobe category — lets the garment engine pick the right clothing class. */
+  category?: string;
+}
+
+/** REMOVAL_ENGINE seam: turn an image source (http URL or data URL) into a cutout PNG blob. */
 export interface CutoutEngine {
   id: string;
-  run(input: Blob | string, onProgress?: (fraction: number) => void): Promise<Blob>;
+  run(src: string, opts?: CutoutOptions): Promise<Blob>;
 }
 
 const imglyEngine: CutoutEngine = {
   id: `imgly@${IMGLY_VERSION}`,
-  async run(input, onProgress) {
+  async run(src, opts) {
     const { removeBackground } = await import("@imgly/background-removal");
-    // Optional self-hosting of the model/wasm assets for native/offline reliability.
+    // Fetch remote URLs into a blob so CORS-restricted hosts (and data URLs) go through the
+    // WASM pipeline uniformly.
+    let input: Blob | string = src;
+    if (src.startsWith("http")) {
+      const res = await fetch(src);
+      if (!res.ok) throw new Error("fetch-failed");
+      input = await res.blob();
+    }
     const publicPath = process.env.NEXT_PUBLIC_IMGLY_PUBLIC_PATH || undefined;
     return removeBackground(input, {
       proxyToWorker: true,
       model: "isnet_fp16",
       output: { format: "image/png" },
       ...(publicPath ? { publicPath } : {}),
-      ...(onProgress
-        ? { progress: (_key: string, current: number, total: number) => onProgress(total ? current / total : 0) }
+      ...(opts?.onProgress
+        ? {
+            progress: (_key: string, current: number, total: number) =>
+              opts.onProgress!(total ? current / total : 0),
+          }
         : {}),
     });
+  },
+};
+
+const garmentEngine: CutoutEngine = {
+  id: "garment@segformer_b2_clothes",
+  async run(src, opts) {
+    const isHttp = src.startsWith("http");
+    const res = await fetch("/api/cutout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({
+        ...(isHttp ? { imageUrl: src } : { imageData: src }),
+        category: opts?.category,
+      }),
+    });
+    if (!res.ok) throw new Error(`garment-cutout ${res.status}`);
+    return res.blob();
   },
 };
 
@@ -46,7 +80,8 @@ const imglyEngine: CutoutEngine = {
 export function getCutoutEngine(): CutoutEngine {
   const which = (process.env.NEXT_PUBLIC_REMOVAL_ENGINE || "imgly").toLowerCase();
   switch (which) {
-    // case "api":         return apiEngine;         // remove.bg / PhotoRoom (server route) — future
+    case "garment":
+      return garmentEngine;
     // case "sam":         return samEngine;         // SAM-3 via Replicate — future
     // case "applevision": return appleVisionEngine; // native Capacitor plugin — future
     case "imgly":
@@ -55,29 +90,34 @@ export function getCutoutEngine(): CutoutEngine {
   }
 }
 
-/** Fetch a remote URL into a Blob so the WASM pipeline handles CORS/data URLs uniformly. */
-async function toEngineInput(src: string): Promise<Blob | string> {
-  if (src.startsWith("http")) {
-    const res = await fetch(src);
-    if (!res.ok) throw new Error("fetch-failed");
-    return res.blob();
-  }
-  return src;
+async function finalize(
+  blob: Blob,
+  engineId: string,
+  userId: string | null,
+): Promise<CutoutResult> {
+  const file = new File([blob], "cutout.png", { type: "image/png" });
+  const url = await resolveImageSource(file, userId);
+  return { url, engine: engineId };
 }
 
 /**
- * Remove the background from an image source and re-host the transparent PNG. Returns the new
- * URL plus the engine stamp. Throws on failure — callers keep the original image.
+ * Cut out the garment/subject and re-host the transparent PNG. Returns the new URL + engine
+ * stamp. A non-imgly engine that throws degrades to on-device @imgly; if that also throws the
+ * caller keeps the original image.
  */
 export async function cutout(
   src: string,
   userId: string | null,
-  onProgress?: (fraction: number) => void,
+  opts?: CutoutOptions,
 ): Promise<CutoutResult> {
   const engine = getCutoutEngine();
-  const input = await toEngineInput(src);
-  const blob = await engine.run(input, onProgress);
-  const file = new File([blob], "cutout.png", { type: "image/png" });
-  const url = await resolveImageSource(file, userId);
-  return { url, engine: engine.id };
+  try {
+    return await finalize(await engine.run(src, opts), engine.id, userId);
+  } catch (e) {
+    if (engine.id !== imglyEngine.id) {
+      // Graceful fallback: garment/API engine failed → on-device background removal.
+      return finalize(await imglyEngine.run(src, opts), imglyEngine.id, userId);
+    }
+    throw e;
+  }
 }
