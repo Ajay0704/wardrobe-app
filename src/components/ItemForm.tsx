@@ -176,8 +176,10 @@ export function ItemForm({
       const src = await resolveImageSource(file, authUser?.id ?? null);
       setImageUrl(src);
       setOriginalImageUrl(src); // keep the pre-cutout image
-      void runAnalyze(src); // auto-tag in the background
-      void autoCutout(src); // auto background-removal → clean cutout
+      // Auto-tag first so the garment engine knows which clothing class to keep,
+      // then cut out (the imgly engine ignores the category).
+      const cat = await runAnalyze(src);
+      void autoCutout(src, cat ?? category);
     } catch (err) {
       setAnalyzeMsg(
         err instanceof Error ? err.message : "Couldn't upload that image.",
@@ -204,8 +206,8 @@ export function ItemForm({
   };
 
   /** Ask Gemini to read the photo and pre-fill category/color/name/tags/season. */
-  const runAnalyze = async (src: string) => {
-    if (!src) return;
+  const runAnalyze = async (src: string): Promise<Category | undefined> => {
+    if (!src) return undefined;
     setAnalyzing(true);
     setAnalyzeMsg("");
     try {
@@ -217,9 +219,10 @@ export function ItemForm({
       const data = await res.json();
       if (!res.ok) {
         setAnalyzeMsg(data.error || "Couldn't auto-tag this photo.");
-        return;
+        return undefined;
       }
-      if (data.category) setCategory(data.category as Category);
+      const detected = data.category as Category | undefined;
+      if (detected) setCategory(detected);
       if (data.color) setColor(data.color);
       // Use functional updates so a name/brand typed while analyzing isn't
       // overwritten, and empty fields still get filled from the photo.
@@ -236,8 +239,10 @@ export function ItemForm({
         setTags((prev) => [...new Set([...prev, ...(data.tags as string[])])]);
       }
       setAnalyzeMsg("Auto-filled from photo — review and adjust.");
+      return detected;
     } catch {
       setAnalyzeMsg("Couldn't auto-tag. Fill the fields manually.");
+      return undefined;
     } finally {
       setAnalyzing(false);
     }
@@ -250,7 +255,7 @@ export function ItemForm({
     setRemovingBg(true);
     setAnalyzeMsg("");
     try {
-      const r = await cutout(base, authUser?.id ?? null);
+      const r = await cutout(base, authUser?.id ?? null, { category });
       setOriginalImageUrl((prev) => prev ?? base);
       setImageUrl(r.url);
       setCutoutEngine(r.engine);
@@ -267,10 +272,10 @@ export function ItemForm({
    * original immediately, then swaps in the cutout when ready; silently keeps the
    * original if removal fails so an add never gets blocked.
    */
-  const autoCutout = async (src: string) => {
+  const autoCutout = async (src: string, cat?: Category) => {
     setRemovingBg(true);
     try {
-      const r = await cutout(src, authUser?.id ?? null);
+      const r = await cutout(src, authUser?.id ?? null, { category: cat });
       setImageUrl(r.url);
       setCutoutEngine(r.engine);
     } catch {
@@ -343,8 +348,8 @@ export function ItemForm({
           setOriginalImageUrl(src);
           gotImage = true;
           // Analyze fills category/tags/color; keep fetched name/brand (non-empty).
-          void runAnalyze(src);
-          void autoCutout(src); // cut out the fetched product image too
+          const cat = await runAnalyze(src);
+          void autoCutout(src, cat ?? category); // cut out the fetched product image too
         } catch {
           if (typeof data.imageUrl === "string" && data.imageUrl) {
             setImageUrl(data.imageUrl);

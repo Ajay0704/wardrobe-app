@@ -60,13 +60,8 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
     try {
       const src = await resolveImageSource(file, authUser?.id ?? null);
       patch(row.id, { imageUrl: src, originalImageUrl: src });
-      // Auto background-removal → clean cutout (best-effort; keep original on failure).
-      try {
-        const cut = await cutout(src, authUser?.id ?? null);
-        patch(row.id, { imageUrl: cut.url, cutoutEngine: cut.engine });
-      } catch {
-        /* keep original */
-      }
+      // Auto-tag first so the garment engine knows the clothing class, then cut out.
+      let cat: Category = row.category;
       try {
         const res = await fetch("/api/analyze", {
           method: "POST",
@@ -75,9 +70,10 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
         });
         const data = await res.json();
         if (res.ok) {
+          cat = (data.category as Category) ?? row.category;
           patch(row.id, {
             status: "ready",
-            category: (data.category as Category) ?? row.category,
+            category: cat,
             color: data.color ?? row.color,
             colorName: data.colorName ?? row.colorName,
             brand: data.brand?.trim() || undefined,
@@ -86,12 +82,19 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
             // Prefer the model's name only if the user hasn't retyped it.
             name: data.name?.trim() ? (data.name as string) : row.name,
           });
-          return;
+        } else {
+          patch(row.id, { status: "ready" }); // resolved image but no auto-tags
         }
       } catch {
-        /* analyze failed — the item is still importable, just untagged */
+        patch(row.id, { status: "ready" }); // analyze failed — still importable, untagged
       }
-      patch(row.id, { status: "ready" }); // resolved image but no auto-tags
+      // Garment/background cutout using the detected category (best-effort).
+      try {
+        const cut = await cutout(src, authUser?.id ?? null, { category: cat });
+        patch(row.id, { imageUrl: cut.url, cutoutEngine: cut.engine });
+      } catch {
+        /* keep original */
+      }
     } catch (err) {
       patch(row.id, {
         status: "error",
