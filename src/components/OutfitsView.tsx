@@ -13,7 +13,7 @@ export function OutfitsView() {
   const {
     outfits,
     items,
-    loadOutfitIntoDraft,
+    loadOutfitBoardIntoCanvas,
     deleteOutfit,
     logWear,
     setView,
@@ -73,8 +73,9 @@ export function OutfitsView() {
   };
 
   const editLook = (id: string) => {
-    loadOutfitIntoDraft(id);
-    setView("builder");
+    // Restore the saved board layout onto the canvas (falls back to an auto-placed
+    // layout for older outfits that predate boards). Opens the builder itself.
+    loadOutfitBoardIntoCanvas(id);
   };
 
   if (sorted.length === 0) {
