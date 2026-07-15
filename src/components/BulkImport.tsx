@@ -3,6 +3,7 @@
 import { Check, Images, Loader2, Sparkles, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { useWardrobe } from "@/lib/store";
+import { cutout } from "@/lib/cutout";
 import { authHeaders } from "@/lib/supabase/client";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season } from "@/lib/types";
@@ -18,6 +19,10 @@ interface BulkRow {
   preview: string;
   /** Resolved storage URL / data URL used when saving (empty until resolved). */
   imageUrl: string;
+  /** Pre-cutout image, kept so a bad removal is recoverable. */
+  originalImageUrl?: string;
+  /** Engine that produced the cutout, e.g. "imgly@1.7.0". */
+  cutoutEngine?: string;
   status: RowStatus;
   error?: string;
   include: boolean;
@@ -54,7 +59,14 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
   const analyzeRow = async (row: BulkRow, file: File) => {
     try {
       const src = await resolveImageSource(file, authUser?.id ?? null);
-      patch(row.id, { imageUrl: src });
+      patch(row.id, { imageUrl: src, originalImageUrl: src });
+      // Auto background-removal → clean cutout (best-effort; keep original on failure).
+      try {
+        const cut = await cutout(src, authUser?.id ?? null);
+        patch(row.id, { imageUrl: cut.url, cutoutEngine: cut.engine });
+      } catch {
+        /* keep original */
+      }
       try {
         const res = await fetch("/api/analyze", {
           method: "POST",
@@ -130,6 +142,11 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
       addItem({
         name: r.name.trim() || nameFromFile(r.fileName),
         imageUrl: r.imageUrl,
+        originalImageUrl:
+          r.originalImageUrl && r.originalImageUrl !== r.imageUrl
+            ? r.originalImageUrl
+            : undefined,
+        cutoutEngine: r.cutoutEngine,
         category: r.category,
         color: r.color,
         colorName: r.colorName,

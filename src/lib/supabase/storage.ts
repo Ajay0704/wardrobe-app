@@ -101,19 +101,52 @@ async function uploadToStorage(blob: Blob, userId: string): Promise<string> {
  * if the upload fails (e.g. the Storage bucket isn't set up yet), so image
  * saving always works.
  */
+/**
+ * Turn a HEIC/HEIF file into something canvas can re-encode. Native WebKit (the iOS
+ * WKWebView, and Safari) decodes HEIC directly, so if createImageBitmap succeeds we hand
+ * the original file straight to compressImage. Otherwise (desktop web) fall back to
+ * heic2any/libheif; if that also can't decode the format, throw a friendly error.
+ */
+async function decodeHeic(file: File): Promise<File> {
+  try {
+    const bmp = await createImageBitmap(file);
+    bmp.close?.();
+    return file; // native decode works — compressImage will re-encode it
+  } catch {
+    /* fall through to heic2any */
+  }
+  try {
+    const heic2any = (await import("heic2any")).default as (opts: {
+      blob: Blob;
+      toType?: string;
+      quality?: number;
+    }) => Promise<Blob | Blob[]>;
+    const out = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.9 });
+    const jpeg = Array.isArray(out) ? out[0] : out;
+    return new File([jpeg], file.name.replace(/\.hei[cf]$/i, ".jpg"), {
+      type: "image/jpeg",
+    });
+  } catch {
+    throw new Error(
+      "Couldn't read that HEIC photo — convert it to JPEG or PNG and try again.",
+    );
+  }
+}
+
 export async function resolveImageSource(
   file: File,
   userId: string | null,
 ): Promise<string> {
-  // HEIC/HEIF from iPhone can't be decoded by most browsers' canvas — compression
-  // is a no-op and a data-URL fallback is ~1MB+, which breaks cloud sync.
+  // HEIC/HEIF from the iOS photo library. The app's real runtime is the iOS WKWebView,
+  // which decodes HEIC natively — so try a native canvas decode first (that path also
+  // feeds compressImage below). Only non-Apple browsers (desktop web) need the heic2any
+  // fallback, and even that can't handle every iPhone HEVC-HEIC (ERR_LIBHEIF).
+  let source = file;
   if (/image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
-    throw new Error(
-      "HEIC photos aren't supported yet — convert to JPEG or PNG in Photos, then upload.",
-    );
+    source = await decodeHeic(file);
   }
 
-  const blob = await compressImage(file);
+  const blob = await compressImage(source);
   if (userId) {
     try {
       return await uploadToStorage(blob, userId);
