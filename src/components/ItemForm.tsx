@@ -20,6 +20,7 @@ import { extractDominantColor, nameColor } from "@/lib/color";
 import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
+import { cutout } from "@/lib/cutout";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
@@ -72,6 +73,12 @@ export function ItemForm({
 
   const [name, setName] = useState(initial?.name ?? "");
   const [imageUrl, setImageUrl] = useState(initial?.imageUrl ?? "");
+  const [originalImageUrl, setOriginalImageUrl] = useState<string | undefined>(
+    initial?.originalImageUrl,
+  );
+  const [cutoutEngine, setCutoutEngine] = useState<string | undefined>(
+    initial?.cutoutEngine,
+  );
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
   const [color, setColor] = useState(initial?.color ?? "#a8a29e");
@@ -168,6 +175,7 @@ export function ItemForm({
     try {
       const src = await resolveImageSource(file, authUser?.id ?? null);
       setImageUrl(src);
+      setOriginalImageUrl(src); // keep the pre-cutout image
       void runAnalyze(src); // auto-tag in the background
       void autoCutout(src); // auto background-removal → clean cutout
     } catch (err) {
@@ -235,32 +243,17 @@ export function ItemForm({
     }
   };
 
-  /**
-   * Remove the background on-device (private, free) → clean cutout PNG.
-   * Shared core; used by the manual button and by the automatic pass on add.
-   */
-  const cutoutSrc = async (src: string): Promise<string> => {
-    const { removeBackground } = await import("@imgly/background-removal");
-    // Fetch into a blob first so CORS-restricted remote hosts (and data URLs)
-    // are handled consistently by the WASM pipeline.
-    let input: Blob | string = src;
-    if (src.startsWith("http")) {
-      const res = await fetch(src);
-      if (!res.ok) throw new Error("fetch-failed");
-      input = await res.blob();
-    }
-    const blob = await removeBackground(input);
-    const file = new File([blob], "cutout.png", { type: "image/png" });
-    return resolveImageSource(file, authUser?.id ?? null);
-  };
-
-  /** Manual "remove background" button. */
+  /** Manual "remove background" button. Keeps the pre-cutout image as the original. */
   const handleRemoveBg = async () => {
     if (!imageUrl) return;
+    const base = imageUrl;
     setRemovingBg(true);
     setAnalyzeMsg("");
     try {
-      setImageUrl(await cutoutSrc(imageUrl));
+      const r = await cutout(base, authUser?.id ?? null);
+      setOriginalImageUrl((prev) => prev ?? base);
+      setImageUrl(r.url);
+      setCutoutEngine(r.engine);
       setAnalyzeMsg("Background removed.");
     } catch {
       setAnalyzeMsg("Background removal failed — kept the original image.");
@@ -270,19 +263,29 @@ export function ItemForm({
   };
 
   /**
-   * Automatic cutout after a photo is added (upload/camera). Shows the original
-   * immediately, then swaps in the cutout when ready; silently keeps the
+   * Automatic cutout after a photo is added (upload/camera/fetch). Shows the
+   * original immediately, then swaps in the cutout when ready; silently keeps the
    * original if removal fails so an add never gets blocked.
    */
   const autoCutout = async (src: string) => {
     setRemovingBg(true);
     try {
-      setImageUrl(await cutoutSrc(src));
+      const r = await cutout(src, authUser?.id ?? null);
+      setImageUrl(r.url);
+      setCutoutEngine(r.engine);
     } catch {
       /* keep original */
     } finally {
       setRemovingBg(false);
     }
+  };
+
+  /** Revert to the pre-cutout image (undo a bad removal). */
+  const useOriginal = () => {
+    if (!originalImageUrl) return;
+    setImageUrl(originalImageUrl);
+    setCutoutEngine(undefined);
+    setAnalyzeMsg("Restored the original photo.");
   };
 
   const handleFetchDetails = async (
@@ -337,9 +340,11 @@ export function ItemForm({
           const file = dataUrlToFile(data.imageData);
           const src = await resolveImageSource(file, authUser?.id ?? null);
           setImageUrl(src);
+          setOriginalImageUrl(src);
           gotImage = true;
           // Analyze fills category/tags/color; keep fetched name/brand (non-empty).
           void runAnalyze(src);
+          void autoCutout(src); // cut out the fetched product image too
         } catch {
           if (typeof data.imageUrl === "string" && data.imageUrl) {
             setImageUrl(data.imageUrl);
@@ -447,6 +452,11 @@ export function ItemForm({
     const data = {
       name: name.trim(),
       imageUrl: imageUrl.trim(),
+      originalImageUrl:
+        originalImageUrl && originalImageUrl !== imageUrl.trim()
+          ? originalImageUrl
+          : undefined,
+      cutoutEngine: cutoutEngine || undefined,
       productUrl: productUrl.trim() || undefined,
       category,
       color,
@@ -539,6 +549,15 @@ export function ItemForm({
               >
                 <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
               </button>
+              {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (
+                <button
+                  type="button"
+                  onClick={useOriginal}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground"
+                >
+                  <Upload size={13} /> Use original
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => void handleFindProduct()}

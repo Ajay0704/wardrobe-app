@@ -50,6 +50,10 @@ export interface WardrobeItem {
   id: string;
   /** Direct image URL, or a data: URL when the user uploads a file. */
   imageUrl: string;
+  /** The pre-cutout image, kept so a bad background removal is recoverable. */
+  originalImageUrl?: string;
+  /** Which background-removal engine produced the cutout, e.g. "imgly@1.7.0". */
+  cutoutEngine?: string;
   name: string;
   /** Optional link to the product page (where to buy or view the item). */
   productUrl?: string;
