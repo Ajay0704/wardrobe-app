@@ -121,3 +121,46 @@ export async function cutout(
     throw e;
   }
 }
+
+/** Decode a base64 PNG (from the multi API) into a Blob for re-hosting. */
+function base64ToBlob(b64: string, type = "image/png"): Blob {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type });
+}
+
+/**
+ * Split one photo into a separate garment cutout per class (grouped by category), each re-hosted.
+ * Only works with the garment engine; if that isn't active or the multi call fails, degrades to a
+ * single cutout returned as a one-element array (never hard-fails).
+ */
+export async function cutoutMulti(
+  src: string,
+  userId: string | null,
+  opts?: CutoutOptions,
+): Promise<{ category: string; url: string }[]> {
+  if (getCutoutEngine().id === garmentEngine.id) {
+    try {
+      const isHttp = src.startsWith("http");
+      const res = await fetch("/api/cutout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+        body: JSON.stringify({ ...(isHttp ? { imageUrl: src } : { imageData: src }), mode: "multi" }),
+      });
+      if (!res.ok) throw new Error(`cutout-multi ${res.status}`);
+      const data = (await res.json()) as { cutouts?: { category: string; pngBase64: string }[] };
+      const out: { category: string; url: string }[] = [];
+      for (const c of data.cutouts ?? []) {
+        const file = new File([base64ToBlob(c.pngBase64)], "cutout.png", { type: "image/png" });
+        out.push({ category: c.category, url: await resolveImageSource(file, userId) });
+      }
+      if (out.length) return out;
+    } catch {
+      /* fall through to single */
+    }
+  }
+  // Fallback: one cutout for the whole photo.
+  const single = await cutout(src, userId, opts);
+  return [{ category: opts?.category ?? "top", url: single.url }];
+}
