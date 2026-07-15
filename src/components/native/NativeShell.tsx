@@ -31,6 +31,7 @@ import { unreadCount } from "@/lib/notifications";
 import { unreadCount as chatUnreadCount } from "@/lib/chat";
 import { isImportEnabled } from "@/lib/import";
 import { EmailImportSheet } from "../import/EmailImportSheet";
+import { OutfitSplitImport } from "../OutfitSplitImport";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -81,6 +82,7 @@ export function NativeShell() {
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
   const [emailImportOpen, setEmailImportOpen] = useState(false);
+  const [outfitSplitOpen, setOutfitSplitOpen] = useState(false);
   const [importAllowed, setImportAllowed] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
@@ -278,6 +280,7 @@ export function NativeShell() {
             <SheetRow icon={ImageIcon} label="Album" onClick={() => runSheet(() => setBulkOpen(true))} />
             <SheetRow icon={Camera} label="Camera" onClick={() => runSheet(() => setAddOpen(true))} />
             <SheetRow icon={ScanLine} label="Smart Detector" onClick={() => runSheet(() => setBulkOpen(true))} />
+            <SheetRow icon={Shirt} label="Add whole outfit" onClick={() => runSheet(() => setOutfitSplitOpen(true))} />
             <SheetRow icon={Landmark} label="Library" onClick={soon} />
             <SheetRow icon={Globe} label="Web" onClick={() => runSheet(() => setAddOpen(true))} />
             <SheetRow icon={Clipboard} label="Clipboard" onClick={soon} />
@@ -308,6 +311,7 @@ export function NativeShell() {
       )}
 
       {emailImportOpen && <EmailImportSheet onClose={() => setEmailImportOpen(false)} />}
+      {outfitSplitOpen && <OutfitSplitImport onClose={() => setOutfitSplitOpen(false)} />}
 
       {/* Floating chat button — bottom-right above the tab bar, on main views only */}
       {showActions && (
