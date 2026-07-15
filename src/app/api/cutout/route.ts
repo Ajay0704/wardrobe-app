@@ -16,7 +16,10 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const HF_MODEL = "mattmdjaga/segformer_b2_clothes";
-const HF_URL = `https://api-inference.huggingface.co/models/${HF_MODEL}`;
+// HF migrated the classic api-inference.huggingface.co host to the Inference Providers router.
+const HF_URL = `https://router.huggingface.co/hf-inference/models/${HF_MODEL}`;
+/** Accept either env name for the HuggingFace token. */
+const HF_KEY = () => process.env.HUGGINGFACE_API_KEY || process.env.HF_TOKEN;
 
 /** ATR/human-parsing labels kept per wardrobe category. */
 const CLASS_MAP: Record<string, string[]> = {
@@ -42,7 +45,7 @@ interface SegMask {
 
 /** Call the segmentation provider with raw image bytes → per-class masks. */
 async function runSegmentation(bytes: Buffer): Promise<SegMask[]> {
-  const key = process.env.HUGGINGFACE_API_KEY;
+  const key = HF_KEY();
   if (!key) throw new Error("no-key");
   const resp = await fetch(HF_URL, {
     method: "POST",
@@ -65,7 +68,7 @@ export async function POST(request: Request): Promise<Response> {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
 
-  if (!process.env.HUGGINGFACE_API_KEY) {
+  if (!HF_KEY()) {
     return Response.json({ error: "Garment cutout not configured." }, { status: 501 });
   }
 
@@ -92,6 +95,15 @@ export async function POST(request: Request): Promise<Response> {
     const msg = (e as Error).message;
     const status = msg.startsWith("blocked") ? 400 : 502;
     return Response.json({ error: `Image fetch failed: ${msg}` }, { status });
+  }
+
+  // Normalize EXIF orientation so our pixel space matches the model's (PIL auto-rotates;
+  // sharp does not). Feed the SAME normalized bytes to both segmentation and compositing,
+  // or the mask lands on the wrong region.
+  try {
+    src = await sharp(src).rotate().toBuffer();
+  } catch {
+    /* keep original bytes if rotate fails */
   }
 
   // Segment.
