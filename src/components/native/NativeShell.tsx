@@ -294,11 +294,13 @@ function TabBtn({
     <button
       type="button"
       onClick={() => onClick(tab.view)}
+      aria-label={label}
       aria-current={active ? "page" : undefined}
-      className={`native-tab ${active ? "native-tab-active" : ""}`}
+      className="native-tab"
     >
-      <Icon size={22} strokeWidth={1.8} />
-      <span>{label}</span>
+      <span className={`native-tab-icon ${active ? "native-tab-icon-active" : ""}`}>
+        <Icon size={22} strokeWidth={1.8} />
+      </span>
     </button>
   );
 }
