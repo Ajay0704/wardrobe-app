@@ -444,7 +444,8 @@ export async function runTool(
       const loser = sa >= sb ? b : a;
       return {
         blocks: [
-          { type: "item_list", title: "Comparing", itemIds: ids },
+          // Winner first, so the recommended pick reads left-to-right.
+          { type: "item_list", title: "Best match first", itemIds: [winner.id, loser.id] },
         ],
         compact: {
           intent,
