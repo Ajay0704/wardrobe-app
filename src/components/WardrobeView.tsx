@@ -510,13 +510,13 @@ function ClosetGrid({
           onClick={() => onEdit(item)}
           className={`border-b border-line text-left ${i % 3 !== 2 ? "border-r" : ""}`}
         >
-          <div className="aspect-[3/4] overflow-hidden bg-surface">
+          <div className="flex aspect-[3/4] items-center justify-center overflow-hidden bg-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl}
               alt={item.name}
               loading="lazy"
-              className="h-full w-full object-cover"
+              className="h-full w-full object-contain"
             />
           </div>
           <div className="px-2.5 py-2">

@@ -7,7 +7,6 @@ import {
   Link2,
   Pipette,
   RefreshCw,
-  Scissors,
   Search,
   Sparkles,
   Upload,
@@ -263,25 +262,6 @@ export function ItemForm({
       return undefined;
     } finally {
       setAnalyzing(false);
-    }
-  };
-
-  /** Manual "remove background" button. Keeps the pre-cutout image as the original. */
-  const handleRemoveBg = async () => {
-    if (!imageUrl) return;
-    const base = imageUrl;
-    setRemovingBg(true);
-    setAnalyzeMsg("");
-    try {
-      const r = await cutout(base, authUser?.id ?? null, { category });
-      setOriginalImageUrl((prev) => prev ?? base);
-      setImageUrl(r.url);
-      setCutoutEngine(r.engine);
-      setAnalyzeMsg("Background removed.");
-    } catch {
-      setAnalyzeMsg("Background removal failed — kept the original image.");
-    } finally {
-      setRemovingBg(false);
     }
   };
 
@@ -570,7 +550,7 @@ export function ItemForm({
               <img
                 src={previewUrl}
                 alt="Preview"
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
               />
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
@@ -618,22 +598,6 @@ export function ItemForm({
 
           {imageUrl && (
             <div className="flex flex-col gap-1.5">
-              <button
-                type="button"
-                onClick={() => runAnalyze(imageUrl)}
-                disabled={analyzing || uploading}
-                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
-              >
-                <Sparkles size={13} /> {analyzing ? "Analyzing…" : "Auto-tag"}
-              </button>
-              <button
-                type="button"
-                onClick={handleRemoveBg}
-                disabled={removingBg || uploading}
-                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
-              >
-                <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
-              </button>
               {!beautifyDisabled && (
                 <button
                   type="button"
