@@ -438,6 +438,9 @@ export function CanvasBuilderView() {
                         <button
                           type="button"
                           aria-label="Flip"
+                          onPointerDown={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onTouchStart={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
                             updateCanvasItem(c.id, { flipped: !c.flipped });
@@ -462,6 +465,9 @@ export function CanvasBuilderView() {
                       <button
                         type="button"
                         aria-label="Delete"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeCanvasItem(c.id);
