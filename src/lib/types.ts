@@ -54,6 +54,12 @@ export interface WardrobeItem {
   originalImageUrl?: string;
   /** Which background-removal engine produced the cutout, e.g. "imgly@1.7.0". */
   cutoutEngine?: string;
+  /** Cached generative product-shot (Beautify). Never regenerated once set. */
+  beautifiedImageUrl?: string;
+  /** The cutout to restore when reverting a beautify (imageUrl before Beautify). */
+  cutoutImageUrl?: string;
+  /** Which model produced the beautified image, e.g. "gemini@2.5-flash-image". */
+  beautifyModel?: string;
   name: string;
   /** Optional link to the product page (where to buy or view the item). */
   productUrl?: string;

@@ -205,6 +205,16 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     id: typeof it.id === "string" ? it.id : uid(),
     name: typeof it.name === "string" ? it.name : "",
     imageUrl: typeof it.imageUrl === "string" ? it.imageUrl : "",
+    // Image-attribute fields must be whitelisted here or they're stripped on every
+    // localStorage rehydrate / Supabase pull (revert sources + engine/model stamps).
+    originalImageUrl: typeof it.originalImageUrl === "string" ? it.originalImageUrl : undefined,
+    cutoutEngine: typeof it.cutoutEngine === "string" ? it.cutoutEngine : undefined,
+    beautifiedImageUrl: typeof it.beautifiedImageUrl === "string" ? it.beautifiedImageUrl : undefined,
+    cutoutImageUrl: typeof it.cutoutImageUrl === "string" ? it.cutoutImageUrl : undefined,
+    beautifyModel: typeof it.beautifyModel === "string" ? it.beautifyModel : undefined,
+    fit: typeof it.fit === "string" ? it.fit : undefined,
+    tone: typeof it.tone === "string" ? it.tone : undefined,
+    formality: typeof it.formality === "string" ? it.formality : undefined,
     productUrl: typeof it.productUrl === "string" ? it.productUrl : undefined,
     category: (it.category ?? "top") as Category,
     color: typeof it.color === "string" ? it.color : "#a8a29e",
