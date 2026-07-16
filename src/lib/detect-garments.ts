@@ -1,11 +1,12 @@
 /**
- * Client side of the whole-outfit detector. Sends one photo to /api/detect-garments
- * (Gemini returns every garment + a bounding box + attributes), then crops each box
- * out of the ORIGINAL data URL locally and runs cutout() per crop for a clean sticker.
+ * Client side of the whole-outfit detector. Detects every garment in one photo,
+ * crops each box out of the ORIGINAL local data URL, cuts it out, and tags it.
  *
- * Cropping is done on the local data URL (not a re-hosted https URL) so the canvas is
- * never tainted by cross-origin pixels. Returns fully-attributed garments; on any
- * failure returns [] so callers can fall back to SegFormer (cutoutMulti) or single-add.
+ * Detector chain: Grounding DINO on Replicate (/api/segment-outfit — reliable,
+ * boxes only) → Gemini boxes (/api/detect-garments — boxes + attributes). Cropping
+ * uses the local data URL (not a re-hosted https URL) so the canvas is never tainted
+ * by cross-origin pixels. Returns fully-attributed garments; on any failure returns
+ * [] so callers can fall back to SegFormer (cutoutMulti) or single-add.
  */
 
 import { cutout } from "./cutout";
@@ -85,6 +86,60 @@ function cropBox(img: HTMLImageElement, box: ApiGarment["box"], pad = 0.06): str
   return canvas.toDataURL("image/jpeg", 0.9);
 }
 
+/** Primary detector: Grounding DINO on Replicate. Boxes + category only. */
+async function segmentViaReplicate(detectUrl: string): Promise<ApiGarment[]> {
+  try {
+    const res = await fetch("/api/segment-outfit", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ image: detectUrl }),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { garments?: { category: Category; box: ApiGarment["box"] }[] };
+    return (data.garments ?? []).map((g) => ({ category: g.category, box: g.box, seasons: [], tags: [] }));
+  } catch {
+    return [];
+  }
+}
+
+/** Fallback detector: Gemini boxes — returns attributes inline too. */
+async function detectViaGemini(detectUrl: string): Promise<ApiGarment[]> {
+  try {
+    const res = await fetch("/api/detect-garments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ image: detectUrl }),
+    });
+    if (!res.ok) return [];
+    const data = (await res.json()) as { garments?: ApiGarment[] };
+    return data.garments ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Tag a single cutout (name/colour/seasons/tags) when the detector gave boxes only. */
+async function analyzeCutout(url: string): Promise<Partial<ApiGarment>> {
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ image: url }),
+    });
+    if (!res.ok) return {};
+    const d = (await res.json()) as Record<string, unknown>;
+    return {
+      name: typeof d.name === "string" ? d.name : undefined,
+      color: typeof d.color === "string" ? d.color : undefined,
+      colorName: typeof d.colorName === "string" ? d.colorName : undefined,
+      seasons: Array.isArray(d.seasons) ? (d.seasons as Season[]) : undefined,
+      tags: Array.isArray(d.tags) ? (d.tags as string[]) : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
 /**
  * Detect every garment in one photo and return them as cut-out, attributed items.
  * `dataUrl` MUST be a local data: URL (from the picked/captured file).
@@ -102,23 +157,13 @@ export async function detectGarments(
   }
   const detectUrl = downscaleForDetect(img);
 
-  let garments: ApiGarment[];
-  try {
-    const res = await fetch("/api/detect-garments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify({ image: detectUrl }),
-    });
-    if (!res.ok) return [];
-    const data = (await res.json()) as { garments?: ApiGarment[] };
-    garments = data.garments ?? [];
-  } catch {
-    return [];
-  }
+  // Replicate first (best), Gemini as fallback.
+  let garments = await segmentViaReplicate(detectUrl);
+  if (!garments.length) garments = await detectViaGemini(detectUrl);
   if (!garments.length) return [];
 
   const out: DetectedGarment[] = [];
-  // Limited concurrency so on-device cutout doesn't stall the UI.
+  // Limited concurrency so on-device cutout + tagging don't stall the UI.
   let i = 0;
   const worker = async () => {
     while (i < garments.length) {
@@ -131,13 +176,27 @@ export async function detectGarments(
       } catch {
         /* keep the raw crop if cutout fails */
       }
+      let name = g.name?.trim() || "";
+      let color = g.color;
+      let colorName = g.colorName;
+      let seasons = g.seasons ?? [];
+      let tags = g.tags ?? [];
+      // Boxes-only detector (Replicate) → tag the cutout now.
+      if (!name) {
+        const a = await analyzeCutout(url);
+        name = a.name?.trim() || "";
+        color = a.color ?? color;
+        colorName = a.colorName ?? colorName;
+        seasons = a.seasons ?? seasons;
+        tags = a.tags ?? tags;
+      }
       out.push({
         category: g.category,
-        name: g.name?.trim() || "",
-        color: g.color || "#a8a29e",
-        colorName: g.colorName,
-        seasons: g.seasons ?? [],
-        tags: g.tags ?? [],
+        name,
+        color: color || "#a8a29e",
+        colorName,
+        seasons,
+        tags,
         url,
       });
     }
