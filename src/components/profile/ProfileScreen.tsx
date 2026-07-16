@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, Grid3x3, Repeat2, Shirt, Tag, type LucideIcon } from "lucide-react";
+import { BarChart3, Grid3x3, MapPin, Repeat2, Shirt, Tag, type LucideIcon } from "lucide-react";
 import { useState } from "react";
 import { ProfileAvatar } from "../ProfileAvatar";
 
@@ -18,10 +18,17 @@ export interface ProfileScreenData {
   handle: string;
   avatar?: string;
   bio?: string;
+  location?: string;
   counts: { posts: number; followers: number; following: number };
   posts: ProfilePost[];
   tagged: ProfilePost[];
   shared: ProfilePost[];
+}
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}k`;
+  return String(n);
 }
 
 type StatKey = "posts" | "followers" | "following";
@@ -37,14 +44,20 @@ type Tab = "posts" | "tagged" | "shared";
 export function ProfileScreen({
   data,
   actions,
+  topRight,
   onStat,
+  onAvatarClick,
   loading,
 }: {
   data: ProfileScreenData | null;
   /** Action row under the bio (public: "Get the app" CTA; app: Follow + Message). */
   actions?: React.ReactNode;
+  /** Right-aligned controls above the avatar (own profile: find-friends + new-post). */
+  topRight?: React.ReactNode;
   /** Tapping Followers / Following (app only). Posts always switches the tab. */
   onStat?: (which: Exclude<StatKey, "posts">) => void;
+  /** Makes the avatar tappable (own profile: open the editor). */
+  onAvatarClick?: () => void;
   loading?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("posts");
@@ -57,9 +70,15 @@ export function ProfileScreen({
 
   return (
     <div className="pb-4">
+      {topRight && <div className="flex items-center justify-end gap-1 pt-1">{topRight}</div>}
+
       {/* Header */}
-      <div className="flex flex-col items-center gap-3 pb-5 pt-1 text-center">
-        <ProfileAvatar profile={{ avatarUrl: data.avatar, displayName: data.name }} size={92} />
+      <div className={`flex flex-col items-center gap-3 pb-5 text-center ${topRight ? "" : "pt-1"}`}>
+        <ProfileAvatar
+          profile={{ avatarUrl: data.avatar, displayName: data.name }}
+          size={92}
+          onClick={onAvatarClick}
+        />
         <div>
           <h1 className="heading text-xl leading-tight">{data.name}</h1>
           <p className="text-sm text-muted">@{data.handle}</p>
@@ -72,6 +91,11 @@ export function ProfileScreen({
         </div>
 
         {data.bio?.trim() && <p className="max-w-xs text-sm text-foreground/90">{data.bio}</p>}
+        {data.location?.trim() && (
+          <p className="flex items-center gap-1 text-xs text-muted">
+            <MapPin size={13} /> {data.location}
+          </p>
+        )}
 
         {actions && <div className="flex w-full max-w-xs items-center gap-2 pt-1">{actions}</div>}
       </div>
@@ -118,7 +142,7 @@ function Stat({ n, label, onClick }: { n: number; label: string; onClick?: () =>
       disabled={!onClick}
       className="flex flex-col items-center px-2 disabled:cursor-default"
     >
-      <span className="text-lg font-semibold leading-tight">{n}</span>
+      <span className="text-lg font-semibold leading-tight">{formatCount(n)}</span>
       <span className="text-xs text-muted">{label}</span>
     </button>
   );
