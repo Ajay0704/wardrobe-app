@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Link2,
   Pipette,
+  Scissors,
   Search,
   Sparkles,
   Upload,
@@ -21,6 +22,7 @@ import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import { cutout } from "@/lib/cutout";
+import { beautify } from "@/lib/beautify";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
@@ -79,6 +81,17 @@ export function ItemForm({
   const [cutoutEngine, setCutoutEngine] = useState<string | undefined>(
     initial?.cutoutEngine,
   );
+  const [beautifiedImageUrl, setBeautifiedImageUrl] = useState<string | undefined>(
+    initial?.beautifiedImageUrl,
+  );
+  const [cutoutImageUrl, setCutoutImageUrl] = useState<string | undefined>(
+    initial?.cutoutImageUrl,
+  );
+  const [beautifyModel, setBeautifyModel] = useState<string | undefined>(
+    initial?.beautifyModel,
+  );
+  const [beautifying, setBeautifying] = useState(false);
+  const [beautifyDisabled, setBeautifyDisabled] = useState(false);
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
   const [color, setColor] = useState(initial?.color ?? "#a8a29e");
@@ -123,7 +136,8 @@ export function ItemForm({
     !uploading &&
     !fetching &&
     !analyzing &&
-    !removingBg;
+    !removingBg &&
+    !beautifying;
 
   // Provisional item from the current form, so the Smart Buy analysis below
   // reacts live as you fill in / fetch details for a wishlist piece.
@@ -291,6 +305,49 @@ export function ItemForm({
     setImageUrl(originalImageUrl);
     setCutoutEngine(undefined);
     setAnalyzeMsg("Restored the original photo.");
+  };
+
+  const beautifyApplied = !!beautifiedImageUrl && imageUrl === beautifiedImageUrl;
+
+  /**
+   * Beautify toggle (generative product-shot redraw). Generates once and caches, so it never
+   * regenerates: applied → revert to the cutout; cached-but-not-applied → re-apply (no regen);
+   * none → call Gemini, cache, apply. A missing key (501) disables the button.
+   */
+  const handleBeautify = async () => {
+    if (!imageUrl) return;
+    if (beautifyApplied) {
+      // Revert to the stored cutout, keep the cache for instant re-apply.
+      setImageUrl(cutoutImageUrl ?? imageUrl);
+      setAnalyzeMsg("Reverted to the cutout.");
+      return;
+    }
+    if (beautifiedImageUrl) {
+      // Cached → re-apply without regenerating.
+      setImageUrl(beautifiedImageUrl);
+      setAnalyzeMsg("Applied the beautified image.");
+      return;
+    }
+    const base = imageUrl;
+    setBeautifying(true);
+    setAnalyzeMsg("");
+    try {
+      const r = await beautify(base, authUser?.id ?? null);
+      setCutoutImageUrl(base);
+      setBeautifiedImageUrl(r.url);
+      setBeautifyModel(r.model);
+      setImageUrl(r.url);
+      setAnalyzeMsg("Beautified into a product shot.");
+    } catch (e) {
+      if ((e as Error).message === "beautify 501") {
+        setBeautifyDisabled(true);
+        setAnalyzeMsg("Beautify isn't available (needs GEMINI_API_KEY).");
+      } else {
+        setAnalyzeMsg("Beautify failed — kept the current image.");
+      }
+    } finally {
+      setBeautifying(false);
+    }
   };
 
   const handleFetchDetails = async (
@@ -462,6 +519,9 @@ export function ItemForm({
           ? originalImageUrl
           : undefined,
       cutoutEngine: cutoutEngine || undefined,
+      beautifiedImageUrl: beautifiedImageUrl || undefined,
+      cutoutImageUrl: cutoutImageUrl || undefined,
+      beautifyModel: beautifyModel || undefined,
       productUrl: productUrl.trim() || undefined,
       category,
       color,
@@ -552,8 +612,23 @@ export function ItemForm({
                 disabled={removingBg || uploading}
                 className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
               >
-                <Wand2 size={13} /> {removingBg ? "Beautifying…" : "Beautify"}
+                <Scissors size={13} /> {removingBg ? "Removing…" : "Remove background"}
               </button>
+              {!beautifyDisabled && (
+                <button
+                  type="button"
+                  onClick={handleBeautify}
+                  disabled={beautifying || uploading || removingBg}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-accent/50 px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent-soft disabled:opacity-60"
+                >
+                  <Wand2 size={13} />{" "}
+                  {beautifying
+                    ? "Beautifying…"
+                    : beautifyApplied
+                      ? "Revert"
+                      : "Beautify"}
+                </button>
+              )}
               {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (
                 <button
                   type="button"
