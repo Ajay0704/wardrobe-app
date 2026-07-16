@@ -557,7 +557,7 @@ export function ItemForm({
       <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
         {/* Live image preview */}
         <div className="mx-auto w-44 space-y-2 lg:mx-0 lg:w-auto">
-          <div className="aspect-[3/4] overflow-hidden rounded-2xl border border-line bg-surface-2">
+          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
