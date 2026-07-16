@@ -31,6 +31,7 @@ import { BulkImport } from "./BulkImport";
 export function AppViews() {
   const view = useWardrobe((s) => s.view);
   const addOpen = useWardrobe((s) => s.addOpen);
+  const addIntent = useWardrobe((s) => s.addIntent);
   const setAddOpen = useWardrobe((s) => s.setAddOpen);
   const bulkOpen = useWardrobe((s) => s.bulkOpen);
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
@@ -61,7 +62,7 @@ export function AppViews() {
       {view === "chat" && <ChatView />}
       {view === "photoDetail" && <PhotoDetailView />}
 
-      {addOpen && <ItemForm onClose={() => setAddOpen(false)} />}
+      {addOpen && <ItemForm intent={addIntent} onClose={() => setAddOpen(false)} />}
       {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}
     </>
   );

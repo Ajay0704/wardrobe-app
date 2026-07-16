@@ -97,6 +97,8 @@ interface WardrobeState {
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
   addOpen: boolean;
+  /** Which input the add form should jump to when opened from a "+" row. */
+  addIntent: "camera" | "upload" | "link" | null;
   /** Global "import from photos" (bulk) modal, opened from Create / Closet. */
   bulkOpen: boolean;
   /** Global "closets selector" sheet (opened from the Closet header dropdown). */
@@ -160,6 +162,8 @@ interface WardrobeState {
   openThread: (id: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
+  /** Open the add form pointed at a specific input (camera/upload/link). */
+  openAdd: (intent?: "camera" | "upload" | "link" | null) => void;
   setBulkOpen: (open: boolean) => void;
   setClosetsOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
@@ -339,6 +343,7 @@ export const useWardrobe = create<WardrobeState>()(
       activeThreadId: null,
       settingsSection: "profile",
       addOpen: false,
+      addIntent: null,
       bulkOpen: false,
       closetsOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
@@ -555,7 +560,8 @@ export const useWardrobe = create<WardrobeState>()(
       openPhoto: (card) => set({ photoCard: card, view: "photoDetail" }),
       openThread: (id) => set({ activeThreadId: id, view: "chat" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
-      setAddOpen: (addOpen) => set({ addOpen }),
+      setAddOpen: (addOpen) => set({ addOpen, ...(addOpen ? {} : { addIntent: null }) }),
+      openAdd: (intent = null) => set({ addOpen: true, addIntent: intent }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setFilters: (patch) =>

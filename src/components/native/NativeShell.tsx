@@ -7,31 +7,21 @@ import {
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Clipboard,
   Compass,
   Globe,
   Heart,
   Home,
   Image as ImageIcon,
-  Landmark,
   LayoutGrid,
-  Mail,
   MessageCircle,
   Plus,
-  ScanLine,
-  Search,
   Settings,
   Shirt,
-  ShoppingBag,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { unreadCount } from "@/lib/notifications";
 import { unreadCount as chatUnreadCount } from "@/lib/chat";
-import { isImportEnabled } from "@/lib/import";
-import { EmailImportSheet } from "../import/EmailImportSheet";
-import { OutfitSplitImport } from "../OutfitSplitImport";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
@@ -73,7 +63,7 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, setAddOpen, setBulkOpen } = useWardrobe();
+  const { view, setView, openAdd } = useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const [createOpen, setCreateOpen] = useState(false);
@@ -81,9 +71,6 @@ export function NativeShell() {
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
-  const [emailImportOpen, setEmailImportOpen] = useState(false);
-  const [outfitSplitOpen, setOutfitSplitOpen] = useState(false);
-  const [importAllowed, setImportAllowed] = useState(false);
   const showActions = MAIN_VIEWS.has(view);
 
   // Refresh the bell badge whenever we land on a screen — cheap, RLS-scoped
@@ -95,9 +82,6 @@ export function NativeShell() {
     });
     void chatUnreadCount().then((n) => {
       if (alive) setChatUnread(n);
-    });
-    void isImportEnabled().then((on) => {
-      if (alive) setImportAllowed(on);
     });
     return () => {
       alive = false;
@@ -121,15 +105,11 @@ export function NativeShell() {
     setView(target);
   };
 
-  // Create sheet: run a real action (and close), or flag a not-yet-built one.
+  // Create sheet: run a real action and close.
   const runSheet = (fn: () => void) => {
     setSheetNote(null);
     setCreateOpen(false);
     fn();
-  };
-  const soon = () => {
-    setSheetNote("Coming soon");
-    window.setTimeout(() => setSheetNote(null), 1600);
   };
 
   return (
@@ -277,29 +257,15 @@ export function NativeShell() {
             <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
               Add item
             </p>
-            <SheetRow icon={ImageIcon} label="Album" onClick={() => runSheet(() => setBulkOpen(true))} />
-            <SheetRow icon={Camera} label="Camera" onClick={() => runSheet(() => setAddOpen(true))} />
-            <SheetRow icon={ScanLine} label="Smart Detector" onClick={() => runSheet(() => setBulkOpen(true))} />
-            <SheetRow icon={Shirt} label="Add whole outfit" onClick={() => runSheet(() => setOutfitSplitOpen(true))} />
-            <SheetRow icon={Landmark} label="Library" onClick={soon} />
-            <SheetRow icon={Globe} label="Web" onClick={() => runSheet(() => setAddOpen(true))} />
-            <SheetRow icon={Clipboard} label="Clipboard" onClick={soon} />
-            <SheetRow icon={Search} label="Search item" onClick={soon} />
-            <SheetRow icon={ShoppingBag} label="Import from Online Stores" onClick={soon} />
-            <SheetRow
-              icon={Mail}
-              label="Import from Email"
-              onClick={() =>
-                importAllowed ? runSheet(() => setEmailImportOpen(true)) : soon()
-              }
-            />
+            <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openAdd("camera"))} />
+            <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openAdd("upload"))} />
+            <SheetRow icon={Globe} label="Paste a link" onClick={() => runSheet(() => openAdd("link"))} />
 
             <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
               Closet
             </p>
             <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} />
-            <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} />
-            <SheetRow icon={Sparkles} label="Beautify" onClick={soon} last />
+            <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} last />
 
             {sheetNote && (
               <p className="mt-3 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">
@@ -309,9 +275,6 @@ export function NativeShell() {
           </div>
         </div>
       )}
-
-      {emailImportOpen && <EmailImportSheet onClose={() => setEmailImportOpen(false)} />}
-      {outfitSplitOpen && <OutfitSplitImport onClose={() => setOutfitSplitOpen(false)} />}
 
       {/* Floating chat button — bottom-right above the tab bar, on main views only */}
       {showActions && (

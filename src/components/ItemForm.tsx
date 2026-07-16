@@ -14,7 +14,7 @@ import {
   Wand2,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ProductCandidate } from "@/app/api/find-product/route";
 import { affiliateUrl } from "@/lib/affiliate";
@@ -63,13 +63,18 @@ function portalToBody(node: ReactNode): ReactNode {
 export function ItemForm({
   initial,
   defaultWishlist,
+  intent,
   onClose,
 }: {
   initial?: WardrobeItem;
   defaultWishlist?: boolean;
+  /** When opened from a "+" row, jump straight to this input. */
+  intent?: "camera" | "upload" | "link" | null;
   onClose: () => void;
 }) {
   const { addItem, updateItem, deleteItem, authUser } = useWardrobe();
+  const uploadInputRef = useRef<HTMLInputElement>(null);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const nativeHook = useIsNativeApp();
   const isNative = nativeHook || isNativeApp();
   const phoneEditor = usePhoneEditorLayout(nativeHook);
@@ -222,6 +227,21 @@ export function ItemForm({
       );
     }
   };
+
+  // When opened from a "+" row, jump straight to that input (camera / library / link). Once,
+  // deferred a tick so the modal/portal has painted and the target input is focusable.
+  const intentFired = useRef(false);
+  useEffect(() => {
+    if (intentFired.current || !intent) return;
+    intentFired.current = true;
+    const t = setTimeout(() => {
+      if (intent === "camera") void handleTakePhoto();
+      else if (intent === "upload") uploadInputRef.current?.click();
+      else if (intent === "link") urlInputRef.current?.focus();
+    }, 80);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [intent]);
 
   /** Ask Gemini to read the photo and pre-fill category/color/name/tags/season. */
   const runAnalyze = async (src: string): Promise<Category | undefined> => {
@@ -557,6 +577,14 @@ export function ItemForm({
       <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
         {/* Live image preview */}
         <div className="mx-auto w-44 space-y-2 lg:mx-0 lg:w-auto">
+          {/* Hidden input the "+ → Photo library" intent triggers programmatically. */}
+          <input
+            ref={uploadInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+          />
           <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -684,6 +712,7 @@ export function ItemForm({
           >
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
+                ref={urlInputRef}
                 className={`${inputClass} min-w-0 flex-1`}
                 type="text"
                 inputMode="url"
