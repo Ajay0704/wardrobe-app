@@ -407,6 +407,14 @@ export function CanvasBuilderView() {
                 position={{ x: c.x, y: c.y }}
                 bounds="parent"
                 lockAspectRatio={c.kind !== "text"}
+                // The selected-item controls (flip/rotate/delete) carry
+                // `canvas-ctrl`. react-draggable binds touchstart as a native,
+                // non-passive listener on this node and preventDefaults it,
+                // which cancels the synthetic click on iOS — so a plain onClick
+                // never fires on the phone. `cancel` makes react-draggable bail
+                // out before that preventDefault when the touch starts on a
+                // control, letting the tap through.
+                cancel=".canvas-ctrl"
                 onDragStart={() => select(c.id)}
                 onDragStop={(_e, d) => updateCanvasItem(c.id, { x: d.x, y: d.y })}
                 onResizeStop={(_e, _dir, ref, _delta, pos) =>
@@ -438,14 +446,11 @@ export function CanvasBuilderView() {
                         <button
                           type="button"
                           aria-label="Flip"
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
                           onClick={(e) => {
                             e.stopPropagation();
                             updateCanvasItem(c.id, { flipped: !c.flipped });
                           }}
-                          className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white shadow-md"
+                          className="canvas-ctrl flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white shadow-md"
                         >
                           <FlipHorizontal size={17} />
                         </button>
@@ -458,22 +463,19 @@ export function CanvasBuilderView() {
                         onPointerDown={(e) => startRotate(e, c.id)}
                         onMouseDown={(e) => e.stopPropagation()}
                         onTouchStart={(e) => e.stopPropagation()}
-                        className="flex h-9 w-9 cursor-grab items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md active:cursor-grabbing"
+                        className="canvas-ctrl flex h-9 w-9 cursor-grab items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md active:cursor-grabbing"
                       >
                         <RotateCw size={16} />
                       </button>
                       <button
                         type="button"
                         aria-label="Delete"
-                        onPointerDown={(e) => e.stopPropagation()}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeCanvasItem(c.id);
                           setSelectedId(null);
                         }}
-                        className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md"
+                        className="canvas-ctrl flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md"
                       >
                         <Trash2 size={16} />
                       </button>
