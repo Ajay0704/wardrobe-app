@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Link2,
   Pipette,
+  RefreshCw,
   Scissors,
   Search,
   Sparkles,
@@ -22,7 +23,7 @@ import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
 import { cutout } from "@/lib/cutout";
-import { beautify } from "@/lib/beautify";
+import { BEAUTIFY_PIPELINE, beautify } from "@/lib/beautify";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
@@ -308,27 +309,36 @@ export function ItemForm({
   };
 
   const beautifyApplied = !!beautifiedImageUrl && imageUrl === beautifiedImageUrl;
+  // A cached beautify whose stamp lacks the current pipeline marker was made by an older pipeline
+  // (white-bg, or transparent-but-unnormalized) and is worth regenerating once — which ignores the
+  // cache and re-runs from the stored cutout through the current prompt + normalization.
+  const beautifyStale =
+    !!beautifiedImageUrl && !(beautifyModel ?? "").includes(BEAUTIFY_PIPELINE);
 
   /**
    * Beautify toggle (generative product-shot redraw). Generates once and caches, so it never
    * regenerates: applied → revert to the cutout; cached-but-not-applied → re-apply (no regen);
-   * none → call Gemini, cache, apply. A missing key (501) disables the button.
+   * none → call Gemini, cache, apply. `force` skips the cache and regenerates from the stored
+   * cutout (used to refresh a stale white-bg beautify). A missing key (501) disables the button.
    */
-  const handleBeautify = async () => {
+  const handleBeautify = async (force = false) => {
     if (!imageUrl) return;
-    if (beautifyApplied) {
-      // Revert to the stored cutout, keep the cache for instant re-apply.
-      setImageUrl(cutoutImageUrl ?? imageUrl);
-      setAnalyzeMsg("Reverted to the cutout.");
-      return;
+    if (!force) {
+      if (beautifyApplied) {
+        // Revert to the stored cutout, keep the cache for instant re-apply.
+        setImageUrl(cutoutImageUrl ?? imageUrl);
+        setAnalyzeMsg("Reverted to the cutout.");
+        return;
+      }
+      if (beautifiedImageUrl) {
+        // Cached → re-apply without regenerating.
+        setImageUrl(beautifiedImageUrl);
+        setAnalyzeMsg("Applied the beautified image.");
+        return;
+      }
     }
-    if (beautifiedImageUrl) {
-      // Cached → re-apply without regenerating.
-      setImageUrl(beautifiedImageUrl);
-      setAnalyzeMsg("Applied the beautified image.");
-      return;
-    }
-    const base = imageUrl;
+    // Regenerate from the stored cutout when forcing; otherwise the current (cutout) image.
+    const base = force ? (cutoutImageUrl ?? imageUrl) : imageUrl;
     setBeautifying(true);
     setAnalyzeMsg("");
     try {
@@ -337,7 +347,9 @@ export function ItemForm({
       setBeautifiedImageUrl(r.url);
       setBeautifyModel(r.model);
       setImageUrl(r.url);
-      setAnalyzeMsg("Beautified into a product shot.");
+      setAnalyzeMsg(
+        force ? "Regenerated — background removed." : "Beautified into a product shot.",
+      );
     } catch (e) {
       if ((e as Error).message === "beautify 501") {
         setBeautifyDisabled(true);
@@ -617,7 +629,7 @@ export function ItemForm({
               {!beautifyDisabled && (
                 <button
                   type="button"
-                  onClick={handleBeautify}
+                  onClick={() => handleBeautify()}
                   disabled={beautifying || uploading || removingBg}
                   className="flex items-center justify-center gap-1.5 rounded-full border border-accent/50 px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent-soft disabled:opacity-60"
                 >
@@ -627,6 +639,16 @@ export function ItemForm({
                     : beautifyApplied
                       ? "Revert"
                       : "Beautify"}
+                </button>
+              )}
+              {!beautifyDisabled && beautifyStale && !beautifying && (
+                <button
+                  type="button"
+                  onClick={() => handleBeautify(true)}
+                  disabled={uploading || removingBg}
+                  className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+                >
+                  <RefreshCw size={13} /> Regenerate flat-lay
                 </button>
               )}
               {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (

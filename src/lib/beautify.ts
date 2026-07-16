@@ -8,10 +8,17 @@ import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
 import { cutout } from "./cutout";
 
+/**
+ * Beautify pipeline version. Bump when the prompt, normalization or removal changes so the editor
+ * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
+ * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
+ */
+export const BEAUTIFY_PIPELINE = "pipe2";
+
 export interface BeautifyResult {
   /** Re-hosted product-shot (Storage URL when signed in, else a data URL). */
   url: string;
-  /** Stamp of the model that produced it, e.g. "gemini@2.5-flash-image". */
+  /** Model + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+pipe2". */
   model: string;
 }
 
@@ -71,10 +78,12 @@ export async function beautify(
   const blob = await engine.run(src); // white-bg product shot (501/other errors propagate)
   try {
     const dataUrl = await blobToDataUrl(blob);
-    const { url } = await cutout(dataUrl, userId, { category });
-    return { url, model: engine.id };
+    const { url, engine: removalId } = await cutout(dataUrl, userId, { category });
+    // Stamp model + removal engine + pipeline version. The pipeline marker lets the editor spot a
+    // stale cache (older/white-bg/unnormalized) and offer a one-time regenerate.
+    return { url, model: `${engine.id}+${removalId}+${BEAUTIFY_PIPELINE}` };
   } catch {
-    // Background removal failed — fall back to re-hosting the redraw as-is.
+    // Background removal failed — fall back to re-hosting the redraw as-is (stays white-bg).
     const file = new File([blob], "beautified.png", { type: "image/png" });
     const url = await resolveImageSource(file, userId);
     return { url, model: engine.id };

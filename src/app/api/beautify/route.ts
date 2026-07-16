@@ -16,14 +16,51 @@ export const maxDuration = 60;
 // "Nano Banana" — Gemini's image generation/editing model (same as /api/tryon).
 const MODEL = "gemini-2.5-flash-image";
 
+// Canonical flat-lay framing enforced by the prompt; the deterministic sharp pass below then
+// pins the exact canvas size, garment scale and centring regardless of how Gemini framed it.
 const PROMPT =
-  "You are given a single garment on a plain/transparent background. Redraw it as a clean, " +
-  "front-facing e-commerce flat-lay product photograph on a pure white background. Complete any " +
-  "occluded, folded, wrinkled or missing regions so the ENTIRE garment is visible, symmetric and " +
-  "neatly presented (as if laid flat or on an invisible mannequin). Preserve the garment's EXACT " +
-  "colour, fabric texture, pattern/print and any logos or text exactly as shown — do not invent, " +
-  "move or alter logos, colours or patterns. Output ONLY the single garment, centred, no person, " +
-  "no hands, no mannequin, no props; pure white background with a soft natural shadow.";
+  "You are given a single garment. Redraw it as a clean e-commerce flat-lay product photograph " +
+  "with a STRICTLY CANONICAL framing: perfectly centred, front-facing and straight-on (no angle " +
+  "or perspective), bilaterally symmetrical, with sleeves/straps in a fixed, natural, consistent " +
+  "position (sleeves relaxed and angled slightly outward, hems straight and level). Complete any " +
+  "occluded, folded, wrinkled or missing regions so the ENTIRE garment is visible and neatly " +
+  "presented, as if laid flat. The garment must fill about 85% of the frame height with even " +
+  "margins on all sides. Output a SQUARE 1:1 image on a pure flat white background with NO shadow, " +
+  "no person, no hands, no mannequin, no props — only the single garment. Preserve the garment's " +
+  "EXACT colour, fabric texture, pattern/print and any logos or text exactly as shown; do not " +
+  "invent, move, recolour or restyle anything.";
+
+// Fixed output geometry so every beautified item shares canvas size, garment scale and centring.
+const CANVAS = 1000; // square output edge (px)
+const FILL = 900; // garment's longest side ≈ 90% of the canvas
+
+/**
+ * Deterministic flat-lay normalization. Trims the white border down to the garment's bounding box,
+ * scales it so its longest side is FILL px, then centres it on a CANVAS×CANVAS white square with
+ * equal padding. Runs on every beautified image so all items share identical framing regardless of
+ * Gemini's output. (The client then removes the white → transparent, preserving this geometry.)
+ */
+async function normalizeFlatLay(input: Buffer): Promise<Buffer> {
+  // Flatten onto white (uniform, trimmable border) and normalize EXIF orientation.
+  const flat = await sharp(input).rotate().flatten({ background: "#ffffff" }).toBuffer();
+  let trimmed = flat;
+  try {
+    trimmed = await sharp(flat).trim({ background: "#ffffff", threshold: 12 }).toBuffer();
+  } catch {
+    /* uniform image / nothing to trim — keep the flattened original */
+  }
+  // fit: "inside" makes the LONGEST side FILL px (enlarging small garments too) and preserves ratio.
+  const resized = await sharp(trimmed).resize(FILL, FILL, { fit: "inside" }).toBuffer();
+  const { width = FILL, height = FILL } = await sharp(resized).metadata();
+  const left = Math.max(0, Math.round((CANVAS - width) / 2));
+  const top = Math.max(0, Math.round((CANVAS - height) / 2));
+  return sharp({
+    create: { width: CANVAS, height: CANVAS, channels: 3, background: "#ffffff" },
+  })
+    .composite([{ input: resized, left, top }])
+    .png()
+    .toBuffer();
+}
 
 /** Pull the first inline image (base64) from a Gemini generateContent response. */
 function extractImage(data: unknown): string | null {
@@ -108,10 +145,10 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "The model didn't return an image. Try again." }, { status: 502 });
   }
 
-  // Normalize to PNG so the client always gets a consistent format.
+  // Deterministic flat-lay normalization → fixed canvas, garment scale and centring.
   let png: Buffer;
   try {
-    png = await sharp(Buffer.from(b64, "base64")).png().toBuffer();
+    png = await normalizeFlatLay(Buffer.from(b64, "base64"));
   } catch {
     return Response.json({ error: "Beautify output was unreadable." }, { status: 500 });
   }

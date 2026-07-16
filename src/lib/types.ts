@@ -59,7 +59,9 @@ export interface WardrobeItem {
   beautifiedImageUrl?: string;
   /** The cutout to restore when reverting a beautify (imageUrl before Beautify). */
   cutoutImageUrl?: string;
-  /** Which model produced the beautified image, e.g. "gemini@2.5-flash-image". */
+  /** Model + removal engine + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+pipe2".
+   *  A stamp missing the current pipeline marker means an older beautify (white-bg or
+   *  unnormalized) that the editor offers to regenerate once. */
   beautifyModel?: string;
   name: string;
   /** Optional link to the product page (where to buy or view the item). */
