@@ -16,6 +16,7 @@ import { YouView } from "./YouView";
 import { ExploreView } from "./ExploreView";
 import { ProfileView } from "./ProfileView";
 import { NativeProfileView } from "./native/NativeProfileView";
+import { NativeUserProfileView } from "./native/NativeUserProfileView";
 import { NotificationsView } from "./NotificationsView";
 import { MessagesView } from "./chat/MessagesView";
 import { ChatView } from "./chat/ChatView";
@@ -56,6 +57,7 @@ export function AppViews() {
       {view === "explore" && <ExploreView />}
       {view === "profile" && <ProfileView />}
       {view === "social" && <NativeProfileView />}
+      {view === "userProfile" && <NativeUserProfileView />}
       {view === "settings" && <SettingsView />}
       {view === "notifications" && <NotificationsView />}
       {view === "messages" && <MessagesView />}

@@ -392,6 +392,36 @@ interface ProfileRow {
   avatar_url: string | null;
 }
 
+/** One user's public profile (for the in-app other-user profile screen). */
+export interface PublicProfile {
+  id: string;
+  name: string;
+  handle: string;
+  avatar?: string;
+  bio?: string;
+}
+
+/** Look up a single user's public profile by id. */
+export async function fetchUserProfile(userId: string): Promise<PublicProfile | null> {
+  const sb = getSupabase();
+  if (!sb || !userId) return null;
+  const { data } = await sb
+    .from("profiles")
+    .select("id,username,display_name,avatar_url,bio")
+    .eq("id", userId)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as ProfileRow & { bio: string | null };
+  const handle = r.username || "user";
+  return {
+    id: r.id,
+    name: r.display_name || `@${handle}`,
+    handle,
+    avatar: r.avatar_url ?? undefined,
+    bio: r.bio ?? undefined,
+  };
+}
+
 /** Resolve a set of user ids to display identities from the public profiles directory. */
 async function fetchProfilesByIds(ids: string[]): Promise<Map<string, ProfileRow>> {
   const out = new Map<string, ProfileRow>();

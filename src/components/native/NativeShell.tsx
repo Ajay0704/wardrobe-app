@@ -42,6 +42,7 @@ const TITLES: Partial<Record<View, string>> = {
   explore: "Explore",
   profile: "My Profile",
   social: "Profile",
+  userProfile: "Profile",
   settings: "Settings",
   notifications: "Notifications",
   photoDetail: "",

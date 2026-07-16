@@ -11,6 +11,7 @@ import {
   type PostAuthor,
 } from "@/lib/community";
 import { searchUsers, type SearchUser } from "@/lib/chat";
+import { useWardrobe } from "@/lib/store";
 import { ProfileAvatar } from "../ProfileAvatar";
 
 type ConnTab = "followers" | "following" | "find";
@@ -47,10 +48,16 @@ export function ConnectionsSheet({
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const [myFollowing, setMyFollowing] = useState<Set<string>>(new Set());
 
+  const openUserProfile = useWardrobe((s) => s.openUserProfile);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const openProfile = (id: string) => {
+    openUserProfile(id);
+    onClose();
+  };
 
   // Who the viewer already follows — drives every Follow/Following button.
   useEffect(() => {
@@ -179,14 +186,20 @@ export function ConnectionsSheet({
               const on = myFollowing.has(u.id);
               return (
                 <div key={u.id} className="flex items-center gap-3 px-1 py-2">
-                  <ProfileAvatar
-                    profile={{ avatarUrl: u.avatar, displayName: u.name }}
-                    size={40}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium">{u.name}</p>
-                    <p className="truncate text-xs text-muted">@{u.handle}</p>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => openProfile(u.id)}
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                  >
+                    <ProfileAvatar
+                      profile={{ avatarUrl: u.avatar, displayName: u.name }}
+                      size={40}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{u.name}</p>
+                      <p className="truncate text-xs text-muted">@{u.handle}</p>
+                    </div>
+                  </button>
                   {!isMe && myId && (
                     <button
                       type="button"

@@ -247,6 +247,7 @@ function PostCard({
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [commentCount, setCommentCount] = useState(post.comments);
   const isMine = Boolean(myId && post.authorId === myId);
+  const openUserProfile = useWardrobe((s) => s.openUserProfile);
 
   const onDelete = () => {
     setMenuOpen(false);
@@ -289,11 +290,17 @@ function PostCard({
   return (
     <article className="overflow-hidden rounded-2xl border border-line bg-surface">
       <div className="flex items-center gap-2.5 px-3 py-2.5">
-        <Avatar profile={{ avatarUrl: post.authorAvatar, displayName: post.authorName }} size={30} />
-        <p className="text-sm">
-          <span className="font-medium">{post.authorName}</span>{" "}
-          <span className="text-muted">@{post.authorHandle}</span>
-        </p>
+        <button
+          type="button"
+          onClick={() => openUserProfile(post.authorId)}
+          className="flex min-w-0 items-center gap-2.5 text-left"
+        >
+          <Avatar profile={{ avatarUrl: post.authorAvatar, displayName: post.authorName }} size={30} />
+          <p className="truncate text-sm">
+            <span className="font-medium">{post.authorName}</span>{" "}
+            <span className="text-muted">@{post.authorHandle}</span>
+          </p>
+        </button>
         {!isMine && myId && (
           <button
             type="button"

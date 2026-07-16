@@ -45,6 +45,7 @@ export type View =
   | "explore"
   | "profile"
   | "social"
+  | "userProfile"
   | "settings"
   | "notifications"
   | "messages"
@@ -93,6 +94,8 @@ interface WardrobeState {
   photoCard: PhotoCard | null;
   /** Conversation currently open in the chat view. */
   activeThreadId: string | null;
+  /** User whose profile the "userProfile" view is showing. */
+  viewUserId: string | null;
   /** Which section the Settings view opens to. */
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
@@ -160,6 +163,7 @@ interface WardrobeState {
   setView: (v: View) => void;
   openPhoto: (card: PhotoCard) => void;
   openThread: (id: string) => void;
+  openUserProfile: (userId: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
   /** Open the add form pointed at a specific input (camera/upload/link). */
@@ -341,6 +345,7 @@ export const useWardrobe = create<WardrobeState>()(
       view: "explore",
       photoCard: null,
       activeThreadId: null,
+      viewUserId: null,
       settingsSection: "profile",
       addOpen: false,
       addIntent: null,
@@ -559,6 +564,7 @@ export const useWardrobe = create<WardrobeState>()(
       setView: (view) => set({ view }),
       openPhoto: (card) => set({ photoCard: card, view: "photoDetail" }),
       openThread: (id) => set({ activeThreadId: id, view: "chat" }),
+      openUserProfile: (userId) => set({ viewUserId: userId, view: "userProfile" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen, ...(addOpen ? {} : { addIntent: null }) }),
       openAdd: (intent = null) => set({ addOpen: true, addIntent: intent }),
