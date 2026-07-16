@@ -1,0 +1,40 @@
+{
+	"appId": "app.wardrobe.personal",
+	"appName": "Wardrobe",
+	"webDir": "www",
+	"server": {
+		"url": "https://wardrobe-app-lilac-two.vercel.app/n?native=1",
+		"cleartext": true
+	},
+	"ios": {
+		"contentInset": "never",
+		"preferredContentMode": "mobile",
+		"overrideUserAgent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1 WardrobeApp"
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchAutoHide": true,
+			"backgroundColor": "#faf9f7"
+		},
+		"StatusBar": {
+			"style": "DEFAULT"
+		},
+		"LocalNotifications": {
+			"presentationOptions": [
+				"badge",
+				"sound",
+				"banner",
+				"list"
+			]
+		}
+	},
+	"packageClassList": [
+		"CAPBrowserPlugin",
+		"CAPCameraPlugin",
+		"GeolocationPlugin",
+		"LocalNotificationsPlugin",
+		"SharePlugin",
+		"SplashScreenPlugin",
+		"StatusBarPlugin"
+	]
+}

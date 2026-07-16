@@ -8,46 +8,60 @@
 # node_modules/@capacitor/* (e.g. ../../../node_modules/@capacitor/camera).
 # node_modules is gitignored, so after a clean clone those packages don't exist
 # and SPM fails with "the package at '.../node_modules/@capacitor/...' cannot be
-# accessed". We install the JS deps here so they resolve before xcodebuild runs.
+# accessed". Installing the JS deps here makes them resolvable before xcodebuild.
 #
-# Two other gitignored, Xcode-referenced files must also be regenerated or the
-# "Copy Bundle Resources" phase later fails: ios/App/App/public (the web assets)
-# and ios/App/App/capacitor.config.json. `cap copy` produces both. We use `copy`
-# (not `sync`) on purpose: `sync` also runs `update`, which touches native deps
-# and is a needless failure point on CI. capacitor.config.ts defaults server.url
-# to the live Vercel app, so no web build or secrets are needed here.
+# The two web-asset resources the Xcode project bundles (ios/App/App/public and
+# ios/App/App/capacitor.config.json) are now committed, so this script only has
+# to guarantee node_modules exists; regenerating them via `cap copy` is a
+# best-effort refresh.
 
 # -e: stop on first error.  -x: trace every command so a failure in Xcode Cloud's
 # log names the exact line that failed.
 set -ex
 
-# --- Make sure Homebrew (and therefore Node) is on PATH. Xcode Cloud's Apple-
-#     silicon runners install Homebrew at /opt/homebrew; older Intel at /usr/local.
+# Resolve the repo root from THIS script's location (ios/App/ci_scripts/…), not
+# from an env var — cd "" is a silent no-op on macOS /bin/sh and would leave us
+# running npm in the wrong directory.
+REPO="$(cd "$(dirname "$0")/../../.." && pwd)"
+cd "$REPO"
+
+# --- Make sure Homebrew is on PATH. Apple-silicon runners use /opt/homebrew,
+#     older Intel runners /usr/local. ---
 if [ -x /opt/homebrew/bin/brew ]; then
   eval "$(/opt/homebrew/bin/brew shellenv)"
 elif [ -x /usr/local/bin/brew ]; then
   eval "$(/usr/local/bin/brew shellenv)"
 fi
 
-brew install node@20
-# node@20 is keg-only, so put it on PATH directly rather than relying on the
-# `brew link` step (which can conflict and abort under `set -e`).
-export PATH="$(brew --prefix node@20)/bin:$PATH"
+# --- Node: use whatever's already on the runner, else install Node 20. ---
+if ! command -v node >/dev/null 2>&1; then
+  brew install node@20
+fi
+# If node@20 is installed (keg-only), put it on PATH directly.
+NODE20_BIN="$(brew --prefix node@20 2>/dev/null)/bin"
+if [ -d "$NODE20_BIN" ]; then
+  export PATH="$NODE20_BIN:$PATH"
+fi
 node -v
 npm -v
 
-# --- Install JS dependencies (populates node_modules/@capacitor/* for SPM). ---
-cd "$CI_PRIMARY_REPOSITORY_PATH"
-npm config set maxsockets 3   # documented Xcode Cloud npm network-flakiness workaround
-npm ci
+# --- Install JS deps so node_modules/@capacitor/* exist for SPM. Include dev
+#     deps (Capacitor CLI); fall back to `npm install` if `npm ci` can't run. ---
+npm config set maxsockets 3
+npm ci --include=dev || npm install --include=dev
 
-# --- Generate the gitignored native web assets + capacitor.config.json. ---
-./node_modules/.bin/cap copy ios
+# Hard requirement: SPM cannot resolve without these.
+if [ ! -d node_modules/@capacitor ]; then
+  echo "FATAL: node_modules/@capacitor missing after install"
+  exit 1
+fi
 
-# --- Fail loudly here (with a clear message) if anything the build needs is
-#     still missing, rather than deep inside xcodebuild.
-ls -d node_modules/@capacitor >/dev/null
-ls -d ios/App/App/public >/dev/null
-ls ios/App/App/capacitor.config.json >/dev/null
+# --- Best-effort refresh of the committed web assets + config. A CLI hiccup
+#     here must NOT fail the archive — the committed files already satisfy it. ---
+if [ -x node_modules/.bin/cap ]; then
+  node_modules/.bin/cap copy ios || echo "cap copy failed; using committed ios/App/App resources"
+else
+  echo "cap CLI not installed; using committed ios/App/App resources"
+fi
 
 echo "▸ ci_post_clone complete"
