@@ -4,7 +4,6 @@ import {
   Bell,
   Calendar,
   Camera,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Compass,
@@ -65,9 +64,7 @@ function isActive(tab: View, view: View): boolean {
 export function NativeShell() {
   const { view, setView, openAdd } = useWardrobe();
   const profile = useWardrobe((s) => s.profile);
-  const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const [createOpen, setCreateOpen] = useState(false);
-  const [closetMenuOpen, setClosetMenuOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
@@ -126,51 +123,11 @@ export function NativeShell() {
               <ChevronLeft size={22} />
             </button>
           )}
-          {view === "wardrobe" ? (
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setClosetMenuOpen((v) => !v)}
-                className="brand-wordmark-name flex items-center gap-1 !text-xl"
-              >
-                {TITLES[view]}
-                <ChevronDown size={17} className="text-muted" />
-              </button>
-              {closetMenuOpen && (
-                <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setClosetMenuOpen(false)}
-                  />
-                  <div className="absolute left-0 top-full z-50 mt-2 w-52 overflow-hidden rounded-2xl border border-line bg-surface shadow-lg shadow-black/10">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setClosetMenuOpen(false);
-                        setClosetsOpen(true);
-                      }}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2"
-                    >
-                      <LayoutGrid size={18} /> View closets
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setClosetMenuOpen(false)}
-                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-surface-2"
-                    >
-                      <Shirt size={18} /> View items
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          ) : (
-            <span className="brand-wordmark-name !text-xl">
-              {view === "today"
-                ? "" /* Home's greeting lives in the in-content masthead */
-                : (TITLES[view] ?? "Wardrobe")}
-            </span>
-          )}
+          <span className="brand-wordmark-name !text-xl">
+            {view === "today"
+              ? "" /* Home's greeting lives in the in-content masthead */
+              : (TITLES[view] ?? "Wardrobe")}
+          </span>
         </div>
         <div className="flex items-center gap-3.5">
           {showActions && (
