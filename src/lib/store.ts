@@ -210,6 +210,7 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     originalImageUrl: typeof it.originalImageUrl === "string" ? it.originalImageUrl : undefined,
     cutoutEngine: typeof it.cutoutEngine === "string" ? it.cutoutEngine : undefined,
     beautifiedImageUrl: typeof it.beautifiedImageUrl === "string" ? it.beautifiedImageUrl : undefined,
+    beautifyWhiteUrl: typeof it.beautifyWhiteUrl === "string" ? it.beautifyWhiteUrl : undefined,
     cutoutImageUrl: typeof it.cutoutImageUrl === "string" ? it.cutoutImageUrl : undefined,
     beautifyModel: typeof it.beautifyModel === "string" ? it.beautifyModel : undefined,
     fit: typeof it.fit === "string" ? it.fit : undefined,

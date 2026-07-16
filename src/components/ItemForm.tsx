@@ -85,6 +85,9 @@ export function ItemForm({
   const [beautifiedImageUrl, setBeautifiedImageUrl] = useState<string | undefined>(
     initial?.beautifiedImageUrl,
   );
+  const [beautifyWhiteUrl, setBeautifyWhiteUrl] = useState<string | undefined>(
+    initial?.beautifyWhiteUrl,
+  );
   const [cutoutImageUrl, setCutoutImageUrl] = useState<string | undefined>(
     initial?.cutoutImageUrl,
   );
@@ -345,10 +348,11 @@ export function ItemForm({
       const r = await beautify(base, authUser?.id ?? null, category);
       setCutoutImageUrl(base);
       setBeautifiedImageUrl(r.url);
+      setBeautifyWhiteUrl(r.whiteUrl);
       setBeautifyModel(r.model);
       setImageUrl(r.url);
       setAnalyzeMsg(
-        force ? "Regenerated — background removed." : "Beautified into a product shot.",
+        force ? "Regenerated — transparent sticker ready." : "Beautified into a product shot.",
       );
     } catch (e) {
       if ((e as Error).message === "beautify 501") {
@@ -532,6 +536,7 @@ export function ItemForm({
           : undefined,
       cutoutEngine: cutoutEngine || undefined,
       beautifiedImageUrl: beautifiedImageUrl || undefined,
+      beautifyWhiteUrl: beautifyWhiteUrl || undefined,
       cutoutImageUrl: cutoutImageUrl || undefined,
       beautifyModel: beautifyModel || undefined,
       productUrl: productUrl.trim() || undefined,
@@ -551,6 +556,9 @@ export function ItemForm({
   };
 
   const title = initial ? "Edit item" : "Add item";
+  // On the detail screen show the garment-on-white product shot; the transparent sticker
+  // (imageUrl) is for the canvas. Fall back to imageUrl before/without Beautify.
+  const previewUrl = beautifyApplied && beautifyWhiteUrl ? beautifyWhiteUrl : imageUrl;
   const form = (
     <>
       <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
@@ -560,7 +568,7 @@ export function ItemForm({
             {imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={imageUrl}
+                src={previewUrl}
                 alt="Preview"
                 className="h-full w-full object-cover"
               />

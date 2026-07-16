@@ -54,9 +54,11 @@ export interface WardrobeItem {
   originalImageUrl?: string;
   /** Which background-removal engine produced the cutout, e.g. "imgly@1.7.0". */
   cutoutEngine?: string;
-  /** Cached generative product-shot (Beautify), background removed → transparent garment.
-   *  Never regenerated once set. */
+  /** Cached Beautify result: transparent "sticker" (garment on transparency) used on the outfit
+   *  canvas. Never regenerated once set. */
   beautifiedImageUrl?: string;
+  /** The garment-on-white ghost-mannequin product shot, shown on the item detail screen. */
+  beautifyWhiteUrl?: string;
   /** The cutout to restore when reverting a beautify (imageUrl before Beautify). */
   cutoutImageUrl?: string;
   /** Model + removal engine + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+pipe3".

@@ -13,15 +13,17 @@ import { cutout } from "./cutout";
  * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
  * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
  */
-export const BEAUTIFY_PIPELINE = "pipe3";
+export const BEAUTIFY_PIPELINE = "pipe4";
 
 /** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
 const CANVAS = 1000;
 
 export interface BeautifyResult {
-  /** Re-hosted product-shot (Storage URL when signed in, else a data URL). */
+  /** Transparent "sticker" (garment on transparency) — the image used on the outfit canvas. */
   url: string;
-  /** Model + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+pipe3". */
+  /** Garment-on-white ghost-mannequin product shot — kept for the item detail screen. */
+  whiteUrl: string;
+  /** Model + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+sticker+pipe4". */
   model: string;
 }
 
@@ -106,12 +108,33 @@ async function enforceSquareCanvas(url: string): Promise<Blob | null> {
   }
 }
 
+/** Refine the outer cutout into a clean transparent sticker: clear interior openings, feather, and
+ *  normalize to the fixed transparent canvas. Returns the re-hosted sticker URL, or null on failure. */
+async function refineSticker(
+  whiteData: string,
+  cutUrl: string,
+  userId: string | null,
+): Promise<string | null> {
+  const res = await fetch("/api/beautify/refine", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+    body: JSON.stringify({
+      whiteData,
+      ...(cutUrl.startsWith("http") ? { cutUrl } : { cutData: cutUrl }),
+    }),
+  });
+  if (!res.ok) return null;
+  const blob = await res.blob();
+  return resolveImageSource(new File([blob], "sticker.png", { type: "image/png" }), userId);
+}
+
 /**
- * Redraw a garment cutout into a product shot, then remove the white background so the result is a
- * transparent garment (only the shirt) — the outfit canvas needs the piece floating, not a white box.
- * Removal is reliable here because the redraw is centred and front-facing. Returns the new URL +
- * model stamp. Throws on failure (caller inspects `beautify 501` to disable the button); if only the
- * background removal fails, we keep the white-bg redraw so Beautify still yields something.
+ * Beautify → transparent canvas sticker. Redraw the garment as a ghost-mannequin on white, then:
+ *  (1) remove the outer background via the existing cutout (soft edges), (2) clear enclosed
+ *  near-pure-white openings (neck/cuff/arm gaps) while preserving white/pale logos and panels, and
+ *  (3) trim + centre on a fixed transparent square. Returns the transparent sticker (for the canvas)
+ *  and the garment-on-white product shot (for the item detail screen). Throws on failure (the caller
+ *  inspects `beautify 501` to disable the button); if only removal fails we keep the white redraw.
  */
 export async function beautify(
   src: string,
@@ -119,31 +142,38 @@ export async function beautify(
   category?: string,
 ): Promise<BeautifyResult> {
   const engine = getBeautifyEngine();
-  const blob = await engine.run(src); // white-bg product shot (501/other errors propagate)
+  const blob = await engine.run(src); // ghost-mannequin on white (501/other errors propagate)
+  const whiteUrl = await resolveImageSource(
+    new File([blob], "beautified.png", { type: "image/png" }),
+    userId,
+  );
   try {
-    const dataUrl = await blobToDataUrl(blob);
-    const { url, engine: removalId } = await cutout(dataUrl, userId, { category });
-    // Guard: ensure the final image is exactly the fixed canvas even if removal changed dimensions.
-    // No-op in the common case; best-effort (keep the removal result if the guard itself fails).
-    let finalUrl = url;
+    const whiteData = await blobToDataUrl(blob);
+    const { url: cutUrl, engine: removalId } = await cutout(whiteData, userId, { category });
+    // Refine the cutout into a clean transparent sticker (interior openings cleared, feathered,
+    // normalized). Best-effort: fall back to the plain cutout if refine is unavailable.
+    let stickerUrl = cutUrl;
     try {
-      const fixed = await enforceSquareCanvas(url);
+      const refined = await refineSticker(whiteData, cutUrl, userId);
+      if (refined) stickerUrl = refined;
+    } catch {
+      /* keep the plain cutout */
+    }
+    // Backstop the fixed canvas even if a removal engine changed dimensions (no-op after refine).
+    try {
+      const fixed = await enforceSquareCanvas(stickerUrl);
       if (fixed) {
-        finalUrl = await resolveImageSource(
-          new File([fixed], "beautified.png", { type: "image/png" }),
+        stickerUrl = await resolveImageSource(
+          new File([fixed], "sticker.png", { type: "image/png" }),
           userId,
         );
       }
     } catch {
-      /* guard is best-effort — fall back to the removal result */
+      /* guard is best-effort */
     }
-    // Stamp model + removal engine + pipeline version. The pipeline marker lets the editor spot a
-    // stale cache (older/white-bg/unnormalized) and offer a one-time regenerate.
-    return { url: finalUrl, model: `${engine.id}+${removalId}+${BEAUTIFY_PIPELINE}` };
+    return { url: stickerUrl, whiteUrl, model: `${engine.id}+${removalId}+sticker+${BEAUTIFY_PIPELINE}` };
   } catch {
-    // Background removal failed — fall back to re-hosting the redraw as-is (stays white-bg).
-    const file = new File([blob], "beautified.png", { type: "image/png" });
-    const url = await resolveImageSource(file, userId);
-    return { url, model: engine.id };
+    // Background removal failed — keep the white redraw for both (still better than nothing).
+    return { url: whiteUrl, whiteUrl, model: engine.id };
   }
 }
