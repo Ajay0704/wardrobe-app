@@ -15,6 +15,9 @@ import { cutout } from "./cutout";
  */
 export const BEAUTIFY_PIPELINE = "pipe2";
 
+/** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
+const CANVAS = 1000;
+
 export interface BeautifyResult {
   /** Re-hosted product-shot (Storage URL when signed in, else a data URL). */
   url: string;
@@ -62,6 +65,47 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   });
 }
 
+/** Load an image URL (dimensions are readable without CORS). */
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("image-load-failed"));
+    img.src = src;
+  });
+}
+
+/**
+ * Client-side guard for the fixed 1000×1000 canvas. The server pins that geometry, but background
+ * removal could (with a future engine) change the image dimensions. Returns null when the image is
+ * already CANVAS×CANVAS (the common case — a cheap decode, no re-processing); otherwise redraws it
+ * centred and aspect-fit on a fresh transparent CANVAS×CANVAS canvas and returns the corrected PNG.
+ */
+async function enforceSquareCanvas(url: string): Promise<Blob | null> {
+  if (typeof document === "undefined") return null; // SSR safety
+  const probe = await loadImage(url);
+  if (probe.naturalWidth === CANVAS && probe.naturalHeight === CANVAS) return null;
+  // Corrective path: re-fetch as a blob URL (same-origin → untainted canvas readback), then redraw.
+  const objUrl = URL.createObjectURL(await (await fetch(url)).blob());
+  try {
+    const img = await loadImage(objUrl);
+    const canvas = document.createElement("canvas");
+    canvas.width = CANVAS;
+    canvas.height = CANVAS;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    const scale = Math.min(CANVAS / img.naturalWidth, CANVAS / img.naturalHeight);
+    const w = img.naturalWidth * scale;
+    const h = img.naturalHeight * scale;
+    ctx.drawImage(img, (CANVAS - w) / 2, (CANVAS - h) / 2, w, h);
+    return await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob((b) => resolve(b), "image/png"),
+    );
+  } finally {
+    URL.revokeObjectURL(objUrl);
+  }
+}
+
 /**
  * Redraw a garment cutout into a product shot, then remove the white background so the result is a
  * transparent garment (only the shirt) — the outfit canvas needs the piece floating, not a white box.
@@ -79,9 +123,23 @@ export async function beautify(
   try {
     const dataUrl = await blobToDataUrl(blob);
     const { url, engine: removalId } = await cutout(dataUrl, userId, { category });
+    // Guard: ensure the final image is exactly the fixed canvas even if removal changed dimensions.
+    // No-op in the common case; best-effort (keep the removal result if the guard itself fails).
+    let finalUrl = url;
+    try {
+      const fixed = await enforceSquareCanvas(url);
+      if (fixed) {
+        finalUrl = await resolveImageSource(
+          new File([fixed], "beautified.png", { type: "image/png" }),
+          userId,
+        );
+      }
+    } catch {
+      /* guard is best-effort — fall back to the removal result */
+    }
     // Stamp model + removal engine + pipeline version. The pipeline marker lets the editor spot a
     // stale cache (older/white-bg/unnormalized) and offer a one-time regenerate.
-    return { url, model: `${engine.id}+${removalId}+${BEAUTIFY_PIPELINE}` };
+    return { url: finalUrl, model: `${engine.id}+${removalId}+${BEAUTIFY_PIPELINE}` };
   } catch {
     // Background removal failed — fall back to re-hosting the redraw as-is (stays white-bg).
     const file = new File([blob], "beautified.png", { type: "image/png" });
