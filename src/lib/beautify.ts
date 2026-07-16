@@ -13,7 +13,7 @@ import { cutout } from "./cutout";
  * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
  * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
  */
-export const BEAUTIFY_PIPELINE = "pipe4";
+export const BEAUTIFY_PIPELINE = "pipe5";
 
 /** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
 const CANVAS = 1000;
@@ -23,7 +23,7 @@ export interface BeautifyResult {
   url: string;
   /** Garment-on-white ghost-mannequin product shot — kept for the item detail screen. */
   whiteUrl: string;
-  /** Model + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+sticker+pipe4". */
+  /** Model + pipeline stamp, e.g. "gemini@2.5-flash-image+imgly@1.7.0+sticker+pipe5". */
   model: string;
 }
 
