@@ -1,22 +1,19 @@
 "use client";
 
 import {
-  ArrowDownUp,
-  BarChart3,
   Bell,
   Bot,
   CalendarDays,
+  ChartBar,
   Check,
   ChevronRight,
-  Coins,
+  Crown,
   DollarSign,
-  FileText,
   Globe,
-  History,
   Luggage,
-  Settings,
+  Moon,
+  Sun,
   Tag,
-  Target,
   Thermometer,
   User,
   X,
@@ -37,18 +34,19 @@ import {
 } from "@/lib/native-notifications";
 import { STYLE_QUIZ_VIBES } from "@/lib/profile";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
+import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { Button, Chip, inputClass, Toggle } from "./ui";
+import { Button, Chip, inputClass } from "./ui";
 
 type SheetKind = "currency" | "vibes" | "brands" | "country" | "language";
 
 /**
- * "My page" — profile, plan/closet stats, a highlights row, and grouped settings.
- * Every working row is handled inline (a native sheet, a toggle, or one of our
- * own screens) — nothing here opens the old SettingsView. Unbuilt rows show a
- * "coming soon" toast.
+ * "You" — the settings hub, card-hub layout (AJA-142). A profile card, an
+ * upgrade card that surfaces closet usage, quick-action tiles, then compact
+ * grouped settings. Every row here does something real (a sheet, a toggle, or
+ * one of our screens); the old "coming soon" filler rows were removed.
  */
 export function YouView() {
   const {
@@ -79,6 +77,9 @@ export function YouView() {
   const currency = currencySymbol(profile.currency ?? DEFAULT_CURRENCY);
   const closetPct = Math.min(100, Math.round((owned / 100) * 100));
   const customBrands = profile.customBrands ?? [];
+  const name = profile.displayName?.trim() || "You";
+  const handle = profileHandle(profile);
+  const isDark = theme === "dark";
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -136,98 +137,73 @@ export function YouView() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
-      {/* Profile + Avatar cards */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => setView("profile")}
-          className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left"
-        >
-          <ProfileAvatar profile={profile} size={36} />
-          <span className="font-semibold">My Profile</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setView("profile")}
-          className="flex items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-accent">
-            <User size={18} />
+      {/* Profile card */}
+      <button
+        type="button"
+        onClick={() => setView("profile")}
+        className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface p-4 text-left"
+      >
+        <ProfileAvatar profile={profile} size={48} />
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-semibold">{name}</p>
+          <p className="truncate text-sm text-muted">@{handle}</p>
+        </div>
+        <span className="rounded-full border border-line px-4 py-1.5 text-sm font-medium">
+          Edit
+        </span>
+      </button>
+
+      {/* Upgrade card — folds in the real closet usage */}
+      <button
+        type="button"
+        onClick={() => soon("Wardrobe Premium")}
+        className="w-full rounded-2xl bg-accent-soft p-4 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
+            <Crown size={20} />
           </span>
-          <span className="font-semibold">My Avatar</span>
-        </button>
-      </div>
-
-      {/* Plan / Bean / Closet stats */}
-      <div className="rounded-2xl border border-line bg-surface p-5">
-        <div className="flex">
-          <button type="button" onClick={() => soon("Plans")} className="flex-1 text-left">
-            <div className="flex items-center gap-1 text-sm text-muted">
-              My plan <ChevronRight size={14} />
-            </div>
-            <p className="mt-0.5 text-lg font-semibold">Free</p>
-          </button>
-          <div className="w-px bg-line" />
-          <button type="button" onClick={() => soon("Beans")} className="flex-1 pl-5 text-left">
-            <div className="flex items-center gap-1 text-sm text-muted">
-              My Bean <ChevronRight size={14} />
-            </div>
-            <p className="mt-0.5 flex items-center gap-1.5 text-lg font-semibold">
-              <Coins size={16} className="text-accent" /> 0
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-accent">Wardrobe Free</p>
+            <p className="text-xs text-accent/80">
+              {owned}/100 items · unlock unlimited + AI
             </p>
-          </button>
+          </div>
+          <span className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground">
+            Upgrade
+          </span>
         </div>
-        <div className="my-4 border-t border-line" />
-        <button type="button" onClick={() => setView("wardrobe")} className="block w-full text-left">
-          <div className="flex items-center justify-between text-sm text-muted">
-            My closet <ChevronRight size={14} />
-          </div>
-          <p className="mt-0.5 text-lg font-semibold">
-            {owned}
-            <span className="text-muted">/100</span>
-          </p>
-          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-surface-2">
-            <div className="h-full rounded-full bg-accent" style={{ width: `${closetPct}%` }} />
-          </div>
-        </button>
-        <button
-          type="button"
-          onClick={() => soon("Extra closet slots")}
-          className="mt-4 block w-full border-t border-line pt-3 text-center text-sm font-medium text-accent"
-        >
-          Get extra closet slots for free! ›
-        </button>
+        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-accent/15">
+          <div className="h-full rounded-full bg-accent" style={{ width: `${closetPct}%` }} />
+        </div>
+      </button>
+
+      {/* Quick-action tiles */}
+      <div className="grid grid-cols-3 gap-3">
+        <Tile icon={ChartBar} label="Style stats" onClick={() => setView("insights")} />
+        <Tile
+          icon={isDark ? Sun : Moon}
+          label="Appearance"
+          value={isDark ? "Dark" : "Light"}
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+        />
+        <Tile
+          icon={Bell}
+          label="Notifications"
+          value={notifBusy ? "…" : notifOn ? "On" : "Off"}
+          onClick={toggleNotif}
+        />
       </div>
 
-      {/* Highlights row */}
-      <div className="-mx-4 flex gap-3 overflow-x-auto px-4">
-        <Highlight icon={Target} label="Mission" tint="#e8f0fe" fg="#2f6bd8" onClick={() => soon("Mission")} />
-        <Highlight icon={BarChart3} label="Style stats" tint="#e9eefb" fg="#3a5bd0" onClick={() => setView("insights")} />
-        <Highlight icon={FileText} label="Monthly report" tint="#fdeee0" fg="#c67a3e" onClick={() => soon("Monthly report")} />
-      </div>
-
-      {/* Account settings */}
-      <SettingsCard label="Account Settings">
+      {/* Settings */}
+      <SettingsCard label="Settings">
         <SRow icon={User} label="My information" onClick={() => setView("profile")} />
-        <SRow icon={Bot} label="Outfit suggestion settings" onClick={() => setSheet("vibes")} />
-        <div className="flex w-full items-center gap-3 border-b border-line px-4 py-3">
-          <Bell size={19} strokeWidth={1.7} />
-          <span className="flex-1">Notifications</span>
-          <Toggle on={notifOn} disabled={notifBusy} onChange={toggleNotif} label="Notifications" />
-        </div>
-        <SRow icon={History} label="Purchase Info" onClick={() => soon("Purchase info")} />
-        <SRow icon={CalendarDays} label="Week start day" value="Sunday" onClick={() => soon("Week start day")} />
+        <SRow icon={Bot} label="Outfit suggestions" onClick={() => setSheet("vibes")} />
         <SRow
           icon={Tag}
-          label="Custom Brands"
+          label="Custom brands"
           value={customBrands.length ? String(customBrands.length) : undefined}
           onClick={() => setSheet("brands")}
-        />
-        <SRow
-          icon={Thermometer}
-          label="Temperature Unit"
-          value={`°${profile.temperatureUnit ?? "C"}`}
-          onClick={toggleTempUnit}
         />
         <SRow icon={DollarSign} label="Currency" value={currency} onClick={() => setSheet("currency")} />
         <SRow
@@ -242,39 +218,35 @@ export function YouView() {
           value={profile.language ?? DEFAULT_LANGUAGE}
           onClick={() => setSheet("language")}
         />
-        <SRow icon={Luggage} label="Packing & trips" onClick={() => setView("travel")} />
-        <SRow icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} />
-        <SRow icon={Settings} label="Navigation setting" onClick={() => soon("Navigation setting")} />
         <SRow
-          icon={ArrowDownUp}
-          label={theme === "dark" ? "Light mode" : "Dark mode"}
-          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          icon={Thermometer}
+          label="Temperature unit"
+          value={`°${profile.temperatureUnit ?? "C"}`}
+          onClick={toggleTempUnit}
           last
         />
       </SettingsCard>
 
-      {/* Customer service */}
-      <SettingsCard label="Wardrobe Customer Service">
-        <SRow label="FAQ" onClick={() => soon("FAQ")} />
-        <SRow label="Notice" onClick={() => soon("Notice")} />
-        <SRow label="Feedback & Suggestions" onClick={() => soon("Feedback")} />
-        <SRow label="Visit our Instagram" onClick={() => soon("Instagram")} last />
+      {/* Shortcuts — features kept reachable from here */}
+      <SettingsCard label="Shortcuts">
+        <SRow icon={Luggage} label="Packing & trips" onClick={() => setView("travel")} />
+        <SRow icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} last />
       </SettingsCard>
 
-      {/* Terms */}
-      <SettingsCard label="Terms of Service" right="Ver 1.0.0">
-        <SRow label="Service Terms" chevron onClick={() => soon("Service terms")} />
-        <SRow label="Privacy policy" chevron onClick={() => soon("Privacy policy")} last />
+      {/* About & support */}
+      <SettingsCard label="About & support" right="Ver 1.0.0">
+        <SRow label="Help & feedback" chevron onClick={() => soon("Help & feedback")} />
+        <SRow label="Privacy policy" chevron onClick={() => soon("Privacy policy")} />
+        <SRow label="Terms of Service" chevron onClick={() => soon("Terms of Service")} last />
       </SettingsCard>
 
-      {/* Sign in */}
-      <SettingsCard label="Sign In">
-        <SRow label="Change sign in method" chevron onClick={() => soon("Change sign-in method")} />
-        {authUser && <SRow label="Sign Out" chevron onClick={logOut} />}
-        <SRow label="Delete Account" chevron danger onClick={() => soon("Delete account")} last />
+      {/* Account */}
+      <SettingsCard label="Account">
+        {authUser && <SRow label="Sign out" chevron onClick={logOut} />}
+        <SRow label="Delete account" chevron danger onClick={() => soon("Delete account")} last />
       </SettingsCard>
 
-      {/* --- inline sheets (never the old SettingsView) --- */}
+      {/* --- inline sheets --- */}
       {sheet === "currency" && (
         <Sheet title="Currency" onClose={() => setSheet(null)}>
           {CURRENCIES.map((c) => {
@@ -299,7 +271,7 @@ export function YouView() {
       )}
 
       {sheet === "vibes" && (
-        <Sheet title="Outfit suggestion settings" onClose={() => setSheet(null)}>
+        <Sheet title="Outfit suggestions" onClose={() => setSheet(null)}>
           <p className="pb-3 text-sm text-muted">
             Pick up to three style vibes — we use them for Today and Generate outfit.
           </p>
@@ -423,6 +395,30 @@ export function YouView() {
   );
 }
 
+function Tile({
+  icon: Icon,
+  label,
+  value,
+  onClick,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-surface px-2 py-3.5 text-center"
+    >
+      <Icon size={21} className="text-accent" />
+      <span className="text-xs font-medium leading-tight">{label}</span>
+      {value && <span className="text-[11px] text-muted">{value}</span>}
+    </button>
+  );
+}
+
 function Sheet({
   title,
   onClose,
@@ -470,36 +466,6 @@ function PickRow({
     >
       {children}
       {active && <Check size={18} className="shrink-0 text-accent" />}
-    </button>
-  );
-}
-
-function Highlight({
-  icon: Icon,
-  label,
-  tint,
-  fg,
-  onClick,
-}: {
-  icon: LucideIcon;
-  label: string;
-  tint: string;
-  fg: string;
-  onClick?: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex h-28 w-36 shrink-0 flex-col justify-between rounded-2xl border border-line bg-surface p-4 text-left"
-    >
-      <span className="font-semibold">{label}</span>
-      <span
-        className="flex h-10 w-10 items-center justify-center self-end rounded-xl"
-        style={{ background: tint, color: fg }}
-      >
-        <Icon size={20} />
-      </span>
     </button>
   );
 }

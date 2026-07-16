@@ -38,7 +38,7 @@ const TITLES: Partial<Record<View, string>> = {
   wishlist: "Wishlist",
   travel: "Packing",
   insights: "Insights",
-  you: "My page",
+  you: "You",
   explore: "Explore",
   profile: "My Profile",
   social: "Profile",
