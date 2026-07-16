@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  ArrowRight,
   BarChart3,
   Bookmark,
   CalendarDays,
@@ -15,15 +16,11 @@ import {
   CloudSun,
   Info,
   Luggage,
-  Mail,
-  MessageCircle,
   Plus,
   RefreshCw,
-  ScanFace,
   Shirt,
   Sparkles,
   Sun,
-  Wand2,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -178,7 +175,6 @@ export function NativeHomeView() {
     setToast(msg);
     window.setTimeout(() => setToast(null), 2000);
   };
-  const comingSoon = (what: string) => flash(`${what} — coming soon`);
 
   // Auto-load weather from the saved profile location — no GPS prompt.
   useEffect(() => {
@@ -305,6 +301,19 @@ export function NativeHomeView() {
   const shuffleCover = () => {
     setSeed((n) => n + 1);
     flash("A different look for today");
+  };
+  // "Style me" — generate a fresh AI look and open it on the canvas.
+  const styleMe = () => {
+    const s = buildSuggestions(
+      items,
+      weather?.season,
+      weather?.needsOuterwear ?? false,
+      vibe,
+      seed + 100,
+      1,
+    )[0];
+    if (s) openLook(s);
+    else setView("builder");
   };
 
   return (
@@ -455,64 +464,66 @@ export function NativeHomeView() {
         </div>
       </section>
 
-      {/* popular features */}
+      {/* do more — Style me hero */}
       <section className="mt-9">
-        <div className="mb-3.5 flex items-baseline justify-between">
-          <h3 className="font-display text-lg">Popular features</h3>
-          <button
-            type="button"
-            onClick={() => comingSoon("More features")}
-            className="flex items-center gap-1 text-xs text-muted"
-          >
-            See all <ChevronRight size={14} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <FeatureTile icon={Plus} label="Add items" onClick={() => setAddOpen(true)} />
-          <FeatureTile icon={Shirt} label="Create outfit" onClick={() => setView("builder")} />
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-3">
-          <FeatureTile sm icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} />
-          <FeatureTile sm icon={Sparkles} label="Beautify" onClick={() => comingSoon("Beautify")} />
-          <FeatureTile sm icon={BarChart3} label="Style stats" onClick={() => setView("insights")} />
+        <h3 className="mb-3.5 font-display text-lg">Do more</h3>
+        <button
+          type="button"
+          onClick={styleMe}
+          className="flex w-full items-center gap-3.5 rounded-2xl bg-accent p-4 text-left text-accent-foreground"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20">
+            <Sparkles size={22} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Style me</span>
+            <span className="block text-xs text-accent-foreground/85">
+              Get an AI outfit from your closet
+            </span>
+          </span>
+          <ArrowRight size={20} className="shrink-0" />
+        </button>
+      </section>
+
+      {/* create */}
+      <section className="mt-8">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+          Create
+        </p>
+        <div className="-mx-4 border-t border-line">
+          <ListRow
+            icon={Plus}
+            title="Add items"
+            sub="Snap or import to your closet"
+            onClick={() => setAddOpen(true)}
+          />
+          <ListRow
+            icon={Shirt}
+            title="Build an outfit"
+            sub="Style pieces on the canvas"
+            onClick={() => setView("builder")}
+          />
         </div>
       </section>
 
-      {/* ai stylist */}
-      <section className="mt-9">
-        <h3 className="mb-3.5 font-display text-lg">AI stylist</h3>
-        <div className="grid grid-cols-3 gap-3">
-          <FeatureTile sm icon={Wand2} label="Outfit suggestion" onClick={() => setView("builder")} />
-          <FeatureTile sm icon={MessageCircle} label="Style chat" onClick={() => comingSoon("Style chat")} />
-          <FeatureTile sm icon={ScanFace} label="Try on" onClick={() => setView("builder")} />
-        </div>
-      </section>
-
-      {/* sign in & import */}
-      <section className="mt-9">
-        <h3 className="mb-3.5 font-display text-lg">Sign in &amp; import</h3>
-        <div className="flex items-stretch gap-2.5">
-          <ImportTile onClick={() => comingSoon("Email import")}>
-            <Mail size={20} strokeWidth={1.7} className="text-muted" />
-            <span className="mt-1 text-[11px] text-muted">email</span>
-          </ImportTile>
-          <span className="my-2 w-px shrink-0 bg-line" />
-          <ImportTile onClick={() => comingSoon("ZARA import")}>
-            <span className="font-display text-[15px] tracking-tight">ZARA</span>
-          </ImportTile>
-          <ImportTile onClick={() => comingSoon("SHEIN import")}>
-            <span className="text-[15px] font-semibold tracking-tight">SHEIN</span>
-          </ImportTile>
-          <ImportTile dark onClick={() => comingSoon("GAP import")}>
-            <span className="font-display text-[15px] tracking-tight">GAP</span>
-          </ImportTile>
-          <button
-            type="button"
-            onClick={() => comingSoon("More stores")}
-            className="flex h-16 w-12 shrink-0 items-center justify-center rounded-2xl border border-line text-accent"
-          >
-            <Plus size={20} />
-          </button>
+      {/* explore your closet */}
+      <section className="mt-8">
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
+          Explore your closet
+        </p>
+        <div className="-mx-4 border-t border-line">
+          <ListRow
+            icon={BarChart3}
+            title="Style stats"
+            sub="See what you actually wear"
+            onClick={() => setView("insights")}
+          />
+          <ListRow
+            icon={CalendarDays}
+            title="Calendar"
+            sub="Plan looks for the week"
+            onClick={() => setView("calendar")}
+          />
         </div>
       </section>
 
@@ -558,59 +569,6 @@ function ListRow({
         <span className="block truncate text-xs text-muted">{sub}</span>
       </span>
       <ChevronRight size={18} className="shrink-0 text-muted" />
-    </button>
-  );
-}
-
-function FeatureTile({
-  icon: Icon,
-  label,
-  onClick,
-  sm,
-}: {
-  icon: LucideIcon;
-  label: string;
-  onClick: () => void;
-  sm?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`relative flex flex-col justify-end overflow-hidden rounded-2xl border border-line bg-surface p-3.5 text-left ${
-        sm ? "min-h-[82px]" : "min-h-[96px]"
-      }`}
-    >
-      <Icon
-        size={sm ? 21 : 26}
-        strokeWidth={1.7}
-        className={`absolute text-accent ${sm ? "right-3 top-3" : "right-3.5 top-3.5"}`}
-      />
-      <span className={`font-medium leading-tight ${sm ? "text-[12.5px]" : "text-sm"}`}>
-        {label}
-      </span>
-    </button>
-  );
-}
-
-function ImportTile({
-  onClick,
-  dark,
-  children,
-}: {
-  onClick: () => void;
-  dark?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex h-16 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl border border-line ${
-        dark ? "bg-foreground text-background" : "bg-surface text-foreground"
-      }`}
-    >
-      {children}
     </button>
   );
 }
