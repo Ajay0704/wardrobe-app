@@ -95,7 +95,9 @@ export function NativeProfileView() {
   };
 
   const share = async () => {
-    const url = typeof window !== "undefined" ? window.location.origin : "";
+    // Per-user public page (guests can open it without the app).
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const url = handle ? `${origin}/u/${encodeURIComponent(handle)}` : origin;
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({ title: `${name} on Wardrobe`, url });
