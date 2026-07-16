@@ -107,6 +107,10 @@ interface WardrobeState {
   addIntent: "camera" | "upload" | "link" | null;
   /** Global "import from photos" (bulk) modal, opened from Create / Closet. */
   bulkOpen: boolean;
+  /** Global "add whole outfit" (multi-garment split) modal. */
+  splitOpen: boolean;
+  /** Which source the split flow should auto-trigger (camera vs library). */
+  splitSource: "camera" | "library" | null;
   /** Global "closets selector" sheet (opened from the Closet header dropdown). */
   closetsOpen: boolean;
   filters: Filters;
@@ -177,6 +181,9 @@ interface WardrobeState {
   /** Open the add form pointed at a specific input (camera/upload/link). */
   openAdd: (intent?: "camera" | "upload" | "link" | null) => void;
   setBulkOpen: (open: boolean) => void;
+  /** Open the "add whole outfit" split flow, optionally auto-triggering a source. */
+  openSplit: (source?: "camera" | "library") => void;
+  setSplitOpen: (open: boolean) => void;
   setClosetsOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
 
@@ -359,6 +366,8 @@ export const useWardrobe = create<WardrobeState>()(
       addOpen: false,
       addIntent: null,
       bulkOpen: false,
+      splitOpen: false,
+      splitSource: null,
       closetsOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -580,6 +589,9 @@ export const useWardrobe = create<WardrobeState>()(
       setAddOpen: (addOpen) => set({ addOpen, ...(addOpen ? {} : { addIntent: null }) }),
       openAdd: (intent = null) => set({ addOpen: true, addIntent: intent }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),
+      openSplit: (source) => set({ splitOpen: true, splitSource: source ?? null }),
+      setSplitOpen: (splitOpen) =>
+        set({ splitOpen, ...(splitOpen ? {} : { splitSource: null }) }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),

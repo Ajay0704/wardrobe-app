@@ -64,7 +64,7 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, openAdd } = useWardrobe();
+  const { view, setView, openAdd, openSplit } = useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const [createOpen, setCreateOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
@@ -216,8 +216,8 @@ export function NativeShell() {
             <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
               Add item
             </p>
-            <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openAdd("camera"))} />
-            <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openAdd("upload"))} />
+            <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openSplit("camera"))} />
+            <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openSplit("library"))} />
             <SheetRow icon={Globe} label="Paste a link" onClick={() => runSheet(() => openAdd("link"))} />
 
             <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">

@@ -24,6 +24,7 @@ import { StylistView } from "./stylist/StylistView";
 import { PhotoDetailView } from "./PhotoDetailView";
 import { ItemForm } from "./ItemForm";
 import { BulkImport } from "./BulkImport";
+import { OutfitSplitImport } from "./OutfitSplitImport";
 
 /**
  * Renders the current view's content. Shared by the web shell (AppShell) and the
@@ -37,6 +38,9 @@ export function AppViews() {
   const setAddOpen = useWardrobe((s) => s.setAddOpen);
   const bulkOpen = useWardrobe((s) => s.bulkOpen);
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
+  const splitOpen = useWardrobe((s) => s.splitOpen);
+  const splitSource = useWardrobe((s) => s.splitSource);
+  const setSplitOpen = useWardrobe((s) => s.setSplitOpen);
 
   // The native shell gets the richer Acloset-style Home; web keeps TodayView.
   const [isNative, setIsNative] = useState(false);
@@ -68,6 +72,9 @@ export function AppViews() {
 
       {addOpen && <ItemForm intent={addIntent} onClose={() => setAddOpen(false)} />}
       {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}
+      {splitOpen && (
+        <OutfitSplitImport source={splitSource ?? undefined} onClose={() => setSplitOpen(false)} />
+      )}
     </>
   );
 }

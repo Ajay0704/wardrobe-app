@@ -1,14 +1,17 @@
 "use client";
 
-import { Check, Loader2, Shirt, Upload, X } from "lucide-react";
-import { useState } from "react";
+import { Camera, Check, Loader2, Upload, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { cutoutMulti } from "@/lib/cutout";
+import { detectGarments } from "@/lib/detect-garments";
+import { captureNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
-import { resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season } from "@/lib/types";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/types";
 import { Button, Modal, inputClass } from "./ui";
+
+type SplitSource = "camera" | "library";
 
 interface SplitRow {
   id: string;
@@ -24,22 +27,39 @@ interface SplitRow {
   brand?: string;
 }
 
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result as string);
+    r.onerror = () => reject(r.error ?? new Error("Couldn't read that file."));
+    r.readAsDataURL(file);
+  });
+
 /**
- * "Add whole outfit": pick ONE photo, split it into a separate garment cutout per class
- * (cutoutMulti), review each as its own item (category pre-filled from the split), then add them
- * all. Reuses the BulkImport review-grid/addAll pattern; single-add is unaffected.
+ * "Add whole outfit": take or pick ONE photo, detect every garment in it (top,
+ * bottom, shoes, accessories) via the Gemini detector, review each as its own item,
+ * then add them all. Falls back to SegFormer (cutoutMulti) then a single cutout if
+ * detection is unavailable. Single-item add is unaffected.
  */
-export function OutfitSplitImport({ onClose }: { onClose: () => void }) {
-  const { addItem, authUser } = useWardrobe();
+export function OutfitSplitImport({
+  source,
+  onClose,
+}: {
+  source?: SplitSource;
+  onClose: () => void;
+}) {
+  const { addItem, authUser, openAdd } = useWardrobe();
   const [rows, setRows] = useState<SplitRow[]>([]);
   const [splitting, setSplitting] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const started = useRef(false);
 
   const patch = (id: string, p: Partial<SplitRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
 
-  // Auto-tag a split cutout for name/color/tags (keep the split's category — it's authoritative).
+  // Fallback tagger for the SegFormer path (Gemini detection already fills attributes).
   const analyzeRow = async (row: SplitRow) => {
     try {
       const res = await fetch("/api/analyze", {
@@ -48,33 +68,53 @@ export function OutfitSplitImport({ onClose }: { onClose: () => void }) {
         body: JSON.stringify({ image: row.imageUrl }),
       });
       const data = await res.json();
-      if (res.ok) {
-        patch(row.id, {
-          status: "ready",
-          color: data.color ?? row.color,
-          colorName: data.colorName ?? row.colorName,
-          brand: data.brand?.trim() || undefined,
-          tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
-          seasons: Array.isArray(data.seasons) ? (data.seasons as Season[]) : [],
-          name: data.name?.trim() ? (data.name as string) : row.name,
-        });
-      } else {
-        patch(row.id, { status: "ready" });
-      }
+      patch(row.id, {
+        status: "ready",
+        ...(res.ok
+          ? {
+              color: data.color ?? row.color,
+              colorName: data.colorName ?? row.colorName,
+              brand: data.brand?.trim() || undefined,
+              tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
+              seasons: Array.isArray(data.seasons) ? (data.seasons as Season[]) : [],
+              name: data.name?.trim() ? (data.name as string) : row.name,
+            }
+          : {}),
+      });
     } catch {
       patch(row.id, { status: "ready" });
     }
   };
 
-  const onFile = async (file?: File) => {
-    if (!file) return;
+  const onImage = async (dataUrl: string) => {
     setError("");
     setSplitting(true);
     try {
-      const src = await resolveImageSource(file, authUser?.id ?? null);
-      const cuts = await cutoutMulti(src, authUser?.id ?? null);
+      // Primary: Gemini detector — every garment, boxed + attributed.
+      const detected = await detectGarments(dataUrl, authUser?.id ?? null);
+      if (detected.length) {
+        setRows(
+          detected.map((g, idx) => ({
+            id: `${Date.now()}-${idx}`,
+            imageUrl: g.url,
+            status: "ready",
+            include: true,
+            name: g.name || CATEGORY_LABEL[g.category],
+            category: g.category,
+            color: g.color,
+            colorName: g.colorName,
+            tags: g.tags,
+            seasons: g.seasons,
+          })),
+        );
+        setSplitting(false);
+        return;
+      }
+
+      // Fallback: SegFormer split, then tag each cutout.
+      const cuts = await cutoutMulti(dataUrl, authUser?.id ?? null);
       if (!cuts.length) {
-        setError("Couldn't find any garments in that photo. Try a clearer full-length shot.");
+        setError("Couldn't find any garments. Try a clearer, full-length photo.");
         setSplitting(false);
         return;
       }
@@ -91,20 +131,47 @@ export function OutfitSplitImport({ onClose }: { onClose: () => void }) {
       }));
       setRows(newRows);
       setSplitting(false);
-
-      // Limited concurrency so we don't hammer /api/analyze.
       setBusy(true);
       let i = 0;
       const worker = async () => {
         while (i < newRows.length) await analyzeRow(newRows[i++]);
       };
-      await Promise.all(Array.from({ length: 2 }, worker));
+      await Promise.all([worker(), worker()]);
       setBusy(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't process that photo.");
       setSplitting(false);
     }
   };
+
+  const pickLibrary = () => fileRef.current?.click();
+
+  const onFile = async (file?: File) => {
+    if (!file) return;
+    try {
+      onImage(await fileToDataUrl(file));
+    } catch {
+      setError("Couldn't read that photo.");
+    }
+  };
+
+  const takePhoto = async () => {
+    try {
+      const file = await captureNativePhoto();
+      if (file) onImage(await fileToDataUrl(file));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the camera.");
+    }
+  };
+
+  // Auto-trigger the chosen source once.
+  useEffect(() => {
+    if (started.current) return;
+    started.current = true;
+    if (source === "camera") void takePhoto();
+    else if (source === "library") pickLibrary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
 
   const included = rows.filter((r) => r.include && r.status !== "analyzing");
   const analyzing = rows.some((r) => r.status === "analyzing");
@@ -126,39 +193,62 @@ export function OutfitSplitImport({ onClose }: { onClose: () => void }) {
     onClose();
   };
 
+  const addByLink = () => {
+    openAdd("link");
+    onClose();
+  };
+
   return (
     <Modal title="Add whole outfit" onClose={onClose} wide>
       {rows.length === 0 ? (
-        <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-surface-2 px-6 py-14 text-center transition-colors hover:border-accent/60">
+        <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-line bg-surface-2 px-6 py-12 text-center">
           {splitting ? (
             <>
               <Loader2 size={30} className="animate-spin text-accent" />
-              <p className="font-medium">Splitting the outfit into garments…</p>
-              <p className="text-sm text-muted">First split of a session can take ~15s.</p>
+              <p className="font-medium">Detecting every garment…</p>
+              <p className="text-sm text-muted">Finding tops, bottoms, shoes and accessories.</p>
             </>
           ) : (
             <>
-              <Shirt size={32} className="text-muted" />
               <div>
                 <p className="font-medium">Add a photo of a full outfit</p>
                 <p className="mt-1 text-sm text-muted">
-                  Each garment is cut out separately and added as its own item.
+                  I&apos;ll find every piece and add each as its own item.
                 </p>
               </div>
-              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white">
-                <Upload size={15} /> Choose a photo
-              </span>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={takePhoto}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white"
+                >
+                  <Camera size={15} /> Take photo
+                </button>
+                <button
+                  type="button"
+                  onClick={pickLibrary}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-4 py-2 text-sm font-medium hover:bg-surface-2"
+                >
+                  <Upload size={15} /> Choose photo
+                </button>
+              </div>
+              <button type="button" onClick={addByLink} className="text-xs text-muted underline">
+                or add by link instead
+              </button>
             </>
           )}
           {error && <p className="text-sm text-red-500">{error}</p>}
           <input
+            ref={fileRef}
             type="file"
             accept="image/*"
             className="hidden"
-            disabled={splitting}
-            onChange={(e) => onFile(e.target.files?.[0])}
+            onChange={(e) => {
+              void onFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
           />
-        </label>
+        </div>
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-muted">
@@ -168,7 +258,7 @@ export function OutfitSplitImport({ onClose }: { onClose: () => void }) {
               </span>
             ) : (
               <span>
-                Found {rows.length} garment{rows.length === 1 ? "" : "s"} — {included.length} to add
+                Found {rows.length} piece{rows.length === 1 ? "" : "s"} — {included.length} to add
               </span>
             )}
           </p>

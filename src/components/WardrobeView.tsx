@@ -32,6 +32,7 @@ export function WardrobeView() {
   const items = useWardrobe((s) => s.items);
   const closetsOpen = useWardrobe((s) => s.closetsOpen);
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
+  const openSplit = useWardrobe((s) => s.openSplit);
   const isNative = useIsNativeApp();
 
   const [tab, setTab] = useState<TabKey>("items");
@@ -61,8 +62,14 @@ export function WardrobeView() {
   }, [mainTab, base]);
 
   const openAdd = () => {
-    setAddWishlist(tab === "wishlist");
-    setAdding(true);
+    // Closet "+" opens the whole-outfit detector (photo → every garment). Wishlist
+    // adds stay single-item since you're saving one thing you want to buy.
+    if (tab === "wishlist") {
+      setAddWishlist(true);
+      setAdding(true);
+    } else {
+      openSplit();
+    }
   };
 
   const switchTab = (t: TabKey) => {
