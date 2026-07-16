@@ -2,6 +2,7 @@
 
 import { Camera, Check, Loader2, Upload, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { beautify } from "@/lib/beautify";
 import { cutoutMulti } from "@/lib/cutout";
 import { detectGarments } from "@/lib/detect-garments";
 import { captureNativePhoto } from "@/lib/native-camera";
@@ -53,6 +54,7 @@ export function OutfitSplitImport({
   const [splitting, setSplitting] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
 
@@ -176,19 +178,52 @@ export function OutfitSplitImport({
   const included = rows.filter((r) => r.include && r.status !== "analyzing");
   const analyzing = rows.some((r) => r.status === "analyzing");
 
-  const addAll = () => {
-    for (const r of included) {
-      addItem({
-        name: r.name.trim() || CATEGORY_LABEL[r.category],
-        imageUrl: r.imageUrl,
-        category: r.category,
-        color: r.color,
-        colorName: r.colorName,
-        tags: r.tags,
-        seasons: r.seasons,
-        brand: r.brand,
-        wishlist: false,
-      });
+  // Garments become clean product shots; accessories/bags stay as plain cutouts
+  // (beautify would hallucinate a garment out of a belt).
+  const BEAUTIFY_CATS = new Set<Category>(["top", "bottom", "dress", "outerwear", "shoes"]);
+
+  const addAll = async () => {
+    if (busy) return;
+    setBusy(true);
+    const items = [...included];
+    try {
+      let i = 0;
+      for (const r of items) {
+        i++;
+        let imageUrl = r.imageUrl;
+        let beautifiedImageUrl: string | undefined;
+        let beautifyWhiteUrl: string | undefined;
+        let beautifyModel: string | undefined;
+        if (BEAUTIFY_CATS.has(r.category)) {
+          setProgress(`Creating product shots… ${i}/${items.length}`);
+          try {
+            const res = await beautify(r.imageUrl, authUser?.id ?? null, r.category);
+            imageUrl = res.url;
+            beautifiedImageUrl = res.url;
+            beautifyWhiteUrl = res.whiteUrl;
+            beautifyModel = res.model;
+          } catch {
+            /* beautify failed (or key missing) — keep the plain cutout */
+          }
+        }
+        addItem({
+          name: r.name.trim() || CATEGORY_LABEL[r.category],
+          imageUrl,
+          beautifiedImageUrl,
+          beautifyWhiteUrl,
+          beautifyModel,
+          category: r.category,
+          color: r.color,
+          colorName: r.colorName,
+          tags: r.tags,
+          seasons: r.seasons,
+          brand: r.brand,
+          wishlist: false,
+        });
+      }
+    } finally {
+      setBusy(false);
+      setProgress(null);
     }
     onClose();
   };
@@ -324,8 +359,8 @@ export function OutfitSplitImport({
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={addAll} disabled={busy || included.length === 0}>
-              Add {included.length || ""} to closet
+            <Button onClick={() => void addAll()} disabled={busy || included.length === 0}>
+              {progress ?? `Add ${included.length || ""} to closet`}
             </Button>
           </div>
         </div>

@@ -18,10 +18,17 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 // Comma-separated garment vocabulary Grounding DINO looks for.
+// Kept deliberately concise — Grounding DINO degrades with long, cluttered
+// queries (a longer jacket list actually LOST the blazer in testing).
 const GARMENT_VOCAB =
   "shirt, t-shirt, blouse, sweater, hoodie, cardigan, jacket, blazer, coat, " +
   "pants, jeans, trousers, shorts, skirt, dress, shoes, sneakers, boots, heels, " +
   "sandals, handbag, backpack, tote bag, hat, cap, belt, scarf, sunglasses, watch";
+
+// Accessories (belts/hats/etc.) fire noisy, low-confidence boxes — require a higher
+// bar and cap how many we keep so they don't create junk items.
+const ACCESSORY_FLOOR = 0.45;
+const ACCESSORY_MAX = 2;
 
 // Pinned adirik/grounding-dino version. This model 404s on the model-scoped
 // predictions endpoint, so we run it via the version-based /v1/predictions.
@@ -212,5 +219,12 @@ export async function POST(request: Request) {
     });
   }
 
-  return Response.json({ garments: result.slice(0, 12) });
+  // Accessory tuning: keep only confident accessories, capped.
+  const accessories = result
+    .filter((g) => g.category === "accessory" && g.score >= ACCESSORY_FLOOR)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, ACCESSORY_MAX);
+  const kept = result.filter((g) => g.category !== "accessory").concat(accessories);
+
+  return Response.json({ garments: kept.slice(0, 12) });
 }
