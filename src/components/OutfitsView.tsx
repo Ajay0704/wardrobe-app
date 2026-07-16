@@ -99,18 +99,10 @@ export function OutfitsView() {
 
   return (
     <div className="pb-6">
-      <p className="text-[11px] font-medium uppercase tracking-[0.12em] text-muted">
-        Your collection
-      </p>
-      <h1 className="heading text-3xl">Outfits</h1>
-      <p className="mt-0.5 text-sm text-muted">
-        {sorted.length} look{sorted.length === 1 ? "" : "s"}
-      </p>
-
       <button
         type="button"
         onClick={newLook}
-        className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-medium text-accent-foreground"
+        className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-medium text-accent-foreground"
       >
         <Plus size={17} /> New look
       </button>
