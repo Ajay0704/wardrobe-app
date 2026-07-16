@@ -1,14 +1,15 @@
 "use client";
 
-import { ChevronLeft, MoreVertical, Send, Sparkles, Trash2 } from "lucide-react";
+import { ChevronLeft, MoreVertical, Plus, Send, Shirt, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { classifyIntent } from "@/lib/stylist/intent";
-import { postNarration, templateReason } from "@/lib/stylist/narrate";
+import { postNarration, resolveBuyProduct, templateReason } from "@/lib/stylist/narrate";
 import { runTool } from "@/lib/stylist/tools";
 import { clearTranscript, loadTranscript, saveTranscript } from "@/lib/stylist/transcript";
 import type { OutfitCardData, StylistBlock, StylistTurn } from "@/lib/stylist/types";
 import { useWardrobe } from "@/lib/store";
-import { todayISO } from "@/lib/types";
+import { todayISO, type WardrobeItem } from "@/lib/types";
+import { StylistAttachSheet } from "./StylistAttachSheet";
 import { StylistBlocks, type BlockHandlers } from "./StylistBlocks";
 
 const uid = () =>
@@ -71,6 +72,8 @@ export function StylistView() {
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [attached, setAttached] = useState<WardrobeItem[]>([]);
+  const [attachOpen, setAttachOpen] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const seedRef = useRef(false);
 
@@ -97,10 +100,18 @@ export function StylistView() {
 
   const submit = useCallback(
     async (raw: string) => {
-      const message = raw.trim();
+      const attachedNow = attached;
+      const message =
+        raw.trim() ||
+        (attachedNow.length >= 2
+          ? "which of these should I wear?"
+          : attachedNow.length === 1
+            ? "how do I wear this?"
+            : "");
       if (!message || busy) return;
       setBusy(true);
       setText("");
+      setAttached([]);
 
       const userTurn: StylistTurn = { id: uid(), role: "user", text: message, createdAt: Date.now() };
       const botId = uid();
@@ -112,11 +123,18 @@ export function StylistView() {
       const lastOutfitIds = latestOutfitIds(turns);
       setTurns((prev) => [...prev, userTurn, { id: botId, role: "bot", pending: true, createdAt: Date.now() }]);
 
-      const cls = classifyIntent(message);
+      const attachedIds = attachedNow.map((it) => it.id);
+      const cls = classifyIntent(message, attachedIds);
       let blocks: StylistBlock[] = [];
       let seed = "";
       try {
-        const result = await runTool(cls.intent, cls.slots, { items, profile, lastOutfitIds });
+        // "should I buy this?" needs a resolved product (from a URL or an
+        // attached wishlist item) before the engine can score it.
+        const product =
+          cls.intent === "buy_advice"
+            ? (await resolveBuyProduct(cls.slots.url, attachedNow[0])) ?? undefined
+            : undefined;
+        const result = await runTool(cls.intent, cls.slots, { items, profile, lastOutfitIds, product });
         blocks = result.blocks;
         seed = templateReason(result.compact);
         setTurns((prev) => prev.map((t) => (t.id === botId ? { ...t, text: seed, blocks } : t)));
@@ -141,7 +159,7 @@ export function StylistView() {
         setBusy(false);
       }
     },
-    [busy, turns, items, profile],
+    [busy, turns, items, profile, attached],
   );
 
   // Auto-send a seed message (e.g. from the Home "What should I wear?" button),
@@ -258,31 +276,80 @@ export function StylistView() {
       </div>
 
       {/* composer */}
-      <div className="flex items-center gap-2 border-t border-line px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
-        <input
-          className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
-          placeholder="Ask your stylist…"
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              void submit(text);
-            }
+      <div className="border-t border-line px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
+        {attached.length > 0 && (
+          <div className="mb-2 flex flex-wrap gap-2">
+            {attached.map((it) => (
+              <span key={it.id} className="flex items-center gap-1.5 rounded-full border border-line bg-surface-2 py-1 pl-1 pr-2 text-xs">
+                <span className="flex h-5 w-5 items-center justify-center overflow-hidden rounded-full bg-surface">
+                  {it.beautifiedImageUrl || it.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={it.beautifiedImageUrl || it.imageUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    <Shirt size={11} className="text-muted" />
+                  )}
+                </span>
+                <span className="max-w-[120px] truncate">{it.name}</span>
+                <button
+                  type="button"
+                  aria-label={`Remove ${it.name}`}
+                  onClick={() => setAttached((prev) => prev.filter((x) => x.id !== it.id))}
+                  className="text-muted hover:text-foreground"
+                >
+                  <X size={13} />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Attach a piece"
+            onClick={() => setAttachOpen(true)}
+            disabled={attached.length >= 2}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-surface-2 text-foreground disabled:opacity-40"
+          >
+            <Plus size={20} />
+          </button>
+          <input
+            className="flex-1 rounded-full border border-line bg-surface px-4 py-2.5 text-sm outline-none focus:border-accent"
+            placeholder="Ask your stylist…"
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                void submit(text);
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => void submit(text)}
+            disabled={(!text.trim() && attached.length === 0) || busy}
+            aria-label="Send"
+            className={`flex h-10 w-10 items-center justify-center rounded-full ${
+              (text.trim() || attached.length > 0) && !busy
+                ? "bg-accent text-accent-foreground"
+                : "bg-surface-2 text-muted"
+            }`}
+          >
+            <Send size={17} />
+          </button>
+        </div>
+      </div>
+
+      {attachOpen && (
+        <StylistAttachSheet
+          excludeIds={attached.map((it) => it.id)}
+          onClose={() => setAttachOpen(false)}
+          onPick={(it) => {
+            setAttached((prev) => (prev.length >= 2 ? prev : [...prev, it]));
+            setAttachOpen(false);
           }}
         />
-        <button
-          type="button"
-          onClick={() => void submit(text)}
-          disabled={!text.trim() || busy}
-          aria-label="Send"
-          className={`flex h-10 w-10 items-center justify-center rounded-full ${
-            text.trim() && !busy ? "bg-accent text-accent-foreground" : "bg-surface-2 text-muted"
-          }`}
-        >
-          <Send size={17} />
-        </button>
-      </div>
+      )}
 
       {toast && (
         <div className="pointer-events-none absolute inset-x-0 bottom-24 z-[80] flex justify-center px-4">

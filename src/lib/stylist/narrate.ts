@@ -9,7 +9,61 @@
  */
 
 import { authHeaders } from "../supabase/client";
+import type { WardrobeItem } from "../types";
 import type { CompactItem, CompactResult, StylistChatRequest } from "./types";
+
+async function api<T>(path: string, body: unknown): Promise<T | null> {
+  try {
+    const res = await fetch(path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Resolve a "should I buy this?" subject into a WardrobeItem the Smart-Buy engine
+ * can score. A pasted URL is enriched via /api/extract (name/image/price) then
+ * /api/analyze (category/colour) — the app's existing pipelines. An attached
+ * owned/wishlist item already has those attributes, so it's returned as-is.
+ */
+export async function resolveBuyProduct(
+  url: string | undefined,
+  attached: WardrobeItem | undefined,
+): Promise<WardrobeItem | null> {
+  if (attached) return attached;
+  if (!url) return null;
+  const ex = await api<{ name?: string; imageUrl?: string; imageData?: string; price?: number; brand?: string }>(
+    "/api/extract",
+    { url },
+  );
+  const image = ex?.imageData || ex?.imageUrl || "";
+  const attrs = image
+    ? await api<{ name?: string; category?: WardrobeItem["category"]; color?: string; colorName?: string; seasons?: WardrobeItem["seasons"]; tags?: string[] }>(
+        "/api/analyze",
+        { image },
+      )
+    : null;
+  return {
+    id: `stylist-buy-${Date.now()}`,
+    name: ex?.name || attrs?.name || "This item",
+    imageUrl: image,
+    category: attrs?.category || "top",
+    color: attrs?.color || "#9ca3af",
+    colorName: attrs?.colorName,
+    tags: attrs?.tags || [],
+    seasons: attrs?.seasons || [],
+    brand: ex?.brand,
+    price: ex?.price,
+    wishlist: true,
+    createdAt: Date.now(),
+  };
+}
 
 function list(items: CompactItem[]): string {
   const names = items.map((i) => i.name).filter(Boolean);

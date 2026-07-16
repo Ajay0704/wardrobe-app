@@ -89,6 +89,12 @@ export function classifyIntent(
     return { intent: "compare_options", slots };
   }
 
+  // A single attached item defaults to "how do I wear this?" (style it).
+  if (attachedIds.length === 1) {
+    slots.anchorId = attachedIds[0];
+    return { intent: "style_anchor", slots };
+  }
+
   // trip packing (Phase C).
   if (/\b(pack|packing|trip|travel|vacation|holiday|getaway)\b/.test(m)) {
     const place = raw.match(/\b(?:to|for|in)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+)?)/)?.[1];
