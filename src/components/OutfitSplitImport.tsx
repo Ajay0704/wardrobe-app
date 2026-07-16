@@ -199,7 +199,7 @@ export function OutfitSplitImport({
   };
 
   return (
-    <Modal title="Add whole outfit" onClose={onClose} wide>
+    <Modal title="Add whole outfit" onClose={onClose} wide dismissOnBackdrop={false}>
       {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-line bg-surface-2 px-6 py-12 text-center">
           {splitting ? (

@@ -73,11 +73,15 @@ export function Modal({
   onClose,
   children,
   wide,
+  dismissOnBackdrop = true,
 }: {
   title: string;
   onClose: () => void;
   children: ReactNode;
   wide?: boolean;
+  /** Tap-outside to close. Off for flows that open a native camera/photo picker,
+   *  where the picker's dismiss-tap falls through to the backdrop on iOS. */
+  dismissOnBackdrop?: boolean;
 }) {
   // Close on Escape for accessibility.
   useEffect(() => {
@@ -89,7 +93,7 @@ export function Modal({
   return (
     <div
       className="native-modal-backdrop fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-      onClick={onClose}
+      onClick={dismissOnBackdrop ? onClose : undefined}
     >
       <div
         role="dialog"
