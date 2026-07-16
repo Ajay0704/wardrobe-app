@@ -2,100 +2,92 @@
 
 import {
   BarChart3,
-  Bookmark,
   Grid3x3,
   MapPin,
+  Plus,
+  Repeat2,
   Settings,
+  Share2,
   Shirt,
+  Tag,
+  UserPlus,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { fetchFollowCounts, fetchUserPosts, type CommunityPost } from "@/lib/community";
+import {
+  fetchFollowCounts,
+  fetchReposts,
+  fetchTaggedPosts,
+  fetchUserPosts,
+  type CommunityPost,
+  type PostAuthor,
+} from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { ProfileAvatar } from "../ProfileAvatar";
+import { ConnectionsSheet } from "../community/ConnectionsSheet";
+import { CreatePostSheet } from "../community/CreatePost";
 
-/** A saved external product (fetched from the Explore feed by id). */
-interface SavedProduct {
-  id: string;
-  title: string;
-  imageUrl: string;
-}
-
-/** Minimal shape of a feed card returned by /api/explore/feed?ids=. */
-interface FeedCardLite {
-  id: string;
-  title: string;
-  heroImage?: string;
-  pieces?: { imageUrl: string }[];
-}
-
-type Tab = "posts" | "items" | "saved";
+type Tab = "posts" | "tagged" | "shared";
+type ConnTab = "followers" | "following" | "find";
 
 /**
- * Instagram / TikTok–style social profile. Reached by tapping the avatar in the
- * top bar. Big centred avatar + @handle, tappable Outfits/Items/Saved counts,
- * Edit-profile / Share / Settings actions, then a 3-column tabbed grid of the
- * user's outfits, closet items, and saved Explore looks.
+ * Instagram / TikTok–style social profile (view "social", opened by tapping the
+ * avatar in the top bar). Big centred avatar + @handle, tappable Followers /
+ * Following that open the connections sheet, a Find-friends + New-post action,
+ * and a 3-column tabbed grid of the user's Posts, Tagged posts, and reposts
+ * (Shared).
  */
 export function NativeProfileView() {
   const profile = useWardrobe((s) => s.profile);
-  const items = useWardrobe((s) => s.items);
   const authUser = useWardrobe((s) => s.authUser);
-  const savedPinIds = useWardrobe((s) => s.savedPinIds);
   const setView = useWardrobe((s) => s.setView);
 
   const [tab, setTab] = useState<Tab>("posts");
   const [toast, setToast] = useState<string | null>(null);
+  const [conn, setConn] = useState<ConnTab | null>(null);
+  const [composeOpen, setComposeOpen] = useState(false);
 
   const [myPosts, setMyPosts] = useState<CommunityPost[]>([]);
+  const [tagged, setTagged] = useState<CommunityPost[] | null>(null);
+  const [shared, setShared] = useState<CommunityPost[] | null>(null);
   const [counts, setCounts] = useState({ followers: 0, following: 0 });
+
+  const myId = authUser?.id ?? null;
+
+  // Posts + follow counts load up front; tagged / shared load lazily per tab.
   useEffect(() => {
-    if (!authUser?.id) {
+    if (!myId) {
       setMyPosts([]);
+      setTagged(null);
+      setShared(null);
       setCounts({ followers: 0, following: 0 });
       return;
     }
     let alive = true;
-    fetchUserPosts(authUser.id).then((p) => {
-      if (alive) setMyPosts(p);
-    });
-    fetchFollowCounts(authUser.id).then((c) => {
-      if (alive) setCounts(c);
-    });
+    fetchUserPosts(myId).then((p) => alive && setMyPosts(p));
+    fetchFollowCounts(myId).then((c) => alive && setCounts(c));
     return () => {
       alive = false;
     };
-  }, [authUser?.id]);
+  }, [myId]);
 
-  const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
-  const [savedProducts, setSavedProducts] = useState<SavedProduct[]>([]);
   useEffect(() => {
-    if (!savedPinIds.length) {
-      setSavedProducts([]);
-      return;
-    }
-    let alive = true;
-    fetch(`/api/explore/feed?ids=${encodeURIComponent(savedPinIds.join(","))}`)
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((d: { items?: FeedCardLite[] }) => {
-        if (!alive) return;
-        setSavedProducts(
-          (d.items ?? []).map((it) => ({
-            id: it.id,
-            title: it.title,
-            imageUrl: it.heroImage || it.pieces?.[0]?.imageUrl || "",
-          })),
-        );
-      })
-      .catch(() => {});
-    return () => {
-      alive = false;
-    };
-  }, [savedPinIds]);
+    if (!myId) return;
+    if (tab === "tagged" && tagged === null) fetchTaggedPosts(myId).then(setTagged);
+    if (tab === "shared" && shared === null) fetchReposts(myId).then(setShared);
+  }, [tab, myId, tagged, shared]);
 
   const name = profile.displayName?.trim() || "You";
   const handle = useMemo(() => profileHandle(profile), [profile]);
+  const author = useMemo<PostAuthor>(
+    () => ({
+      name: profile.displayName?.trim() || "You",
+      handle: profileHandle(profile),
+      avatar: profile.avatarUrl,
+    }),
+    [profile],
+  );
 
   const flash = (msg: string) => {
     setToast(msg);
@@ -103,8 +95,7 @@ export function NativeProfileView() {
   };
 
   const share = async () => {
-    const url =
-      typeof window !== "undefined" ? window.location.origin : "";
+    const url = typeof window !== "undefined" ? window.location.origin : "";
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
         await navigator.share({ title: `${name} on Wardrobe`, url });
@@ -117,29 +108,48 @@ export function NativeProfileView() {
     }
   };
 
+  const newPost = () => {
+    if (!authUser) {
+      flash("Sign in to post");
+      return;
+    }
+    setComposeOpen(true);
+  };
+
+  const onCreated = (p: CommunityPost) => {
+    setMyPosts((prev) => [p, ...prev]);
+    setComposeOpen(false);
+    setTab("posts");
+    flash("Posted to your profile");
+  };
+
+  const openPost = () => setView("explore");
+
   return (
     <div className="pb-4">
+      {/* Top-right actions */}
+      <div className="flex items-center justify-end gap-1 pt-1">
+        <IconBtn label="Find friends" onClick={() => setConn("find")}>
+          <UserPlus size={20} />
+        </IconBtn>
+        <IconBtn label="New post" onClick={newPost}>
+          <Plus size={22} />
+        </IconBtn>
+      </div>
+
       {/* Header */}
-      <div className="flex flex-col items-center gap-3 pb-5 pt-1 text-center">
-        <ProfileAvatar profile={profile} size={92} />
+      <div className="flex flex-col items-center gap-3 pb-5 text-center">
+        <ProfileAvatar profile={profile} size={92} onClick={() => setView("profile")} />
         <div>
           <h1 className="heading text-xl leading-tight">{name}</h1>
           <p className="text-sm text-muted">@{handle}</p>
         </div>
 
-        {/* Stats — social profile style */}
+        {/* Stats */}
         <div className="flex w-full max-w-xs items-center justify-around py-1">
           <Stat n={myPosts.length} label="Posts" onClick={() => setTab("posts")} />
-          <Stat
-            n={counts.followers}
-            label="Followers"
-            onClick={() => flash(`${counts.followers} follower${counts.followers === 1 ? "" : "s"}`)}
-          />
-          <Stat
-            n={counts.following}
-            label="Following"
-            onClick={() => flash(`Following ${counts.following}`)}
-          />
+          <Stat n={counts.followers} label="Followers" onClick={() => setConn("followers")} />
+          <Stat n={counts.following} label="Following" onClick={() => setConn("following")} />
         </div>
 
         {profile.bio?.trim() && (
@@ -163,9 +173,9 @@ export function NativeProfileView() {
           <button
             type="button"
             onClick={share}
-            className="flex-1 rounded-lg border border-line bg-surface py-2 text-sm font-semibold transition-colors hover:bg-surface-2"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-surface py-2 text-sm font-semibold transition-colors hover:bg-surface-2"
           >
-            Share profile
+            <Share2 size={15} /> Share
           </button>
           <button
             type="button"
@@ -181,75 +191,51 @@ export function NativeProfileView() {
       {/* Tabs */}
       <div className="-mx-4 flex border-y border-line">
         <TabBtn Icon={Grid3x3} label="Posts" active={tab === "posts"} onClick={() => setTab("posts")} />
-        <TabBtn Icon={Shirt} label="Items" active={tab === "items"} onClick={() => setTab("items")} />
-        <TabBtn Icon={Bookmark} label="Saved" active={tab === "saved"} onClick={() => setTab("saved")} />
+        <TabBtn Icon={Tag} label="Tagged" active={tab === "tagged"} onClick={() => setTab("tagged")} />
+        <TabBtn Icon={Repeat2} label="Shared" active={tab === "shared"} onClick={() => setTab("shared")} />
       </div>
 
       {/* Grid */}
       <div className="-mx-4">
         {tab === "posts" &&
           (myPosts.length ? (
-            <Grid>
-              {myPosts.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setView("explore")}
-                  className="aspect-square overflow-hidden bg-surface-2"
-                >
-                  {p.kind === "poll" ? (
-                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-accent-soft p-2 text-center">
-                      <BarChart3 size={20} className="text-accent" />
-                      <span className="line-clamp-2 text-[10px] leading-tight text-foreground">
-                        {p.caption}
-                      </span>
-                    </div>
-                  ) : (
-                    <Thumb src={p.imageUrl} alt={p.caption || p.lookTitle || "post"} />
-                  )}
-                </button>
-              ))}
-            </Grid>
+            <PostGrid posts={myPosts} onOpen={openPost} />
           ) : (
-            <Empty icon={Grid3x3} label="No posts yet" hint="Share a fit from Explore → Following." />
+            <Empty icon={Grid3x3} label="No posts yet" hint="Tap ＋ to share your first fit." />
           ))}
 
-        {tab === "items" &&
-          (owned.length ? (
-            <Grid>
-              {owned.map((it) => (
-                <button
-                  key={it.id}
-                  type="button"
-                  onClick={() => setView("wardrobe")}
-                  className="aspect-square overflow-hidden bg-surface-2"
-                >
-                  <Thumb src={it.imageUrl} alt={it.name} />
-                </button>
-              ))}
-            </Grid>
+        {tab === "tagged" &&
+          (tagged === null ? (
+            <Loading />
+          ) : tagged.length ? (
+            <PostGrid posts={tagged} onOpen={openPost} />
           ) : (
-            <Empty icon={Shirt} label="No items yet" hint="Add pieces to your closet to see them here." />
+            <Empty icon={Tag} label="No tagged posts" hint="Posts you're tagged in show up here." />
           ))}
 
-        {tab === "saved" &&
-          (savedProducts.length ? (
-            <Grid>
-              {savedProducts.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => setView("explore")}
-                  className="aspect-square overflow-hidden bg-surface-2"
-                >
-                  <Thumb src={p.imageUrl} alt={p.title} />
-                </button>
-              ))}
-            </Grid>
+        {tab === "shared" &&
+          (shared === null ? (
+            <Loading />
+          ) : shared.length ? (
+            <PostGrid posts={shared} onOpen={openPost} />
           ) : (
-            <Empty icon={Bookmark} label="Nothing saved yet" hint="Tap the heart on Explore products to save them." />
+            <Empty icon={Repeat2} label="Nothing shared yet" hint="Repost fits you love to collect them here." />
           ))}
       </div>
+
+      {conn && myId && (
+        <ConnectionsSheet
+          userId={myId}
+          myId={myId}
+          myAuthor={author}
+          initialTab={conn}
+          onClose={() => setConn(null)}
+        />
+      )}
+
+      {composeOpen && (
+        <CreatePostSheet onClose={() => setComposeOpen(false)} onCreated={onCreated} />
+      )}
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
@@ -266,6 +252,27 @@ function formatCount(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(n % 1_000_000 === 0 ? 0 : 1)}m`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(n % 1_000 === 0 ? 0 : 1)}k`;
   return String(n);
+}
+
+function IconBtn({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      onClick={onClick}
+      className="flex h-9 w-9 items-center justify-center rounded-full text-foreground transition-colors hover:bg-surface-2"
+    >
+      {children}
+    </button>
+  );
 }
 
 function Stat({ n, label, onClick }: { n: number; label: string; onClick: () => void }) {
@@ -305,19 +312,36 @@ function TabBtn({
   );
 }
 
-function Grid({ children }: { children: React.ReactNode }) {
-  return <div className="grid grid-cols-3 gap-0.5">{children}</div>;
+/** 3-column grid of post tiles (poll posts show a caption card; others a photo). */
+function PostGrid({ posts, onOpen }: { posts: CommunityPost[]; onOpen: (id: string) => void }) {
+  return (
+    <div className="grid grid-cols-3 gap-0.5">
+      {posts.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          onClick={() => onOpen(p.id)}
+          className="aspect-square overflow-hidden bg-surface-2"
+        >
+          {p.kind === "poll" ? (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-accent-soft p-2 text-center">
+              <BarChart3 size={20} className="text-accent" />
+              <span className="line-clamp-2 text-[10px] leading-tight text-foreground">{p.caption}</span>
+            </div>
+          ) : (
+            <Thumb src={p.imageUrl} alt={p.caption || p.lookTitle || "post"} />
+          )}
+        </button>
+      ))}
+    </div>
+  );
 }
 
-function Empty({
-  icon: Icon,
-  label,
-  hint,
-}: {
-  icon: LucideIcon;
-  label: string;
-  hint: string;
-}) {
+function Loading() {
+  return <p className="py-14 text-center text-sm text-muted">Loading…</p>;
+}
+
+function Empty({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint: string }) {
   return (
     <div className="flex flex-col items-center gap-1.5 px-6 py-14 text-center">
       <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-line text-muted">
@@ -339,12 +363,5 @@ function Thumb({ src, alt }: { src?: string; alt?: string }) {
     );
   }
   // eslint-disable-next-line @next/next/no-img-element
-  return (
-    <img
-      src={src}
-      alt={alt ?? ""}
-      onError={() => setErr(true)}
-      className="h-full w-full object-cover"
-    />
-  );
+  return <img src={src} alt={alt ?? ""} onError={() => setErr(true)} className="h-full w-full object-cover" />;
 }

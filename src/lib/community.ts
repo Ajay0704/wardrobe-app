@@ -25,9 +25,12 @@ export interface CommunityPost {
   saves: number;
   comments: number;
   createdAt: string;
+  /** Users tagged in the post (the profile "Tagged" tab queries these). */
+  taggedUserIds: string[];
   // per-viewer, resolved on read:
   liked: boolean;
   saved: boolean;
+  reposted: boolean;
   myVote: number | null;
   pollCounts: number[];
 }
@@ -39,12 +42,24 @@ export interface NewPost {
   tags?: string[];
   lookTitle?: string;
   pollOptions?: string[];
+  /** Ids of users tagged in the post. */
+  taggedUserIds?: string[];
 }
 
 export interface PostAuthor {
   name: string;
   handle: string;
   avatar?: string;
+}
+
+/** A follower / followed user resolved to a display identity. */
+export interface FollowUser {
+  id: string;
+  name: string;
+  handle: string;
+  avatar?: string;
+  /** Whether the current viewer follows this user (for a Follow/Following toggle). */
+  isFollowing?: boolean;
 }
 
 interface PostRow {
@@ -59,6 +74,7 @@ interface PostRow {
   tags: string[] | null;
   look_title: string | null;
   poll_options: string[] | null;
+  tagged_user_ids: string[] | null;
   likes: number | null;
   saves: number | null;
   comments: number | null;
@@ -85,12 +101,14 @@ function toPost(r: PostRow): CommunityPost {
     tags: r.tags ?? [],
     lookTitle: r.look_title ?? undefined,
     pollOptions: r.poll_options ?? [],
+    taggedUserIds: r.tagged_user_ids ?? [],
     likes: r.likes ?? 0,
     saves: r.saves ?? 0,
     comments: r.comments ?? 0,
     createdAt: r.created_at,
     liked: false,
     saved: false,
+    reposted: false,
     myVote: null,
     pollCounts: (r.poll_options ?? []).map(() => 0),
   };
@@ -118,6 +136,7 @@ export async function createPost(
       tags: input.tags ?? [],
       look_title: input.lookTitle ?? null,
       poll_options: input.pollOptions ?? [],
+      tagged_user_ids: input.taggedUserIds ?? [],
     })
     .select("*")
     .single();
@@ -182,9 +201,10 @@ async function hydrateViewerState(page: CommunityPost[]): Promise<void> {
   const uid = await currentUserId();
   const byId = new Map(page.map((p) => [p.id, p]));
 
-  const [likesRes, savesRes, votesRes] = await Promise.all([
+  const [likesRes, savesRes, repostsRes, votesRes] = await Promise.all([
     uid ? sb.from("post_likes").select("post_id").eq("user_id", uid).in("post_id", ids) : Promise.resolve({ data: [] }),
     uid ? sb.from("post_saves").select("post_id").eq("user_id", uid).in("post_id", ids) : Promise.resolve({ data: [] }),
+    uid ? sb.from("post_reposts").select("post_id").eq("reposter_id", uid).in("post_id", ids) : Promise.resolve({ data: [] }),
     sb.from("poll_votes").select("post_id,user_id,option_idx").in("post_id", ids),
   ]);
 
@@ -195,6 +215,10 @@ async function hydrateViewerState(page: CommunityPost[]): Promise<void> {
   for (const r of (savesRes.data ?? []) as { post_id: string }[]) {
     const p = byId.get(r.post_id);
     if (p) p.saved = true;
+  }
+  for (const r of (repostsRes.data ?? []) as { post_id: string }[]) {
+    const p = byId.get(r.post_id);
+    if (p) p.reposted = true;
   }
   for (const v of (votesRes.data ?? []) as { post_id: string; user_id: string; option_idx: number }[]) {
     const p = byId.get(v.post_id);
@@ -359,6 +383,143 @@ export async function toggleFollow(
       actor_avatar: author?.avatar ?? null,
     });
   else await sb.from("follows").delete().eq("follower_id", uid).eq("following_id", targetId);
+}
+
+interface ProfileRow {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  avatar_url: string | null;
+}
+
+/** Resolve a set of user ids to display identities from the public profiles directory. */
+async function fetchProfilesByIds(ids: string[]): Promise<Map<string, ProfileRow>> {
+  const out = new Map<string, ProfileRow>();
+  const sb = getSupabase();
+  if (!sb || !ids.length) return out;
+  const { data } = await sb
+    .from("profiles")
+    .select("id,username,display_name,avatar_url")
+    .in("id", [...new Set(ids)]);
+  for (const r of (data ?? []) as ProfileRow[]) out.set(r.id, r);
+  return out;
+}
+
+/**
+ * Turn a list of follow rows into display identities. `idKey` picks which side
+ * of the follow to resolve; `fallback` supplies the denormalized actor_* fields
+ * for rows whose target isn't in the profiles directory yet.
+ */
+async function resolveFollowUsers(
+  rows: {
+    id: string;
+    fallbackName?: string | null;
+    fallbackHandle?: string | null;
+    fallbackAvatar?: string | null;
+  }[],
+): Promise<FollowUser[]> {
+  const profiles = await fetchProfilesByIds(rows.map((r) => r.id));
+  const uid = await currentUserId();
+  // Who the viewer already follows, so list rows can show "Following".
+  const myFollowing = uid ? new Set(await fetchFollowing(uid)) : new Set<string>();
+  return rows.map((r) => {
+    const p = profiles.get(r.id);
+    const handle = p?.username || r.fallbackHandle || "user";
+    return {
+      id: r.id,
+      name: p?.display_name || r.fallbackName || `@${handle}`,
+      handle,
+      avatar: p?.avatar_url || r.fallbackAvatar || undefined,
+      isFollowing: myFollowing.has(r.id),
+    };
+  });
+}
+
+/** Users who follow `userId` (denormalized actor_* fields name the follower). */
+export async function fetchFollowers(userId: string): Promise<FollowUser[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data } = await sb
+    .from("follows")
+    .select("follower_id,actor_name,actor_handle,actor_avatar,created_at")
+    .eq("following_id", userId)
+    .order("created_at", { ascending: false });
+  const rows = (data ?? []) as {
+    follower_id: string;
+    actor_name: string | null;
+    actor_handle: string | null;
+    actor_avatar: string | null;
+  }[];
+  return resolveFollowUsers(
+    rows.map((r) => ({
+      id: r.follower_id,
+      fallbackName: r.actor_name,
+      fallbackHandle: r.actor_handle,
+      fallbackAvatar: r.actor_avatar,
+    })),
+  );
+}
+
+/** Users `userId` follows (identity resolved from the profiles directory). */
+export async function fetchFollowingUsers(userId: string): Promise<FollowUser[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data } = await sb
+    .from("follows")
+    .select("following_id,created_at")
+    .eq("follower_id", userId)
+    .order("created_at", { ascending: false });
+  const rows = (data ?? []) as { following_id: string }[];
+  return resolveFollowUsers(rows.map((r) => ({ id: r.following_id })));
+}
+
+/* -------------------------------------------------------- tagged & reposts */
+
+/** Posts the given user is tagged in (the profile "Tagged" tab). */
+export async function fetchTaggedPosts(userId: string): Promise<CommunityPost[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("posts")
+    .select("*")
+    .contains("tagged_user_ids", [userId])
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  const page = (data ?? []).map((r) => toPost(r as PostRow));
+  await hydrateViewerState(page);
+  return page;
+}
+
+/** Posts the given user has reposted (the profile "Shared" tab). */
+export async function fetchReposts(userId: string): Promise<CommunityPost[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("post_reposts")
+    .select("post_id,created_at,posts(*)")
+    .eq("reposter_id", userId)
+    .order("created_at", { ascending: false });
+  if (error) return [];
+  const page = (data ?? [])
+    .map((r) => {
+      // Supabase types a to-one join as an array; normalize to the single row.
+      const p = (r as unknown as { posts: PostRow | PostRow[] | null }).posts;
+      return Array.isArray(p) ? (p[0] ?? null) : p;
+    })
+    .filter((p): p is PostRow => Boolean(p))
+    .map(toPost);
+  await hydrateViewerState(page);
+  return page;
+}
+
+/** Repost / un-repost a post for the current user. */
+export async function toggleRepost(postId: string, on: boolean): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const uid = await currentUserId();
+  if (!uid) return;
+  if (on) await sb.from("post_reposts").insert({ post_id: postId, reposter_id: uid });
+  else await sb.from("post_reposts").delete().eq("post_id", postId).eq("reposter_id", uid);
 }
 
 export async function addComment(
