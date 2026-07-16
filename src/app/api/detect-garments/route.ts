@@ -105,8 +105,9 @@ export async function POST(request: Request) {
     `You are a fashion cataloguing assistant. Find EVERY distinct wearable item the person is ` +
     `wearing or carrying: tops, bottoms, dresses, outerwear (jackets/blazers/coats), shoes, bags, ` +
     `and accessories (belt, hat, scarf, sunglasses, watch, jewellery). A jacket or blazer worn OVER ` +
-    `a shirt is TWO separate items (one "outerwear" and one "top"). Ignore skin, background and the ` +
-    `person. Respond with JSON of this exact shape:\n` +
+    `a shirt is TWO separate items (one "outerwear" and one "top"). Return a SEPARATE item for the ` +
+    `top, the bottom (trousers/jeans/skirt/shorts), and the shoes whenever each is visible — even if ` +
+    `only partly in frame. Ignore skin, background and the person. Respond with JSON of this exact shape:\n` +
     `{"items": [{\n` +
     ` "box_2d": [ymin, xmin, ymax, xmax] as integers 0-1000,\n` +
     ` "category": exactly one of [${CATEGORIES.join(", ")}],\n` +

@@ -42,6 +42,28 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Shrink + re-encode an image to a JPEG data URL for the detection request.
+ * Full-res phone photos (often multi-MB HEIC/JPEG) exceed the serverless body
+ * limit once base64-encoded, so the request would fail and we'd fall back to a
+ * single cutout. Downscaling keeps the payload small and turns HEIC into JPEG;
+ * detection returns normalized boxes, so we still crop from the full-res image.
+ */
+function downscaleForDetect(img: HTMLImageElement, maxDim = 1400, quality = 0.85): string {
+  const W = img.naturalWidth || img.width;
+  const H = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxDim / Math.max(W, H));
+  const w = Math.max(1, Math.round(W * scale));
+  const h = Math.max(1, Math.round(H * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return img.src;
+  ctx.drawImage(img, 0, 0, w, h);
+  return canvas.toDataURL("image/jpeg", quality);
+}
+
 /** Crop a normalized box (with a little padding) out of an image to a JPEG data URL. */
 function cropBox(img: HTMLImageElement, box: ApiGarment["box"], pad = 0.06): string | null {
   const W = img.naturalWidth || img.width;
@@ -71,12 +93,21 @@ export async function detectGarments(
   dataUrl: string,
   userId: string | null,
 ): Promise<DetectedGarment[]> {
+  // Load once; detect on a downscaled copy, but crop from the full-res original.
+  let img: HTMLImageElement;
+  try {
+    img = await loadImage(dataUrl);
+  } catch {
+    return [];
+  }
+  const detectUrl = downscaleForDetect(img);
+
   let garments: ApiGarment[];
   try {
     const res = await fetch("/api/detect-garments", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify({ image: dataUrl }),
+      body: JSON.stringify({ image: detectUrl }),
     });
     if (!res.ok) return [];
     const data = (await res.json()) as { garments?: ApiGarment[] };
@@ -85,13 +116,6 @@ export async function detectGarments(
     return [];
   }
   if (!garments.length) return [];
-
-  let img: HTMLImageElement;
-  try {
-    img = await loadImage(dataUrl);
-  } catch {
-    return [];
-  }
 
   const out: DetectedGarment[] = [];
   // Limited concurrency so on-device cutout doesn't stall the UI.
