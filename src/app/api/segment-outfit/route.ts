@@ -23,6 +23,11 @@ const GARMENT_VOCAB =
   "pants, jeans, trousers, shorts, skirt, dress, shoes, sneakers, boots, heels, " +
   "sandals, handbag, backpack, tote bag, hat, cap, belt, scarf, sunglasses, watch";
 
+// Pinned adirik/grounding-dino version. This model 404s on the model-scoped
+// predictions endpoint, so we run it via the version-based /v1/predictions.
+const GROUNDING_DINO_VERSION =
+  "efd10a8ddc57ea28773327e881ce95e20cc1d734c589f7dd01d2036921ed78aa";
+
 /** Map a detected label to one of our 7 categories. Outerwear before top so a
  *  "jacket"/"blazer" doesn't get swallowed as a top. */
 function mapCategory(label: string): Category | null {
@@ -121,9 +126,15 @@ export async function POST(request: Request) {
   const dims = await imageDims(body.image);
   if (!dims) return Response.json({ error: "Couldn't read that image." }, { status: 400 });
 
-  let resp: Response;
+  type Prediction = {
+    status?: string;
+    error?: unknown;
+    output?: { detections?: Detection[] } | null;
+    urls?: { get?: string };
+  };
+  let prediction: Prediction;
   try {
-    resp = await fetch("https://api.replicate.com/v1/models/adirik/grounding-dino/predictions", {
+    const res = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -132,29 +143,31 @@ export async function POST(request: Request) {
         Prefer: "wait",
       },
       body: JSON.stringify({
-        input: {
-          image: body.image,
-          query: GARMENT_VOCAB,
-          box_threshold: 0.3,
-          text_threshold: 0.25,
-        },
+        version: GROUNDING_DINO_VERSION,
+        input: { image: body.image, query: GARMENT_VOCAB, box_threshold: 0.35, text_threshold: 0.25 },
       }),
       signal: AbortSignal.timeout(55000),
     });
+    if (!res.ok) {
+      const detail = (await res.text()).slice(0, 300);
+      return Response.json({ error: `Detection error (${res.status}).`, detail }, { status: 502 });
+    }
+    prediction = (await res.json()) as Prediction;
+    // Cold start can return before completion — poll a few times.
+    let tries = 0;
+    while (
+      prediction.status &&
+      !["succeeded", "failed", "canceled"].includes(prediction.status) &&
+      prediction.urls?.get &&
+      tries++ < 18
+    ) {
+      await new Promise((r) => setTimeout(r, 2000));
+      prediction = (await (await fetch(prediction.urls.get, { headers: { Authorization: `Bearer ${token}` } })).json()) as Prediction;
+    }
   } catch {
     return Response.json({ error: "Couldn't reach the detection service." }, { status: 502 });
   }
-  if (!resp.ok) {
-    const detail = (await resp.text()).slice(0, 300);
-    return Response.json({ error: `Detection error (${resp.status}).`, detail }, { status: 502 });
-  }
-
-  const prediction = (await resp.json()) as {
-    status?: string;
-    error?: string;
-    output?: { detections?: Detection[] } | null;
-  };
-  if (prediction.error || prediction.status === "failed") {
+  if (prediction.status !== "succeeded") {
     return Response.json({ error: "Detection failed." }, { status: 502 });
   }
 
@@ -178,5 +191,26 @@ export async function POST(request: Request) {
     })
     .filter((g): g is Garment => Boolean(g));
 
-  return Response.json({ garments: dedupe(garments).slice(0, 12) });
+  // Merge left/right shoe detections into a single "shoes" pair.
+  const deduped = dedupe(garments);
+  const shoes = deduped.filter((g) => g.category === "shoes");
+  const result = deduped.filter((g) => g.category !== "shoes");
+  if (shoes.length) {
+    const bs = shoes.map((s) => s.box);
+    const x = Math.min(...bs.map((b) => b.x));
+    const y = Math.min(...bs.map((b) => b.y));
+    result.push({
+      category: "shoes",
+      label: "shoes",
+      score: Math.max(...shoes.map((s) => s.score)),
+      box: {
+        x,
+        y,
+        w: Math.max(...bs.map((b) => b.x + b.w)) - x,
+        h: Math.max(...bs.map((b) => b.y + b.h)) - y,
+      },
+    });
+  }
+
+  return Response.json({ garments: result.slice(0, 12) });
 }
