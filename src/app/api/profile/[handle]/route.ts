@@ -40,26 +40,35 @@ export async function GET(
     .maybeSingle();
   if (!prof) return Response.json({ error: "Profile not found." }, { status: 404 });
 
-  const [postsRes, followersRes, followingRes] = await Promise.all([
+  const POST_COLS = "id,kind,image_url,caption,look_title";
+  const [postsRes, taggedRes, repostsRes, followersRes, followingRes] = await Promise.all([
+    sb.from("posts").select(POST_COLS).eq("author_id", prof.id).order("created_at", { ascending: false }).limit(60),
+    sb.from("posts").select(POST_COLS).contains("tagged_user_ids", [prof.id]).order("created_at", { ascending: false }).limit(60),
     sb
-      .from("posts")
-      .select("id,kind,image_url,caption,look_title")
-      .eq("author_id", prof.id)
+      .from("post_reposts")
+      .select(`created_at, posts(${POST_COLS})`)
+      .eq("reposter_id", prof.id)
       .order("created_at", { ascending: false })
       .limit(60),
     sb.from("follows").select("*", { count: "exact", head: true }).eq("following_id", prof.id),
     sb.from("follows").select("*", { count: "exact", head: true }).eq("follower_id", prof.id),
   ]);
 
-  const posts = (postsRes.data ?? []).map(
-    (r: { id: string; kind: string; image_url: string | null; caption: string | null; look_title: string | null }) => ({
-      id: r.id,
-      kind: r.kind,
-      imageUrl: r.image_url ?? undefined,
-      caption: r.caption ?? undefined,
-      lookTitle: r.look_title ?? undefined,
-    }),
-  );
+  type Row = { id: string; kind: string; image_url: string | null; caption: string | null; look_title: string | null };
+  const toLite = (r: Row) => ({
+    id: r.id,
+    kind: r.kind,
+    imageUrl: r.image_url ?? undefined,
+    caption: r.caption ?? undefined,
+    lookTitle: r.look_title ?? undefined,
+  });
+
+  const posts = ((postsRes.data ?? []) as Row[]).map(toLite);
+  const tagged = ((taggedRes.data ?? []) as Row[]).map(toLite);
+  const shared = ((repostsRes.data ?? []) as { posts: Row | Row[] | null }[])
+    .map((r) => (Array.isArray(r.posts) ? (r.posts[0] ?? null) : r.posts))
+    .filter((p): p is Row => Boolean(p))
+    .map(toLite);
 
   return Response.json({
     profile: {
@@ -74,5 +83,7 @@ export async function GET(
       posts: posts.length,
     },
     posts,
+    tagged,
+    shared,
   });
 }
