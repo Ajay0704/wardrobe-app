@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { fetchConversations, type ChatConversation } from "@/lib/chat";
 import { useWardrobe } from "@/lib/store";
@@ -24,6 +24,7 @@ function when(iso: string | null): string {
  *  timer — polling lives in the open thread). */
 export function MessagesView() {
   const openThread = useWardrobe((s) => s.openThread);
+  const openStylist = useWardrobe((s) => s.openStylist);
   const authUser = useWardrobe((s) => s.authUser);
   const [convos, setConvos] = useState<ChatConversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,6 +48,25 @@ export function MessagesView() {
 
   return (
     <div className="space-y-4">
+      {/* AI Stylist — always the first chat. A local view, not a Supabase
+          conversation, so it stays pinned regardless of DM activity. */}
+      <button
+        type="button"
+        onClick={() => openStylist()}
+        className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-3 py-2.5 text-left hover:bg-surface-2"
+      >
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
+          <Sparkles size={22} />
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-2">
+            <p className="truncate font-semibold">Stylist</p>
+            <span className="shrink-0 text-[11px] font-medium text-accent">AI</span>
+          </div>
+          <p className="truncate text-sm text-muted">Ask me what to wear.</p>
+        </div>
+      </button>
+
       <button
         type="button"
         onClick={() => setNewOpen(true)}

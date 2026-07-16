@@ -50,6 +50,7 @@ export type View =
   | "notifications"
   | "messages"
   | "chat"
+  | "stylist"
   | "photoDetail";
 
 /** An Explore tile the user tapped through to the photo-detail screen. */
@@ -94,6 +95,8 @@ interface WardrobeState {
   photoCard: PhotoCard | null;
   /** Conversation currently open in the chat view. */
   activeThreadId: string | null;
+  /** One-shot message to auto-send when the Stylist thread opens (transient). */
+  stylistSeed: string | null;
   /** User whose profile the "userProfile" view is showing. */
   viewUserId: string | null;
   /** Which section the Settings view opens to. */
@@ -163,6 +166,11 @@ interface WardrobeState {
   setView: (v: View) => void;
   openPhoto: (card: PhotoCard) => void;
   openThread: (id: string) => void;
+  /** Open the AI Stylist thread (a local view, not a Supabase conversation).
+   *  An optional seed message is auto-sent when the thread opens. */
+  openStylist: (seed?: string) => void;
+  /** Consume the one-shot Stylist seed message (StylistView calls this once). */
+  clearStylistSeed: () => void;
   openUserProfile: (userId: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
@@ -345,6 +353,7 @@ export const useWardrobe = create<WardrobeState>()(
       view: "explore",
       photoCard: null,
       activeThreadId: null,
+      stylistSeed: null,
       viewUserId: null,
       settingsSection: "profile",
       addOpen: false,
@@ -564,6 +573,8 @@ export const useWardrobe = create<WardrobeState>()(
       setView: (view) => set({ view }),
       openPhoto: (card) => set({ photoCard: card, view: "photoDetail" }),
       openThread: (id) => set({ activeThreadId: id, view: "chat" }),
+      openStylist: (seed) => set({ view: "stylist", stylistSeed: seed ?? null }),
+      clearStylistSeed: () => set({ stylistSeed: null }),
       openUserProfile: (userId) => set({ viewUserId: userId, view: "userProfile" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen, ...(addOpen ? {} : { addIntent: null }) }),

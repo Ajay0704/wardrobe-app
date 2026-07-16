@@ -34,6 +34,7 @@ const TITLES: Partial<Record<View, string>> = {
   outfits: "Outfits",
   messages: "Messages",
   chat: "",
+  stylist: "",
   calendar: "Calendar",
   wishlist: "Wishlist",
   travel: "Packing",

@@ -16,6 +16,7 @@ import {
   CloudSun,
   Info,
   Luggage,
+  MessageCircle,
   Plus,
   RefreshCw,
   Shirt,
@@ -166,6 +167,7 @@ export function NativeHomeView() {
     setDraft,
     logWear,
     saveOutfit,
+    openStylist,
   } = useWardrobe();
   const [seed, setSeed] = useState(0);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
@@ -482,6 +484,20 @@ export function NativeHomeView() {
             </span>
           </span>
           <ArrowRight size={20} className="shrink-0" />
+        </button>
+        <button
+          type="button"
+          onClick={() => openStylist("what should I wear today?")}
+          className="mt-2.5 flex w-full items-center gap-3.5 rounded-2xl border border-line bg-surface p-4 text-left hover:bg-surface-2"
+        >
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+            <MessageCircle size={22} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-semibold">Ask the Stylist</span>
+            <span className="block text-xs text-muted">Chat about what to wear today</span>
+          </span>
+          <ArrowRight size={20} className="shrink-0 text-muted" />
         </button>
       </section>
 

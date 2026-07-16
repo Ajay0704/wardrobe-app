@@ -20,6 +20,7 @@ import { NativeUserProfileView } from "./native/NativeUserProfileView";
 import { NotificationsView } from "./NotificationsView";
 import { MessagesView } from "./chat/MessagesView";
 import { ChatView } from "./chat/ChatView";
+import { StylistView } from "./stylist/StylistView";
 import { PhotoDetailView } from "./PhotoDetailView";
 import { ItemForm } from "./ItemForm";
 import { BulkImport } from "./BulkImport";
@@ -62,6 +63,7 @@ export function AppViews() {
       {view === "notifications" && <NotificationsView />}
       {view === "messages" && <MessagesView />}
       {view === "chat" && <ChatView />}
+      {view === "stylist" && <StylistView />}
       {view === "photoDetail" && <PhotoDetailView />}
 
       {addOpen && <ItemForm intent={addIntent} onClose={() => setAddOpen(false)} />}
