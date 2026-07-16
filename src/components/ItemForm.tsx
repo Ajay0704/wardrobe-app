@@ -7,6 +7,7 @@ import {
   Link2,
   Pipette,
   RefreshCw,
+  Trash2,
   Search,
   Sparkles,
   Upload,
@@ -68,7 +69,7 @@ export function ItemForm({
   defaultWishlist?: boolean;
   onClose: () => void;
 }) {
-  const { addItem, updateItem, authUser } = useWardrobe();
+  const { addItem, updateItem, deleteItem, authUser } = useWardrobe();
   const nativeHook = useIsNativeApp();
   const isNative = nativeHook || isNativeApp();
   const phoneEditor = usePhoneEditorLayout(nativeHook);
@@ -535,6 +536,18 @@ export function ItemForm({
     onClose();
   };
 
+  // Two-tap delete confirm (edit mode only): first tap arms it, second tap deletes.
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const handleDelete = () => {
+    if (!initial) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    deleteItem(initial.id);
+    onClose();
+  };
+
   const title = initial ? "Edit item" : "Add item";
   // On the detail screen show the garment-on-white product shot; the transparent sticker
   // (imageUrl) is for the canvas. Fall back to imageUrl before/without Beautify.
@@ -841,13 +854,21 @@ export function ItemForm({
               )}
             </div>
           )}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button onClick={save} disabled={!canSave}>
-              {initial ? "Save changes" : "Add to wardrobe"}
-            </Button>
+          <div className="flex items-center gap-2 pt-2">
+            {initial && (
+              <Button variant="danger" onClick={handleDelete}>
+                <Trash2 size={15} />
+                {confirmDelete ? "Confirm delete" : "Delete"}
+              </Button>
+            )}
+            <div className="ml-auto flex gap-2">
+              <Button variant="ghost" onClick={onClose}>
+                Cancel
+              </Button>
+              <Button onClick={save} disabled={!canSave}>
+                {initial ? "Save changes" : "Add to wardrobe"}
+              </Button>
+            </div>
           </div>
         </div>
       </div>
