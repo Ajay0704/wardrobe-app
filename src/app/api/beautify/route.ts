@@ -16,19 +16,18 @@ export const maxDuration = 60;
 // "Nano Banana" — Gemini's image generation/editing model (same as /api/tryon).
 const MODEL = "gemini-2.5-flash-image";
 
-// Canonical flat-lay framing enforced by the prompt; the deterministic sharp pass below then
-// pins the exact canvas size, garment scale and centring regardless of how Gemini framed it.
+// Ghost-mannequin (invisible mannequin) framing enforced by the prompt; the deterministic sharp
+// pass below then pins the exact canvas size, garment scale and centring regardless of Gemini's shot.
 const PROMPT =
-  "You are given a single garment. Redraw it as a clean e-commerce flat-lay product photograph " +
-  "with a STRICTLY CANONICAL framing: perfectly centred, front-facing and straight-on (no angle " +
-  "or perspective), bilaterally symmetrical, with sleeves/straps in a fixed, natural, consistent " +
-  "position (sleeves relaxed and angled slightly outward, hems straight and level). Complete any " +
-  "occluded, folded, wrinkled or missing regions so the ENTIRE garment is visible and neatly " +
-  "presented, as if laid flat. The garment must fill about 85% of the frame height with even " +
-  "margins on all sides. Output a SQUARE 1:1 image on a pure flat white background with NO shadow, " +
-  "no person, no hands, no mannequin, no props — only the single garment. Preserve the garment's " +
-  "EXACT colour, fabric texture, pattern/print and any logos or text exactly as shown; do not " +
-  "invent, move, recolour or restyle anything.";
+  "You are given a single garment. Render it as a professional GHOST-MANNEQUIN (invisible " +
+  "mannequin) e-commerce product photograph: the garment shown as if worn by an invisible person, " +
+  "with a natural shoulder shape, realistic three-dimensional volume and fabric drape, and sleeves " +
+  "hanging straight down alongside the body. Front-facing, straight-on and bilaterally symmetrical, " +
+  "centred with even margins. Complete any occluded, folded or missing regions so the ENTIRE " +
+  "garment is visible and neatly presented. Output ONLY the single garment on a pure flat white " +
+  "background with NO shadow — no visible person, no body parts, no mannequin, no hanger, no props. " +
+  "Preserve the garment's EXACT colour, fabric texture, pattern/print and ALL logos or text exactly " +
+  "as shown; do not invent, move, recolour or restyle anything.";
 
 // Fixed output geometry so every beautified item shares canvas size, garment scale and centring.
 const CANVAS = 1000; // square output edge (px)

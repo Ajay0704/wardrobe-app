@@ -648,7 +648,7 @@ export function ItemForm({
                   disabled={uploading || removingBg}
                   className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
                 >
-                  <RefreshCw size={13} /> Regenerate flat-lay
+                  <RefreshCw size={13} /> Regenerate product shot
                 </button>
               )}
               {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (
