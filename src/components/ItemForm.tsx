@@ -332,7 +332,7 @@ export function ItemForm({
     setBeautifying(true);
     setAnalyzeMsg("");
     try {
-      const r = await beautify(base, authUser?.id ?? null);
+      const r = await beautify(base, authUser?.id ?? null, category);
       setCutoutImageUrl(base);
       setBeautifiedImageUrl(r.url);
       setBeautifyModel(r.model);
