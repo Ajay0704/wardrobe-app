@@ -22,3 +22,4 @@ npx netlify deploy --build --prod # production
 ## Related
 
 - [[Supabase sync]]
+- [[Scale architecture]] — target split: `wardrobe-web` + `wardrobe-api` + store apps

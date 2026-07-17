@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Closet — prototypes</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --bg: #EDE6D8;
+    --ivory: #F7F3EA;
+    --card: #FBF8F1;
+    --line: #E4DCC9;
+    --line2: #E9E1CF;
+    --tile: #EFE7D8;
+    --ink: #33291D;
+    --muted: #9C8B70;
+    --sub: #6B5B45;
+    --kick: #A98D6B;
+    --clay: #C0623F;
+    --clay-ink: #FBF3EC;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  .voice { font-family: Georgia, "Times New Roman", serif; }
+  .page { max-width: 1180px; margin: 0 auto; padding: 40px 24px 80px; }
+  .page-head { text-align: center; margin-bottom: 8px; }
+  .page-head h1 { font-family: Georgia, serif; font-size: 30px; margin: 0; }
+  .page-head p { color: var(--sub); font-size: 14px; margin: 6px 0 0; }
+  .row { display: flex; flex-wrap: wrap; gap: 40px 48px; justify-content: center; margin-top: 44px; }
+  .proto { width: 340px; }
+  .proto > .label { text-align: center; margin-bottom: 14px; }
+  .proto > .label .n { font-size: 12px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--clay); font-weight: 600; }
+  .proto > .label .t { display: block; font-size: 18px; font-weight: 600; margin-top: 2px; }
+  .proto > .label .d { display: block; font-size: 13px; color: var(--sub); margin-top: 4px; line-height: 1.5; }
+
+  /* phone frame */
+  .phone {
+    width: 340px; background: var(--ivory); border-radius: 28px;
+    border: 0.5px solid var(--line); overflow: hidden;
+    box-shadow: 0 18px 40px rgba(51,41,29,0.14);
+  }
+  .status { display:flex; align-items:center; justify-content:space-between; padding: 12px 20px 4px; font-size: 13px; font-weight: 600; color: var(--ink); }
+  .status .r { display:flex; gap:6px; align-items:center; font-size:13px; }
+
+  .kick { margin:0; font-size:11px; letter-spacing:0.12em; text-transform:uppercase; color:var(--kick); }
+  .title { margin:2px 0 0; font-family:Georgia,serif; font-size:26px; color:var(--ink); }
+  .iconbtn { width:36px; height:36px; border-radius:11px; background:var(--card); border:0.5px solid var(--line); display:flex; align-items:center; justify-content:center; color:var(--sub); font-size:18px; }
+  .see { font-size:12px; color:var(--kick); }
+  .sechead { display:flex; align-items:center; justify-content:space-between; padding:0 16px 8px; }
+  .sechead p { margin:0; font-size:15px; font-weight:600; color:var(--ink); }
+  .sechead .count { color:var(--kick); font-weight:400; }
+
+  /* bottom nav */
+  .nav { display:flex; justify-content:space-between; align-items:flex-end; padding:10px 22px 14px; border-top:0.5px solid var(--line); background:var(--ivory); }
+  .nav .tab { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; color:var(--muted); }
+  .nav .tab.active { color:var(--clay); }
+  .nav .tab i { font-size:22px; }
+  .nav .fab { width:52px; height:52px; border-radius:999px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:2px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-head">
+    <h1>Closet — prototypes</h1>
+    <p>Static mockups for review. Tell me what to change on any of these before I build it into the app.</p>
+  </div>
+
+  <div class="row">
+
+    <!-- ============ 1 · COLOR WALL ============ -->
+    <div class="proto">
+      <div class="label"><span class="n">Prototype 1</span><span class="t">Color wall</span><span class="d">Organized by color — swatch jump-bar and color bands.</span></div>
+      <div class="phone">
+        <div class="status"><span>7:17</span><span class="r"><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-wifi"></i> <i class="ti ti-battery-2"></i></span></div>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; padding:12px 16px 10px;">
+          <div><p class="kick">Your closet</p><p class="title">By color</p></div>
+          <div class="iconbtn"><i class="ti ti-adjustments-horizontal"></i></div>
+        </div>
+        <div style="display:flex; gap:9px; padding:0 16px 14px;">
+          <span style="width:26px;height:26px;border-radius:999px;background:#33291D;box-shadow:0 0 0 2px var(--ivory),0 0 0 3px var(--clay);"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#6E7B74;"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#8A5A3B;"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#E3C7A8;"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#C7B8D4;"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#B04A2F;"></span>
+          <span style="width:26px;height:26px;border-radius:999px;background:#C9D4CE;"></span>
+        </div>
+        <div style="padding:0 16px 6px; display:flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:999px;background:#33291D;"></span><p style="margin:0;font-size:13px;font-weight:600;">Neutrals <span style="color:var(--kick);font-weight:400;">22</span></p></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px 16px 14px;">
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#33291D;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#4A4440;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#8B8680;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#D3D1C7;"></div>
+        </div>
+        <div style="padding:0 16px 6px; display:flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:999px;background:#8A5A3B;"></span><p style="margin:0;font-size:13px;font-weight:600;">Warm earth <span style="color:var(--kick);font-weight:400;">15</span></p></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px 16px 14px;">
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#8A5A3B;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#B04A2F;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#D4A96A;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#E3C7A8;"></div>
+        </div>
+        <div style="padding:0 16px 6px; display:flex; align-items:center; gap:8px;"><span style="width:12px;height:12px;border-radius:999px;background:#6E7B74;"></span><p style="margin:0;font-size:13px;font-weight:600;">Cool tones <span style="color:var(--kick);font-weight:400;">11</span></p></div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:6px 16px 16px;">
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#5F6E77;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#6E7B74;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#C9D4CE;"></div>
+          <div style="aspect-ratio:3/4;border-radius:9px;background:#C7B8D4;"></div>
+        </div>
+        <div class="nav">
+          <div class="tab"><i class="ti ti-compass"></i>Explore</div>
+          <div class="tab active"><i class="ti ti-shirt"></i>Closet</div>
+          <div class="tab"><span class="fab"><i class="ti ti-plus"></i></span></div>
+          <div class="tab"><i class="ti ti-layout-grid"></i>Outfits</div>
+          <div class="tab"><i class="ti ti-home"></i>Home</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2 · DENSE LIST ============ -->
+    <div class="proto">
+      <div class="label"><span class="n">Prototype 2</span><span class="t">Dense list</span><span class="d">Row-per-item, a toggle from the grid. Thumbnail, brand, tags, wear count.</span></div>
+      <div class="phone">
+        <div class="status"><span>7:17</span><span class="r"><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-wifi"></i> <i class="ti ti-battery-2"></i></span></div>
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px 12px;">
+          <p style="margin:0;font-size:20px;font-weight:600;">All Clothes</p>
+          <div style="display:flex;gap:6px;background:var(--tile);border-radius:10px;padding:3px;">
+            <span style="width:32px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);"><i class="ti ti-layout-grid"></i></span>
+            <span style="width:32px;height:30px;border-radius:8px;background:var(--card);box-shadow:0 1px 2px rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;color:var(--ink);"><i class="ti ti-list"></i></span>
+          </div>
+        </div>
+        <div style="padding:0 12px 14px;">
+          <div class="lrow" style="display:flex;align-items:center;gap:12px;background:var(--card);border:0.5px solid var(--line2);border-radius:13px;padding:10px 12px;margin-bottom:8px;">
+            <div style="width:44px;height:56px;border-radius:8px;background:#C9D4CE;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="margin:0;font-size:14px;font-weight:600;">Oxford shirt</p><p style="margin:1px 0 0;font-size:12px;color:var(--muted);">Everlane · Top</p><div style="display:flex;gap:5px;margin-top:5px;"><span style="font-size:10px;background:var(--tile);color:var(--sub);padding:2px 7px;border-radius:999px;">work</span><span style="font-size:10px;background:var(--tile);color:var(--sub);padding:2px 7px;border-radius:999px;">minimal</span></div></div>
+            <div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-size:15px;font-weight:600;color:#1D6E56;">18×</p><p style="margin:1px 0 0;font-size:10px;color:var(--muted);">worn</p></div>
+          </div>
+          <div class="lrow" style="display:flex;align-items:center;gap:12px;background:var(--card);border:0.5px solid var(--line2);border-radius:13px;padding:10px 12px;margin-bottom:8px;">
+            <div style="width:44px;height:56px;border-radius:8px;background:#8A5A3B;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="margin:0;font-size:14px;font-weight:600;">Slim jeans</p><p style="margin:1px 0 0;font-size:12px;color:var(--muted);">Levi's · Bottom</p><div style="display:flex;gap:5px;margin-top:5px;"><span style="font-size:10px;background:var(--tile);color:var(--sub);padding:2px 7px;border-radius:999px;">casual</span></div></div>
+            <div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-size:15px;font-weight:600;color:#1D6E56;">42×</p><p style="margin:1px 0 0;font-size:10px;color:var(--muted);">worn</p></div>
+          </div>
+          <div class="lrow" style="display:flex;align-items:center;gap:12px;background:var(--card);border:0.5px solid var(--line2);border-radius:13px;padding:10px 12px;margin-bottom:8px;">
+            <div style="width:44px;height:56px;border-radius:8px;background:#C7B8D4;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="margin:0;font-size:14px;font-weight:600;">Silk blouse</p><p style="margin:1px 0 0;font-size:12px;color:var(--muted);">Zara · Top</p><div style="display:flex;gap:5px;margin-top:5px;"><span style="font-size:10px;background:#F5C4B3;color:#993C1D;padding:2px 7px;border-radius:999px;">not worn</span></div></div>
+            <div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-size:15px;font-weight:600;color:#993C1D;">0×</p><p style="margin:1px 0 0;font-size:10px;color:var(--muted);">worn</p></div>
+          </div>
+          <div class="lrow" style="display:flex;align-items:center;gap:12px;background:var(--card);border:0.5px solid var(--line2);border-radius:13px;padding:10px 12px;margin-bottom:8px;">
+            <div style="width:44px;height:56px;border-radius:8px;background:#6E7B74;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="margin:0;font-size:14px;font-weight:600;">Track jacket</p><p style="margin:1px 0 0;font-size:12px;color:var(--muted);">Adidas · Outerwear</p><div style="display:flex;gap:5px;margin-top:5px;"><span style="font-size:10px;background:var(--tile);color:var(--sub);padding:2px 7px;border-radius:999px;">streetwear</span></div></div>
+            <div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-size:15px;font-weight:600;color:#1D6E56;">9×</p><p style="margin:1px 0 0;font-size:10px;color:var(--muted);">worn</p></div>
+          </div>
+          <div class="lrow" style="display:flex;align-items:center;gap:12px;background:var(--card);border:0.5px solid var(--line2);border-radius:13px;padding:10px 12px;">
+            <div style="width:44px;height:56px;border-radius:8px;background:#E3C7A8;flex-shrink:0;"></div>
+            <div style="flex:1;min-width:0;"><p style="margin:0;font-size:14px;font-weight:600;">Knit sweater</p><p style="margin:1px 0 0;font-size:12px;color:var(--muted);">Uniqlo · Top</p><div style="display:flex;gap:5px;margin-top:5px;"><span style="font-size:10px;background:var(--tile);color:var(--sub);padding:2px 7px;border-radius:999px;">cozy</span></div></div>
+            <div style="text-align:right;flex-shrink:0;"><p style="margin:0;font-size:15px;font-weight:600;color:#1D6E56;">6×</p><p style="margin:1px 0 0;font-size:10px;color:var(--muted);">worn</p></div>
+          </div>
+        </div>
+        <div class="nav">
+          <div class="tab"><i class="ti ti-compass"></i>Explore</div>
+          <div class="tab active"><i class="ti ti-shirt"></i>Closet</div>
+          <div class="tab"><span class="fab"><i class="ti ti-plus"></i></span></div>
+          <div class="tab"><i class="ti ti-layout-grid"></i>Outfits</div>
+          <div class="tab"><i class="ti ti-home"></i>Home</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 3 · COLLECTIONS ============ -->
+    <div class="proto">
+      <div class="label"><span class="n">Prototype 3</span><span class="t">Collections</span><span class="d">Named capsules with cover collages, plus an All items catch-all.</span></div>
+      <div class="phone">
+        <div class="status"><span>7:17</span><span class="r"><i class="ti ti-antenna-bars-5"></i> <i class="ti ti-wifi"></i> <i class="ti ti-battery-2"></i></span></div>
+        <div style="display:flex; align-items:flex-end; justify-content:space-between; padding:12px 16px 12px;">
+          <div><p class="kick">Your closet</p><p class="title">Collections</p></div>
+          <div class="iconbtn" style="background:var(--clay);color:var(--clay-ink);border-color:var(--clay);"><i class="ti ti-plus"></i></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 12px;">
+          <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;border-radius:14px;overflow:hidden;background:var(--tile);padding:4px;height:120px;">
+              <div style="border-radius:8px;background:#33291D;"></div><div style="border-radius:8px;background:#8B8680;"></div><div style="border-radius:8px;background:#6E7B74;"></div><div style="border-radius:8px;background:#D3D1C7;"></div>
+            </div>
+            <p style="margin:7px 2px 0;font-size:14px;font-weight:600;">Work</p><p style="margin:1px 2px 0;font-size:11px;color:var(--muted);">12 pieces</p>
+          </div>
+          <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;border-radius:14px;overflow:hidden;background:var(--tile);padding:4px;height:120px;">
+              <div style="border-radius:8px;background:#E3C7A8;"></div><div style="border-radius:8px;background:#C9D4CE;"></div><div style="border-radius:8px;background:#8A5A3B;"></div><div style="border-radius:8px;background:#B04A2F;"></div>
+            </div>
+            <p style="margin:7px 2px 0;font-size:14px;font-weight:600;">Weekend</p><p style="margin:1px 2px 0;font-size:11px;color:var(--muted);">9 pieces</p>
+          </div>
+          <div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;border-radius:14px;overflow:hidden;background:var(--tile);padding:4px;height:120px;">
+              <div style="border-radius:8px;background:#C7B8D4;"></div><div style="border-radius:8px;background:#5F6E77;"></div><div style="border-radius:8px;background:#D4A96A;"></div><div style="border-radius:8px;background:#33291D;"></div>
+            </div>
+            <p style="margin:7px 2px 0;font-size:14px;font-weight:600;">Travel</p><p style="margin:1px 2px 0;font-size:11px;color:var(--muted);">7 pieces · packing</p>
+          </div>
+          <div>
+            <div style="border-radius:14px;height:120px;background:var(--card);border:1px dashed #D8CDB6;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--kick);">
+              <i class="ti ti-plus" style="font-size:22px;"></i><span style="font-size:12px;">New capsule</span>
+            </div>
+          </div>
+        </div>
+        <div style="margin:2px 16px 16px;display:flex;align-items:center;justify-content:space-between;background:var(--card);border:0.5px solid var(--line2);border-radius:14px;padding:14px;">
+          <div style="display:flex;align-items:center;gap:12px;">
+            <div style="width:40px;height:40px;border-radius:11px;background:var(--tile);display:flex;align-items:center;justify-content:center;color:var(--sub);"><i class="ti ti-hanger"></i></div>
+            <div><p style="margin:0;font-size:14px;font-weight:600;">All items</p><p style="margin:1px 0 0;font-size:11px;color:var(--muted);">64 pieces</p></div>
+          </div>
+          <i class="ti ti-chevron-right" style="color:var(--kick);"></i>
+        </div>
+        <div class="nav">
+          <div class="tab"><i class="ti ti-compass"></i>Explore</div>
+          <div class="tab active"><i class="ti ti-shirt"></i>Closet</div>
+          <div class="tab"><span class="fab"><i class="ti ti-plus"></i></span></div>
+          <div class="tab"><i class="ti ti-layout-grid"></i>Outfits</div>
+          <div class="tab"><i class="ti ti-home"></i>Home</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

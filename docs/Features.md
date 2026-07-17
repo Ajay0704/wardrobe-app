@@ -1,6 +1,6 @@
 # Features
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
 ## Today (default home)
 
@@ -13,13 +13,15 @@ Weather-aware outfit suggestions via Open-Meteo + geolocation (Capacitor Geoloca
 Add clothing with name, image URL (or upload), category, color, tags, seasons, brand, price, and notes.
 
 - **AI auto-tag** on upload (`/api/analyze` + Gemini) pre-fills fields
-- **Background removal** (client WASM `@imgly/background-removal`) for clean cutouts
+- **Background removal** — client WASM `@imgly/background-removal`, or garment-only SegFormer via `/api/cutout` when `NEXT_PUBLIC_REMOVAL_ENGINE=garment`
+- **Beautify** — Gemini packshot polish (`/api/beautify` + refine) for clean product-style photos
 - **Fetch details** from a product URL (`/api/extract`) — name, photo, brand, price
+- **Find product online** — closet photo → shop links via SerpAPI / SearchApi (`/api/find-product`); see [[Photo to product]]
 - **Wear logging** from item cards (increments `wearCount` / `lastWornAt`)
 - **Brand picker** (searchable) + **currency** from Settings (formats prices / Insights)
 - **Native only:** **Take photo** via Capacitor Camera plugin (not HTML capture — that flashes and exits in WKWebView)
 
-**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx` · **Logic:** `src/lib/brands.ts`, `src/lib/currency.ts`
+**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx`, `FindProductSheet.tsx` · **Logic:** `src/lib/brands.ts`, `src/lib/currency.ts`, `src/lib/beautify.ts`
 
 ## Outfit builder
 
@@ -28,6 +30,16 @@ Drag-and-drop or click-to-add into layer slots:
 - tops, bottoms, dress, outerwear, shoes, accessories
 
 **Component:** `OutfitBuilderView.tsx`
+
+## Virtual try-on
+
+**Try it on me** in the builder — person photo + garment images → full-body studio result via Gemini (`/api/tryon`). Needs `GEMINI_API_KEY`. Planned upgrade: FASHN VTON (AJA-21, budget-blocked).
+
+## AI stylist chat
+
+Conversational styling help (`/api/stylist/chat`) with wardrobe-aware replies and attach-a-piece sheet.
+
+**Components:** `src/components/stylist/*`
 
 ## Live preview & harmony
 
@@ -65,6 +77,11 @@ Create a trip → pack items → auto capsule outfits.
 
 - Download outfit as PNG (`html-to-image`)
 - Copy shareable link (`ShareLinkLoader.tsx`)
+- **Share Closet** — pick up to 8 items + a question → public guest page for replies (`ShareClosetSheet.tsx`, `/share/closet/[id]`). See [[Share Closet]].
+
+## Explore feed
+
+Native **Explore** tab — product / social feed (`/api/explore/feed` + cron ingest). Affiliate-ready (eBay / Skimlinks when keys set).
 
 ## Auth & sync
 
@@ -98,11 +115,13 @@ Settings → Preferences → **App starts in** (`profile.startView`). Launch ope
 
 ## Native app chrome (Capacitor)
 
-Bottom tabs: **Today · Closet · ＋ Create · Outfits · You**. You hub groups Wishlist, Packing, Insights, Calendar, Settings. Website keeps top-nav chrome. See [[iOS Capacitor]].
+Bottom tabs: **Explore · Closet · ＋ Create · Outfits · Home**. Profile / social via header avatar. Wishlist, Packing, Insights, Calendar, Settings reachable from create sheet / profile. Website keeps top-nav chrome. See [[iOS Capacitor]].
 
 ## Related
 
 - [[Phase 0-1 status]]
 - [[Browser extension]]
+- [[Photo to product]]
+- [[Share Closet]]
 - [[Architecture]]
 - [[Data model]]

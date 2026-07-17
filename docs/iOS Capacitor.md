@@ -162,7 +162,7 @@ After changing `capacitor.config.ts` or plugins, always `cap:sync` **and rebuild
 |-------|----------------|
 | **~7-day expiry** | Free provisioning profiles / signing certs expire about every 7 days. The app may refuse to launch (“integrity could not be verified” / similar). |
 | **Reinstall** | Open Xcode → select your iPhone → **Run** again. Re-trust only if iOS asks. |
-| **No TestFlight / App Store** | Requires the paid Apple Developer Program ($99/year). Out of scope for now. |
+| **No TestFlight / App Store** | Requires the paid Apple Developer Program ($99/year). See [[TestFlight]] when enrolled. |
 | **Device + app caps** | Free teams are limited (commonly ~3 apps and a small set of registered devices). Remove unused apps in Xcode / on device if you hit the cap. |
 | **Personal use** | Fine for your own iPhone testing; not for distributing to others. |
 
@@ -186,7 +186,7 @@ After changing `capacitor.config.ts` or plugins, always `cap:sync` **and rebuild
 
 **Does not (yet)**
 
-- App Store / TestFlight / paid Developer Program
+- TestFlight / App Store distribution — see [[TestFlight]] (needs paid Developer Program + upload)
 - Offline-first native bundle of the Next app
 - Capacitor Push / APNs (paid Developer Program) — for now: **local notifications** on-device (`@capacitor/local-notifications`)
 - Custom App Store icon set beyond Capacitor defaults (replace assets under `ios/App/App/Assets.xcassets` when you care)

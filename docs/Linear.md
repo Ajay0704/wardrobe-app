@@ -31,6 +31,7 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 1. **iOS shell** — AJA-5 Done
 2. **Dual UI (app vs web)** — AJA-6 Done (shipped in `a1a43c7`)
 3. **App Store later** — AJA-8 Backlog
+4. **Scale: separate web + stores** — [AJA-100](https://linear.app/ajay-karthick/issue/AJA-100) Backlog · see [[Scale architecture]]
 
 ## Board snapshot (checked 2026-07-11)
 

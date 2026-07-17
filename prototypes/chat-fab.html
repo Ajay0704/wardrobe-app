@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Chat — floating button prototype</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" />
+<style>
+  :root {
+    --bg:#EDE6D8; --ivory:#F7F3EA; --card:#FBF8F1; --line:#E4DCC9; --line2:#E9E1CF;
+    --tile:#EFE7D8; --ink:#33291D; --muted:#9C8B70; --sub:#6B5B45; --kick:#A98D6B;
+    --clay:#C0623F; --clay-ink:#FBF3EC;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased; }
+  .page { max-width:1180px; margin:0 auto; padding:40px 24px 80px; }
+  .page-head { text-align:center; margin-bottom:6px; }
+  .page-head h1 { font-family:Georgia,serif; font-size:30px; margin:0; }
+  .page-head p { color:var(--sub); font-size:14px; margin:6px 0 0; }
+  .row { display:flex; flex-wrap:wrap; gap:44px 48px; justify-content:center; margin-top:40px; }
+  .proto { width:340px; }
+  .proto > .label { text-align:center; margin-bottom:14px; }
+  .proto .n { font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:var(--clay); font-weight:600; }
+  .proto .t { display:block; font-size:18px; font-weight:600; margin-top:2px; }
+  .proto .d { display:block; font-size:13px; color:var(--sub); margin-top:4px; line-height:1.5; }
+
+  .phone { position:relative; width:340px; height:680px; background:var(--ivory); border-radius:28px; border:.5px solid var(--line); overflow:hidden; box-shadow:0 18px 40px rgba(51,41,29,.14); }
+  .status { display:flex; align-items:center; justify-content:space-between; padding:12px 20px 4px; font-size:13px; font-weight:600; }
+  .status .r { display:flex; gap:6px; }
+  .topbar { display:flex; align-items:center; justify-content:space-between; padding:4px 18px 12px; }
+  .topbar .acts { display:flex; gap:16px; color:#6b5b45; font-size:21px; }
+  .kick { margin:0; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--kick); }
+  .greet { margin:2px 0 0; font-family:Georgia,serif; font-size:26px; }
+  .body { padding:14px 16px; }
+  .sec { font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--clay); margin:0 0 8px; }
+  .lookcard { border-radius:16px; overflow:hidden; background:var(--card); border:.5px solid var(--line2); }
+  .lookgrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:16px; background:#F0EAD9; place-items:center; }
+  .lookgrid > div { width:64px; height:84px; border-radius:9px; }
+  .lookmeta { padding:12px 14px; }
+  .lookmeta p { margin:0; }
+
+  /* bottom tab bar */
+  .nav { position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between; align-items:flex-end; padding:10px 22px 14px; border-top:.5px solid var(--line); background:var(--ivory); }
+  .nav .tab { display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; color:var(--muted); }
+  .nav .tab.active { color:var(--clay); }
+  .nav .tab i { font-size:22px; }
+  .nav .createfab { width:52px; height:52px; border-radius:999px; background:var(--ink); color:#fff; display:flex; align-items:center; justify-content:center; font-size:26px; margin-bottom:2px; }
+
+  /* floating chat button */
+  .chatfab { position:absolute; width:56px; height:56px; border-radius:999px; background:var(--clay); color:var(--clay-ink); display:flex; align-items:center; justify-content:center; font-size:26px; box-shadow:0 8px 20px rgba(51,41,29,.28); }
+  .chatfab .badge { position:absolute; top:-2px; right:-2px; min-width:20px; height:20px; padding:0 5px; border-radius:999px; background:var(--ink); color:#fff; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; border:2px solid var(--ivory); }
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="page-head">
+    <h1>Chat — floating button</h1>
+    <p>Prototype only. Two placements for the floating chat button — the chat icon is removed from the top bar in both.</p>
+  </div>
+
+  <div class="row">
+
+    <!-- A: above bottom-right, over the tab bar -->
+    <div class="proto">
+      <div class="label"><span class="n">Option A</span><span class="t">Above bottom-right</span><span class="d">Sits over the content, just above the tab bar. Most reachable by thumb.</span></div>
+      <div class="phone">
+        <div class="status"><span>7:02</span><span class="r"><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></span></div>
+        <div class="topbar">
+          <div><p class="kick">Monday, July 13</p><p class="greet">Good afternoon</p></div>
+          <div class="acts"><i class="ti ti-bell"></i><i class="ti ti-calendar"></i><i class="ti ti-settings"></i></div>
+        </div>
+        <div class="body">
+          <p class="sec">Today's look</p>
+          <div class="lookcard">
+            <div class="lookgrid">
+              <div style="background:#C9D4CE"></div><div style="background:#E3C7A8"></div>
+              <div style="background:#8A5A3B"></div><div style="background:#6E7B74"></div>
+            </div>
+            <div class="lookmeta"><p style="font-size:16px;font-weight:500">A look from your closet</p><p style="font-size:12px;color:var(--muted);margin-top:2px">4 pieces</p></div>
+          </div>
+        </div>
+        <div class="chatfab" style="right:16px; bottom:92px;">
+          <i class="ti ti-message"></i>
+          <span class="badge">3</span>
+        </div>
+        <div class="nav">
+          <div class="tab"><i class="ti ti-compass"></i>Explore</div>
+          <div class="tab"><i class="ti ti-shirt"></i>Closet</div>
+          <div class="tab"><span class="createfab"><i class="ti ti-plus"></i></span></div>
+          <div class="tab"><i class="ti ti-layout-grid"></i>Outfits</div>
+          <div class="tab active"><i class="ti ti-home"></i>Home</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- B: right edge, mid-height (chat-head style) -->
+    <div class="proto">
+      <div class="label"><span class="n">Option B</span><span class="t">Right edge, mid-screen</span><span class="d">Docked to the right edge, out of the content flow. Always visible, further from the thumb.</span></div>
+      <div class="phone">
+        <div class="status"><span>7:02</span><span class="r"><i class="ti ti-antenna-bars-5"></i><i class="ti ti-wifi"></i><i class="ti ti-battery-2"></i></span></div>
+        <div class="topbar">
+          <div><p class="kick">Monday, July 13</p><p class="greet">Good afternoon</p></div>
+          <div class="acts"><i class="ti ti-bell"></i><i class="ti ti-calendar"></i><i class="ti ti-settings"></i></div>
+        </div>
+        <div class="body">
+          <p class="sec">Today's look</p>
+          <div class="lookcard">
+            <div class="lookgrid">
+              <div style="background:#C9D4CE"></div><div style="background:#E3C7A8"></div>
+              <div style="background:#8A5A3B"></div><div style="background:#6E7B74"></div>
+            </div>
+            <div class="lookmeta"><p style="font-size:16px;font-weight:500">A look from your closet</p><p style="font-size:12px;color:var(--muted);margin-top:2px">4 pieces</p></div>
+          </div>
+        </div>
+        <div class="chatfab" style="right:-6px; top:300px; border-top-right-radius:0; border-bottom-right-radius:0; width:50px;">
+          <i class="ti ti-message"></i>
+          <span class="badge">3</span>
+        </div>
+        <div class="nav">
+          <div class="tab"><i class="ti ti-compass"></i>Explore</div>
+          <div class="tab"><i class="ti ti-shirt"></i>Closet</div>
+          <div class="tab"><span class="createfab"><i class="ti ti-plus"></i></span></div>
+          <div class="tab"><i class="ti ti-layout-grid"></i>Outfits</div>
+          <div class="tab active"><i class="ti ti-home"></i>Home</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

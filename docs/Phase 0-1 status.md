@@ -1,6 +1,6 @@
 # Phase 0 + Phase 1 roadmap status
 
-Last updated: 2026-07-11
+Last updated: 2026-07-16
 
 ## Phase 0 — Frictionless input + monetization seed ✅
 
@@ -34,6 +34,12 @@ Last updated: 2026-07-11
 | AJA-10 | Smart Buy v2 | Done | Wear-based CPW, tag/season scoring; opt-in sheet (no editor reflow) |
 | AJA-22 | Native web-chrome flash | Done | Sticky native detection + CSS hide landing/header |
 | AJA-23 | Friendly dates | Done | `formatDisplayDate` in Outfits + Calendar |
+| AJA-79 | Find product online | Done | SerpAPI Lens → `/api/extract`; see [[Photo to product]] |
+| — | Share Closet | Done | Guest replies on `/share/closet/[id]`; see [[Share Closet]] |
+| AJA-86 | Native tabs Explore/Home | Done | Explore · Closet · ＋ · Outfits · Home |
+| AJA-90 | My page redesign | Done | Header avatar → social / profile |
+| — | Beautify + stylist chat | Done | `/api/beautify`, `/api/stylist/chat` (Gemini) |
+| AJA-55/56 | Support / Rate / Share app | Done | Settings support row |
 
 ## Ops checklist (push) — AJA-36 done 2026-07-11
 

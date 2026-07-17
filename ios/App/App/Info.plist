@@ -60,5 +60,7 @@
 	<string>Wardrobe may save clothing photos you capture to your library when you choose.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Wardrobe uses your location to suggest outfits for today’s weather.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Wardrobe uses your location to suggest outfits for today’s weather. Location is only used while you use the app.</string>
 </dict>
 </plist>
