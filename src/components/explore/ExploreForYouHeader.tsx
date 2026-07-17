@@ -1,10 +1,20 @@
 "use client";
 
-import { ChevronRight, Plus, Recycle, ScanFace, Shuffle, Sparkles, Wand2 } from "lucide-react";
+import {
+  BadgeCheck,
+  ChevronRight,
+  Plus,
+  Recycle,
+  ScanFace,
+  Shuffle,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { EXPLORE_FEATURES } from "@/lib/explore/foundation";
+import { EXPLORE_FEATURES, type PartnerCapsule } from "@/lib/explore/foundation";
 import { computeInsights } from "@/lib/insights";
 import { generateOutfit, outfitScore } from "@/lib/matching";
+import { fetchPartnerCapsules } from "@/lib/partners";
 import { resaleSummary } from "@/lib/resale";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
@@ -85,6 +95,17 @@ export function ExploreForYouHeader() {
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
   const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [capsules, setCapsules] = useState<PartnerCapsule[]>([]);
+
+  // Sponsored partner capsules — dormant until a real feed is connected.
+  useEffect(() => {
+    if (!EXPLORE_FEATURES.partnerCapsules) return;
+    let alive = true;
+    fetchPartnerCapsules().then((c) => alive && setCapsules(c));
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const unit = (profile.temperatureUnit ?? "C") as TempUnit;
   const owned = useMemo(
@@ -322,6 +343,16 @@ export function ExploreForYouHeader() {
           </p>
         </button>
       )}
+
+      {/* Sponsored partner capsules — dormant until a partner feed exists (AJA-163) */}
+      {capsules.map((c) => (
+        <div key={c.id} className="w-full rounded-2xl border border-line bg-surface p-4">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+            <BadgeCheck size={13} /> Styled with {c.brand} · sponsored
+          </p>
+          <p className="mt-1 text-base font-semibold text-foreground">{c.title}</p>
+        </div>
+      ))}
     </div>
     {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
     {tryOnOpen && <TryOnView garments={tryOnGarments} onClose={() => setTryOnOpen(false)} />}
