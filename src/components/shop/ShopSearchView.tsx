@@ -1,11 +1,57 @@
 "use client";
 
-import { AlertTriangle, Check, Search, Shirt } from "lucide-react";
+import { AlertTriangle, Check, Ruler, Search, Shirt } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { SIZE_SLOTS, hasAnySize, yourSize } from "@/lib/fit";
 import { searchProducts, type ClosetSignal, type ShopResult } from "@/lib/shop-search";
+import { useWardrobe } from "@/lib/store";
 import { ProductFitOverlay } from "./ProductFitOverlay";
 
 const CHIPS = ["Jeans", "Sneakers", "Shirt", "Jacket", "Dress", "Boots"];
+
+/** Compact "my sizes" editor — records the user's usual sizes for fit hints. */
+function SizesBar() {
+  const profile = useWardrobe((s) => s.profile);
+  const updateProfile = useWardrobe((s) => s.updateProfile);
+  const [open, setOpen] = useState(false);
+  const set = (slot: string, value: string) =>
+    updateProfile({ sizes: { ...profile.sizes, [slot]: value } });
+
+  const summary = SIZE_SLOTS.filter((s) => profile.sizes?.[s.slot])
+    .map((s) => `${s.label[0]} ${profile.sizes?.[s.slot]}`)
+    .join(" · ");
+
+  return (
+    <div className="rounded-2xl border border-line bg-surface-2 p-3">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 text-left text-sm"
+      >
+        <Ruler size={15} className="text-accent" />
+        <span className="font-medium">My sizes</span>
+        <span className="ml-auto truncate text-xs text-muted">
+          {hasAnySize(profile) ? summary : "add for fit hints"}
+        </span>
+      </button>
+      {open && (
+        <div className="mt-3 grid grid-cols-4 gap-2">
+          {SIZE_SLOTS.map((s) => (
+            <label key={s.slot} className="flex flex-col gap-1">
+              <span className="text-[11px] text-muted">{s.label}</span>
+              <input
+                value={profile.sizes?.[s.slot] ?? ""}
+                onChange={(e) => set(s.slot, e.target.value)}
+                placeholder={s.placeholder}
+                className="w-full rounded-lg border border-line bg-surface px-2 py-1.5 text-sm outline-none"
+              />
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function money(price: number | null, currency: string): string {
   if (price == null) return "";
@@ -54,7 +100,15 @@ function SignalBadge({ signal }: { signal: ClosetSignal }) {
   );
 }
 
-function ResultCard({ r, onOpen }: { r: ShopResult; onOpen: () => void }) {
+function ResultCard({
+  r,
+  mySize,
+  onOpen,
+}: {
+  r: ShopResult;
+  mySize?: string | null;
+  onOpen: () => void;
+}) {
   return (
     <div className="mb-3 break-inside-avoid">
       <button type="button" onClick={onOpen} className="block w-full text-left">
@@ -66,6 +120,11 @@ function ResultCard({ r, onOpen }: { r: ShopResult; onOpen: () => void }) {
           {r.brand && <p className="truncate text-[11px] text-muted">{r.brand}</p>}
           <p className="truncate text-sm">{r.title}</p>
           <p className="text-sm font-semibold">{money(r.price, r.currency)}</p>
+          {mySize && (
+            <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent">
+              your size {mySize}
+            </span>
+          )}
         </div>
       </button>
     </div>
@@ -77,6 +136,7 @@ function ResultCard({ r, onOpen }: { r: ShopResult; onOpen: () => void }) {
  * closet signal on every result, open one for the full ownership + pairing read.
  */
 export function ShopSearchView() {
+  const profile = useWardrobe((s) => s.profile);
   const [q, setQ] = useState("");
   const [results, setResults] = useState<ShopResult[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -186,6 +246,8 @@ export function ShopSearchView() {
         ))}
       </div>
 
+      <SizesBar />
+
       {/* results */}
       {!searched ? (
         <div className="flex flex-col items-center gap-2 py-16 text-center text-sm text-muted">
@@ -200,7 +262,12 @@ export function ShopSearchView() {
         <>
           <div style={{ columnCount: 2, columnGap: "12px" }}>
             {results.map((r) => (
-              <ResultCard key={r.productId} r={r} onOpen={() => setOpenId(r.productId)} />
+              <ResultCard
+                key={r.productId}
+                r={r}
+                mySize={yourSize(profile, r.category)}
+                onOpen={() => setOpenId(r.productId)}
+              />
             ))}
           </div>
           {!done && (

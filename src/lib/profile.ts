@@ -27,6 +27,9 @@ export interface UserProfile {
   currency?: string;
   /** Custom brands the user added — surfaced as suggestions when adding items. */
   customBrands?: string[];
+  /** Usual sizes per category, for shop fit hints. A fit-data API refines these
+   *  into a true-to-fit confidence later (see the fitProvider seam). */
+  sizes?: { top?: string; bottom?: string; shoes?: string; dress?: string };
   /** Temperature unit for weather display. Defaults to Celsius. */
   temperatureUnit?: "C" | "F";
   /** Country label (display + weather geocoding hint). */
