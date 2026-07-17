@@ -1,6 +1,6 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { ChevronLeft, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
   fetchFollowers,
@@ -16,23 +16,20 @@ import { ProfileAvatar } from "../ProfileAvatar";
 
 type ConnTab = "followers" | "following" | "find";
 
-const TABS: { key: ConnTab; label: string }[] = [
-  { key: "followers", label: "Followers" },
-  { key: "following", label: "Following" },
-  { key: "find", label: "Find friends" },
-];
-
 /**
- * One sheet covering the profile's social connections: the Followers and
- * Following lists (tappable from the profile stats) and a Find-friends search
- * that follows people. All three share a Follow/Following toggle backed by
- * `toggleFollow`.
+ * Profile connections as a full-screen pushed page (Instagram-style): tapping a
+ * profile's Followers / Following stat slides this in from the right, opening on
+ * the tapped list with a Followers | Following toggle to flip between them. When
+ * opened from the Find-friends icon (`initialTab="find"`) it's a dedicated search
+ * page with no toggle. Same Follow/Following actions as before — only the
+ * container changed from a bottom sheet to a page. `onClose` pops back.
  */
-export function ConnectionsSheet({
+export function ConnectionsPage({
   userId,
   myId,
   myAuthor,
   initialTab = "followers",
+  title,
   onClose,
 }: {
   /** Whose followers / following to list. */
@@ -41,6 +38,8 @@ export function ConnectionsSheet({
   myId: string | null;
   myAuthor: PostAuthor;
   initialTab?: ConnTab;
+  /** Header title for the followers/following view — usually the profile's @handle. */
+  title?: string;
   onClose: () => void;
 }) {
   const [tab, setTab] = useState<ConnTab>(initialTab);
@@ -53,6 +52,8 @@ export function ConnectionsSheet({
   const [results, setResults] = useState<SearchUser[]>([]);
   const [searching, setSearching] = useState(false);
   const debounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isFind = tab === "find";
 
   const openProfile = (id: string) => {
     openUserProfile(id);
@@ -129,41 +130,20 @@ export function ConnectionsSheet({
         : "Not following anyone yet.";
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[85vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Connections"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">Connections</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
-            <X size={20} />
-          </button>
-        </div>
+    <div className="native-item-page native-page-in" role="dialog" aria-label={isFind ? "Find friends" : "Connections"}>
+      <div className="native-item-page-header">
+        <button type="button" onClick={onClose} className="native-item-page-back" aria-label="Back">
+          <ChevronLeft size={22} />
+        </button>
+        <span className="native-item-page-title">
+          {isFind ? "Find friends" : title?.replace(/^@?/, "@") || "Connections"}
+        </span>
+        <span className="native-item-page-spacer" />
+      </div>
 
-        {/* Tabs */}
-        <div className="flex rounded-xl bg-surface-2 p-1">
-          {TABS.map((t) => (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setTab(t.key)}
-              className={`flex-1 rounded-lg px-2 py-1.5 text-sm transition-colors ${
-                tab === t.key
-                  ? "border border-line bg-surface font-medium text-foreground"
-                  : "border border-transparent text-muted"
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
-
-        {tab === "find" && (
-          <div className="mt-3 flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
+      <div className="native-item-page-body space-y-3">
+        {isFind ? (
+          <div className="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2.5">
             <Search size={16} className="text-muted" />
             <input
               autoFocus
@@ -173,9 +153,26 @@ export function ConnectionsSheet({
               onChange={(e) => setQ(e.target.value)}
             />
           </div>
+        ) : (
+          <div className="flex rounded-xl bg-surface-2 p-1">
+            {(["followers", "following"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={`flex-1 rounded-lg px-2 py-2 text-sm capitalize transition-colors ${
+                  tab === t
+                    ? "border border-line bg-surface font-medium text-foreground"
+                    : "border border-transparent text-muted"
+                }`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         )}
 
-        <div className="mt-3 min-h-24 flex-1 space-y-1 overflow-y-auto">
+        <div className="space-y-1">
           {loading ? (
             <p className="py-6 text-center text-sm text-muted">Loading…</p>
           ) : rows.length === 0 ? (
@@ -191,10 +188,7 @@ export function ConnectionsSheet({
                     onClick={() => openProfile(u.id)}
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
-                    <ProfileAvatar
-                      profile={{ avatarUrl: u.avatar, displayName: u.name }}
-                      size={40}
-                    />
+                    <ProfileAvatar profile={{ avatarUrl: u.avatar, displayName: u.name }} size={40} />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{u.name}</p>
                       <p className="truncate text-xs text-muted">@{u.handle}</p>
@@ -205,9 +199,7 @@ export function ConnectionsSheet({
                       type="button"
                       onClick={() => follow(u.id, !on)}
                       className={`rounded-full px-3 py-1 text-xs font-medium ${
-                        on
-                          ? "border border-line text-muted"
-                          : "bg-accent text-accent-foreground"
+                        on ? "border border-line text-muted" : "bg-accent text-accent-foreground"
                       }`}
                     >
                       {on ? "Following" : "Follow"}

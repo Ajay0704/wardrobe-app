@@ -326,6 +326,19 @@ html.native-app .web-auth-landing {
   overflow: hidden;
 }
 
+/* Instagram-style push: slide the page in from the right. */
+.native-page-in {
+  animation: page-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes page-in {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 /* Leave the Capacitor tab bar visible and tappable */
 html.native-app .native-item-page {
   bottom: calc(3.5rem + env(safe-area-inset-bottom));

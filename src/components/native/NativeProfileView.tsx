@@ -12,7 +12,7 @@ import {
 } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import { ConnectionsSheet } from "../community/ConnectionsSheet";
+import { ConnectionsPage } from "../community/ConnectionsPage";
 import { CreatePostSheet } from "../community/CreatePost";
 import { ProfileScreen, type ProfileScreenData } from "../profile/ProfileScreen";
 
@@ -164,11 +164,12 @@ export function NativeProfileView() {
       />
 
       {conn && myId && (
-        <ConnectionsSheet
+        <ConnectionsPage
           userId={myId}
           myId={myId}
           myAuthor={author}
           initialTab={conn}
+          title={handle}
           onClose={() => setConn(null)}
         />
       )}

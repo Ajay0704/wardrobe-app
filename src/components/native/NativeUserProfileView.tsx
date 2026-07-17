@@ -17,7 +17,7 @@ import {
 } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import { ConnectionsSheet } from "../community/ConnectionsSheet";
+import { ConnectionsPage } from "../community/ConnectionsPage";
 import { ProfileScreen, type ProfileScreenData } from "../profile/ProfileScreen";
 
 type ConnTab = "followers" | "following";
@@ -137,11 +137,12 @@ export function NativeUserProfileView() {
     <>
       <ProfileScreen data={data} actions={actions} onStat={(which) => setConn(which)} loading={!prof} />
       {conn && (
-        <ConnectionsSheet
+        <ConnectionsPage
           userId={userId}
           myId={myId}
           myAuthor={myAuthor}
           initialTab={conn}
+          title={data?.handle}
           onClose={() => setConn(null)}
         />
       )}
