@@ -18,6 +18,7 @@ import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
 import type { ChatPayload } from "@/lib/chat";
 import { CommunityFeed } from "./community/CommunityFeed";
+import { ExploreForYouHeader } from "./explore/ExploreForYouHeader";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 import { ShopSearchView } from "./shop/ShopSearchView";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -297,6 +298,7 @@ export function ExploreView() {
         <ShopSearchView />
       ) : (
        <>
+      {tab === "foryou" && <ExploreForYouHeader />}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
         {CHIPS.map((c) => (
           <button
