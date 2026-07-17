@@ -14,7 +14,7 @@
 	"plugins": {
 		"SplashScreen": {
 			"launchAutoHide": true,
-			"backgroundColor": "#faf9f7"
+			"backgroundColor": "#7c8a6f"
 		},
 		"StatusBar": {
 			"style": "DEFAULT"

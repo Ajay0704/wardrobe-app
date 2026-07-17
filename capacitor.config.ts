@@ -54,7 +54,9 @@ const config: CapacitorConfig = {
   plugins: {
     SplashScreen: {
       launchAutoHide: true,
-      backgroundColor: "#faf9f7",
+      // Sage to match the launch image (Splash.imageset) — no white flash
+      // between the launch screen and the webview loading.
+      backgroundColor: "#7c8a6f",
     },
     StatusBar: {
       style: "DEFAULT",
