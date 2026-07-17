@@ -4,7 +4,7 @@ import { ChevronRight, Plus, Recycle, ScanFace, Shuffle, Sparkles, Wand2 } from 
 import { useEffect, useMemo, useState } from "react";
 import { EXPLORE_FEATURES } from "@/lib/explore/foundation";
 import { computeInsights } from "@/lib/insights";
-import { generateOutfit } from "@/lib/matching";
+import { generateOutfit, outfitScore } from "@/lib/matching";
 import { resaleSummary } from "@/lib/resale";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
@@ -109,11 +109,29 @@ export function ExploreForYouHeader() {
   }, [profile.location]);
 
   const vibe = OCCASIONS.find((o) => o.key === occ)?.vibe;
-  const draft = useMemo(
-    () => generateOutfit(owned, { season: currentSeason(), vibe }),
+  // Best-of-N: generateOutfit is randomized, so sample a few and keep the most
+  // coherent, fuller look (and nudge toward outfits that include shoes) rather
+  // than whatever the first roll produced.
+  const draft = useMemo(() => {
+    const season = currentSeason();
+    let best: ReturnType<typeof generateOutfit> | null = null;
+    let bestScore = -Infinity;
+    for (let i = 0; i < 6; i++) {
+      const d = generateOutfit(owned, { season, vibe });
+      const chosen = draftItemIds(d)
+        .map((id) => owned.find((it) => it.id === id))
+        .filter((it): it is WardrobeItem => Boolean(it));
+      if (chosen.length < 2) continue;
+      const score =
+        outfitScore(chosen) + (chosen.some((it) => it.category === "shoes") ? 0.15 : 0);
+      if (score > bestScore) {
+        bestScore = score;
+        best = d;
+      }
+    }
+    return best ?? generateOutfit(owned, { season, vibe });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, occ, seed],
-  );
+  }, [poolKey, occ, seed]);
   const outfit = useMemo(
     () =>
       draftItemIds(draft)
@@ -258,7 +276,9 @@ export function ExploreForYouHeader() {
           <Sparkles size={13} /> Wardrobe Wrapped
         </p>
         <p className="mt-1 text-base font-semibold text-foreground">
-          You&apos;ve worn {ins.wornPct}% of your closet
+          {ins.totalWears > 0
+            ? `You've worn ${ins.wornPct}% of your closet`
+            : "Log what you wear to unlock your stats"}
         </p>
         <div className="mt-2 flex gap-2">
           {ins.bestValue && (
