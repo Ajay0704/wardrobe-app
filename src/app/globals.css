@@ -15,8 +15,8 @@
   --border: #e7e4de;
   --foreground: #1c1917;
   --muted: #79716b;
-  --accent: #b05e3c;
-  --accent-soft: #f6e9e2;
+  --accent: #567a4a;
+  --accent-soft: #e8efe2;
   --accent-foreground: #ffffff;
 }
 
@@ -27,9 +27,9 @@
   --border: #302d2a;
   --foreground: #ece9e4;
   --muted: #9c948c;
-  --accent: #d98b62;
-  --accent-soft: #3a2a21;
-  --accent-foreground: #1c1210;
+  --accent: #9cbf88;
+  --accent-soft: #273420;
+  --accent-foreground: #17240f;
 }
 
 @theme inline {
