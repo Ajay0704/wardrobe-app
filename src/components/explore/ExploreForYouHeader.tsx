@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Shuffle, Sparkles, Wand2 } from "lucide-react";
+import { ChevronRight, Plus, Shuffle, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { computeInsights } from "@/lib/insights";
 import { generateOutfit } from "@/lib/matching";
@@ -73,6 +73,7 @@ export function ExploreForYouHeader() {
   const setDraft = useWardrobe((s) => s.setDraft);
   const setView = useWardrobe((s) => s.setView);
   const openStylist = useWardrobe((s) => s.openStylist);
+  const openAdd = useWardrobe((s) => s.openAdd);
 
   const [occ, setOcc] = useState<OccKey>("today");
   const [seed, setSeed] = useState(0);
@@ -117,7 +118,28 @@ export function ExploreForYouHeader() {
   );
   const ins = useMemo(() => computeInsights(owned), [owned]);
 
-  if (owned.length < 2) return null;
+  if (owned.length < 2) {
+    return (
+      <div className="rounded-2xl border border-line bg-accent-soft p-6 text-center">
+        <p className="flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+          <Sparkles size={13} /> For you
+        </p>
+        <p className="mt-2 text-base font-semibold text-foreground">
+          Build your closet to unlock daily looks
+        </p>
+        <p className="mt-1 text-xs text-muted">
+          Add a few pieces and I&apos;ll style an outfit from what you own every day.
+        </p>
+        <button
+          type="button"
+          onClick={() => openAdd()}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground"
+        >
+          <Plus size={15} /> Add clothes
+        </button>
+      </div>
+    );
+  }
 
   const buildIt = () => {
     setDraft(draft);
