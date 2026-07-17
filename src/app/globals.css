@@ -158,9 +158,9 @@ body {
   position: fixed;
   left: 14px;
   right: 14px;
-  /* Sit at the very bottom edge (drop the safe-area gap) so the dock rides as
-     low as possible, into the home-indicator zone. */
-  bottom: 0;
+  /* Ride low but stay clear of the home indicator: half the safe-area gap
+     (between flush = full inset, and bottom edge = 0). */
+  bottom: calc(env(safe-area-inset-bottom) / 2);
   z-index: 40;
   display: grid;
   grid-auto-flow: column;
