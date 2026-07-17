@@ -2,22 +2,28 @@
 
 import {
   BadgeCheck,
+  Check,
   ChevronRight,
+  Heart,
   Plus,
   Recycle,
   ScanFace,
   Shuffle,
   Sparkles,
+  User,
   Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EXPLORE_FEATURES, type PartnerCapsule } from "@/lib/explore/foundation";
+import { yourSize } from "@/lib/fit";
 import { computeInsights } from "@/lib/insights";
 import { generateOutfit, outfitScore } from "@/lib/matching";
 import { fetchPartnerCapsules } from "@/lib/partners";
+import { openExternalUrl } from "@/lib/platform";
 import { resaleSummary } from "@/lib/resale";
+import { searchProducts, type ShopResult } from "@/lib/shop-search";
 import { draftItemIds, useWardrobe } from "@/lib/store";
-import type { Season, WardrobeItem } from "@/lib/types";
+import type { Category, Season, WardrobeItem } from "@/lib/types";
 import type { TryOnGarment } from "@/lib/tryon";
 import {
   convertTemp,
@@ -29,17 +35,15 @@ import { ResaleView } from "./ResaleView";
 import { TryOnView } from "./TryOnView";
 
 /**
- * Explore → "For you" header (AJA-156, Phase 1 of the Explore redesign).
- *
- * The closet-aware daily layer that gives a reason to open the app: a weather-
- * aware outfit-of-the-day built from the user's OWN closet, occasion chips that
- * re-generate it (Work / Date / Event / Trip), an Ask-your-stylist entry, and a
- * Wardrobe Wrapped recap. All reuse existing engines — generateOutfit, weather,
- * computeInsights — and the builder (setDraft → builder) and Stylist for actions.
+ * Explore → "For you" feed (AJA-165). The closet-aware daily surface that mirrors
+ * the approved prototype: occasion bar + Ask-stylist, a weather-aware Today hero
+ * built from the user's closet, on-body try-on, a Recreate-from-your-closet look,
+ * a fit-matched Shop pick, Wardrobe Wrapped, and Refresh-your-closet (resale).
+ * All reuse existing engines (generateOutfit, weather, insights, shop search).
  */
 
 const OCCASIONS = [
-  { key: "today", label: "Today", vibe: undefined },
+  { key: "today", label: "Dress me for…", vibe: undefined },
   { key: "work", label: "Work", vibe: "work" },
   { key: "date", label: "Date", vibe: "party" },
   { key: "event", label: "Event", vibe: "formal" },
@@ -57,6 +61,18 @@ const CAT_ORDER: Record<string, number> = {
   accessory: 6,
 };
 
+const CAT_QUERY: Record<string, string> = {
+  top: "shirt",
+  bottom: "pants",
+  dress: "dress",
+  outerwear: "jacket",
+  shoes: "shoes",
+  bag: "bag",
+  accessory: "belt",
+};
+
+const SAGE = "#7c8a6f";
+
 function currentSeason(): Season {
   const m = new Date().getMonth();
   if (m === 11 || m <= 1) return "winter";
@@ -68,7 +84,42 @@ function currentSeason(): Season {
 const itemImage = (it: WardrobeItem): string | undefined =>
   it.beautifiedImageUrl ?? it.imageUrl;
 
-function titleFor(occ: OccKey, w: WeatherSnapshot | null): string {
+/** Best-of-N: generateOutfit is randomized — sample a few, keep the fullest,
+ *  most coherent look (nudged toward including shoes). */
+function bestDraft(owned: WardrobeItem[], vibe: string | undefined, seed: number) {
+  const season = currentSeason();
+  void seed;
+  let best: ReturnType<typeof generateOutfit> | null = null;
+  let bestScore = -Infinity;
+  for (let i = 0; i < 6; i++) {
+    const d = generateOutfit(owned, { season, vibe });
+    const chosen = draftItemIds(d)
+      .map((id) => owned.find((it) => it.id === id))
+      .filter((it): it is WardrobeItem => Boolean(it));
+    if (chosen.length < 2) continue;
+    const score = outfitScore(chosen) + (chosen.some((it) => it.category === "shoes") ? 0.15 : 0);
+    if (score > bestScore) {
+      bestScore = score;
+      best = d;
+    }
+  }
+  return best ?? generateOutfit(owned, { season, vibe });
+}
+
+function resolveOutfit(draft: ReturnType<typeof generateOutfit>, owned: WardrobeItem[]) {
+  return draftItemIds(draft)
+    .map((id) => owned.find((it) => it.id === id))
+    .filter((it): it is WardrobeItem => Boolean(it))
+    .sort((a, b) => (CAT_ORDER[a.category] ?? 9) - (CAT_ORDER[b.category] ?? 9));
+}
+
+const toGarments = (out: WardrobeItem[]): TryOnGarment[] =>
+  out.map((it) => ({
+    image: itemImage(it) as string,
+    label: [it.colorName, it.category].filter(Boolean).join(" "),
+  }));
+
+function heroTitle(occ: OccKey, w: WeatherSnapshot | null): string {
   if (occ === "work") return "Dressed for work";
   if (occ === "date") return "Date-night ready";
   if (occ === "event") return "Event-ready";
@@ -82,6 +133,12 @@ function titleFor(occ: OccKey, w: WeatherSnapshot | null): string {
   return "Bundle up today";
 }
 
+const Kicker = ({ children }: { children: React.ReactNode }) => (
+  <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+    {children}
+  </p>
+);
+
 export function ExploreForYouHeader() {
   const items = useWardrobe((s) => s.items);
   const profile = useWardrobe((s) => s.profile);
@@ -89,15 +146,33 @@ export function ExploreForYouHeader() {
   const setView = useWardrobe((s) => s.setView);
   const openStylist = useWardrobe((s) => s.openStylist);
   const openAdd = useWardrobe((s) => s.openAdd);
+  const addItem = useWardrobe((s) => s.addItem);
 
   const [occ, setOcc] = useState<OccKey>("today");
   const [seed, setSeed] = useState(0);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
-  const [tryOnOpen, setTryOnOpen] = useState(false);
+  const [tryOnItems, setTryOnItems] = useState<TryOnGarment[] | null>(null);
   const [capsules, setCapsules] = useState<PartnerCapsule[]>([]);
+  const [pick, setPick] = useState<ShopResult | null>(null);
+  const [wished, setWished] = useState(false);
 
-  // Sponsored partner capsules — dormant until a real feed is connected.
+  const unit = (profile.temperatureUnit ?? "C") as TempUnit;
+  const owned = useMemo(() => items.filter((it) => !it.wishlist && itemImage(it)), [items]);
+  const poolKey = useMemo(() => owned.map((it) => it.id).join(","), [owned]);
+
+  useEffect(() => {
+    const loc = profile.location?.trim();
+    if (!loc) return;
+    let cancelled = false;
+    fetchWeatherForPlace(loc)
+      .then((w) => !cancelled && setWeather(w))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.location]);
+
   useEffect(() => {
     if (!EXPLORE_FEATURES.partnerCapsules) return;
     let alive = true;
@@ -107,78 +182,52 @@ export function ExploreForYouHeader() {
     };
   }, []);
 
-  const unit = (profile.temperatureUnit ?? "C") as TempUnit;
-  const owned = useMemo(
-    () => items.filter((it) => !it.wishlist && itemImage(it)),
-    [items],
-  );
-  const poolKey = useMemo(() => owned.map((it) => it.id).join(","), [owned]);
+  const dominantColor = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of owned) if (it.colorName) counts.set(it.colorName, (counts.get(it.colorName) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  }, [owned]);
 
-  // Auto-load weather from the saved profile location — no GPS prompt.
+  const mostOwnedCat = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const it of owned) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "top";
+  }, [owned]);
+
+  // A "for you" shop pick, fetched from the catalog for a category the user owns.
   useEffect(() => {
-    const loc = profile.location?.trim();
-    if (!loc) return;
-    let cancelled = false;
-    fetchWeatherForPlace(loc)
-      .then((w) => {
-        if (!cancelled) setWeather(w);
-      })
+    let alive = true;
+    setWished(false);
+    searchProducts(CAT_QUERY[mostOwnedCat] ?? "shirt")
+      .then((r) => alive && setPick(r.items?.[0] ?? null))
       .catch(() => {});
     return () => {
-      cancelled = true;
+      alive = false;
     };
-  }, [profile.location]);
+  }, [mostOwnedCat]);
 
   const vibe = OCCASIONS.find((o) => o.key === occ)?.vibe;
-  // Best-of-N: generateOutfit is randomized, so sample a few and keep the most
-  // coherent, fuller look (and nudge toward outfits that include shoes) rather
-  // than whatever the first roll produced.
-  const draft = useMemo(() => {
-    const season = currentSeason();
-    let best: ReturnType<typeof generateOutfit> | null = null;
-    let bestScore = -Infinity;
-    for (let i = 0; i < 6; i++) {
-      const d = generateOutfit(owned, { season, vibe });
-      const chosen = draftItemIds(d)
-        .map((id) => owned.find((it) => it.id === id))
-        .filter((it): it is WardrobeItem => Boolean(it));
-      if (chosen.length < 2) continue;
-      const score =
-        outfitScore(chosen) + (chosen.some((it) => it.category === "shoes") ? 0.15 : 0);
-      if (score > bestScore) {
-        bestScore = score;
-        best = d;
-      }
-    }
-    return best ?? generateOutfit(owned, { season, vibe });
+  const heroOutfit = useMemo(
+    () => resolveOutfit(bestDraft(owned, vibe, seed), owned),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [poolKey, occ, seed]);
-  const outfit = useMemo(
-    () =>
-      draftItemIds(draft)
-        .map((id) => owned.find((it) => it.id === id))
-        .filter((it): it is WardrobeItem => Boolean(it))
-        .sort((a, b) => (CAT_ORDER[a.category] ?? 9) - (CAT_ORDER[b.category] ?? 9)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft],
+    [poolKey, occ, seed],
   );
+  const recreateDraft = useMemo(
+    () => bestDraft(owned, "minimal", 0),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [poolKey],
+  );
+  const recreateOutfit = useMemo(() => resolveOutfit(recreateDraft, owned), [recreateDraft, owned]);
+
   const ins = useMemo(() => computeInsights(owned), [owned]);
   const resale = useMemo(() => resaleSummary(owned), [owned]);
-  const tryOnGarments = useMemo<TryOnGarment[]>(
-    () =>
-      outfit.map((it) => ({
-        image: (it.beautifiedImageUrl ?? it.imageUrl) as string,
-        label: [it.colorName, it.category].filter(Boolean).join(" "),
-      })),
-    [outfit],
-  );
 
   if (owned.length < 2) {
     return (
       <div className="rounded-2xl border border-line bg-accent-soft p-6 text-center">
-        <p className="flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+        <Kicker>
           <Sparkles size={13} /> For you
-        </p>
+        </Kicker>
         <p className="mt-2 text-base font-semibold text-foreground">
           Build your closet to unlock daily looks
         </p>
@@ -196,166 +245,300 @@ export function ExploreForYouHeader() {
     );
   }
 
-  const buildIt = () => {
+  const temp = weather ? Math.round(convertTemp(weather.tempC, unit)) : null;
+  const wearIt = (draft: ReturnType<typeof generateOutfit>) => {
     setDraft(draft);
     setView("builder");
   };
-  const temp = weather ? Math.round(convertTemp(weather.tempC, unit)) : null;
+  const pickSize = pick ? yourSize(profile, pick.category) : null;
+
+  const addWish = () => {
+    if (!pick || wished) return;
+    addItem({
+      name: pick.brand ? `${pick.brand} ${pick.title}` : pick.title,
+      imageUrl: pick.imageUrl,
+      category: (pick.category as Category) ?? "top",
+      color: "",
+      brand: pick.brand ?? undefined,
+      price: pick.price ?? undefined,
+      productUrl: pick.buyUrl,
+      tags: [],
+      seasons: [],
+      wishlist: true,
+    });
+    setWished(true);
+  };
 
   return (
     <>
-    <div className="space-y-3">
-      {/* Today / occasion hero */}
-      <div className="rounded-2xl border border-line bg-accent-soft p-4">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-          <Sparkles size={13} />
-          {occ === "today" && temp != null ? `${temp}°${unit} · today` : "For you"}
-        </p>
-        <p className="mt-1 text-lg font-semibold leading-tight text-foreground">
-          {titleFor(occ, weather)}
-        </p>
-        <p className="mt-0.5 text-xs text-muted">Pulled from your closet — nothing to buy.</p>
-
-        {outfit.length > 0 ? (
-          <div className="mt-3 flex gap-2">
-            {outfit.slice(0, 4).map((it) => (
-              <div key={it.id} className="aspect-[4/5] flex-1 overflow-hidden rounded-xl bg-surface">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={itemImage(it)} alt={it.name} className="h-full w-full object-contain" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="mt-3 rounded-xl bg-surface/60 py-6 text-center text-xs text-muted">
-            Add a few more pieces to get a full look.
-          </p>
-        )}
-
-        <div className="mt-3 -mx-1 flex gap-1.5 overflow-x-auto px-1">
+      <div className="space-y-3">
+        {/* Occasion bar */}
+        <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1">
           {OCCASIONS.map((o) => (
             <button
               key={o.key}
               type="button"
               onClick={() => setOcc(o.key)}
-              className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+              className={`flex shrink-0 items-center gap-1 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                 occ === o.key
                   ? "bg-foreground text-background"
                   : "border border-line bg-surface text-muted"
               }`}
             >
+              {o.key === "today" && <Wand2 size={13} />}
               {o.label}
             </button>
           ))}
         </div>
 
-        <div className="mt-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setSeed((s) => s + 1)}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2 text-sm font-medium"
-          >
-            <Shuffle size={15} /> Shuffle
-          </button>
-          <button
-            type="button"
-            onClick={buildIt}
-            disabled={outfit.length < 2}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground disabled:opacity-50"
-          >
-            Build it
-          </button>
+        {/* Ask your stylist */}
+        <button
+          type="button"
+          onClick={() => openStylist()}
+          className="flex w-full items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-left text-sm text-muted"
+        >
+          <Wand2 size={16} className="text-accent" /> Ask your stylist anything…
+          <ChevronRight size={16} className="ml-auto" />
+        </button>
+
+        {/* Today / occasion hero (sage) */}
+        <div className="rounded-2xl p-4 text-white" style={{ background: SAGE }}>
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-white/80">
+            <Sparkles size={13} />
+            {occ === "today" ? (temp != null ? `Today · ${temp}°${unit}` : "Today") : "For you"}
+          </p>
+          <p className="mt-1 text-lg font-semibold leading-tight">{heroTitle(occ, weather)}</p>
+          <p className="mt-0.5 text-xs text-white/70">From your closet — nothing to buy.</p>
+
+          {heroOutfit.length > 0 ? (
+            <div className="mt-3 flex gap-2">
+              {heroOutfit.slice(0, 4).map((it) => (
+                <div
+                  key={it.id}
+                  className="aspect-[4/5] flex-1 overflow-hidden rounded-xl bg-white/10"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={itemImage(it)} alt={it.name} className="h-full w-full object-contain" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 rounded-xl bg-white/10 py-6 text-center text-xs text-white/80">
+              Add a few more pieces to get a full look.
+            </p>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setSeed((s) => s + 1)}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-white/30 bg-white/15 py-2 text-sm font-medium text-white"
+            >
+              <Shuffle size={15} /> Shuffle
+            </button>
+            <button
+              type="button"
+              onClick={() => wearIt(bestDraft(owned, vibe, seed))}
+              disabled={heroOutfit.length < 2}
+              className="flex flex-1 items-center justify-center rounded-xl bg-white py-2 text-sm font-medium disabled:opacity-50"
+              style={{ color: "#4c5a41" }}
+            >
+              Wear this
+            </button>
+          </div>
         </div>
 
-        {EXPLORE_FEATURES.tryOnHero && outfit.length > 0 && (
-          <button
-            type="button"
-            onClick={() => setTryOnOpen(true)}
-            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2 text-sm font-medium"
-          >
-            <ScanFace size={15} /> See it on you
-          </button>
+        {/* See it on you */}
+        {EXPLORE_FEATURES.tryOnHero && heroOutfit.length > 0 && (
+          <div className="relative rounded-2xl border border-line bg-surface p-4">
+            <span className="absolute -top-2 right-3 rounded-full bg-accent px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-accent-foreground">
+              New
+            </span>
+            <Kicker>
+              <ScanFace size={13} /> See it on you
+            </Kicker>
+            <div className="mt-2 flex gap-3">
+              <div className="flex h-24 w-20 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent">
+                <User size={30} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">Try this on your body</p>
+                <p className="mt-0.5 text-xs text-muted">
+                  On-body try-on for any look — your closet or the shop. No guessing how it fits.
+                </p>
+                <p className="mt-1.5 text-[11px] text-muted">Your photo is used only for the render.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setTryOnItems(toGarments(heroOutfit))}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground"
+            >
+              <ScanFace size={15} /> Try it on
+            </button>
+          </div>
+        )}
+
+        {/* Recreate from your closet */}
+        {recreateOutfit.length >= 2 && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <Kicker>
+              <Wand2 size={13} /> Recreate from your closet
+            </Kicker>
+            <p className="mt-1 text-base font-semibold text-foreground">Quiet-luxury weekend</p>
+            <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] text-muted">
+              Why: {dominantColor ? `you wear ${dominantColor}` : "matched to your closet"} · pairs
+              with {owned.length} pieces
+            </span>
+            <div className="mt-3 flex gap-2">
+              {recreateOutfit.slice(0, 4).map((it) => (
+                <div key={it.id} className="aspect-[4/5] flex-1 overflow-hidden rounded-xl bg-surface-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={itemImage(it)} alt={it.name} className="h-full w-full object-contain" />
+                </div>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => wearIt(recreateDraft)}
+              className="mt-3 flex w-full items-center justify-center rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground"
+            >
+              Build it
+            </button>
+          </div>
+        )}
+
+        {/* Fit-matched shop pick */}
+        {pick && (
+          <div className="relative rounded-2xl border border-line bg-surface p-4">
+            <span className="absolute -top-2 right-3 rounded-full bg-accent px-2 py-0.5 text-[9.5px] font-semibold uppercase tracking-wide text-accent-foreground">
+              New
+            </span>
+            <Kicker>
+              <Sparkles size={13} /> Shop — for you
+            </Kicker>
+            <div className="mt-2 flex gap-3">
+              <div className="h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-surface-2">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={pick.imageUrl} alt={pick.title} className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0 flex-1">
+                {pick.brand && <p className="truncate text-[11px] text-muted">{pick.brand}</p>}
+                <p className="text-sm font-semibold text-foreground">{pick.title}</p>
+                {pick.price != null && (
+                  <p className="text-sm font-semibold text-foreground">${pick.price}</p>
+                )}
+                <p className="mt-0.5 text-[11px] text-muted">
+                  {dominantColor ? `Because you wear a lot of ${dominantColor}` : "Picked for your style"}
+                </p>
+                {pickSize && (
+                  <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
+                    <Check size={11} /> Size {pickSize} — true to your fit
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  setTryOnItems([{ image: pick.imageUrl, label: pick.category }])
+                }
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground"
+              >
+                <ScanFace size={15} /> See on me
+              </button>
+              <button
+                type="button"
+                onClick={addWish}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2 text-sm font-medium"
+              >
+                <Heart size={15} className={wished ? "fill-accent text-accent" : ""} />
+                {wished ? "Added" : "Wishlist"}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Wardrobe Wrapped */}
+        <button
+          type="button"
+          onClick={() => setView("insights")}
+          className="w-full rounded-2xl border border-line bg-surface p-4 text-left"
+        >
+          <Kicker>
+            <Sparkles size={13} /> Wardrobe Wrapped
+          </Kicker>
+          <p className="mt-1 text-base font-semibold text-foreground">
+            {ins.totalWears > 0
+              ? `You've worn ${ins.wornPct}% of your closet`
+              : "Log what you wear to unlock your stats"}
+          </p>
+          <div className="mt-2 flex gap-2">
+            {ins.bestValue && (
+              <div className="flex-1 rounded-xl bg-surface-2 px-3 py-2">
+                <p className="text-sm font-semibold">
+                  ${ins.bestValue.costPerWear.toFixed(2)}
+                  <span className="text-xs font-normal text-muted">/wear</span>
+                </p>
+                <p className="truncate text-[11px] text-muted">{ins.bestValue.item.name}</p>
+              </div>
+            )}
+            <div className="flex-1 rounded-xl bg-surface-2 px-3 py-2">
+              <p className="text-sm font-semibold">{ins.neverWorn.length}</p>
+              <p className="text-[11px] text-muted">Not worn yet</p>
+            </div>
+          </div>
+          <p className="mt-2 flex items-center gap-1 text-xs font-medium text-accent">
+            See your Wrapped <ChevronRight size={13} />
+          </p>
+        </button>
+
+        {/* Sponsored partner capsules — dormant until a real feed exists (AJA-163) */}
+        {capsules.map((c) => (
+          <div key={c.id} className="rounded-2xl border border-line bg-surface p-4">
+            <Kicker>
+              <BadgeCheck size={13} /> Styled with {c.brand} · sponsored
+            </Kicker>
+            <p className="mt-1 text-base font-semibold text-foreground">{c.title}</p>
+          </div>
+        ))}
+
+        {/* Refresh your closet — resale (AJA-157) */}
+        {EXPLORE_FEATURES.resale && resale.items.length > 0 && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <Kicker>
+              <Recycle size={13} /> Refresh your closet
+            </Kicker>
+            <p className="mt-1 text-base font-semibold text-foreground">
+              {resale.items.length} piece{resale.items.length === 1 ? "" : "s"}{" "}
+              unworn lately
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              Est. <b>${resale.total}</b> · take it as store credit toward new looks.
+            </p>
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                onClick={() => void openExternalUrl("https://www.google.com/search?q=clothing+donation+drop+off+near+me")}
+                className="flex flex-1 items-center justify-center rounded-xl border border-line bg-surface py-2 text-sm font-medium"
+              >
+                Donate
+              </button>
+              <button
+                type="button"
+                onClick={() => setResaleOpen(true)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-foreground py-2 text-sm font-medium text-background"
+              >
+                <Recycle size={14} /> Sell &amp; earn credit
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
-      {/* Ask your stylist */}
-      <button
-        type="button"
-        onClick={() => openStylist()}
-        className="flex w-full items-center gap-2 rounded-2xl border border-line bg-surface px-4 py-3 text-left text-sm text-muted"
-      >
-        <Wand2 size={16} className="text-accent" /> Ask your stylist anything…
-        <ChevronRight size={16} className="ml-auto" />
-      </button>
-
-      {/* Wardrobe Wrapped */}
-      <button
-        type="button"
-        onClick={() => setView("insights")}
-        className="w-full rounded-2xl border border-line bg-surface p-4 text-left"
-      >
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-          <Sparkles size={13} /> Wardrobe Wrapped
-        </p>
-        <p className="mt-1 text-base font-semibold text-foreground">
-          {ins.totalWears > 0
-            ? `You've worn ${ins.wornPct}% of your closet`
-            : "Log what you wear to unlock your stats"}
-        </p>
-        <div className="mt-2 flex gap-2">
-          {ins.bestValue && (
-            <div className="flex-1 rounded-xl bg-surface-2 px-3 py-2">
-              <p className="text-sm font-semibold">
-                ${ins.bestValue.costPerWear.toFixed(2)}
-                <span className="text-xs font-normal text-muted">/wear</span>
-              </p>
-              <p className="truncate text-[11px] text-muted">{ins.bestValue.item.name}</p>
-            </div>
-          )}
-          <div className="flex-1 rounded-xl bg-surface-2 px-3 py-2">
-            <p className="text-sm font-semibold">{ins.neverWorn.length}</p>
-            <p className="text-[11px] text-muted">Not worn yet</p>
-          </div>
-        </div>
-        <p className="mt-2 flex items-center gap-1 text-xs font-medium text-accent">
-          See your Wrapped <ChevronRight size={13} />
-        </p>
-      </button>
-
-      {/* Refresh your closet — resale (AJA-157) */}
-      {EXPLORE_FEATURES.resale && resale.items.length > 0 && (
-        <button
-          type="button"
-          onClick={() => setResaleOpen(true)}
-          className="w-full rounded-2xl border border-line bg-surface p-4 text-left"
-        >
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-            <Recycle size={13} /> Refresh your closet
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">
-            {resale.items.length} piece{resale.items.length === 1 ? "" : "s"}{" "}
-            you haven&apos;t worn
-          </p>
-          <p className="mt-0.5 text-xs text-muted">
-            Resell them for around <b>${resale.total}</b> — or donate.
-          </p>
-          <p className="mt-2 flex items-center gap-1 text-xs font-medium text-accent">
-            Refresh your closet <ChevronRight size={13} />
-          </p>
-        </button>
-      )}
-
-      {/* Sponsored partner capsules — dormant until a partner feed exists (AJA-163) */}
-      {capsules.map((c) => (
-        <div key={c.id} className="w-full rounded-2xl border border-line bg-surface p-4">
-          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
-            <BadgeCheck size={13} /> Styled with {c.brand} · sponsored
-          </p>
-          <p className="mt-1 text-base font-semibold text-foreground">{c.title}</p>
-        </div>
-      ))}
-    </div>
-    {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
-    {tryOnOpen && <TryOnView garments={tryOnGarments} onClose={() => setTryOnOpen(false)} />}
+      {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
+      {tryOnItems && <TryOnView garments={tryOnItems} onClose={() => setTryOnItems(null)} />}
     </>
   );
 }
