@@ -48,7 +48,7 @@ export function ExploreView() {
       </div>
 
       {tab === "foryou" ? (
-        <ExploreForYouHeader />
+        <ExploreForYouHeader onOpenFollowing={() => setTab("following")} />
       ) : tab === "following" ? (
         <CommunityFeed />
       ) : (

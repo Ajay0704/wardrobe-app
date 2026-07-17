@@ -4,16 +4,26 @@ import {
   BadgeCheck,
   Check,
   ChevronRight,
+  Flame,
   Heart,
   Plus,
   Recycle,
   ScanFace,
+  ShoppingBag,
   Shuffle,
   Sparkles,
   User,
+  Users,
   Wand2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { countStyleEntriesThisWeek } from "@/lib/community";
+import {
+  challengeOfWeek,
+  colorFamily,
+  wearStreak,
+  weekStartISO,
+} from "@/lib/explore/challenge";
 import { EXPLORE_FEATURES, type PartnerCapsule } from "@/lib/explore/foundation";
 import { yourSize } from "@/lib/fit";
 import { computeInsights } from "@/lib/insights";
@@ -139,9 +149,14 @@ const Kicker = ({ children }: { children: React.ReactNode }) => (
   </p>
 );
 
-export function ExploreForYouHeader() {
+export function ExploreForYouHeader({
+  onOpenFollowing,
+}: {
+  onOpenFollowing?: () => void;
+}) {
   const items = useWardrobe((s) => s.items);
   const profile = useWardrobe((s) => s.profile);
+  const calendar = useWardrobe((s) => s.calendar);
   const setDraft = useWardrobe((s) => s.setDraft);
   const setView = useWardrobe((s) => s.setView);
   const openStylist = useWardrobe((s) => s.openStylist);
@@ -156,6 +171,11 @@ export function ExploreForYouHeader() {
   const [capsules, setCapsules] = useState<PartnerCapsule[]>([]);
   const [pick, setPick] = useState<ShopResult | null>(null);
   const [wished, setWished] = useState(false);
+  const [entryCount, setEntryCount] = useState(0);
+  const [honest, setHonest] = useState<ShopResult[]>([]);
+
+  const challenge = useMemo(() => challengeOfWeek(), []);
+  const streak = useMemo(() => wearStreak(calendar), [calendar]);
 
   const unit = (profile.temperatureUnit ?? "C") as TempUnit;
   const owned = useMemo(() => items.filter((it) => !it.wishlist && itemImage(it)), [items]);
@@ -188,6 +208,22 @@ export function ExploreForYouHeader() {
     return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   }, [owned]);
 
+  const family = useMemo(
+    () => colorFamily(owned.map((it) => it.colorName).filter(Boolean) as string[]),
+    [owned],
+  );
+
+  // Real count of this week's community challenge entries (honest social proof).
+  useEffect(() => {
+    let alive = true;
+    countStyleEntriesThisWeek(weekStartISO())
+      .then((n) => alive && setEntryCount(n))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   const mostOwnedCat = useMemo(() => {
     const counts = new Map<string, number>();
     for (const it of owned) counts.set(it.category, (counts.get(it.category) ?? 0) + 1);
@@ -205,6 +241,19 @@ export function ExploreForYouHeader() {
       alive = false;
     };
   }, [mostOwnedCat]);
+
+  // Two taste-matched shop picks for the "honest picks" 2-up, keyed to the
+  // color the user actually wears most.
+  useEffect(() => {
+    let alive = true;
+    const q = `${family ?? dominantColor ?? ""} ${CAT_QUERY[mostOwnedCat] ?? "shirt"}`.trim();
+    searchProducts(q)
+      .then((r) => alive && setHonest((r.items ?? []).slice(0, 2)))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [family, dominantColor, mostOwnedCat]);
 
   const vibe = OCCASIONS.find((o) => o.key === occ)?.vibe;
   const heroOutfit = useMemo(
@@ -429,7 +478,7 @@ export function ExploreForYouHeader() {
                   <p className="text-sm font-semibold text-foreground">${pick.price}</p>
                 )}
                 <p className="mt-0.5 text-[11px] text-muted">
-                  {dominantColor ? `Because you wear a lot of ${dominantColor}` : "Picked for your style"}
+                  {pickSize ? "Picked to match your fit" : "Picked for your style"}
                 </p>
                 {pickSize && (
                   <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] font-medium text-accent">
@@ -535,6 +584,87 @@ export function ExploreForYouHeader() {
             </div>
           </div>
         )}
+
+        {/* This week's challenge (AJA-168) — real weekly prompt + real streak/entries */}
+        <div className="rounded-2xl border border-line bg-surface p-4">
+          <Kicker>
+            <Users size={13} /> This week&apos;s challenge
+          </Kicker>
+          <p className="mt-1 text-base font-semibold leading-tight text-foreground">
+            {challenge.title}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {entryCount > 0
+              ? `${entryCount} ${entryCount === 1 ? "entry" : "entries"} so far · vote for your favorite`
+              : `${challenge.prompt} · be the first to enter`}
+          </p>
+          {streak > 0 && (
+            <p className="mt-1.5 flex items-center gap-1 text-xs font-medium text-accent">
+              <Flame size={13} /> {streak}-day styling streak — keep it alive
+            </p>
+          )}
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => onOpenFollowing?.()}
+              className="flex flex-1 items-center justify-center rounded-xl border border-line bg-surface py-2 text-sm font-medium"
+            >
+              See entries
+            </button>
+            <button
+              type="button"
+              onClick={() => onOpenFollowing?.()}
+              className="flex flex-1 items-center justify-center rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground"
+            >
+              Join with your closet
+            </button>
+          </div>
+        </div>
+
+        {/* Shop — honest picks (AJA-168): taste/color-matched, real owns/pairs badges */}
+        {honest.length > 0 && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <Kicker>
+              <ShoppingBag size={13} /> Shop — honest picks
+            </Kicker>
+            <p className="mt-1 text-base font-semibold leading-tight text-foreground">
+              Because you wear a lot of {family ?? dominantColor ?? "these tones"}
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {honest.slice(0, 2).map((p, i) => (
+                <button
+                  key={`${p.title}-${i}`}
+                  type="button"
+                  onClick={() => setTryOnItems([{ image: p.imageUrl, label: p.category }])}
+                  className="overflow-hidden rounded-xl border border-line bg-surface-2 text-left"
+                >
+                  <div className="aspect-square overflow-hidden bg-surface">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.imageUrl} alt={p.title} className="h-full w-full object-cover" />
+                  </div>
+                  <div className="px-2.5 py-2">
+                    <p className="truncate text-[12px] font-medium text-foreground">
+                      {p.title}
+                      {p.price != null && <span className="text-muted"> · ${p.price}</span>}
+                    </p>
+                    {p.closetSignal.owned === "similar" || p.closetSignal.owned === "exact" ? (
+                      <span className="mt-1 inline-block rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-medium text-accent">
+                        {p.closetSignal.owned === "exact" ? "already in closet" : "similar in closet"}
+                      </span>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-muted">
+                        pairs with {p.closetSignal.pairCount} item{p.closetSignal.pairCount === 1 ? "" : "s"}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Clear the floating chat FAB so the last card's CTA stays tappable. */}
+        <div className="h-24" aria-hidden />
       </div>
 
       {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}

@@ -178,6 +178,18 @@ export async function fetchFeed(
   return { posts: page, nextCursor };
 }
 
+/** Real count of public style-challenge entries posted since `sinceISO` (this week). */
+export async function countStyleEntriesThisWeek(sinceISO: string): Promise<number> {
+  const sb = getSupabase();
+  if (!sb) return 0;
+  const { count } = await sb
+    .from("posts")
+    .select("*", { count: "exact", head: true })
+    .eq("kind", "style")
+    .gte("created_at", sinceISO);
+  return count ?? 0;
+}
+
 /** Posts authored by a specific user (for the profile grid). */
 export async function fetchUserPosts(authorId: string): Promise<CommunityPost[]> {
   const sb = getSupabase();
