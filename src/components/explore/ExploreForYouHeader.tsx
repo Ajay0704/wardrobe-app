@@ -1,9 +1,11 @@
 "use client";
 
-import { ChevronRight, Plus, Shuffle, Sparkles, Wand2 } from "lucide-react";
+import { ChevronRight, Plus, Recycle, Shuffle, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { EXPLORE_FEATURES } from "@/lib/explore/foundation";
 import { computeInsights } from "@/lib/insights";
 import { generateOutfit } from "@/lib/matching";
+import { resaleSummary } from "@/lib/resale";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
 import {
@@ -12,6 +14,7 @@ import {
   type TempUnit,
   type WeatherSnapshot,
 } from "@/lib/weather";
+import { ResaleView } from "./ResaleView";
 
 /**
  * Explore → "For you" header (AJA-156, Phase 1 of the Explore redesign).
@@ -78,6 +81,7 @@ export function ExploreForYouHeader() {
   const [occ, setOcc] = useState<OccKey>("today");
   const [seed, setSeed] = useState(0);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  const [resaleOpen, setResaleOpen] = useState(false);
 
   const unit = (profile.temperatureUnit ?? "C") as TempUnit;
   const owned = useMemo(
@@ -117,6 +121,7 @@ export function ExploreForYouHeader() {
     [draft],
   );
   const ins = useMemo(() => computeInsights(owned), [owned]);
+  const resale = useMemo(() => resaleSummary(owned), [owned]);
 
   if (owned.length < 2) {
     return (
@@ -148,6 +153,7 @@ export function ExploreForYouHeader() {
   const temp = weather ? Math.round(convertTemp(weather.tempC, unit)) : null;
 
   return (
+    <>
     <div className="space-y-3">
       {/* Today / occasion hero */}
       <div className="rounded-2xl border border-line bg-accent-soft p-4">
@@ -252,6 +258,31 @@ export function ExploreForYouHeader() {
           See your Wrapped <ChevronRight size={13} />
         </p>
       </button>
+
+      {/* Refresh your closet — resale (AJA-157) */}
+      {EXPLORE_FEATURES.resale && resale.items.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setResaleOpen(true)}
+          className="w-full rounded-2xl border border-line bg-surface p-4 text-left"
+        >
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-accent">
+            <Recycle size={13} /> Refresh your closet
+          </p>
+          <p className="mt-1 text-base font-semibold text-foreground">
+            {resale.items.length} piece{resale.items.length === 1 ? "" : "s"}{" "}
+            you haven&apos;t worn
+          </p>
+          <p className="mt-0.5 text-xs text-muted">
+            Resell them for around <b>${resale.total}</b> — or donate.
+          </p>
+          <p className="mt-2 flex items-center gap-1 text-xs font-medium text-accent">
+            Refresh your closet <ChevronRight size={13} />
+          </p>
+        </button>
+      )}
     </div>
+    {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
+    </>
   );
 }

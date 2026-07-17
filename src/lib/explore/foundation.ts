@@ -14,8 +14,9 @@ import type { WardrobeItem } from "@/lib/types";
 
 /** Flags gate any future Explore section. Flip via NEXT_PUBLIC_EXPLORE_* = "1". */
 export const EXPLORE_FEATURES = {
-  /** Phase 2 — "Refresh your closet": sell/donate unworn, earn credit. */
-  resale: process.env.NEXT_PUBLIC_EXPLORE_RESALE === "1",
+  /** Phase 2 — "Refresh your closet": resell unworn via referral links.
+   *  Shipped (see src/lib/resale.ts + ResaleView); on unless explicitly disabled. */
+  resale: process.env.NEXT_PUBLIC_EXPLORE_RESALE !== "0",
   /** Phase 3 — "See it on you": on-body try-on hero over /api/tryon. */
   tryOnHero: process.env.NEXT_PUBLIC_EXPLORE_TRYON === "1",
   /** Phase 3 — fit/size confidence on shop items (also the B2B data seed). */
