@@ -17,8 +17,9 @@ export const EXPLORE_FEATURES = {
   /** Phase 2 — "Refresh your closet": resell unworn via referral links.
    *  Shipped (see src/lib/resale.ts + ResaleView); on unless explicitly disabled. */
   resale: process.env.NEXT_PUBLIC_EXPLORE_RESALE !== "0",
-  /** Phase 3 — "See it on you": on-body try-on hero over /api/tryon. */
-  tryOnHero: process.env.NEXT_PUBLIC_EXPLORE_TRYON === "1",
+  /** Phase 3 — "See it on you": on-body try-on over /api/tryon (Gemini).
+   *  Shipped (see src/lib/tryon.ts + TryOnView); on unless explicitly disabled. */
+  tryOnHero: process.env.NEXT_PUBLIC_EXPLORE_TRYON !== "0",
   /** Phase 3 — fit/size confidence on shop items (also the B2B data seed). */
   fitConfidence: process.env.NEXT_PUBLIC_EXPLORE_FIT === "1",
   /** Phase 3 — sponsored brand "Recreate" capsules. */

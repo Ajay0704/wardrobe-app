@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Plus, Recycle, Shuffle, Sparkles, Wand2 } from "lucide-react";
+import { ChevronRight, Plus, Recycle, ScanFace, Shuffle, Sparkles, Wand2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { EXPLORE_FEATURES } from "@/lib/explore/foundation";
 import { computeInsights } from "@/lib/insights";
@@ -8,6 +8,7 @@ import { generateOutfit } from "@/lib/matching";
 import { resaleSummary } from "@/lib/resale";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
+import type { TryOnGarment } from "@/lib/tryon";
 import {
   convertTemp,
   fetchWeatherForPlace,
@@ -15,6 +16,7 @@ import {
   type WeatherSnapshot,
 } from "@/lib/weather";
 import { ResaleView } from "./ResaleView";
+import { TryOnView } from "./TryOnView";
 
 /**
  * Explore → "For you" header (AJA-156, Phase 1 of the Explore redesign).
@@ -82,6 +84,7 @@ export function ExploreForYouHeader() {
   const [seed, setSeed] = useState(0);
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [resaleOpen, setResaleOpen] = useState(false);
+  const [tryOnOpen, setTryOnOpen] = useState(false);
 
   const unit = (profile.temperatureUnit ?? "C") as TempUnit;
   const owned = useMemo(
@@ -122,6 +125,14 @@ export function ExploreForYouHeader() {
   );
   const ins = useMemo(() => computeInsights(owned), [owned]);
   const resale = useMemo(() => resaleSummary(owned), [owned]);
+  const tryOnGarments = useMemo<TryOnGarment[]>(
+    () =>
+      outfit.map((it) => ({
+        image: (it.beautifiedImageUrl ?? it.imageUrl) as string,
+        label: [it.colorName, it.category].filter(Boolean).join(" "),
+      })),
+    [outfit],
+  );
 
   if (owned.length < 2) {
     return (
@@ -215,6 +226,16 @@ export function ExploreForYouHeader() {
             Build it
           </button>
         </div>
+
+        {EXPLORE_FEATURES.tryOnHero && outfit.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setTryOnOpen(true)}
+            className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2 text-sm font-medium"
+          >
+            <ScanFace size={15} /> See it on you
+          </button>
+        )}
       </div>
 
       {/* Ask your stylist */}
@@ -283,6 +304,7 @@ export function ExploreForYouHeader() {
       )}
     </div>
     {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
+    {tryOnOpen && <TryOnView garments={tryOnGarments} onClose={() => setTryOnOpen(false)} />}
     </>
   );
 }
