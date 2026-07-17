@@ -242,7 +242,7 @@ export function NativeShell() {
           aria-label={chatUnread > 0 ? `Messages, ${chatUnread} unread` : "Messages"}
           onClick={() => setView("messages")}
           className="fixed right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-accent-foreground shadow-lg shadow-black/20"
-          style={{ bottom: "calc(env(safe-area-inset-bottom) + 84px)" }}
+          style={{ bottom: "84px" }}
         >
           <MessageCircle size={24} strokeWidth={1.9} />
           {chatUnread > 0 && (
