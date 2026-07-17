@@ -109,6 +109,7 @@ interface WardrobeState {
   bulkOpen: boolean;
   /** Global "add whole outfit" (multi-garment split) modal. */
   splitOpen: boolean;
+  scanOpen: boolean;
   /** Which source the split flow should auto-trigger (camera vs library). */
   splitSource: "camera" | "library" | null;
   /** Global "closets selector" sheet (opened from the Closet header dropdown). */
@@ -184,6 +185,8 @@ interface WardrobeState {
   /** Open the "add whole outfit" split flow, optionally auto-triggering a source. */
   openSplit: (source?: "camera" | "library") => void;
   setSplitOpen: (open: boolean) => void;
+  openScan: () => void;
+  setScanOpen: (open: boolean) => void;
   setClosetsOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
 
@@ -368,6 +371,7 @@ export const useWardrobe = create<WardrobeState>()(
       bulkOpen: false,
       splitOpen: false,
       splitSource: null,
+      scanOpen: false,
       closetsOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -592,6 +596,8 @@ export const useWardrobe = create<WardrobeState>()(
       openSplit: (source) => set({ splitOpen: true, splitSource: source ?? null }),
       setSplitOpen: (splitOpen) =>
         set({ splitOpen, ...(splitOpen ? {} : { splitSource: null }) }),
+      openScan: () => set({ scanOpen: true }),
+      setScanOpen: (scanOpen) => set({ scanOpen }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
