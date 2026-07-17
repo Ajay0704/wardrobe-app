@@ -24,7 +24,8 @@ const MAIN_TABS = [
   { key: "all", label: "All", cats: null },
   { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
   { key: "pants", label: "Pants", cats: ["bottom"] },
-  { key: "shoes", label: "Shoes", cats: ["shoes", "bag", "accessory"] },
+  { key: "shoes", label: "Shoes", cats: ["shoes"] },
+  { key: "accessories", label: "Accessories", cats: ["accessory", "bag"] },
 ] as const;
 type MainTabKey = (typeof MAIN_TABS)[number]["key"];
 
