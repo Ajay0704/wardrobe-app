@@ -143,6 +143,9 @@ async function webSearch(
       formality: classifyFormality(r.title, category),
       attributes: { colorName: tone, color: tone, source_name: r.source },
       in_stock: true,
+      // Store the originating query (the same input classifyCategory used) so
+      // categories self-heal via fixed ingest and any future re-derive is lossless.
+      source_query: q,
     };
   });
 
