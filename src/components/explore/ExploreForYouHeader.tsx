@@ -4,8 +4,10 @@ import {
   BadgeCheck,
   Check,
   ChevronRight,
+  Clock,
   Flame,
   Heart,
+  Pencil,
   Plus,
   Recycle,
   ScanFace,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { countStyleEntriesThisWeek } from "@/lib/community";
+import { forgottenItems } from "@/lib/rediscover";
 import {
   challengeOfWeek,
   colorFamily,
@@ -162,6 +165,7 @@ export function ExploreForYouHeader({
   const openStylist = useWardrobe((s) => s.openStylist);
   const openAdd = useWardrobe((s) => s.openAdd);
   const addItem = useWardrobe((s) => s.addItem);
+  const logWear = useWardrobe((s) => s.logWear);
 
   const [occ, setOcc] = useState<OccKey>("today");
   const [seed, setSeed] = useState(0);
@@ -173,6 +177,7 @@ export function ExploreForYouHeader({
   const [wished, setWished] = useState(false);
   const [entryCount, setEntryCount] = useState(0);
   const [honest, setHonest] = useState<ShopResult[]>([]);
+  const [toast, setToast] = useState<string | null>(null);
 
   const challenge = useMemo(() => challengeOfWeek(), []);
   const streak = useMemo(() => wearStreak(calendar), [calendar]);
@@ -270,6 +275,7 @@ export function ExploreForYouHeader({
 
   const ins = useMemo(() => computeInsights(owned), [owned]);
   const resale = useMemo(() => resaleSummary(owned), [owned]);
+  const forgotten = useMemo(() => forgottenItems(owned, 8), [owned]);
 
   if (owned.length < 2) {
     return (
@@ -295,9 +301,20 @@ export function ExploreForYouHeader({
   }
 
   const temp = weather ? Math.round(convertTemp(weather.tempC, unit)) : null;
+  const flash = (m: string) => {
+    setToast(m);
+    window.setTimeout(() => setToast(null), 2000);
+  };
+  // Open a look on the canvas to tweak before saving (Recreate + the hero's Edit).
   const wearIt = (draft: ReturnType<typeof generateOutfit>) => {
     setDraft(draft);
     setView("builder");
+  };
+  // One-tap: log today's hero look as worn (moved from the retired Home, AJA-169).
+  const wearToday = () => {
+    if (heroOutfit.length < 2) return;
+    logWear({ itemIds: heroOutfit.map((it) => it.id) });
+    flash("Added to today — nice pick");
   };
   const pickSize = pick ? yourSize(profile, pick.category) : null;
 
@@ -387,15 +404,64 @@ export function ExploreForYouHeader({
             </button>
             <button
               type="button"
-              onClick={() => wearIt(bestDraft(owned, vibe, seed))}
+              onClick={wearToday}
               disabled={heroOutfit.length < 2}
-              className="flex flex-1 items-center justify-center rounded-xl bg-white py-2 text-sm font-medium disabled:opacity-50"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white py-2 text-sm font-medium disabled:opacity-50"
               style={{ color: "#4c5a41" }}
             >
-              Wear this
+              <Check size={15} /> Wear this
+            </button>
+            <button
+              type="button"
+              aria-label="Edit this look"
+              onClick={() => wearIt(bestDraft(owned, vibe, seed))}
+              disabled={heroOutfit.length < 2}
+              className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/15 text-white disabled:opacity-50"
+            >
+              <Pencil size={15} />
             </button>
           </div>
         </div>
+
+        {/* Rediscover — neglected pieces worth re-wearing (moved from Home, AJA-169) */}
+        {forgotten.length > 0 && (
+          <div className="rounded-2xl border border-line bg-surface p-4">
+            <div className="mb-3 flex items-baseline justify-between">
+              <Kicker>
+                <Clock size={13} /> Rediscover
+              </Kicker>
+              <button
+                type="button"
+                onClick={() => setView("wardrobe")}
+                className="flex items-center gap-1 text-xs text-muted"
+              >
+                Your closet <ChevronRight size={13} />
+              </button>
+            </div>
+            <div className="-mx-4 flex gap-3 overflow-x-auto px-4">
+              {forgotten.map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => setView("wardrobe")}
+                  className="w-24 shrink-0 text-left"
+                >
+                  <div className="relative h-32 w-24 overflow-hidden rounded-xl border border-line bg-surface-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={itemImage(it)} alt={it.name} className="h-full w-full object-contain p-2" />
+                    <span className="absolute bottom-1.5 left-1.5 rounded-md bg-background/90 px-1.5 py-0.5 text-[10px] text-muted">
+                      {(it.wearCount ?? 0) === 0 ? "Not worn" : `Worn ${it.wearCount}×`}
+                    </span>
+                  </div>
+                  <p className="mt-1.5 truncate text-[12px] leading-tight">{it.name}</p>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2.5 text-xs leading-relaxed text-muted">
+              Pieces you haven&rsquo;t reached for lately — worth a second look.
+            </p>
+          </div>
+        )}
 
         {/* See it on you */}
         {EXPLORE_FEATURES.tryOnHero && heroOutfit.length > 0 && (
@@ -669,6 +735,14 @@ export function ExploreForYouHeader({
 
       {resaleOpen && <ResaleView onClose={() => setResaleOpen(false)} />}
       {tryOnItems && <TryOnView garments={tryOnItems} onClose={() => setTryOnItems(null)} />}
+
+      {toast && (
+        <div className="pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4">
+          <p className="rounded-full bg-foreground/90 px-4 py-2 text-sm text-background shadow-lg">
+            {toast}
+          </p>
+        </div>
+      )}
     </>
   );
 }

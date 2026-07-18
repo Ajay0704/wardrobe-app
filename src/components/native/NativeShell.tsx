@@ -9,7 +9,6 @@ import {
   Compass,
   Globe,
   Heart,
-  Home,
   Image as ImageIcon,
   LayoutGrid,
   MessageCircle,
@@ -50,8 +49,12 @@ const TITLES: Partial<Record<View, string>> = {
   photoDetail: "",
 };
 
-// Main tabbed screens — the header actions (calendar/bell/profile) show here.
-const MAIN_VIEWS = new Set<View>(["today", "wardrobe", "outfits", "explore"]);
+// Main tabbed screens — the header actions (bell/calendar/settings) show here.
+const MAIN_VIEWS = new Set<View>(["wardrobe", "outfits", "explore"]);
+// Root tabs get no back button. Profile is a root tab too, but it renders its
+// own chrome (find-friends/new-post + Edit/Share/Settings), so it stays out of
+// MAIN_VIEWS to avoid a duplicate header action row.
+const ROOT_VIEWS = new Set<View>(["wardrobe", "outfits", "explore", "social"]);
 
 function isActive(tab: View, view: View): boolean {
   if (tab === "outfits") return view === "outfits" || view === "builder";
@@ -100,7 +103,7 @@ export function NativeShell() {
     }
   }, [view]);
   const goBack = () => {
-    const target = historyRef.current.pop() ?? "today";
+    const target = historyRef.current.pop() ?? "explore";
     prevRef.current = target;
     setView(target);
   };
@@ -116,7 +119,7 @@ export function NativeShell() {
     <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
       <header className="native-topbar">
         <div className="flex items-center gap-1.5">
-          {!showActions && (
+          {!ROOT_VIEWS.has(view) && (
             <button
               type="button"
               aria-label="Back"
@@ -167,11 +170,6 @@ export function NativeShell() {
               >
                 <Settings size={21} strokeWidth={1.8} />
               </button>
-              <ProfileAvatar
-                profile={profile}
-                size={28}
-                onClick={() => setView("social")}
-              />
             </>
           )}
         </div>
@@ -197,7 +195,22 @@ export function NativeShell() {
         </button>
 
         <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={setView} />
-        <TabBtn tab={{ view: "today", label: "Home", Icon: Home }} view={view} onClick={setView} />
+
+        <button
+          type="button"
+          onClick={() => setView("social")}
+          aria-label="Profile"
+          aria-current={view === "social" ? "page" : undefined}
+          className="native-tab"
+        >
+          <span
+            className={`flex h-7 w-7 items-center justify-center rounded-full ${
+              view === "social" ? "ring-2 ring-accent ring-offset-2 ring-offset-background" : ""
+            }`}
+          >
+            <ProfileAvatar profile={profile} size={26} />
+          </span>
+        </button>
       </nav>
 
       {createOpen && (

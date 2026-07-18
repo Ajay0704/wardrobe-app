@@ -78,7 +78,7 @@ export async function enableNativeOutfitReminders(): Promise<
           allowWhileIdle: true,
           repeats: true,
         },
-        extra: { view: "today" },
+        extra: { view: "explore" },
       },
       {
         id: SUNDAY_ID,

@@ -76,7 +76,6 @@ export const START_SCREEN_OPTIONS: {
   hint?: string;
 }[] = [
   { id: "explore", label: "Explore", hint: "Fashion feed" },
-  { id: "today", label: "Today", hint: "What to wear" },
   { id: "wardrobe", label: "Closet", hint: "Your pieces" },
   { id: "outfits", label: "Outfits", hint: "Saved looks" },
   { id: "calendar", label: "Calendar" },
@@ -94,6 +93,9 @@ export function resolveStartView(
   profile: Pick<UserProfile, "startView"> | null | undefined,
 ): StartScreen {
   const v = profile?.startView;
+  // Home ("today") is retired in the app shell — its daily look now lives in
+  // Explore, so any saved "today" preference opens Explore instead.
+  if (v === "today") return "explore";
   if (v && START_SCREEN_IDS.has(v)) return v;
   return "explore";
 }

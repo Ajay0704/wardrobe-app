@@ -206,7 +206,7 @@ export function SettingsView() {
               >
                 <select
                   className={inputClass}
-                  value={profile.startView ?? "today"}
+                  value={profile.startView ?? "explore"}
                   onChange={(e) =>
                     updateProfile({
                       startView: e.target.value as StartScreen,
