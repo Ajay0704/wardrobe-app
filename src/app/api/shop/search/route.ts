@@ -18,11 +18,12 @@ import {
   PRODUCT_COLS,
   loadCloset,
   loadCompat,
+  loadShopGender,
   toProductAttrs,
   type ProductRow,
 } from "@/lib/shop-fit-server";
 import { serpShopping, type SerpShoppingItem } from "@/lib/serpapi";
-import { classifyCategory, classifyFit, classifyFormality, parseColor, stripBrand } from "@/lib/shop-category";
+import { classifyCategory, classifyFit, classifyFormality, matchesDepartment, parseColor, parseDepartment, stripBrand } from "@/lib/shop-category";
 import type { WardrobeItem } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -205,11 +206,20 @@ async function handle(
   const cursor = params.cursor || null;
   const apiKey = process.env.SERPAPI_API_KEY;
 
-  const [closet, compatRows] = await Promise.all([
+  const [closet, compatRows, shopGender] = await Promise.all([
     loadCloset(admin, user?.id ?? "local-dev"),
     loadCompat(admin),
+    loadShopGender(admin, user?.id ?? "local-dev"),
   ]);
   const compat = buildCompatIndex(compatRows);
+
+  // Department filter (AJA-177): an explicit department in the query overrides the
+  // stored shopGender; "all"/unset → null → no filtering. Only clearly-opposite items
+  // are dropped — unisex/unknown always survive. Applied here at the route so removed
+  // items never reach the client ranker (both interleave arms), avoiding a generic-arm leak.
+  const dept = parseDepartment(q) ?? shopGender;
+  const keep = <T extends { title: string }>(items: T[]): T[] =>
+    items.filter((it) => matchesDepartment(it.title, dept));
 
   // Primary: live web search. Cursor encodes the SerpAPI `start` offset.
   if (apiKey) {
@@ -219,7 +229,7 @@ async function handle(
       if (rows.length) {
         const nextCursor =
           rows.length >= 15 && start + PAGE_SIZE < PAGE_CAP_START ? String(start + PAGE_SIZE) : null;
-        return Response.json({ items: rowsToItems(rows, closet, compat), nextCursor });
+        return Response.json({ items: keep(rowsToItems(rows, closet, compat)), nextCursor });
       }
       // no web results — fall through to the catalog FTS
     } catch {
@@ -232,7 +242,7 @@ async function handle(
   const rows = await keywordSearch(admin, q, cursorId, limit).catch(() => [] as ProductRow[]);
   const items = rowsToItems(rows, closet, compat);
   const nextCursor = items.length === limit ? items[items.length - 1].productId : null;
-  return Response.json({ items, nextCursor });
+  return Response.json({ items: keep(items), nextCursor });
 }
 
 export async function POST(request: Request): Promise<Response> {

@@ -126,3 +126,37 @@ export function classifyFit(title: string): Fit | null {
   for (const [re, f] of FIT_RULES) if (re.test(title)) return f;
   return null;
 }
+
+export type Department = "male" | "female";
+
+/**
+ * Department from a title or query — or null for unisex/unknown (AJA-177). Used for
+ * BOTH the query-override (does the search name a department?) and the catalog-side
+ * title inference (SerpAPI carries no department field). Female is checked first so
+ * "women's" can't fall through to the men's pattern. null is never force-guessed to a
+ * department — ambiguous titles stay unisex/unknown and survive any preference.
+ */
+export function parseDepartment(text: string): Department | null {
+  const t = text.toLowerCase();
+  // An explicit unisex declaration outranks any incidental gender token elsewhere in
+  // the title — the same "explicit beats incidental" precedence female-first already
+  // gives markers, extended to unisex. Without this a gender-name brand ("Boy London"
+  // → "boy") deletes items that literally say "Unisex", violating unisex-always-survives.
+  // Additive-only: this can only turn a would-be male/female into null (a rescue toward
+  // survival); it never newly labels a null title, so it cannot introduce a mislabel.
+  if (/\b(unisex|gender[-\s]?neutral)\b/.test(t)) return null;
+  if (/\b(wom[ae]n'?s?|womens|female|ladies|girls?|gals?)\b/.test(t)) return "female";
+  if (/\b(m[ae]n'?s?|mens|male|boys?|guys?|gentlem[ae]n'?s?)\b/.test(t)) return "male";
+  return null;
+}
+
+/**
+ * Should an item survive the department filter? `dept` null → no preference → keep all;
+ * a unisex/unknown item (title resolves to null) → keep for everyone; otherwise keep
+ * only the matching department. Only clearly-opposite-department items are dropped.
+ */
+export function matchesDepartment(title: string, dept: Department | null): boolean {
+  if (!dept) return true;
+  const d = parseDepartment(title);
+  return d === null || d === dept;
+}

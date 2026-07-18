@@ -59,6 +59,25 @@ export async function loadCloset(
   return Array.isArray(items) ? items.filter((i) => !i.wishlist) : [];
 }
 
+/**
+ * The caller's stored shop department preference ("male"/"female"), or null for
+ * "all"/unset (no department filtering). Same snapshot source as loadCloset; the
+ * shopGender field is collected in settings + onboarding (AJA-171).
+ */
+export async function loadShopGender(
+  admin: SupabaseClient,
+  userId: string,
+): Promise<"male" | "female" | null> {
+  if (!userId || userId === "local-dev") return null;
+  const { data } = await admin
+    .from("wardrobe_snapshots")
+    .select("profile")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const g = (data?.profile as { shopGender?: string } | null)?.shopGender;
+  return g === "male" || g === "female" ? g : null;
+}
+
 /** outfit_compat weights (small table; load once per request). */
 export async function loadCompat(admin: SupabaseClient): Promise<CompatRow[]> {
   const { data } = await admin
