@@ -22,7 +22,7 @@ import {
   type ProductRow,
 } from "@/lib/shop-fit-server";
 import { serpShopping, type SerpShoppingItem } from "@/lib/serpapi";
-import { classifyCategory, classifyFit, classifyFormality, parseColor } from "@/lib/shop-category";
+import { classifyCategory, classifyFit, classifyFormality, parseColor, stripBrand } from "@/lib/shop-category";
 import type { WardrobeItem } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -124,7 +124,10 @@ async function webSearch(
 
   const upserts = usable.map((r) => {
     const category = classifyCategory(r.title, q);
-    const tone = parseColor(r.title);
+    // Brand-strip first so brand colour-tokens ("Old Navy" → navy) can't poison the
+    // tone; then title colour; then fall back to the query's colour ("black jeans"
+    // whose titles omit "black") so neutral-colour searches carry what was asked (AJA-177).
+    const tone = parseColor(stripBrand(r.title, r.source)) ?? parseColor(q);
     // Write the discriminating attributes (tone/fit/formality) as top-level columns so
     // closetScore varies item-to-item — without them the closet ranker degenerates to a
     // per-category constant (AJA-175). `toProductAttrs` reads these columns first.

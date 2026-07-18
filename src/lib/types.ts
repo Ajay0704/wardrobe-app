@@ -5,6 +5,28 @@
  * localStorage today and synced to Supabase/Firebase later without changes.
  */
 
+/**
+ * Canonical fit vocabulary — the SINGLE source of truth shared by the catalog
+ * classifier (`classifyFit`) and any future writer of `WardrobeItem.fit`.
+ * Ownership scoring compares with exact-string equality, so both sides MUST emit
+ * these exact spellings (this is what closes the two-drifting-enums bug, AJA-177).
+ */
+export const FIT_VALUES = ["slim", "regular", "relaxed", "wide", "cropped"] as const;
+export type Fit = (typeof FIT_VALUES)[number];
+
+/**
+ * Human/legacy fit words → canonical. Decisions: "straight" → regular,
+ * "oversized" → relaxed. Any fit-capture path must normalize through this so the
+ * wardrobe side can never drift from the catalog vocab again.
+ */
+export const FIT_ALIASES: Record<string, Fit> = {
+  slim: "slim", skinny: "slim", fitted: "slim", tapered: "slim",
+  regular: "regular", straight: "regular", classic: "regular", standard: "regular",
+  relaxed: "relaxed", oversized: "relaxed", baggy: "relaxed", loose: "relaxed", boxy: "relaxed",
+  wide: "wide", flare: "wide", bootcut: "wide",
+  cropped: "cropped", crop: "cropped",
+};
+
 export type Category =
   | "top"
   | "bottom"
@@ -84,7 +106,7 @@ export interface WardrobeItem {
    * null until populated — the pairing/ownership logic degrades gracefully
    * (skips the check, still counts by category) when any is missing.
    */
-  fit?: string; // 'slim' | 'straight' | 'relaxed' | 'wide' | 'oversized' | ...
+  fit?: Fit; // canonical fit vocab (FIT_VALUES); writers normalize via FIT_ALIASES
   tone?: string; // colour group: 'neutral' | 'warm' | 'cool' | 'black' | 'white' | ...
   formality?: string; // 'casual' | 'smart-casual' | 'formal' | 'statement' | ...
   /** Wishlist items are things the user wants to buy, not yet owned. */

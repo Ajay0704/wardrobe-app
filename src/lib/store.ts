@@ -8,6 +8,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { FIT_VALUES, type Fit } from "./types";
 import type {
   CalendarEntry,
   Category,
@@ -239,7 +240,7 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     beautifyWhiteUrl: typeof it.beautifyWhiteUrl === "string" ? it.beautifyWhiteUrl : undefined,
     cutoutImageUrl: typeof it.cutoutImageUrl === "string" ? it.cutoutImageUrl : undefined,
     beautifyModel: typeof it.beautifyModel === "string" ? it.beautifyModel : undefined,
-    fit: typeof it.fit === "string" ? it.fit : undefined,
+    fit: typeof it.fit === "string" && (FIT_VALUES as readonly string[]).includes(it.fit) ? (it.fit as Fit) : undefined,
     tone: typeof it.tone === "string" ? it.tone : undefined,
     formality: typeof it.formality === "string" ? it.formality : undefined,
     productUrl: typeof it.productUrl === "string" ? it.productUrl : undefined,

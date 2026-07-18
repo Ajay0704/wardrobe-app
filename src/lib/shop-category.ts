@@ -4,7 +4,7 @@
  * (SerpAPI Google Shopping) don't carry our taxonomy, but the size chip
  * (`yourSize(profile, category)`) and the local wishlist `addItem` need one.
  */
-import type { Category } from "./types";
+import type { Category, Fit } from "./types";
 
 // Ordered most-specific → least; the catch-all "top" stays last.
 const RULES: [RegExp, Category][] = [
@@ -72,6 +72,19 @@ const COLOR_MAP: [string, string][] = [
   ["silver", "silver"], ["metallic", "silver"], ["chrome", "silver"],
 ];
 
+/**
+ * Remove the retailer/brand name from a title so its colour-word tokens can't
+ * poison the parser — the recurring "parser reads text outside its field" class
+ * (AJA-177): "Old Navy" → navy, "Silver Jeans" → silver, etc. Genuine colours in
+ * the product name are untouched (the brand string is removed, not colour words).
+ */
+export function stripBrand(title: string, brand?: string | null): string {
+  const b = brand?.trim();
+  if (!b) return title;
+  const esc = b.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return title.replace(new RegExp(`\\b${esc}(?:'s)?\\b`, "ig"), " ").replace(/\s+/g, " ").trim();
+}
+
 /** Canonical tone of the colour appearing earliest in the title, or null. */
 export function parseColor(title: string): string | null {
   const t = title.toLowerCase();
@@ -100,7 +113,7 @@ export function classifyFormality(title: string, category: Category): string | n
   return null; // unknown → scorer skips the formality check
 }
 
-const FIT_RULES: [RegExp, string][] = [
+const FIT_RULES: [RegExp, Fit][] = [
   [/\b(oversized|baggy|loose|relaxed|boxy)\b/i, "relaxed"],
   [/\b(slim|skinny|fitted|tapered|compression)\b/i, "slim"],
   [/\b(wide|flare|bootcut|palazzo|balloon)\b/i, "wide"],
@@ -109,7 +122,7 @@ const FIT_RULES: [RegExp, string][] = [
 ];
 
 /** Best-effort fit descriptor from the title, or null (scorer skips when null). */
-export function classifyFit(title: string): string | null {
+export function classifyFit(title: string): Fit | null {
   for (const [re, f] of FIT_RULES) if (re.test(title)) return f;
   return null;
 }
