@@ -56,6 +56,19 @@ export interface UserProfile {
    * Defaults to Today when unset.
    */
   startView?: StartScreen;
+
+  /** How you like clothes to fit — powers Shop fit hints. */
+  fitPreference?: FitPreference;
+  /** Height in centimetres (optional; refines fit + try-on). */
+  heightCm?: number;
+  /** Body shape (optional; fit-diagnosis style hints). */
+  bodyShape?: BodyShape;
+  /** Colors you gravitate toward — sharpens recommendations + honest picks. */
+  colorsLove?: string[];
+  /** Colors to steer away from. */
+  colorsAvoid?: string[];
+  /** Rough max spend per category, in the profile currency. */
+  budgets?: Partial<Record<BudgetCategory, number>>;
 }
 
 /** Views allowed as the default launch screen. */
@@ -116,6 +129,36 @@ export const STYLE_QUIZ_VIBES = [
   "athleisure",
   "party",
 ] as const;
+
+/** How the user likes clothes to fit (My information → Fit & sizes). */
+export const FIT_PREFERENCES = ["Slim", "Regular", "Relaxed", "Oversized"] as const;
+export type FitPreference = (typeof FIT_PREFERENCES)[number];
+
+/** Optional body-shape hint for fit diagnosis. */
+export const BODY_SHAPES = [
+  "Rectangle",
+  "Triangle",
+  "Inverted triangle",
+  "Hourglass",
+  "Oval",
+  "Athletic",
+] as const;
+export type BodyShape = (typeof BODY_SHAPES)[number];
+
+/** Neutral palette for the "colors you love / avoid" pickers. */
+export const PROFILE_COLORS = [
+  "Black", "White", "Grey", "Navy", "Blue", "Beige", "Brown", "Olive",
+  "Green", "Burgundy", "Red", "Pink", "Purple", "Yellow", "Orange",
+] as const;
+
+/** Categories that carry a per-category budget hint. */
+export const BUDGET_CATEGORIES = [
+  { key: "top", label: "Tops" },
+  { key: "bottom", label: "Bottoms" },
+  { key: "shoes", label: "Shoes" },
+  { key: "outerwear", label: "Outerwear" },
+] as const;
+export type BudgetCategory = (typeof BUDGET_CATEGORIES)[number]["key"];
 
 /** Signed-in Supabase user (email/password auth). */
 export interface AuthUser {
