@@ -10,10 +10,14 @@ import type { Category } from "./types";
 const RULES: [RegExp, Category][] = [
   [/\b(dress|gown|frock)\b/i, "dress"],
   [/\b(jacket|coat|blazer|parka|overcoat|trench|puffer|windbreaker|outerwear|vest)\b/i, "outerwear"],
-  // `shorts?(?![\s-]*sleeve)`: match the garment "short(s)" but NOT "short sleeve" /
-  // "short-sleeved" — otherwise tees leak into `bottom` from the title alone (AJA-177).
-  [/\b(jeans?|pants?|trousers?|chinos?|shorts?(?![\s-]*sleeve)|skirt|leggings?|joggers?|sweatpants?|slacks)\b/i, "bottom"],
-  [/\b(sneakers?|shoes?|boots?|loafers?|heels?|sandals?|trainers?|footwear|clogs|flats)\b/i, "shoes"],
+  // Match the garment "short(s)" but NOT "short" used as an ADJECTIVE before another
+  // garment word ("Short Sleeve", "Short Boots", "Short Cardigan") — otherwise those
+  // leak into `bottom` from the title (AJA-177). The exclusion set = the category nouns
+  // whose rules sit AFTER `bottom` (shoes/bag/top) + "sleeve", so it closes the class
+  // rather than patching one instance. Garment shorts ("Run Shorts", "Split Short 5\"")
+  // are unaffected — no garment noun follows, so the lookahead passes.
+  [/\b(jeans?|pants?|trousers?|chinos?|shorts?(?![\s-]*(sleeve|boot|shoe|sneaker|sandal|heel|loafer|clog|trainer|shirt|tee|top|blouse|sweater|hoodie|cardigan|polo|tank|bag|tote|backpack|purse|clutch))|skirt|leggings?|joggers?|sweatpants?|slacks)\b/i, "bottom"],
+  [/\b(sneakers?|shoes?|boots?|booties?|loafers?|heels?|sandals?|trainers?|footwear|clogs|flats)\b/i, "shoes"],
   [/\b(bag|tote|backpack|purse|handbag|clutch|satchel|crossbody|duffel)\b/i, "bag"],
   [/\b(belt|hat|cap|beanie|scarf|gloves?|sunglasses?|watch|jewelry|necklace|bracelet|rings?|earrings?|tie|socks?|accessor)/i, "accessory"],
   [/\b(shirt|tee|t-shirt|tshirt|top|blouse|sweater|hoodie|jumper|cardigan|polo|knit|sweatshirt|turtleneck|tank|henley)\b/i, "top"],
