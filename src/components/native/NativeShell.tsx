@@ -18,12 +18,15 @@ import {
   Sparkles,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { unreadCount } from "@/lib/notifications";
 import { unreadCount as chatUnreadCount } from "@/lib/chat";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
 import { ProfileAvatar } from "../ProfileAvatar";
+
+// useLayoutEffect on the client (avoids the SSR warning); noop-safe on the server.
+const useIsoLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type Tab = { view: View; label: string; Icon: LucideIcon };
 
@@ -108,6 +111,30 @@ export function NativeShell() {
     setView(target);
   };
 
+  // Per-view scroll memory. The root tabs stay mounted (keepAliveTabs), so
+  // restoring each view's last scroll position on return makes "go in, come
+  // back" land exactly where you left off. New/sub-views default to the top.
+  const mainRef = useRef<HTMLElement>(null);
+  const scrollMem = useRef<Record<string, number>>({});
+  const activeScrollView = useRef<View>(view);
+  useEffect(() => {
+    const el = mainRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      // Only the currently-active view records its position — ignore the
+      // clamp/scroll events that fire while a pane is being hidden on a switch,
+      // which would otherwise overwrite the outgoing view's saved position.
+      if (activeScrollView.current === view) scrollMem.current[view] = el.scrollTop;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [view]);
+  useIsoLayoutEffect(() => {
+    activeScrollView.current = view;
+    const el = mainRef.current;
+    if (el) el.scrollTop = scrollMem.current[view] ?? 0;
+  }, [view]);
+
   // Create sheet: run a real action and close.
   const runSheet = (fn: () => void) => {
     setSheetNote(null);
@@ -175,8 +202,8 @@ export function NativeShell() {
         </div>
       </header>
 
-      <main className="native-main flex-1 overflow-y-auto px-4 pt-5">
-        <AppViews />
+      <main ref={mainRef} className="native-main flex-1 overflow-y-auto px-4 pt-5">
+        <AppViews keepAliveTabs />
       </main>
 
       <nav className="native-tabbar" aria-label="Primary">

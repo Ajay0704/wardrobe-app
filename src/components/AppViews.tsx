@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useWardrobe } from "@/lib/store";
 import { WardrobeView } from "./WardrobeView";
 import { CanvasBuilderView } from "./CanvasBuilderView";
@@ -30,7 +31,7 @@ import { ClosetScanImport } from "./ClosetScanImport";
  * native shell (NativeShell) so the two chromes wrap the exact same screens.
  * Also hosts the global "add item" modal opened by the center Create button.
  */
-export function AppViews() {
+export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean }) {
   const view = useWardrobe((s) => s.view);
   const addOpen = useWardrobe((s) => s.addOpen);
   const addIntent = useWardrobe((s) => s.addIntent);
@@ -47,17 +48,22 @@ export function AppViews() {
     <>
       {/* Home was retired in the native shell (AJA-169); web still uses TodayView. */}
       {view === "today" && <TodayView />}
-      {view === "wardrobe" && <WardrobeView />}
+
+      {/* Native root tabs stay mounted (keepAliveTabs) so their scroll + in-screen
+          state survive drilling into a sub-view and back (AJA-170). On web they
+          render conditionally like everything else. */}
+      <TabPane show={view === "explore"} keepAlive={keepAliveTabs}><ExploreView /></TabPane>
+      <TabPane show={view === "wardrobe"} keepAlive={keepAliveTabs}><WardrobeView /></TabPane>
+      <TabPane show={view === "outfits"} keepAlive={keepAliveTabs}><OutfitsView /></TabPane>
+      <TabPane show={view === "social"} keepAlive={keepAliveTabs}><NativeProfileView /></TabPane>
+
       {view === "builder" && <CanvasBuilderView />}
-      {view === "outfits" && <OutfitsView />}
       {view === "calendar" && <CalendarView />}
       {view === "wishlist" && <WishlistView />}
       {view === "travel" && <TravelView />}
       {view === "insights" && <InsightsView />}
       {view === "you" && <YouView />}
-      {view === "explore" && <ExploreView />}
       {view === "profile" && <ProfileView />}
-      {view === "social" && <NativeProfileView />}
       {view === "userProfile" && <NativeUserProfileView />}
       {view === "settings" && <SettingsView />}
       {view === "notifications" && <NotificationsView />}
@@ -74,4 +80,22 @@ export function AppViews() {
       {scanOpen && <ClosetScanImport onClose={() => setScanOpen(false)} />}
     </>
   );
+}
+
+/**
+ * A root-tab slot. With `keepAlive` (native shell) the screen stays mounted and
+ * is just hidden when inactive, preserving its scroll and in-screen state. Without
+ * it (web) it mounts only while active, matching the old conditional behavior.
+ */
+function TabPane({
+  show,
+  keepAlive,
+  children,
+}: {
+  show: boolean;
+  keepAlive: boolean;
+  children: ReactNode;
+}) {
+  if (keepAlive) return <div hidden={!show}>{children}</div>;
+  return show ? <>{children}</> : null;
 }
