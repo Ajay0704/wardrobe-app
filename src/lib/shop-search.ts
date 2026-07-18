@@ -22,6 +22,7 @@ export interface ShopResult {
   imageUrl: string;
   buyUrl: string;
   category: string;
+  tone: string | null; // product colour (ingest); lets the ranker honour a colour-specific query
   closetSignal: ClosetSignal;
 }
 

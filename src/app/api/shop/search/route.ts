@@ -47,6 +47,7 @@ function rowsToItems(rows: ProductRow[], closet: WardrobeItem[], compat: CompatI
     imageUrl: r.image_url,
     buyUrl: r.buy_url,
     category: r.category,
+    tone: toProductAttrs(r).tone,
     closetSignal: closetSignal(toProductAttrs(r), closet, compat),
   }));
 }

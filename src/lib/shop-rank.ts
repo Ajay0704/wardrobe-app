@@ -8,8 +8,11 @@
  * to measure which ranker wins the click.
  */
 import { yourSize } from "./fit";
+import { parseColor } from "./shop-category";
 import type { UserProfile } from "./profile";
 import type { ShopResult } from "./shop-search";
+
+const lower = (s?: string | null): string | null => (s == null ? null : s.trim().toLowerCase() || null);
 
 export const SHOP_EXPERIMENT = process.env.NEXT_PUBLIC_SHOP_INTERLEAVE !== "0";
 
@@ -41,9 +44,29 @@ export function genericRanked(items: ShopResult[]): RankedResult[] {
   return items.map((result, position) => ({ result, ranker: "generic", position }));
 }
 
-export function interleaveShop(items: ShopResult[], profile: UserProfile): RankedResult[] {
+/**
+ * Closet ordering. Query-conditional dominant attribute (AJA-177): when the query
+ * names a colour, that colour is a hard-ish constraint on this arm — wrong-colour
+ * items sink BELOW every right-colour item (fit/ownership orders within the
+ * right-colour set), so `similar > exact` can't float a navy jean above black for a
+ * "black jeans" search. When the query names no colour, ordering is unchanged
+ * (pure closetScore → the open-browsing gap-fill order that similar>exact is correct for).
+ */
+export function closetRanked(items: ShopResult[], profile: UserProfile, query?: string): ShopResult[] {
+  const queryColor = lower(query ? parseColor(query) : null);
+  return [...items].sort((a, b) => {
+    if (queryColor) {
+      const am = lower(a.tone) === queryColor ? 0 : 1;
+      const bm = lower(b.tone) === queryColor ? 0 : 1;
+      if (am !== bm) return am - bm; // right-colour first (dominant)
+    }
+    return closetScore(b, profile) - closetScore(a, profile);
+  });
+}
+
+export function interleaveShop(items: ShopResult[], profile: UserProfile, query?: string): RankedResult[] {
   const generic = items; // search relevance order
-  const closet = [...items].sort((a, b) => closetScore(b, profile) - closetScore(a, profile));
+  const closet = closetRanked(items, profile, query);
   const picked = new Set<string>();
   const out: RankedResult[] = [];
   const g = { i: 0 };

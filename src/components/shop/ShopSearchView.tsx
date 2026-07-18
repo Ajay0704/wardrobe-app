@@ -184,8 +184,8 @@ export function ShopSearchView() {
   // Experiment (AJA-174): interleave closet-aware vs generic rankings so we can
   // measure which one wins the click. Off → plain relevance order (control).
   const ranked = useMemo(
-    () => (SHOP_EXPERIMENT ? interleaveShop(results, profile) : genericRanked(results)),
-    [results, profile],
+    () => (SHOP_EXPERIMENT ? interleaveShop(results, profile, activeQuery) : genericRanked(results)),
+    [results, profile, activeQuery],
   );
 
   const reqRef = useRef(0);
