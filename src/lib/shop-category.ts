@@ -10,18 +10,33 @@ import type { Category } from "./types";
 const RULES: [RegExp, Category][] = [
   [/\b(dress|gown|frock)\b/i, "dress"],
   [/\b(jacket|coat|blazer|parka|overcoat|trench|puffer|windbreaker|outerwear|vest)\b/i, "outerwear"],
-  [/\b(jeans?|pants?|trousers?|chinos?|shorts?|skirt|leggings?|joggers?|sweatpants?|slacks)\b/i, "bottom"],
+  // `shorts?(?![\s-]*sleeve)`: match the garment "short(s)" but NOT "short sleeve" /
+  // "short-sleeved" — otherwise tees leak into `bottom` from the title alone (AJA-177).
+  [/\b(jeans?|pants?|trousers?|chinos?|shorts?(?![\s-]*sleeve)|skirt|leggings?|joggers?|sweatpants?|slacks)\b/i, "bottom"],
   [/\b(sneakers?|shoes?|boots?|loafers?|heels?|sandals?|trainers?|footwear|clogs|flats)\b/i, "shoes"],
   [/\b(bag|tote|backpack|purse|handbag|clutch|satchel|crossbody|duffel)\b/i, "bag"],
   [/\b(belt|hat|cap|beanie|scarf|gloves?|sunglasses?|watch|jewelry|necklace|bracelet|rings?|earrings?|tie|socks?|accessor)/i, "accessory"],
   [/\b(shirt|tee|t-shirt|tshirt|top|blouse|sweater|hoodie|jumper|cardigan|polo|knit|sweatshirt|turtleneck|tank|henley)\b/i, "top"],
 ];
 
-/** Clothing category from a product title + optional query. Defaults to "top". */
+/** First rule-matched category for a single text, or null if it has no category word. */
+function matchCategoryRules(text: string): Category | null {
+  for (const [re, cat] of RULES) if (re.test(text)) return cat;
+  return null;
+}
+
+/**
+ * Clothing category from a product title. The search `query` is used ONLY as a
+ * fallback when the title carries no category word — it must never override a
+ * title that already indicates one (AJA-177). Otherwise query terms leak in and
+ * mislabel results: a "T-Shirt" returned for a "black jeans" search must stay a
+ * `top`, not become a `bottom`. The query is still load-bearing for model-name
+ * titles ("Nike Court Vision" has no "sneaker" word → falls back to the query →
+ * `shoes`). Defaults to "top". Category is category-gated in ownership scoring,
+ * so leakage here corrupts the closet-aware ranker for every query.
+ */
 export function classifyCategory(title: string, query = ""): Category {
-  const hay = `${title} ${query}`;
-  for (const [re, cat] of RULES) if (re.test(hay)) return cat;
-  return "top";
+  return matchCategoryRules(title) ?? matchCategoryRules(query) ?? "top";
 }
 
 // [matcher, canonical tone]. Ordered specific → general; synonyms collapse onto a
