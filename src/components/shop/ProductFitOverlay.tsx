@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { affiliateUrl } from "@/lib/affiliate";
+import { trackShopRec, type RecCtx } from "@/lib/analytics";
 import { openExternalUrl } from "@/lib/platform";
 import {
   fetchProductFit,
@@ -95,10 +96,12 @@ function ImgBox({ src, className }: { src?: string; className?: string }) {
  */
 export function ProductFitOverlay({
   productId,
+  recCtx,
   onClose,
   onToast,
 }: {
   productId: string;
+  recCtx?: RecCtx;
   onClose: () => void;
   onToast: (m: string) => void;
 }) {
@@ -230,6 +233,7 @@ export function ProductFitOverlay({
                   type="button"
                   onClick={async () => {
                     const ok = await wishlistProduct(fit.product.productId);
+                    if (ok) void trackShopRec("save", fit.product.productId, recCtx ?? {});
                     onToast(ok ? "Added to wishlist" : "Sign in to save to wishlist");
                   }}
                   className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-line py-3 text-sm font-medium"
@@ -239,6 +243,7 @@ export function ProductFitOverlay({
                 <button
                   type="button"
                   onClick={() => {
+                    void trackShopRec("outbound", fit.product.productId, recCtx ?? {});
                     void openExternalUrl(affiliateUrl(fit.product.buyUrl) ?? fit.product.buyUrl);
                     onToast("Opening store…");
                   }}

@@ -1,8 +1,10 @@
 "use client";
 
 import { AlertTriangle, Check, Ruler, Search, Shirt } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { trackShopRec, type RecCtx } from "@/lib/analytics";
 import { SIZE_SLOTS, hasAnySize, yourSize } from "@/lib/fit";
+import { closetMatchLabel, genericRanked, interleaveShop, SHOP_EXPERIMENT } from "@/lib/shop-rank";
 import { searchProducts, type ClosetSignal, type ShopResult } from "@/lib/shop-search";
 import { useWardrobe } from "@/lib/store";
 import { ProductFitOverlay } from "./ProductFitOverlay";
@@ -103,14 +105,45 @@ function SignalBadge({ signal }: { signal: ClosetSignal }) {
 function ResultCard({
   r,
   mySize,
+  ranker,
+  position,
+  query,
   onOpen,
 }: {
   r: ShopResult;
   mySize?: string | null;
+  ranker: "closet" | "generic";
+  position: number;
+  query: string;
   onOpen: () => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const fired = useRef(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    // Log one impression when the card is at least half-visible (real viewport
+    // impression — the CTR denominator for the experiment).
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !fired.current) {
+          fired.current = true;
+          void trackShopRec("impression", r.productId, {
+            ranker,
+            position,
+            query,
+            closetMatch: closetMatchLabel(r),
+          });
+          io.disconnect();
+        }
+      },
+      { threshold: 0.5 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [r.productId, ranker, position, query]);
   return (
-    <div className="mb-3 break-inside-avoid">
+    <div ref={ref} className="mb-3 break-inside-avoid">
       <button type="button" onClick={onOpen} className="block w-full text-left">
         <div className="relative overflow-hidden rounded-2xl bg-surface-2" style={{ aspectRatio: "3 / 4" }}>
           <Img src={r.imageUrl} />
@@ -145,7 +178,15 @@ export function ShopSearchView() {
   const [done, setDone] = useState(true);
   const [searched, setSearched] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [openMeta, setOpenMeta] = useState<RecCtx | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+
+  // Experiment (AJA-174): interleave closet-aware vs generic rankings so we can
+  // measure which one wins the click. Off → plain relevance order (control).
+  const ranked = useMemo(
+    () => (SHOP_EXPERIMENT ? interleaveShop(results, profile) : genericRanked(results)),
+    [results, profile],
+  );
 
   const reqRef = useRef(0);
   const loadMoreRef = useRef<() => void>(() => {});
@@ -278,12 +319,25 @@ export function ShopSearchView() {
       ) : (
         <>
           <div style={{ columnCount: 2, columnGap: "12px" }}>
-            {results.map((r) => (
+            {ranked.map((rr) => (
               <ResultCard
-                key={r.productId}
-                r={r}
-                mySize={yourSize(profile, r.category)}
-                onOpen={() => setOpenId(r.productId)}
+                key={rr.result.productId}
+                r={rr.result}
+                ranker={rr.ranker}
+                position={rr.position}
+                query={activeQuery}
+                mySize={yourSize(profile, rr.result.category)}
+                onOpen={() => {
+                  const ctx: RecCtx = {
+                    ranker: rr.ranker,
+                    position: rr.position,
+                    query: activeQuery,
+                    closetMatch: closetMatchLabel(rr.result),
+                  };
+                  void trackShopRec("tap", rr.result.productId, ctx);
+                  setOpenMeta(ctx);
+                  setOpenId(rr.result.productId);
+                }}
               />
             ))}
           </div>
@@ -296,7 +350,15 @@ export function ShopSearchView() {
       )}
 
       {openId && (
-        <ProductFitOverlay productId={openId} onClose={() => setOpenId(null)} onToast={flash} />
+        <ProductFitOverlay
+          productId={openId}
+          recCtx={openMeta ?? undefined}
+          onClose={() => {
+            setOpenId(null);
+            setOpenMeta(null);
+          }}
+          onToast={flash}
+        />
       )}
 
       {toast && (
