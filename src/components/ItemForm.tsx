@@ -26,8 +26,8 @@ import { cutout } from "@/lib/cutout";
 import { BEAUTIFY_PIPELINE, beautify } from "@/lib/beautify";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
-import type { Category, Season, WardrobeItem } from "@/lib/types";
-import { CATEGORIES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
+import type { Category, Fit, Season, WardrobeItem } from "@/lib/types";
+import { CATEGORIES, FIT_VALUES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { FindProductSheet } from "./FindProductSheet";
 import { SmartBuy } from "./SmartBuy";
@@ -103,6 +103,7 @@ export function ItemForm({
   const [beautifyDisabled, setBeautifyDisabled] = useState(false);
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
+  const [fit, setFit] = useState<Fit | undefined>(initial?.fit);
   const [color, setColor] = useState(initial?.color ?? "#a8a29e");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
@@ -542,6 +543,7 @@ export function ItemForm({
       beautifyModel: beautifyModel || undefined,
       productUrl: productUrl.trim() || undefined,
       category,
+      fit,
       color,
       colorName,
       tags,
@@ -792,6 +794,21 @@ export function ItemForm({
               )}
             </Field>
           </div>
+
+          <Field label="Fit">
+            <select
+              className={inputClass}
+              value={fit ?? ""}
+              onChange={(e) => setFit(e.target.value ? (e.target.value as Fit) : undefined)}
+            >
+              <option value="">—</option>
+              {FIT_VALUES.map((f) => (
+                <option key={f} value={f}>
+                  {f[0].toUpperCase() + f.slice(1)}
+                </option>
+              ))}
+            </select>
+          </Field>
 
           <Field label="Tags">
             <div className="mb-2 flex flex-wrap gap-1.5">
