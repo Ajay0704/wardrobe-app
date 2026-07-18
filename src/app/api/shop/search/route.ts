@@ -1,21 +1,19 @@
 /**
- * Closet-aware product search (AJA-116, Phase 2). Searches the shop_products
- * catalog and annotates every result with a server-computed `closetSignal`
- * (ownership + pair count) against the requesting user's snapshot closet, so the
- * grid renders the corner icon with no second round-trip.
+ * Closet-aware product search (AJA-116, AJA-172). Primary backend is a live
+ * "Google search for clothes" — SerpAPI engine=google_shopping (text) — reusing
+ * the same SERPAPI_API_KEY that powers photo→product. Each web result is upserted
+ * into shop_products so the product-detail overlay, "your size" chip, and wishlist
+ * keep resolving by id. Results are annotated with a server-computed `closetSignal`
+ * (ownership + pair count) against the caller's snapshot closet.
  *
- * SEARCH_MODE seam:
- *   - "keyword" (default, shippable) — Postgres FTS on shop_products.search_tsv,
- *     falling back to ilike when the generated column isn't present yet.
- *   - "semantic" (upgrade path) — embed the query text with the SAME model as the
- *     catalog and pgvector-match. Not wired (no text embedder); the seam asserts
- *     EMBED_DIM parity and returns 501 until a model is plugged in.
- * Both modes return the identical response shape, so swapping is config-only.
+ * Cost controls: search fires on submit (client), a 24h `shop_search_cache` avoids
+ * re-billing repeat queries, and pagination is capped. If SERPAPI_API_KEY is
+ * missing or SerpAPI errors/returns nothing, it falls back to the legacy Postgres
+ * full-text search over the (DummyJSON-seeded) catalog. Never throws to the client.
  */
 import { requireUser } from "@/lib/auth-server";
 import { adminClient } from "@/lib/supabase/admin";
-import { EMBED_DIM } from "@/lib/embed";
-import { buildCompatIndex, closetSignal } from "@/lib/closet-fit";
+import { buildCompatIndex, closetSignal, type CompatIndex } from "@/lib/closet-fit";
 import {
   PRODUCT_COLS,
   loadCloset,
@@ -23,18 +21,133 @@ import {
   toProductAttrs,
   type ProductRow,
 } from "@/lib/shop-fit-server";
+import { serpShopping, type SerpShoppingItem } from "@/lib/serpapi";
+import { classifyCategory, parseColor } from "@/lib/shop-category";
+import type { WardrobeItem } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
-const SEARCH_MODE = (process.env.SEARCH_MODE || "keyword").toLowerCase();
 const DEFAULT_LIMIT = 20;
+const PAGE_SIZE = 20; // SerpAPI results per page
+const PAGE_CAP_START = 60; // stop after ~3 pages to bound SerpAPI credits
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-function clampLimit(n: unknown): number {
-  return Math.min(Math.max(Number(n) || DEFAULT_LIMIT, 1), 30);
+const clampLimit = (n: unknown): number => Math.min(Math.max(Number(n) || DEFAULT_LIMIT, 1), 30);
+const normQuery = (q: string): string => q.trim().toLowerCase().replace(/\s+/g, " ");
+
+function rowsToItems(rows: ProductRow[], closet: WardrobeItem[], compat: CompatIndex) {
+  return rows.map((r) => ({
+    productId: r.id,
+    brand: r.brand,
+    title: r.title,
+    price: r.price_cents == null ? null : r.price_cents / 100,
+    currency: r.currency ?? "USD",
+    imageUrl: r.image_url,
+    buyUrl: r.buy_url,
+    category: r.category,
+    closetSignal: closetSignal(toProductAttrs(r), closet, compat),
+  }));
 }
 
-/** Keyword search: FTS on search_tsv, ilike fallback. Keyset by id. */
+const orderByIds = (rows: ProductRow[], ids: string[]): ProductRow[] => {
+  const by = new Map(rows.map((r) => [r.id, r]));
+  return ids.map((id) => by.get(id)).filter((r): r is ProductRow => Boolean(r));
+};
+
+const orderByBuyUrl = (rows: ProductRow[], results: SerpShoppingItem[]): ProductRow[] => {
+  const rank = new Map(results.map((r, i) => [r.buyUrl, i]));
+  return [...rows].sort((a, b) => (rank.get(a.buy_url) ?? 999) - (rank.get(b.buy_url) ?? 999));
+};
+
+/** Read the (query, start) cache. Defensive: returns null if the table is absent. */
+async function readCache(
+  admin: SupabaseClient,
+  query: string,
+  start: number,
+): Promise<string[] | null> {
+  try {
+    const { data, error } = await admin
+      .from("shop_search_cache")
+      .select("product_ids, fetched_at")
+      .eq("query_norm", query)
+      .eq("start", start)
+      .maybeSingle();
+    if (error || !data) return null;
+    if (Date.now() - new Date(data.fetched_at).getTime() > CACHE_TTL_MS) return null;
+    return (data.product_ids ?? []) as string[];
+  } catch {
+    return null;
+  }
+}
+
+/** Write the (query, start) cache. Defensive: no-ops if the table is absent. */
+async function writeCache(
+  admin: SupabaseClient,
+  query: string,
+  start: number,
+  ids: string[],
+): Promise<void> {
+  try {
+    await admin.from("shop_search_cache").upsert(
+      { query_norm: query, start, product_ids: ids, fetched_at: new Date().toISOString() },
+      { onConflict: "query_norm,start" },
+    );
+  } catch {
+    /* table not migrated yet — skip caching, search still works */
+  }
+}
+
+/**
+ * Web product search: cache → SerpAPI Google Shopping → upsert into shop_products
+ * (so ids resolve for detail/wishlist) → cache the ids. Returns catalog rows in
+ * SerpAPI relevance order. Throws on SerpAPI/DB failure (caller falls back to FTS).
+ */
+async function webSearch(
+  admin: SupabaseClient,
+  apiKey: string,
+  q: string,
+  start: number,
+  query: string,
+): Promise<ProductRow[]> {
+  const cachedIds = await readCache(admin, query, start);
+  if (cachedIds && cachedIds.length) {
+    const { data } = await admin.from("shop_products").select(PRODUCT_COLS).in("id", cachedIds);
+    const rows = orderByIds((data ?? []) as ProductRow[], cachedIds);
+    if (rows.length) return rows;
+  }
+
+  const results = await serpShopping(apiKey, q, start, PAGE_SIZE);
+  const usable = results.filter((r) => r.thumbnail && r.buyUrl);
+  if (!usable.length) return [];
+
+  const upserts = usable.map((r) => ({
+    source: "serpapi",
+    external_id: r.productId,
+    brand: r.source,
+    title: r.title,
+    category: classifyCategory(r.title, q),
+    price_cents: r.price == null ? null : Math.round(r.price * 100),
+    currency: r.currency,
+    image_url: r.thumbnail as string,
+    buy_url: r.buyUrl,
+    attributes: { colorName: parseColor(r.title), color: parseColor(r.title), source_name: r.source },
+    in_stock: true,
+  }));
+
+  const { data, error } = await admin
+    .from("shop_products")
+    .upsert(upserts, { onConflict: "source,external_id" })
+    .select(PRODUCT_COLS);
+  if (error) throw new Error(error.message);
+
+  const rows = orderByBuyUrl((data ?? []) as ProductRow[], usable);
+  if (rows.length) await writeCache(admin, query, start, rows.map((r) => r.id));
+  return rows;
+}
+
+/** Legacy fallback: Postgres FTS on shop_products.search_tsv, ilike fallback. Keyset by id. */
 async function keywordSearch(
   admin: SupabaseClient,
   q: string,
@@ -46,47 +159,18 @@ async function keywordSearch(
     if (cursorId) query = query.gt("id", cursorId);
     return query;
   };
-  // Preferred: full-text search on the generated tsvector.
   const fts = await base()
     .textSearch("search_tsv", q, { type: "websearch" })
     .order("id", { ascending: true })
     .limit(limit);
   if (!fts.error) return (fts.data ?? []) as ProductRow[];
 
-  // Fallback (migration not applied yet): ilike across title/brand/category.
   const pat = `%${q.replace(/[%_,()]/g, " ").trim()}%`;
   const il = await base()
     .or(`title.ilike.${pat},brand.ilike.${pat},category.ilike.${pat}`)
     .order("id", { ascending: true })
     .limit(limit);
   return (il.data ?? []) as ProductRow[];
-}
-
-/**
- * Semantic search seam. Embeds the query text with the same model as the catalog
- * and asserts EMBED_DIM parity before any pgvector call. No text embedder is
- * wired yet, so this throws — SEARCH_MODE stays "keyword" until one is plugged in.
- */
-async function embedQueryText(_q: string): Promise<number[]> {
-  throw new Error(
-    "SEARCH_MODE=semantic requires a text embedder (none wired). Use SEARCH_MODE=keyword.",
-  );
-}
-
-async function semanticSearch(
-  _admin: SupabaseClient,
-  q: string,
-  _cursorId: string | null,
-  _limit: number,
-): Promise<ProductRow[]> {
-  const embedding = await embedQueryText(q);
-  if (embedding.length !== EMBED_DIM) {
-    throw new Error(
-      `query embedding dim ${embedding.length} != catalog EMBED_DIM ${EMBED_DIM}`,
-    );
-  }
-  // Future: admin.rpc("match_similar", { query_embedding: toVectorLiteral(embedding), ... })
-  throw new Error("semantic search not implemented");
 }
 
 async function handle(
@@ -98,20 +182,11 @@ async function handle(
   if (!admin) return Response.json({ items: [], nextCursor: null });
 
   const q = (params.q || "").trim();
-  if (q.length < 1) return Response.json({ items: [], nextCursor: null });
+  if (q.length < 2) return Response.json({ items: [], nextCursor: null });
   const limit = clampLimit(params.limit);
-  const cursorId = params.cursor || null;
-
-  let rows: ProductRow[];
-  try {
-    rows =
-      SEARCH_MODE === "semantic"
-        ? await semanticSearch(admin, q, cursorId, limit)
-        : await keywordSearch(admin, q, cursorId, limit);
-  } catch (e) {
-    const status = SEARCH_MODE === "semantic" ? 501 : 500;
-    return Response.json({ error: (e as Error).message || "search failed" }, { status });
-  }
+  const query = normQuery(q);
+  const cursor = params.cursor || null;
+  const apiKey = process.env.SERPAPI_API_KEY;
 
   const [closet, compatRows] = await Promise.all([
     loadCloset(admin, user?.id ?? "local-dev"),
@@ -119,20 +194,27 @@ async function handle(
   ]);
   const compat = buildCompatIndex(compatRows);
 
-  const items = rows.map((r) => ({
-    productId: r.id,
-    brand: r.brand,
-    title: r.title,
-    price: r.price_cents == null ? null : r.price_cents / 100,
-    currency: r.currency ?? "USD",
-    imageUrl: r.image_url,
-    buyUrl: r.buy_url,
-    category: r.category,
-    closetSignal: closetSignal(toProductAttrs(r), closet, compat),
-  }));
+  // Primary: live web search. Cursor encodes the SerpAPI `start` offset.
+  if (apiKey) {
+    const start = Number(cursor) || 0;
+    try {
+      const rows = await webSearch(admin, apiKey, q, start, query);
+      if (rows.length) {
+        const nextCursor =
+          rows.length >= 15 && start + PAGE_SIZE < PAGE_CAP_START ? String(start + PAGE_SIZE) : null;
+        return Response.json({ items: rowsToItems(rows, closet, compat), nextCursor });
+      }
+      // no web results — fall through to the catalog FTS
+    } catch {
+      // SerpAPI/DB failure — fall through to the catalog FTS (never throw to client)
+    }
+  }
 
-  const nextCursor =
-    items.length === limit ? items[items.length - 1].productId : null;
+  // Fallback: catalog full-text search (cursor here is a product id, not an offset).
+  const cursorId = cursor && !/^\d+$/.test(cursor) ? cursor : null;
+  const rows = await keywordSearch(admin, q, cursorId, limit).catch(() => [] as ProductRow[]);
+  const items = rowsToItems(rows, closet, compat);
+  const nextCursor = items.length === limit ? items[items.length - 1].productId : null;
   return Response.json({ items, nextCursor });
 }
 

@@ -138,6 +138,7 @@ function ResultCard({
 export function ShopSearchView() {
   const profile = useWardrobe((s) => s.profile);
   const [q, setQ] = useState("");
+  const [activeQuery, setActiveQuery] = useState("");
   const [results, setResults] = useState<ShopResult[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -155,9 +156,11 @@ export function ShopSearchView() {
     window.setTimeout(() => setToast(null), 1900);
   };
 
-  // Debounced fresh search whenever the query changes (≥2 chars).
-  useEffect(() => {
-    const query = q.trim();
+  // Fresh search on SUBMIT only (Enter, the Search button, or a category chip).
+  // SerpAPI is metered, so we deliberately don't search on every keystroke.
+  const runSearch = useCallback((raw: string) => {
+    const query = raw.trim();
+    setActiveQuery(query);
     if (query.length < 2) {
       setResults([]);
       setCursor(null);
@@ -168,23 +171,20 @@ export function ShopSearchView() {
     const req = ++reqRef.current;
     setLoading(true);
     setSearched(true);
-    const t = window.setTimeout(() => {
-      searchProducts(query).then((r) => {
-        if (req !== reqRef.current) return; // a newer query superseded this one
-        setResults(r.items);
-        setCursor(r.nextCursor);
-        setDone(!r.nextCursor);
-        setLoading(false);
-      });
-    }, 350);
-    return () => window.clearTimeout(t);
-  }, [q]);
+    searchProducts(query).then((r) => {
+      if (req !== reqRef.current) return; // a newer search superseded this one
+      setResults(r.items);
+      setCursor(r.nextCursor);
+      setDone(!r.nextCursor);
+      setLoading(false);
+    });
+  }, []);
 
   const loadMore = useCallback(() => {
     if (loading || done || !cursor) return;
     const req = reqRef.current;
     setLoading(true);
-    searchProducts(q, cursor).then((r) => {
+    searchProducts(activeQuery, cursor).then((r) => {
       if (req !== reqRef.current) return;
       setResults((prev) => {
         const seen = new Set(prev.map((p) => p.productId));
@@ -194,7 +194,7 @@ export function ShopSearchView() {
       setDone(!r.nextCursor);
       setLoading(false);
     });
-  }, [loading, done, cursor, q]);
+  }, [loading, done, cursor, activeQuery]);
 
   useEffect(() => {
     loadMoreRef.current = loadMore;
@@ -217,8 +217,14 @@ export function ShopSearchView() {
 
   return (
     <div className="space-y-3">
-      {/* search bar */}
-      <div className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 px-3 py-2.5">
+      {/* search bar — searches on submit (Enter / the Search button) */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          runSearch(q);
+        }}
+        className="flex items-center gap-2 rounded-2xl border border-line bg-surface-2 px-3 py-2.5"
+      >
         <Search size={17} className="shrink-0 text-muted" />
         <input
           value={q}
@@ -228,7 +234,15 @@ export function ShopSearchView() {
           autoComplete="off"
           enterKeyHint="search"
         />
-      </div>
+        {q.trim().length >= 2 && (
+          <button
+            type="submit"
+            className="shrink-0 rounded-full bg-accent px-3.5 py-1 text-xs font-medium text-accent-foreground"
+          >
+            Search
+          </button>
+        )}
+      </form>
 
       {/* category chips (canned queries) */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
@@ -236,7 +250,10 @@ export function ShopSearchView() {
           <button
             key={c}
             type="button"
-            onClick={() => setQ(c)}
+            onClick={() => {
+              setQ(c);
+              runSearch(c);
+            }}
             className={`shrink-0 rounded-full px-3 py-1.5 text-sm transition-colors ${
               q === c ? "bg-foreground text-background" : "border border-line text-muted"
             }`}
@@ -256,7 +273,7 @@ export function ShopSearchView() {
         </div>
       ) : results.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted">
-          {loading ? "Searching…" : `No results for "${q.trim()}".`}
+          {loading ? "Searching…" : `No results for "${activeQuery}".`}
         </p>
       ) : (
         <>
