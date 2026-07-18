@@ -1,0 +1,10 @@
+{
+  "//": "Standalone scripts run via `node --experimental-strip-types`, which requires explicit .ts import extensions. Kept separate from the app config so allowImportingTsExtensions never leaks into the Next app typecheck. Check with: npx tsc -p tsconfig.scripts.json --noEmit",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "noEmit": true
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["node_modules"]
+}

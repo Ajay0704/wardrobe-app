@@ -22,7 +22,7 @@ import {
   type ProductRow,
 } from "@/lib/shop-fit-server";
 import { serpShopping, type SerpShoppingItem } from "@/lib/serpapi";
-import { classifyCategory, parseColor } from "@/lib/shop-category";
+import { classifyCategory, classifyFit, classifyFormality, parseColor } from "@/lib/shop-category";
 import type { WardrobeItem } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -122,19 +122,29 @@ async function webSearch(
   const usable = results.filter((r) => r.thumbnail && r.buyUrl);
   if (!usable.length) return [];
 
-  const upserts = usable.map((r) => ({
-    source: "serpapi",
-    external_id: r.productId,
-    brand: r.source,
-    title: r.title,
-    category: classifyCategory(r.title, q),
-    price_cents: r.price == null ? null : Math.round(r.price * 100),
-    currency: r.currency,
-    image_url: r.thumbnail as string,
-    buy_url: r.buyUrl,
-    attributes: { colorName: parseColor(r.title), color: parseColor(r.title), source_name: r.source },
-    in_stock: true,
-  }));
+  const upserts = usable.map((r) => {
+    const category = classifyCategory(r.title, q);
+    const tone = parseColor(r.title);
+    // Write the discriminating attributes (tone/fit/formality) as top-level columns so
+    // closetScore varies item-to-item — without them the closet ranker degenerates to a
+    // per-category constant (AJA-175). `toProductAttrs` reads these columns first.
+    return {
+      source: "serpapi",
+      external_id: r.productId,
+      brand: r.source,
+      title: r.title,
+      category,
+      price_cents: r.price == null ? null : Math.round(r.price * 100),
+      currency: r.currency,
+      image_url: r.thumbnail as string,
+      buy_url: r.buyUrl,
+      tone,
+      fit: classifyFit(r.title),
+      formality: classifyFormality(r.title, category),
+      attributes: { colorName: tone, color: tone, source_name: r.source },
+      in_stock: true,
+    };
+  });
 
   const { data, error } = await admin
     .from("shop_products")
