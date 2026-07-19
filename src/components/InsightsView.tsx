@@ -1,7 +1,9 @@
 "use client";
 
 import { Shirt } from "lucide-react";
+import { useEffect, useState } from "react";
 import { computeFullInsights } from "@/lib/insights";
+import { fetchDecisionSummary, type DecisionSummary } from "@/lib/decisions";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { Category } from "@/lib/types";
@@ -23,6 +25,10 @@ export function InsightsView() {
   const setView = useWardrobe((s) => s.setView);
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const i = computeFullInsights(items);
+  const [bank, setBank] = useState<DecisionSummary | null>(null);
+  useEffect(() => {
+    fetchDecisionSummary().then(setBank);
+  }, []);
 
   if (i.itemCount === 0) {
     return (
@@ -46,6 +52,35 @@ export function InsightsView() {
           How your wardrobe breaks down — free, all of it.
         </p>
       </header>
+
+      {/* Decision bank — money kept on skips, buys that earned their place (AJA-190). */}
+      {bank && bank.skippedCount + bank.boughtCount + bank.waitCount > 0 && (
+        <section className="rounded-2xl border border-line bg-surface p-5">
+          <h2 className="mb-3 font-medium">Decision bank</h2>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-surface-2 px-3 py-3 text-center">
+              <p className="text-lg font-medium">{formatMoney(bank.savedTotal, currency)}</p>
+              <p className="text-xs text-muted">saved</p>
+            </div>
+            <div className="rounded-xl bg-surface-2 px-3 py-3 text-center">
+              <p className="text-lg font-medium">{bank.skippedCount}</p>
+              <p className="text-xs text-muted">skipped</p>
+            </div>
+            <div className="rounded-xl bg-surface-2 px-3 py-3 text-center">
+              <p className="text-lg font-medium">{bank.boughtCount}</p>
+              <p className="text-xs text-muted">bought</p>
+            </div>
+          </div>
+          <p className="mt-3 text-sm text-muted">
+            You&apos;ve skipped {bank.skippedCount}{" "}
+            {bank.skippedCount === 1 ? "piece" : "pieces"} and kept{" "}
+            {formatMoney(bank.savedTotal, currency)}.
+            {bank.boughtCount > 0
+              ? ` ${bank.boughtCount} earned ${bank.boughtCount === 1 ? "its" : "their"} place.`
+              : ""}
+          </p>
+        </section>
+      )}
 
       {/* Category donut + legend */}
       <section className="rounded-2xl border border-line bg-surface p-5">

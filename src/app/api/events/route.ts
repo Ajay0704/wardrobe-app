@@ -3,7 +3,7 @@ import { adminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const TYPES = new Set(["view", "grab", "own", "wishlist", "shop_click", "purchase"]);
+const TYPES = new Set(["view", "grab", "own", "wishlist", "shop_click", "purchase", "decision"]);
 
 /** Fire-and-forget telemetry — the training + moat data. Never fails the caller hard. */
 export async function POST(request: Request) {

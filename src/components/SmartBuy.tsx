@@ -4,6 +4,7 @@ import { AlertTriangle, Check, ChevronLeft, Coins, Sparkles, X } from "lucide-re
 import { startTransition, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { analyzeSmartBuy, type SmartBuyResult } from "@/lib/smart-buy";
+import { logDecision, type DecisionOutcome } from "@/lib/decisions";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -54,6 +55,11 @@ function SmartBuySheet({
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const [result, setResult] = useState<SmartBuyResult | null>(null);
   const [error, setError] = useState(false);
+  const [decided, setDecided] = useState<DecisionOutcome | null>(null);
+  const decide = (outcome: DecisionOutcome) => {
+    setDecided(outcome);
+    void logDecision(item, result?.verdict ?? "maybe", outcome);
+  };
 
   useEffect(() => {
     // Defer heavy closet scan off the tap frame so WKWebView doesn't hitch.
@@ -207,10 +213,57 @@ function SmartBuySheet({
                 </div>
               ))}
             </div>
+
+            {/* Close the loop — bank the outcome either way (AJA-190). */}
+            <div className="space-y-2 border-t border-line pt-3">
+              {decided ? (
+                <div className="rounded-xl bg-surface-2 px-3 py-3 text-center">
+                  <p className="text-sm font-medium">
+                    {decided === "skipped"
+                      ? item.price
+                        ? `Banked — you kept ${formatMoney(item.price, currency)}.`
+                        : "Banked. Smart skip."
+                      : decided === "bought"
+                        ? "Nice — I'll track how often you actually wear it."
+                        : "Good call — no rush. It'll still be here."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="mt-2 text-xs font-medium text-accent"
+                  >
+                    Done
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-xs text-muted">
+                    Make the call — I&apos;ll bank it either way.
+                  </p>
+                  <div className="grid grid-cols-3 gap-2">
+                    <DecideBtn onClick={() => decide("bought")}>I bought it</DecideBtn>
+                    <DecideBtn onClick={() => decide("skipped")}>I skipped it</DecideBtn>
+                    <DecideBtn onClick={() => decide("wait")}>I&apos;ll wait</DecideBtn>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>
     </div>,
+  );
+}
+
+function DecideBtn({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-xl border border-line bg-surface px-2 py-2.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-2 active:scale-[0.98]"
+    >
+      {children}
+    </button>
   );
 }
 
