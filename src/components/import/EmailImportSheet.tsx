@@ -65,7 +65,6 @@ export function EmailImportSheet({ onClose }: { onClose: () => void }) {
       hydrateFromRemote({
         items: remote.items,
         outfits: remote.outfits,
-        trips: remote.trips,
         calendar: remote.calendar,
         profile: remote.profile,
         theme: remote.theme,

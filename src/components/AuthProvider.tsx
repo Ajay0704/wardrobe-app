@@ -60,19 +60,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           hydrateFromRemote({
             items: remote.items,
             outfits: remote.outfits,
-            trips: remote.trips,
             calendar: remote.calendar,
             profile: remote.profile,
             theme: remote.theme,
             draft: remote.draft,
           });
         } else {
-          const { items, outfits, trips, calendar, profile, theme, draft } =
+          const { items, outfits, calendar, profile, theme, draft } =
             useWardrobe.getState();
           const result = await pushSnapshot(uid, {
             items,
             outfits,
-            trips,
             calendar,
             profile,
             theme,
@@ -119,12 +117,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const healed = await healBase64Snapshot(uid);
         if (healed === 0) return;
-        const { items, outfits, trips, calendar, profile, theme, draft } =
+        const { items, outfits, calendar, profile, theme, draft } =
           useWardrobe.getState();
         const result = await pushSnapshot(uid, {
           items,
           outfits,
-          trips,
           calendar,
           profile,
           theme,
@@ -254,7 +251,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         hydrateFromRemote({
           items: mergedItems,
           outfits: local.outfits,
-          trips: local.trips,
           calendar: local.calendar,
           profile: local.profile,
           theme: local.theme,
@@ -283,7 +279,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (
         state.items === prev.items &&
         state.outfits === prev.outfits &&
-        state.trips === prev.trips &&
         state.calendar === prev.calendar &&
         state.profile === prev.profile &&
         state.theme === prev.theme &&
@@ -306,12 +301,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         userId.current = uid;
         scrubBloatedInlineImages();
-        const { items, outfits, trips, calendar, profile, theme, draft } =
+        const { items, outfits, calendar, profile, theme, draft } =
           useWardrobe.getState();
         const result = await pushSnapshot(uid, {
           items,
           outfits,
-          trips,
           calendar,
           profile,
           theme,

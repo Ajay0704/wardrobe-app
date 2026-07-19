@@ -11,7 +11,7 @@
  * invites arrive in Phase 2, reusing the same tables.
  */
 import { getSupabase } from "./supabase/client";
-import type { Trip as LocalTrip, WardrobeItem } from "./types";
+import type { WardrobeItem } from "./types";
 
 export interface Trip {
   id: string;
@@ -396,29 +396,3 @@ export async function leaveTrip(tripId: string): Promise<void> {
   if (error) throw new Error(error.message);
 }
 
-/**
- * One-time migration of the old local (store) trips onto the server. Creates a
- * server trip per local trip and packs each still-owned item. Caller guards this
- * so it runs once (server empty + local non-empty + not-yet-migrated flag).
- * Returns how many trips were migrated.
- */
-export async function migrateLocalTrips(
-  local: LocalTrip[],
-  itemsById: Map<string, WardrobeItem>,
-): Promise<number> {
-  let migrated = 0;
-  for (const lt of local) {
-    const created = await createTrip({
-      name: lt.name,
-      destination: lt.destination,
-      startDate: lt.startDate,
-      endDate: lt.endDate,
-    });
-    for (const refId of lt.itemIds) {
-      const item = itemsById.get(refId);
-      if (item) await packItem(created.id, item);
-    }
-    migrated++;
-  }
-  return migrated;
-}

@@ -139,18 +139,6 @@ export interface Outfit {
   createdAt: number;
 }
 
-/** A trip: a named set of packed items you can build capsule outfits from. */
-export interface Trip {
-  id: string;
-  name: string;
-  destination?: string;
-  startDate?: string;
-  endDate?: string;
-  /** Item ids packed for this trip. */
-  itemIds: string[];
-  createdAt: number;
-}
-
 /**
  * Calendar / wear log entry. `kind: "worn"` is history; `kind: "planned"` is
  * an outfit scheduled for a future (or today) date.

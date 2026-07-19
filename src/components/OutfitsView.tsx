@@ -12,12 +12,13 @@ import {
   Trash2,
   type LucideIcon,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { outfitPayload } from "@/lib/chat";
 import { computeInsights } from "@/lib/insights";
 import { outfitScore } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
-import type { Outfit, Trip, WardrobeItem } from "@/lib/types";
+import * as Trips from "@/lib/trips";
+import type { Outfit, WardrobeItem } from "@/lib/types";
 import { formatDisplayDate } from "@/lib/types";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 
@@ -31,7 +32,6 @@ export function OutfitsView() {
   const {
     outfits,
     items,
-    trips,
     calendar,
     loadOutfitBoardIntoCanvas,
     deleteOutfit,
@@ -41,6 +41,13 @@ export function OutfitsView() {
   } = useWardrobe();
   const [toast, setToast] = useState<string | null>(null);
   const [shareOutfit, setShareOutfit] = useState<Outfit | null>(null);
+  // Trips are server-backed now; load them for the "next trip" planning row.
+  const [serverTrips, setServerTrips] = useState<Trips.Trip[]>([]);
+  useEffect(() => {
+    Trips.listTrips()
+      .then(setServerTrips)
+      .catch(() => {});
+  }, []);
 
   const resolve = (ids: string[]) =>
     ids
@@ -101,12 +108,12 @@ export function OutfitsView() {
   const open = 7 - styled;
   const upcomingTrip = useMemo(
     () =>
-      trips
+      serverTrips
         .filter((t) => (t.endDate ?? t.startDate ?? "") >= tISO)
         .sort((a, b) =>
           (a.startDate ?? a.endDate ?? "").localeCompare(b.startDate ?? b.endDate ?? ""),
         )[0] ?? null,
-    [trips, tISO],
+    [serverTrips, tISO],
   );
   const tripRange = (() => {
     if (!upcomingTrip) return "";
@@ -285,7 +292,7 @@ function ThisWeekSection({
 }: {
   styled: number;
   open: number;
-  trip: Trip | null;
+  trip: Trips.Trip | null;
   tripRange: string;
   wornPct: number;
   onCalendar: () => void;

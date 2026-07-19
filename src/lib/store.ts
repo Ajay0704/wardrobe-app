@@ -15,7 +15,6 @@ import type {
   Outfit,
   Season,
   SlotKey,
-  Trip,
   WardrobeItem,
   CanvasItem,
 } from "./types";
@@ -80,7 +79,6 @@ const emptyDraft = (): Record<SlotKey, string[]> => ({
 interface WardrobeState {
   items: WardrobeItem[];
   outfits: Outfit[];
-  trips: Trip[];
   calendar: CalendarEntry[];
   profile: UserProfile;
   authUser: AuthUser | null;
@@ -141,9 +139,6 @@ interface WardrobeState {
   /** Restore a saved outfit's board layout into the freeform canvas + open the builder. */
   loadOutfitBoardIntoCanvas: (id: string) => void;
 
-  addTrip: (trip: Omit<Trip, "id" | "createdAt">) => string;
-  updateTrip: (id: string, patch: Partial<Trip>) => void;
-  deleteTrip: (id: string) => void;
 
   /** Log that an outfit (or loose items) was worn on a date. */
   logWear: (opts: {
@@ -208,7 +203,6 @@ interface WardrobeState {
   hydrateFromRemote: (data: {
     items: WardrobeItem[];
     outfits: Outfit[];
-    trips?: Trip[];
     calendar?: CalendarEntry[];
     profile?: UserProfile;
     theme: ThemeMode;
@@ -301,21 +295,6 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
   };
 }
 
-function normalizeTrip(raw: Partial<Trip> | null | undefined): Trip {
-  const t = (raw ?? {}) as Partial<Trip>;
-  return {
-    id: typeof t.id === "string" ? t.id : uid(),
-    name: typeof t.name === "string" ? t.name : "",
-    destination: typeof t.destination === "string" ? t.destination : undefined,
-    startDate: typeof t.startDate === "string" ? t.startDate : undefined,
-    endDate: typeof t.endDate === "string" ? t.endDate : undefined,
-    itemIds: Array.isArray(t.itemIds)
-      ? t.itemIds.filter((x): x is string => typeof x === "string")
-      : [],
-    createdAt: typeof t.createdAt === "number" ? t.createdAt : Date.now(),
-  };
-}
-
 function normalizeCalendarEntry(
   raw: Partial<CalendarEntry> | null | undefined,
 ): CalendarEntry {
@@ -352,7 +331,6 @@ export const useWardrobe = create<WardrobeState>()(
     (set, get) => ({
       items: demoItems,
       outfits: [],
-      trips: [],
       calendar: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
@@ -397,10 +375,6 @@ export const useWardrobe = create<WardrobeState>()(
             ...o,
             itemIds: o.itemIds.filter((iid) => iid !== id),
           })),
-          trips: s.trips.map((t) => ({
-            ...t,
-            itemIds: t.itemIds.filter((iid) => iid !== id),
-          })),
           calendar: s.calendar.map((e) => ({
             ...e,
             itemIds: e.itemIds.filter((iid) => iid !== id),
@@ -438,22 +412,6 @@ export const useWardrobe = create<WardrobeState>()(
             e.outfitId === id ? { ...e, outfitId: undefined } : e,
           ),
         })),
-
-      addTrip: (trip) => {
-        const id = uid();
-        set((s) => ({
-          trips: [{ ...trip, id, createdAt: Date.now() }, ...s.trips],
-        }));
-        return id;
-      },
-
-      updateTrip: (id, patch) =>
-        set((s) => ({
-          trips: s.trips.map((t) => (t.id === id ? { ...t, ...patch } : t)),
-        })),
-
-      deleteTrip: (id) =>
-        set((s) => ({ trips: s.trips.filter((t) => t.id !== id) })),
 
       logWear: ({ outfitId, itemIds, date, note }) => {
         const day = date ?? todayISO();
@@ -562,7 +520,6 @@ export const useWardrobe = create<WardrobeState>()(
         set({
           items: [],
           outfits: [],
-          trips: [],
           calendar: [],
           profile: { ...DEFAULT_PROFILE },
           draft: emptyDraft(),
@@ -712,9 +669,6 @@ export const useWardrobe = create<WardrobeState>()(
             outfits: Array.isArray(data.outfits)
               ? data.outfits.map(normalizeOutfit)
               : [],
-            trips: Array.isArray(data.trips)
-              ? data.trips.map(normalizeTrip)
-              : get().trips,
             calendar: Array.isArray(data.calendar)
               ? data.calendar.map(normalizeCalendarEntry)
               : get().calendar,
@@ -746,9 +700,6 @@ export const useWardrobe = create<WardrobeState>()(
           outfits: Array.isArray(p.outfits)
             ? p.outfits.map(normalizeOutfit)
             : current.outfits,
-          trips: Array.isArray(p.trips)
-            ? p.trips.map(normalizeTrip)
-            : current.trips,
           calendar: Array.isArray(p.calendar)
             ? p.calendar.map(normalizeCalendarEntry)
             : current.calendar,
@@ -764,7 +715,6 @@ export const useWardrobe = create<WardrobeState>()(
         scrubSnapshotImages({
           items: s.items,
           outfits: s.outfits,
-          trips: s.trips,
           calendar: s.calendar,
           profile: s.profile,
           theme: s.theme,

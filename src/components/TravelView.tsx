@@ -64,7 +64,7 @@ function Avatar({
 }
 
 export function TravelView() {
-  const { items, trips: localTrips, profile } = useWardrobe();
+  const { items, profile } = useWardrobe();
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
   const ownedById = useMemo(() => new Map(owned.map((it) => [it.id, it])), [owned]);
   const myIdentity = useMemo<Trips.Identity>(
@@ -172,22 +172,14 @@ export function TravelView() {
     setInvites(inv);
   }, []);
 
-  // Initial load + one-time local→server migration (guarded: runs once when the
-  // server has no trips, local trips exist, and this user hasn't migrated yet).
+  // Initial load.
   useEffect(() => {
     let alive = true;
     (async () => {
       setLoading(true);
       try {
         const me = await Trips.currentUserId();
-        let list = await Trips.listTrips();
-        const flagKey = me ? `trips-migrated:${me}` : null;
-        const already = flagKey ? localStorage.getItem(flagKey) : "skip";
-        if (me && list.length === 0 && localTrips.length > 0 && !already) {
-          await Trips.migrateLocalTrips(localTrips, ownedById);
-          if (flagKey) localStorage.setItem(flagKey, String(Date.now()));
-          list = await Trips.listTrips();
-        }
+        const list = await Trips.listTrips();
         const [cs, inv] = await Promise.all([
           Trips.myPackedCounts(),
           Trips.listPendingInvites(),
@@ -205,7 +197,6 @@ export function TravelView() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Load items + roster for the selected trip.

@@ -10,7 +10,6 @@ import type {
   CalendarEntry,
   Outfit,
   SlotKey,
-  Trip,
   WardrobeItem,
 } from "../types";
 import { getSupabase, isSupabaseConfigured } from "./client";
@@ -25,7 +24,6 @@ export type SyncStatus =
 export interface WardrobeSnapshot {
   items: WardrobeItem[];
   outfits: Outfit[];
-  trips: Trip[];
   calendar: CalendarEntry[];
   profile: UserProfile;
   theme: ThemeMode;
@@ -106,8 +104,7 @@ export async function pullSnapshot(
   if (!supabase) return null;
 
   const columns = [
-    "items, outfits, trips, calendar, profile, theme, draft, updated_at",
-    "items, outfits, trips, profile, theme, draft, updated_at",
+    "items, outfits, calendar, profile, theme, draft, updated_at",
     "items, outfits, profile, theme, draft, updated_at",
   ];
 
@@ -126,7 +123,7 @@ export async function pullSnapshot(
     }
     lastError = formatSupabaseError(res.error);
     // Only retry on missing-column style errors.
-    if (!/column|calendar|trips/i.test(res.error.message)) {
+    if (!/column|calendar/i.test(res.error.message)) {
       console.warn("[sync] pull failed:", lastError);
       return null;
     }
@@ -141,7 +138,6 @@ export async function pullSnapshot(
   const raw = {
     items: (data.items as WardrobeItem[]) ?? [],
     outfits: (data.outfits as Outfit[]) ?? [],
-    trips: asArray<Trip>(data.trips),
     calendar: asArray<CalendarEntry>(data.calendar),
     profile: (data.profile as UserProfile) ?? DEFAULT_PROFILE,
     theme: (data.theme as ThemeMode) ?? "light",
@@ -261,7 +257,6 @@ export async function pushSnapshot(
     user_id: userId,
     items: clean.items,
     outfits: clean.outfits,
-    trips: clean.trips,
     calendar: clean.calendar,
     profile: clean.profile,
     theme: clean.theme,
@@ -276,17 +271,12 @@ export async function pushSnapshot(
     return { ok: false, error: msg };
   }
 
-  // Try full row, then drop calendar, then drop trips — so older schemas still sync.
+  // Try full row, then drop calendar — so older schemas still sync.
   const attempts: Record<string, unknown>[] = [
     fullRow,
     (() => {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { calendar: _c, ...rest } = fullRow;
-      return rest;
-    })(),
-    (() => {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { calendar: _c, trips: _t, ...rest } = fullRow;
       return rest;
     })(),
   ];
@@ -299,15 +289,11 @@ export async function pushSnapshot(
         console.warn(
           "[sync] calendar column missing — run schema migration to sync Calendar.",
         );
-      } else if (i === 2) {
-        console.warn(
-          "[sync] trips/calendar columns missing — run schema migration.",
-        );
       }
       return { ok: true };
     }
     lastMsg = formatSupabaseError(error);
-    if (!/column|calendar|trips/i.test(error.message)) break;
+    if (!/column|calendar/i.test(error.message)) break;
   }
 
   console.warn("[sync] push failed:", lastMsg);
