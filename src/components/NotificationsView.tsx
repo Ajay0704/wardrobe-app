@@ -104,7 +104,7 @@ export function NotificationsView() {
           <button
             key={n.id}
             type="button"
-            onClick={() => setView("explore")}
+            onClick={() => setView(n.kind === "trip_invite" ? "travel" : "explore")}
             className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-surface-2 ${
               n.read ? "" : "bg-accent-soft/50"
             }`}

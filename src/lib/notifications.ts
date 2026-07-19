@@ -17,6 +17,7 @@ export interface AppNotification {
   actorHandle: string;
   actorAvatar?: string;
   postId: string | null;
+  tripId: string | null;
   preview?: string;
   read: boolean;
   createdAt: string;
@@ -30,6 +31,7 @@ interface NotificationRow {
   actor_handle: string | null;
   actor_avatar: string | null;
   post_id: string | null;
+  trip_id: string | null;
   preview: string | null;
   read: boolean;
   created_at: string;
@@ -44,6 +46,7 @@ function toNotification(r: NotificationRow): AppNotification {
     actorHandle: r.actor_handle ?? "user",
     actorAvatar: r.actor_avatar ?? undefined,
     postId: r.post_id,
+    tripId: r.trip_id ?? null,
     preview: r.preview ?? undefined,
     read: r.read,
     createdAt: r.created_at,
