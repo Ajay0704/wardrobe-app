@@ -235,6 +235,38 @@ export async function unpackItem(tripId: string, itemRef: string): Promise<void>
   if (error) throw new Error(error.message);
 }
 
+/**
+ * Live sync (Phase 3): fire `onChange` whenever this trip's items or roster change
+ * on the server, so co-packers see each other's updates without reselecting. RLS
+ * applies to realtime too, so a subscriber only hears about rows they can read.
+ * Returns an unsubscribe function.
+ */
+export function subscribeTrip(tripId: string, onChange: () => void): () => void {
+  const sb = getSupabase();
+  if (!sb) return () => {};
+  // Best-effort: hand realtime the session token so RLS-filtered changes flow.
+  sb.auth.getSession().then(({ data }) => {
+    const token = data.session?.access_token;
+    if (token) sb.realtime.setAuth(token);
+  });
+  const channel = sb
+    .channel(`trip:${tripId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "trip_items", filter: `trip_id=eq.${tripId}` },
+      onChange,
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "trip_members", filter: `trip_id=eq.${tripId}` },
+      onChange,
+    )
+    .subscribe();
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
+
 /* --------------------------------------------------------- members & invites */
 
 export interface TripMember {

@@ -28,6 +28,10 @@ function dateRange(t: Trips.Trip): string {
   return s || e || "";
 }
 
+// Duplicate detection is cross-closet: two people's "black jeans" have different
+// item ids, so a duplicate is a shared normalized item NAME, not a shared ref.
+const norm = (s: string | null) => (s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
 function Avatar({
   name,
   avatar,
@@ -115,6 +119,48 @@ export function TravelView() {
     }));
   }, [joinedMembers, tripItems, meId]);
 
+  // "You both packed this" — items you packed that another member also packed
+  // (matched by normalized name across closets). Only surfaced in the Everyone view.
+  const dupInfo = useMemo(() => {
+    if (!meId) return [] as { name: string; others: string[]; myRefs: string[] }[];
+    const byName = new Map<string, { name: string; packers: Set<string>; myRefs: string[] }>();
+    for (const ti of tripItems) {
+      const key = norm(ti.itemName);
+      if (!key) continue;
+      let e = byName.get(key);
+      if (!e) {
+        e = { name: ti.itemName ?? key, packers: new Set(), myRefs: [] };
+        byName.set(key, e);
+      }
+      e.packers.add(ti.packerId);
+      if (ti.packerId === meId) e.myRefs.push(ti.itemRef);
+    }
+    const out: { name: string; others: string[]; myRefs: string[] }[] = [];
+    for (const e of byName.values()) {
+      if (e.packers.size >= 2 && e.packers.has(meId)) {
+        out.push({ name: e.name, others: [...e.packers].filter((p) => p !== meId), myRefs: e.myRefs });
+      }
+    }
+    return out;
+  }, [tripItems, meId]);
+  const dupKeys = useMemo(() => new Set(dupInfo.map((d) => norm(d.name))), [dupInfo]);
+  const memberName = useCallback(
+    (id: string) =>
+      id === meId ? "you" : members.find((m) => m.userId === id)?.name ?? "a friend",
+    [members, meId],
+  );
+
+  const dropDuplicate = async (refs: string[]) => {
+    if (!trip) return;
+    setTripItems((tis) => tis.filter((ti) => !(ti.packerId === meId && refs.includes(ti.itemRef))));
+    setCounts((c) => ({ ...c, [trip.id]: Math.max(0, (c[trip.id] ?? refs.length) - refs.length) }));
+    try {
+      for (const r of refs) await Trips.unpackItem(trip.id, r);
+    } catch {
+      setTripItems(await Trips.listTripItems(trip.id));
+    }
+  };
+
   const reload = useCallback(async () => {
     const [list, cs, inv] = await Promise.all([
       Trips.listTrips(),
@@ -184,6 +230,25 @@ export function TravelView() {
       alive = false;
     };
   }, [selectedId]);
+
+  // Live sync: refetch this trip's items + roster whenever the server changes,
+  // so co-packers see each other's updates without reselecting the trip.
+  const refetchSelected = useCallback(async () => {
+    if (!selectedId) return;
+    const [its, mem] = await Promise.all([
+      Trips.listTripItems(selectedId),
+      Trips.listMembers(selectedId),
+    ]);
+    setTripItems(its);
+    setMembers(mem);
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    return Trips.subscribeTrip(selectedId, () => {
+      void refetchSelected();
+    });
+  }, [selectedId, refetchSelected]);
 
   const selectTrip = (id: string) => {
     setSelectedId(id);
@@ -688,6 +753,29 @@ export function TravelView() {
               )
             ) : (
               <div className="space-y-5">
+                {dupInfo.length > 0 && (
+                  <div className="space-y-2">
+                    {dupInfo.map((d, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between gap-3 rounded-2xl border border-amber-400/50 bg-amber-500/5 px-4 py-3"
+                      >
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-amber-700 dark:text-amber-400">
+                            Double packed
+                          </span>
+                          <span className="block truncate text-xs text-muted">
+                            You and {d.others.map(memberName).join(" and ")} both packed the{" "}
+                            {d.name}. One of you can drop it.
+                          </span>
+                        </span>
+                        <Button variant="outline" onClick={() => dropDuplicate(d.myRefs)}>
+                          Drop mine
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 {groups.map(({ member, items: gi }) => (
                   <div key={member.userId}>
                     <div className="mb-2.5 flex items-center gap-2.5">
@@ -705,22 +793,32 @@ export function TravelView() {
                       <p className="pl-10 text-xs text-muted">Nothing packed yet.</p>
                     ) : (
                       <div className="flex flex-wrap gap-2.5 pl-10">
-                        {gi.map((ti) => (
-                          <span
-                            key={ti.id}
-                            className="h-16 w-14 overflow-hidden rounded-lg border border-line bg-surface-2"
-                            title={ti.itemName ?? ""}
-                          >
-                            {ti.itemImageUrl && (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={ti.itemImageUrl}
-                                alt={ti.itemName ?? ""}
-                                className="h-full w-full object-cover"
-                              />
-                            )}
-                          </span>
-                        ))}
+                        {gi.map((ti) => {
+                          const isDup = dupKeys.has(norm(ti.itemName));
+                          return (
+                            <span
+                              key={ti.id}
+                              className={`relative h-16 w-14 overflow-hidden rounded-lg border bg-surface-2 ${
+                                isDup ? "border-amber-400 ring-2 ring-amber-400/40" : "border-line"
+                              }`}
+                              title={
+                                isDup ? `${ti.itemName ?? ""} — also packed by someone else` : ti.itemName ?? ""
+                              }
+                            >
+                              {ti.itemImageUrl && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  src={ti.itemImageUrl}
+                                  alt={ti.itemName ?? ""}
+                                  className="h-full w-full object-cover"
+                                />
+                              )}
+                              {isDup && (
+                                <span className="absolute right-0.5 top-0.5 h-2 w-2 rounded-full bg-amber-500" />
+                              )}
+                            </span>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
