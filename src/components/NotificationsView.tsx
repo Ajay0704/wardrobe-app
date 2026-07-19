@@ -4,6 +4,7 @@ import {
   BarChart3,
   Bell,
   Heart,
+  Luggage,
   MessageCircle,
   UserPlus,
   type LucideIcon,
@@ -22,6 +23,7 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   comment: MessageCircle,
   follow: UserPlus,
   vote: BarChart3,
+  trip_invite: Luggage,
 };
 
 function actionText(n: AppNotification): string {
@@ -31,6 +33,8 @@ function actionText(n: AppNotification): string {
   if (n.kind === "follow") return "started following you";
   if (n.kind === "vote")
     return n.preview ? `voted “${n.preview}” on your poll` : "voted on your poll";
+  if (n.kind === "trip_invite")
+    return n.preview ? `invited you to “${n.preview}”` : "invited you to a trip";
   return "sent you a notification";
 }
 

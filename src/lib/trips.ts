@@ -88,16 +88,29 @@ function toTripItem(r: TripItemRow): TripItem {
   };
 }
 
-/** Trips visible to the caller (owned or joined) — RLS decides which. Newest first. */
+/**
+ * Trips the caller owns or has joined. Queried through trip_members (not trips
+ * directly) so pending invites — which the participant RLS policy also makes
+ * visible — don't leak in here; those surface via listPendingInvites(). Owners
+ * have a joined membership row (auto-join trigger), so this covers them too.
+ */
 export async function listTrips(): Promise<Trip[]> {
   const sb = getSupabase();
   if (!sb) return [];
+  const me = await currentUserId();
+  if (!me) return [];
   const { data, error } = await sb
-    .from("trips")
-    .select("*")
-    .order("created_at", { ascending: false });
+    .from("trip_members")
+    .select("trips(*)")
+    .eq("user_id", me)
+    .eq("status", "joined");
   if (error) throw new Error(error.message);
-  return (data as TripRow[]).map(toTrip);
+  const rows = (data ?? []) as unknown as { trips: TripRow | TripRow[] | null }[];
+  return rows
+    .map((r) => (Array.isArray(r.trips) ? r.trips[0] : r.trips))
+    .filter((t): t is TripRow => Boolean(t))
+    .map(toTrip)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
 export interface NewTrip {
@@ -107,7 +120,14 @@ export interface NewTrip {
   endDate?: string;
 }
 
-export async function createTrip(input: NewTrip = {}): Promise<Trip> {
+/** A display identity for denormalizing onto membership rows (no profiles table). */
+export interface Identity {
+  name: string;
+  handle: string;
+  avatar?: string;
+}
+
+export async function createTrip(input: NewTrip = {}, me?: Identity): Promise<Trip> {
   const sb = getSupabase();
   if (!sb) throw new Error("Offline");
   const owner = await currentUserId();
@@ -124,7 +144,17 @@ export async function createTrip(input: NewTrip = {}): Promise<Trip> {
     .select("*")
     .single();
   if (error) throw new Error(error.message);
-  return toTrip(data as TripRow);
+  const trip = toTrip(data as TripRow);
+  // Stamp the owner's identity onto their auto-created membership row so
+  // collaborators see a name (the DB auto-join trigger can't know it).
+  if (me) {
+    await sb
+      .from("trip_members")
+      .update({ member_name: me.name, member_handle: me.handle, member_avatar: me.avatar ?? null })
+      .eq("trip_id", trip.id)
+      .eq("user_id", owner);
+  }
+  return trip;
 }
 
 export async function updateTrip(id: string, patch: Partial<NewTrip>): Promise<void> {
@@ -202,6 +232,135 @@ export async function unpackItem(tripId: string, itemRef: string): Promise<void>
     .eq("trip_id", tripId)
     .eq("packer_id", packer)
     .eq("item_ref", itemRef);
+  if (error) throw new Error(error.message);
+}
+
+/* --------------------------------------------------------- members & invites */
+
+export interface TripMember {
+  userId: string;
+  role: string; // 'owner' | 'member'
+  status: string; // 'invited' | 'joined'
+  name: string | null;
+  handle: string | null;
+  avatar: string | null;
+}
+
+export interface PendingInvite {
+  trip: Trip;
+  invitedBy: string | null;
+  inviterName: string | null;
+}
+
+/** Everyone on a trip (joined + invited), for the collaborators row. */
+export async function listMembers(tripId: string): Promise<TripMember[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const { data, error } = await sb
+    .from("trip_members")
+    .select("user_id, role, status, member_name, member_handle, member_avatar")
+    .eq("trip_id", tripId);
+  if (error) throw new Error(error.message);
+  return (
+    data as {
+      user_id: string;
+      role: string;
+      status: string;
+      member_name: string | null;
+      member_handle: string | null;
+      member_avatar: string | null;
+    }[]
+  ).map((r) => ({
+    userId: r.user_id,
+    role: r.role,
+    status: r.status,
+    name: r.member_name,
+    handle: r.member_handle,
+    avatar: r.member_avatar,
+  }));
+}
+
+/** Trips the caller has been invited to but not yet joined. */
+export async function listPendingInvites(): Promise<PendingInvite[]> {
+  const sb = getSupabase();
+  if (!sb) return [];
+  const me = await currentUserId();
+  if (!me) return [];
+  const { data, error } = await sb
+    .from("trip_members")
+    .select("invited_by, inviter_name, trips(*)")
+    .eq("user_id", me)
+    .eq("status", "invited");
+  if (error) throw new Error(error.message);
+  const rows = (data ?? []) as unknown as {
+    invited_by: string | null;
+    inviter_name: string | null;
+    trips: TripRow | TripRow[] | null;
+  }[];
+  return rows
+    .map((r) => ({
+      trip: Array.isArray(r.trips) ? r.trips[0] : r.trips,
+      invitedBy: r.invited_by,
+      inviterName: r.inviter_name,
+    }))
+    .filter((r): r is { trip: TripRow; invitedBy: string | null; inviterName: string | null } =>
+      Boolean(r.trip),
+    )
+    .map((r) => ({ trip: toTrip(r.trip), invitedBy: r.invitedBy, inviterName: r.inviterName }));
+}
+
+/** Owner invites someone they follow. Idempotent (unique membership PK). */
+export async function inviteMember(
+  tripId: string,
+  invitee: { id: string; name: string; handle: string; avatar?: string },
+  inviter: Identity,
+): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const me = await currentUserId();
+  if (!me) throw new Error("Sign in");
+  const { error } = await sb.from("trip_members").insert({
+    trip_id: tripId,
+    user_id: invitee.id,
+    role: "member",
+    status: "invited",
+    invited_by: me,
+    member_name: invitee.name,
+    member_handle: invitee.handle,
+    member_avatar: invitee.avatar ?? null,
+    inviter_name: inviter.name,
+    inviter_handle: inviter.handle,
+    inviter_avatar: inviter.avatar ?? null,
+  });
+  if (error && !/duplicate|unique/i.test(error.message)) throw new Error(error.message);
+}
+
+/** Accept (status → joined) or decline (delete the row) an invite. */
+export async function respondInvite(tripId: string, accept: boolean): Promise<void> {
+  if (!accept) return leaveTrip(tripId);
+  const sb = getSupabase();
+  if (!sb) return;
+  const me = await currentUserId();
+  if (!me) return;
+  const { error } = await sb
+    .from("trip_members")
+    .update({ status: "joined" })
+    .eq("trip_id", tripId)
+    .eq("user_id", me);
+  if (error) throw new Error(error.message);
+}
+
+/** Leave a trip (or decline an invite) — removes only your own membership row. */
+export async function leaveTrip(tripId: string): Promise<void> {
+  const sb = getSupabase();
+  if (!sb) return;
+  const me = await currentUserId();
+  if (!me) return;
+  const { error } = await sb
+    .from("trip_members")
+    .delete()
+    .eq("trip_id", tripId)
+    .eq("user_id", me);
   if (error) throw new Error(error.message);
 }
 
