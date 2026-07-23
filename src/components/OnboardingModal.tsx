@@ -15,10 +15,12 @@ import {
   type StyleOccasion,
 } from "@/lib/style-quiz";
 import { useWardrobe } from "@/lib/store";
+import { profileHandle } from "@/lib/profile";
+import { HandleField } from "./HandleField";
 
-type Step = "gender" | "goal" | "occasions" | "lean" | "snapshot";
+type Step = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
 
-const STEPS: Step[] = ["gender", "goal", "occasions", "lean", "snapshot"];
+const STEPS: Step[] = ["handle", "gender", "goal", "occasions", "lean", "snapshot"];
 
 const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] = [
   { id: "female", label: "Women's", hint: "Show women's styles" },
@@ -31,8 +33,16 @@ const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] 
  * Activation lives on empty Today — not as another wizard step.
  */
 export function OnboardingModal() {
-  const { profile, updateProfile, setView } = useWardrobe();
-  const [step, setStep] = useState<Step>("gender");
+  const { profile, updateProfile, setView, authUser } = useWardrobe();
+  const [step, setStep] = useState<Step>("handle");
+  const [handle, setHandle] = useState(() =>
+    profileHandle({
+      username: profile.username,
+      email: profile.email,
+      displayName: profile.displayName,
+    }),
+  );
+  const [handleValid, setHandleValid] = useState(false);
   const [shopGender, setShopGender] = useState<"male" | "female" | "all" | undefined>(
     profile.shopGender,
   );
@@ -66,6 +76,7 @@ export function OnboardingModal() {
   };
 
   const canContinue =
+    (step === "handle" && handleValid) ||
     (step === "gender" && Boolean(shopGender)) ||
     (step === "goal" && Boolean(goal)) ||
     (step === "occasions" && occasions.length > 0) ||
@@ -73,6 +84,7 @@ export function OnboardingModal() {
     step === "snapshot";
 
   const goNext = () => {
+    if (step === "handle") updateProfile({ username: handle });
     if (step === "snapshot") {
       finish();
       return;
@@ -121,6 +133,24 @@ export function OnboardingModal() {
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-6">
+          {step === "handle" && (
+            <div className="space-y-4">
+              <h2 id="onboarding-title" className="heading text-2xl">
+                Claim your @handle
+              </h2>
+              <p className="text-sm text-muted">
+                This is how friends find and add you — pick something they&apos;ll
+                recognize. You can change it later in Settings.
+              </p>
+              <HandleField
+                value={handle}
+                onChange={setHandle}
+                onValidChange={setHandleValid}
+                myId={authUser?.id ?? null}
+              />
+            </div>
+          )}
+
           {step === "gender" && (
             <div className="space-y-4">
               <h2 id="onboarding-title" className="heading text-2xl">

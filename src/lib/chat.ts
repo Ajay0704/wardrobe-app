@@ -158,6 +158,28 @@ export async function searchUsers(q: string): Promise<SearchUser[]> {
   }));
 }
 
+/**
+ * True when no OTHER profile already uses this exact handle. Handles are always
+ * stored lowercased (sanitizeHandle), so an exact `eq` match is correct and
+ * avoids ilike wildcard pitfalls with the '_' that handles may contain. Never
+ * blocks on a transient error — the profiles unique constraint is the backstop.
+ */
+export async function isHandleAvailable(
+  handle: string,
+  myId: string | null,
+): Promise<boolean> {
+  const sb = getSupabase();
+  if (!sb) return true;
+  const { data, error } = await sb
+    .from("profiles")
+    .select("id")
+    .eq("username", handle)
+    .limit(1);
+  if (error) return true;
+  const rows = (data ?? []) as { id: string }[];
+  return rows.length === 0 || rows[0].id === myId;
+}
+
 /* ------------------------------------------------------------ conversations */
 
 interface ConversationRow {

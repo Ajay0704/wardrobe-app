@@ -181,6 +181,32 @@ export function profileHandle(
   return sanitizeHandle(base) || "you";
 }
 
+/** Handles nobody can claim (app routes, roles, ambiguous words). */
+export const RESERVED_HANDLES = new Set<string>([
+  "admin", "administrator", "root", "support", "help", "staff", "team", "mod",
+  "moderator", "official", "wardrobe", "about", "settings", "login", "logout",
+  "signup", "signin", "api", "me", "you", "user", "users", "null", "undefined",
+  "home", "explore", "shop", "search", "new", "edit", "profile",
+]);
+
+export type HandleValidity =
+  | { ok: true; handle: string }
+  | { ok: false; reason: string };
+
+/**
+ * Validate a user-chosen @handle (format + reserved words only). Availability
+ * against the directory is a separate async check — see isHandleAvailable.
+ */
+export function validateHandle(raw: string): HandleValidity {
+  const handle = sanitizeHandle(raw);
+  if (handle.length < 3) return { ok: false, reason: "At least 3 characters" };
+  if (handle.length > 20) return { ok: false, reason: "20 characters max" };
+  if (/^[._]|[._]$/.test(handle)) return { ok: false, reason: "Can't start or end with . or _" };
+  if (/[._]{2,}/.test(handle)) return { ok: false, reason: "No repeated . or _" };
+  if (RESERVED_HANDLES.has(handle)) return { ok: false, reason: "That handle is reserved" };
+  return { ok: true, handle };
+}
+
 /** Initials for avatar fallback when no photo is set. */
 export function profileInitials(profile: Pick<UserProfile, "displayName">): string {
   const name = profile.displayName.trim();
