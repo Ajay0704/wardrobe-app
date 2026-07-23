@@ -9,13 +9,15 @@ import {
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   fetchNotifications,
   markAllRead,
   type AppNotification,
   type NotificationKind,
 } from "@/lib/notifications";
+import { fetchFollowing, toggleFollow, type PostAuthor } from "@/lib/community";
+import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 
 const KIND_ICON: Record<NotificationKind, LucideIcon> = {
@@ -53,15 +55,32 @@ function timeAgo(iso: string): string {
 }
 
 /**
- * Notifications screen (AJA-96). Lists likes / comments / poll votes / follows
- * on the viewer's content, newest first, and marks everything read on open.
- * Rows link back to Explore, where the community feed lives. (Deep-linking to a
- * single post is a follow-up — there's no single-post screen yet.)
+ * Notifications screen (AJA-96). Lists likes / comments / poll votes / follows /
+ * trip invites on the viewer's content, newest first, and marks everything read
+ * on open. A follow notification opens the follower's profile and offers a
+ * one-tap Follow-back (AJA-196) — closing the reciprocal-follow loop. Other
+ * kinds link back to Explore (no single-post screen yet); trip invites → Travel.
  */
 export function NotificationsView() {
   const setView = useWardrobe((s) => s.setView);
+  const openUserProfile = useWardrobe((s) => s.openUserProfile);
+  const profile = useWardrobe((s) => s.profile);
+  const authUser = useWardrobe((s) => s.authUser);
+  const myId = authUser?.id ?? null;
+
+  // Identity stamped onto the follow-back so the notification trigger can name us.
+  const myAuthor = useMemo<PostAuthor>(
+    () => ({
+      name: profile.displayName?.trim() || "Someone",
+      handle: profileHandle(profile),
+      avatar: profile.avatarUrl,
+    }),
+    [profile],
+  );
+
   const [items, setItems] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [following, setFollowing] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +95,34 @@ export function NotificationsView() {
       alive = false;
     };
   }, []);
+
+  // Who I already follow — drives "Follow back" vs "Following" on follow rows.
+  useEffect(() => {
+    if (!myId) return;
+    let alive = true;
+    fetchFollowing(myId).then((ids) => {
+      if (alive) setFollowing(new Set(ids));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [myId]);
+
+  const followBack = (actorId: string, next: boolean) => {
+    setFollowing((prev) => {
+      const s = new Set(prev);
+      if (next) s.add(actorId);
+      else s.delete(actorId);
+      return s;
+    });
+    void toggleFollow(actorId, next, myAuthor).catch(() => {});
+  };
+
+  const openTarget = (n: AppNotification) => {
+    if (n.kind === "follow" && n.actorId) return openUserProfile(n.actorId);
+    if (n.kind === "trip_invite") return setView("travel");
+    return setView("explore");
+  };
 
   if (loading) {
     return <p className="py-10 text-center text-xs text-muted">Loading…</p>;
@@ -100,39 +147,54 @@ export function NotificationsView() {
       {items.map((n) => {
         const Icon = KIND_ICON[n.kind];
         const initials = (n.actorName || "?").trim().slice(0, 1).toUpperCase();
+        const canFollowBack = n.kind === "follow" && Boolean(n.actorId) && n.actorId !== myId;
+        const on = n.actorId ? following.has(n.actorId) : false;
         return (
-          <button
+          <div
             key={n.id}
-            type="button"
-            onClick={() => setView(n.kind === "trip_invite" ? "travel" : "explore")}
-            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-colors hover:bg-surface-2 ${
+            className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 transition-colors ${
               n.read ? "" : "bg-accent-soft/50"
             }`}
           >
-            <span className="relative shrink-0">
-              <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-line bg-surface-2 text-sm font-medium text-muted">
-                {n.actorAvatar ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={n.actorAvatar} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  initials
-                )}
+            <button
+              type="button"
+              onClick={() => openTarget(n)}
+              className="flex min-w-0 flex-1 items-center gap-3 text-left"
+            >
+              <span className="relative shrink-0">
+                <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-full border border-line bg-surface-2 text-sm font-medium text-muted">
+                  {n.actorAvatar ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={n.actorAvatar} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    initials
+                  )}
+                </span>
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground ring-2 ring-background">
+                  <Icon size={11} strokeWidth={2.2} />
+                </span>
               </span>
-              <span className="absolute -bottom-0.5 -right-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-accent text-accent-foreground ring-2 ring-background">
-                <Icon size={11} strokeWidth={2.2} />
+              <span className="min-w-0 flex-1 text-sm leading-snug">
+                <span className="font-medium">{n.actorName}</span>{" "}
+                <span className="text-muted">{actionText(n)}</span>
+                <span className="ml-1 text-xs text-muted">· {timeAgo(n.createdAt)}</span>
               </span>
-            </span>
-            <span className="min-w-0 flex-1 text-sm leading-snug">
-              <span className="font-medium">{n.actorName}</span>{" "}
-              <span className="text-muted">{actionText(n)}</span>
-            </span>
-            <span className="shrink-0 self-start pt-0.5 text-xs text-muted">
-              {timeAgo(n.createdAt)}
-            </span>
-            {!n.read && (
-              <span className="ml-1 h-2 w-2 shrink-0 self-center rounded-full bg-accent" />
+            </button>
+            {canFollowBack && (
+              <button
+                type="button"
+                onClick={() => followBack(n.actorId!, !on)}
+                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
+                  on ? "border border-line text-muted" : "bg-accent text-accent-foreground"
+                }`}
+              >
+                {on ? "Following" : "Follow back"}
+              </button>
             )}
-          </button>
+            {!n.read && !canFollowBack && (
+              <span className="ml-1 h-2 w-2 shrink-0 rounded-full bg-accent" />
+            )}
+          </div>
         );
       })}
     </div>
