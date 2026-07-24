@@ -9,6 +9,7 @@ import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ClipLinkLoader } from "./ClipLinkLoader";
+import { OAuthButtons } from "./OAuthButtons";
 import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
 import { PushBootstrap } from "./PushBootstrap";
@@ -178,6 +179,7 @@ function NativeAuthGate({
         Sign in to open your closet, outfits, and wishlist.
       </p>
       <div className="flex w-full max-w-xs flex-col gap-3">
+        <OAuthButtons />
         <button
           type="button"
           onClick={() => onMode("login")}

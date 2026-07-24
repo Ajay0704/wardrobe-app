@@ -11,6 +11,7 @@ import {
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import { useWardrobe } from "@/lib/store";
+import { OAuthButtons } from "./OAuthButtons";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
 import { Button, Field, Modal, inputClass } from "./ui";
@@ -189,6 +190,10 @@ export function AuthModal({
         >
           Sign up
         </button>
+      </div>
+
+      <div className="mb-6">
+        <OAuthButtons />
       </div>
 
       {mode === "login" ? (

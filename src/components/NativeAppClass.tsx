@@ -7,7 +7,9 @@ import {
   refreshNativeDetection,
   stripNativeQueryFlag,
 } from "@/lib/platform";
+import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
+import { getSupabase } from "@/lib/supabase/client";
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 type Listener = () => void;
@@ -99,6 +101,40 @@ export function NativeAppClass() {
       sub = handle;
     });
 
+    // OAuth callback deep link (AJA-194): Supabase redirects to
+    // app.wardrobe.personal://login-callback#access_token=…&refresh_token=…
+    // after Google/Apple sign-in. Read the tokens off the URL, set the session
+    // (AuthProvider's onAuthStateChange then hydrates + un-gates the app), and
+    // dismiss the system browser.
+    let authSub: { remove: () => void } | undefined;
+    void App.addListener("appUrlOpen", async ({ url }) => {
+      if (!url || !url.includes("login-callback")) return;
+      const supabase = getSupabase();
+      if (!supabase) return;
+      const hashIndex = url.indexOf("#");
+      const queryIndex = url.indexOf("?");
+      const raw =
+        hashIndex >= 0
+          ? url.slice(hashIndex + 1)
+          : queryIndex >= 0
+            ? url.slice(queryIndex + 1)
+            : "";
+      const params = new URLSearchParams(raw);
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+      try {
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        }
+      } catch {
+        /* leave the user on the gate to retry */
+      } finally {
+        void Browser.close().catch(() => {});
+      }
+    }).then((handle) => {
+      authSub = handle;
+    });
+
     const t1 = window.setTimeout(ensureNativeDetected, 50);
     const t2 = window.setTimeout(ensureNativeDetected, 500);
     const t3 = window.setTimeout(ensureNativeDetected, 2000);
@@ -133,6 +169,7 @@ export function NativeAppClass() {
       window.clearTimeout(t2);
       window.clearTimeout(t3);
       sub?.remove();
+      authSub?.remove();
     };
   }, []);
   return null;
