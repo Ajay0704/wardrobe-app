@@ -10,7 +10,7 @@ import {
 } from "@/lib/supabase/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { resolveImageSource } from "@/lib/supabase/storage";
-import { demoItems } from "@/lib/demo-data";
+import { sampleCloset } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 import { OAuthButtons } from "./OAuthButtons";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
@@ -105,19 +105,21 @@ export function AuthModal({
     }
     setLoading(true);
     try {
+      // Gender-matched starter closet (onboarding may not have run yet → women's default).
+      const sample = sampleCloset(profile.shopGender);
       const user = await signUp(
         email.trim(),
         password,
         profile,
-        { items: demoItems, outfits: [], calendar: [], theme, draft },
+        { items: sample.items, outfits: sample.outfits, calendar: [], theme, draft },
       );
       setAuthUser(user);
       // New accounts start with the labeled sample closet (same as OAuth) so
       // the app is explorable on first launch; the samples are badged and
       // one-tap clearable. Keep local + cloud in sync.
       hydrateFromRemote({
-        items: demoItems,
-        outfits: [],
+        items: sample.items,
+        outfits: sample.outfits,
         calendar: [],
         profile: { ...profile, email: user.email },
         theme,

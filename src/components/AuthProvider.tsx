@@ -14,7 +14,7 @@ import {
   healBase64Snapshot,
   scrubBloatedInlineImages,
 } from "@/lib/heal";
-import { demoItems } from "@/lib/demo-data";
+import { sampleCloset } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 
 /** Soft budget for the first cloud pull. Keep short — local data already works. */
@@ -83,9 +83,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // closet deterministically (NOT whatever is local — that could leak a
         // previous signed-out user's items into this account), then push it.
         const { profile, theme, draft } = useWardrobe.getState();
+        const sample = sampleCloset(profile.shopGender);
         const seeded = {
-          items: demoItems,
-          outfits: [],
+          items: sample.items,
+          outfits: sample.outfits,
           calendar: [],
           profile,
           theme,

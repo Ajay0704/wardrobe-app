@@ -33,7 +33,7 @@ const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] 
  * Activation lives on empty Today — not as another wizard step.
  */
 export function OnboardingModal() {
-  const { profile, updateProfile, setView, authUser } = useWardrobe();
+  const { profile, updateProfile, setView, authUser, seedSampleCloset } = useWardrobe();
   const [step, setStep] = useState<Step>("handle");
   const [handle, setHandle] = useState(() =>
     profileHandle({
@@ -157,7 +157,7 @@ export function OnboardingModal() {
                 What should we show you?
               </h2>
               <p className="text-sm text-muted">
-                Sets the Explore feed. You can change it anytime.
+                Sets your starter closet and Explore feed. You can change it anytime.
               </p>
               <div className="space-y-2">
                 {GENDERS.map((g) => (
@@ -169,6 +169,9 @@ export function OnboardingModal() {
                     onClick={() => {
                       setShopGender(g.id);
                       updateProfile({ shopGender: g.id });
+                      // Match the sample closet to the choice before the user sees it (guarded
+                      // to the untouched sample set, so it won't disturb a real closet).
+                      seedSampleCloset(g.id);
                     }}
                   />
                 ))}

@@ -19,7 +19,7 @@ import type {
   CanvasItem,
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
-import { demoItems, isSampleItem } from "./demo-data";
+import { isSampleItem, sampleCloset } from "./demo-data";
 import {
   DEFAULT_PROFILE,
   resolveStartView,
@@ -128,6 +128,9 @@ interface WardrobeState {
   deleteItem: (id: string) => void;
   /** Remove the seeded sample/starter pieces (the "clear samples" affordance). */
   clearSamples: () => void;
+  /** Swap the starter closet to the gender-matched capsule — only while it's still the
+   *  untouched sample set (so it never clobbers a real closet or re-seeds a cleared one). */
+  seedSampleCloset: (gender: UserProfile["shopGender"]) => void;
 
   saveOutfit: (
     name: string,
@@ -331,8 +334,10 @@ function normalizeDraft(d: unknown): Record<SlotKey, string[]> {
 export const useWardrobe = create<WardrobeState>()(
   persist(
     (set, get) => ({
-      items: demoItems,
-      outfits: [],
+      // Default (unset shopGender) → women's sample capsule + its pre-saved outfits.
+      // Signed-in seeding paths re-seed gender-matched via sampleCloset(profile.shopGender).
+      items: sampleCloset().items,
+      outfits: sampleCloset().outfits,
       calendar: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
@@ -394,10 +399,10 @@ export const useWardrobe = create<WardrobeState>()(
           const gone = (iid: string) => isSampleItem({ id: iid });
           return {
             items: s.items.filter((it) => !isSampleItem(it)),
-            outfits: s.outfits.map((o) => ({
-              ...o,
-              itemIds: o.itemIds.filter((iid) => !gone(iid)),
-            })),
+            // Drop the pre-saved sample outfits entirely; strip sample ids from any real ones.
+            outfits: s.outfits
+              .filter((o) => !o.id.startsWith("demo-"))
+              .map((o) => ({ ...o, itemIds: o.itemIds.filter((iid) => !gone(iid)) })),
             calendar: s.calendar.map((e) => ({
               ...e,
               itemIds: e.itemIds.filter((iid) => !gone(iid)),
@@ -409,6 +414,16 @@ export const useWardrobe = create<WardrobeState>()(
               ]),
             ) as Record<SlotKey, string[]>,
           };
+        }),
+
+      seedSampleCloset: (gender) =>
+        set((s) => {
+          // Guard: only while the closet is still the untouched sample set (all items are
+          // samples AND at least one exists) — never clobber a real closet or re-seed after
+          // the user cleared samples. Outfits are all `demo-` in that state, so replace both.
+          if (s.items.length === 0 || !s.items.every(isSampleItem)) return s;
+          const sample = sampleCloset(gender);
+          return { items: sample.items, outfits: sample.outfits };
         }),
 
       saveOutfit: (name, notes, itemIds, layout, canvasBg) => {
@@ -728,7 +743,7 @@ export const useWardrobe = create<WardrobeState>()(
             ? p.calendar.map(normalizeCalendarEntry)
             : current.calendar,
           draft: normalizeDraft(p.draft),
-          canvasDraft: Array.isArray((p as any).canvasDraft) ? (p as any).canvasDraft : current.canvasDraft,
+          canvasDraft: Array.isArray(p.canvasDraft) ? p.canvasDraft : current.canvasDraft,
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
           theme: p.theme === "dark" ? "dark" : "light",
           // Launch screen comes from profile.startView (not last-visited tab).
