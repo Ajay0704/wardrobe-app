@@ -1,7 +1,7 @@
 "use client";
 
-import { Plus, Settings, Share2, UserPlus } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Settings, Share2, UserPlus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchFollowCounts,
   fetchReposts,
@@ -15,6 +15,7 @@ import { useWardrobe } from "@/lib/store";
 import { ConnectionsPage } from "../community/ConnectionsPage";
 import { CreatePostSheet } from "../community/CreatePost";
 import { ProfileScreen, type ProfileScreenData } from "../profile/ProfileScreen";
+import { PTR_THRESHOLD, usePullToRefresh } from "./usePullToRefresh";
 
 type ConnTab = "followers" | "following" | "find";
 
@@ -62,6 +63,25 @@ export function NativeProfileView() {
       alive = false;
     };
   }, [myId, view, conn]);
+
+  // Pull-to-refresh — drag the profile down to re-pull posts + follow counts.
+  const refreshProfile = useCallback(async () => {
+    if (!myId) return;
+    const [p, t, s, c] = await Promise.all([
+      fetchUserPosts(myId),
+      fetchTaggedPosts(myId),
+      fetchReposts(myId),
+      fetchFollowCounts(myId),
+    ]);
+    setMyPosts(p);
+    setTagged(t);
+    setShared(s);
+    setCounts(c);
+  }, [myId]);
+  const { pull, refreshing } = usePullToRefresh(
+    view === "social" && !!myId,
+    refreshProfile,
+  );
 
   const name = profile.displayName?.trim() || "You";
   const handle = useMemo(() => profileHandle(profile), [profile]);
@@ -160,6 +180,24 @@ export function NativeProfileView() {
 
   return (
     <>
+      <div
+        className="flex items-center justify-center overflow-hidden"
+        style={{
+          height: refreshing ? 40 : pull,
+          transition: pull > 0 && !refreshing ? "none" : "height 200ms ease-out",
+        }}
+        aria-hidden={!refreshing && pull === 0}
+      >
+        <Loader2
+          size={22}
+          className={`text-muted ${refreshing ? "animate-spin" : ""}`}
+          style={
+            refreshing
+              ? undefined
+              : { opacity: Math.min(1, pull / PTR_THRESHOLD), transform: `rotate(${pull * 3}deg)` }
+          }
+        />
+      </div>
       <ProfileScreen
         data={data}
         topRight={topRight}
