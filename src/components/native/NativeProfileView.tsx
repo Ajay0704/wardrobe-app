@@ -28,6 +28,7 @@ export function NativeProfileView() {
   const profile = useWardrobe((s) => s.profile);
   const authUser = useWardrobe((s) => s.authUser);
   const setView = useWardrobe((s) => s.setView);
+  const view = useWardrobe((s) => s.view);
 
   const [toast, setToast] = useState<string | null>(null);
   const [conn, setConn] = useState<ConnTab | null>(null);
@@ -48,6 +49,10 @@ export function NativeProfileView() {
       setCounts({ followers: 0, following: 0 });
       return;
     }
+    // This pane is keep-alive (never unmounts), so re-fetch each time the
+    // profile tab becomes active or the followers/following sheet closes —
+    // otherwise follower/following counts stay frozen at first-mount values.
+    if (view !== "social") return;
     let alive = true;
     fetchUserPosts(myId).then((p) => alive && setMyPosts(p));
     fetchTaggedPosts(myId).then((p) => alive && setTagged(p));
@@ -56,7 +61,7 @@ export function NativeProfileView() {
     return () => {
       alive = false;
     };
-  }, [myId]);
+  }, [myId, view, conn]);
 
   const name = profile.displayName?.trim() || "You";
   const handle = useMemo(() => profileHandle(profile), [profile]);
