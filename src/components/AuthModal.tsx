@@ -10,6 +10,7 @@ import {
 } from "@/lib/supabase/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { resolveImageSource } from "@/lib/supabase/storage";
+import { demoItems } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 import { OAuthButtons } from "./OAuthButtons";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
@@ -108,13 +109,14 @@ export function AuthModal({
         email.trim(),
         password,
         profile,
-        { items: [], outfits: [], calendar: [], theme, draft },
+        { items: demoItems, outfits: [], calendar: [], theme, draft },
       );
       setAuthUser(user);
-      // New accounts start with an empty wardrobe (not the demo items). Clear
-      // the local store to match the freshly-seeded empty cloud snapshot.
+      // New accounts start with the labeled sample closet (same as OAuth) so
+      // the app is explorable on first launch; the samples are badged and
+      // one-tap clearable. Keep local + cloud in sync.
       hydrateFromRemote({
-        items: [],
+        items: demoItems,
         outfits: [],
         calendar: [],
         profile: { ...profile, email: user.email },

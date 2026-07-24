@@ -96,12 +96,20 @@ function asArray<T>(v: unknown): T[] {
   return Array.isArray(v) ? (v as T[]) : [];
 }
 
-/** Pull the remote snapshot for the current user. */
-export async function pullSnapshot(
-  userId: string,
-): Promise<WardrobeSnapshot | null> {
+/**
+ * Result of a snapshot pull, distinguishing a brand-new account ("empty") from
+ * a transient/real failure ("error"). Callers must NOT treat "error" like
+ * "empty" — doing so would let a failed read overwrite a real remote closet.
+ */
+export type SnapshotResult =
+  | { status: "found"; snapshot: WardrobeSnapshot }
+  | { status: "empty" }
+  | { status: "error"; error: string };
+
+export async function fetchSnapshot(userId: string): Promise<SnapshotResult> {
   const supabase = getSupabase();
-  if (!supabase) return null;
+  if (!supabase)
+    return { status: "error", error: "Cloud sync is not configured." };
 
   const columns = [
     "items, outfits, calendar, profile, theme, draft, updated_at",
@@ -109,6 +117,7 @@ export async function pullSnapshot(
   ];
 
   let data: Record<string, unknown> | null = null;
+  let ok = false;
   let lastError: string | null = null;
 
   for (const select of columns) {
@@ -119,20 +128,25 @@ export async function pullSnapshot(
       .maybeSingle();
     if (!res.error) {
       data = res.data as Record<string, unknown> | null;
+      ok = true;
       break;
     }
     lastError = formatSupabaseError(res.error);
-    // Only retry on missing-column style errors.
+    // Only retry on missing-column style errors; anything else is a real error.
     if (!/column|calendar/i.test(res.error.message)) {
       console.warn("[sync] pull failed:", lastError);
-      return null;
+      return { status: "error", error: lastError };
     }
   }
 
-  if (!data) {
-    if (lastError) console.warn("[sync] pull failed:", lastError);
-    return null;
+  if (!ok) {
+    const error = lastError ?? "Snapshot query failed.";
+    console.warn("[sync] pull failed:", error);
+    return { status: "error", error };
   }
+
+  // Query succeeded but no row → brand-new account.
+  if (!data) return { status: "empty" };
 
   // Strip poisoned inline images at the edge so callers never hydrate megabytes.
   const raw = {
@@ -146,9 +160,23 @@ export async function pullSnapshot(
       ({} as Record<SlotKey, string[]>),
     updated_at: data.updated_at as string | undefined,
   };
-
   const scrubbed = scrubSnapshotImages(raw);
-  return { ...raw, items: scrubbed.items ?? raw.items, profile: scrubbed.profile ?? raw.profile };
+  return {
+    status: "found",
+    snapshot: {
+      ...raw,
+      items: scrubbed.items ?? raw.items,
+      profile: scrubbed.profile ?? raw.profile,
+    },
+  };
+}
+
+/** Pull the remote snapshot for the current user, or null if none / on error. */
+export async function pullSnapshot(
+  userId: string,
+): Promise<WardrobeSnapshot | null> {
+  const r = await fetchSnapshot(userId);
+  return r.status === "found" ? r.snapshot : null;
 }
 
 /** Strip oversized / HEIC data-URLs so a poisoned local store can't re-bloat the DB. */

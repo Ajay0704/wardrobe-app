@@ -21,6 +21,14 @@ const demo = (
   createdAt: Date.now() - seq * 1000,
 });
 
+/**
+ * Sample/starter pieces are seeded with a `demo-` id; real user items get
+ * UUIDs (see store `addItem`), so this reliably tells a sample from a real
+ * piece — used to badge samples and to clear them.
+ */
+export const isSampleItem = (it: { id: string }): boolean =>
+  it.id.startsWith("demo-");
+
 export const demoItems: WardrobeItem[] = [
   demo({
     name: "White Oxford Shirt",

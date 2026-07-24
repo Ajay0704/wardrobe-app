@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/supabase/auth";
 import { ensureProfile } from "@/lib/chat";
 import {
   absorbWishlistClips,
+  fetchSnapshot,
   pullSnapshot,
   pushSnapshot,
 } from "@/lib/supabase/sync";
@@ -13,6 +14,7 @@ import {
   healBase64Snapshot,
   scrubBloatedInlineImages,
 } from "@/lib/heal";
+import { demoItems } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 
 /** Soft budget for the first cloud pull. Keep short — local data already works. */
@@ -53,10 +55,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       let timerId: ReturnType<typeof setTimeout> | undefined;
 
       const run = async () => {
-        const remote = await pullSnapshot(uid);
+        const res = await fetchSnapshot(uid);
         if (gen !== pullGen.current) return;
-        if (remote) {
-          // pullSnapshot already scrubs poisoned inline images
+
+        if (res.status === "found") {
+          // fetchSnapshot already scrubs poisoned inline images
+          const remote = res.snapshot;
           hydrateFromRemote({
             items: remote.items,
             outfits: remote.outfits,
@@ -65,19 +69,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             theme: remote.theme,
             draft: remote.draft,
           });
-        } else {
-          const { items, outfits, calendar, profile, theme, draft } =
-            useWardrobe.getState();
-          const result = await pushSnapshot(uid, {
-            items,
-            outfits,
-            calendar,
-            profile,
-            theme,
-            draft,
-          });
-          if (!result.ok) throw new Error(result.error);
+          return;
         }
+
+        if (res.status === "error") {
+          // Never seed or overwrite on a failed read — that would clobber a
+          // real remote closet. Bubble up so the caller shows the sync error
+          // and the normal retry paths recover.
+          throw new Error(res.error);
+        }
+
+        // status === "empty" → brand-new account. Seed the labeled sample
+        // closet deterministically (NOT whatever is local — that could leak a
+        // previous signed-out user's items into this account), then push it.
+        const { profile, theme, draft } = useWardrobe.getState();
+        const seeded = {
+          items: demoItems,
+          outfits: [],
+          calendar: [],
+          profile,
+          theme,
+          draft,
+        };
+        hydrateFromRemote(seeded);
+        const result = await pushSnapshot(uid, seeded);
+        if (!result.ok) throw new Error(result.error);
       };
 
       try {

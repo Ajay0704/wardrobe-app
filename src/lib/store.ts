@@ -19,7 +19,7 @@ import type {
   CanvasItem,
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
-import { demoItems } from "./demo-data";
+import { demoItems, isSampleItem } from "./demo-data";
 import {
   DEFAULT_PROFILE,
   resolveStartView,
@@ -126,6 +126,8 @@ interface WardrobeState {
   addItem: (item: Omit<WardrobeItem, "id" | "createdAt">) => void;
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
   deleteItem: (id: string) => void;
+  /** Remove the seeded sample/starter pieces (the "clear samples" affordance). */
+  clearSamples: () => void;
 
   saveOutfit: (
     name: string,
@@ -386,6 +388,28 @@ export const useWardrobe = create<WardrobeState>()(
             ]),
           ) as Record<SlotKey, string[]>,
         })),
+
+      clearSamples: () =>
+        set((s) => {
+          const gone = (iid: string) => isSampleItem({ id: iid });
+          return {
+            items: s.items.filter((it) => !isSampleItem(it)),
+            outfits: s.outfits.map((o) => ({
+              ...o,
+              itemIds: o.itemIds.filter((iid) => !gone(iid)),
+            })),
+            calendar: s.calendar.map((e) => ({
+              ...e,
+              itemIds: e.itemIds.filter((iid) => !gone(iid)),
+            })),
+            draft: Object.fromEntries(
+              Object.entries(s.draft).map(([k, ids]) => [
+                k,
+                ids.filter((iid) => !gone(iid)),
+              ]),
+            ) as Record<SlotKey, string[]>,
+          };
+        }),
 
       saveOutfit: (name, notes, itemIds, layout, canvasBg) => {
         recordOutfitCreated();

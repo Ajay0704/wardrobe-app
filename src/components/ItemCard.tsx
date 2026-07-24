@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { affiliateUrl } from "@/lib/affiliate";
+import { isSampleItem } from "@/lib/demo-data";
 import { openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
@@ -169,6 +170,15 @@ export function ItemCard({
             }`}
           >
             Wishlist
+          </div>
+        )}
+        {isSampleItem(item) && !item.wishlist && (
+          <div
+            className={`absolute left-2 rounded-full bg-accent/85 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-accent-foreground backdrop-blur ${
+              matchScore !== undefined ? "top-9" : "top-2"
+            }`}
+          >
+            Sample
           </div>
         )}
         {!compact && item.favorite && (

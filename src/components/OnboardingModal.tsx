@@ -15,7 +15,7 @@ import {
   type StyleOccasion,
 } from "@/lib/style-quiz";
 import { useWardrobe } from "@/lib/store";
-import { profileHandle } from "@/lib/profile";
+import { profileHandle, resolveStartView } from "@/lib/profile";
 import { HandleField } from "./HandleField";
 
 type Step = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
@@ -60,12 +60,12 @@ export function OnboardingModal() {
 
   const finish = () => {
     updateProfile(applyQuizToProfile({ goal, occasions, lean }));
-    setView("today");
+    setView(resolveStartView(profile));
   };
 
   const skip = () => {
     updateProfile({ onboardingComplete: true });
-    setView("today");
+    setView(resolveStartView(profile));
   };
 
   const toggleOccasion = (id: StyleOccasion) => {
@@ -256,9 +256,10 @@ export function OnboardingModal() {
                 </p>
               </div>
               <p className="text-sm text-muted">
-                Next: add what you&apos;d wear this week on Today — two pieces
-                unlocks your first look. Change this anytime in Settings →
-                Preferences.
+                Next: we&apos;ve added a few sample pieces so you can look
+                around. Snap one photo of an outfit and we&apos;ll add each of
+                your own pieces — then clear the samples. Change your style
+                anytime in Settings → Preferences.
               </p>
             </div>
           )}

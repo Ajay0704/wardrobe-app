@@ -80,7 +80,7 @@ function buildSuggestions(
 }
 
 export function TodayView() {
-  const { items, logWear, setDraft, setView, saveOutfit, profile, setAddOpen } =
+  const { items, logWear, setDraft, setView, saveOutfit, profile, openSplit } =
     useWardrobe();
   const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
   const [weatherError, setWeatherError] = useState<string | null>(null);
@@ -206,7 +206,7 @@ export function TodayView() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-          <Button onClick={() => setAddOpen(true)}>
+          <Button onClick={() => openSplit()}>
             <Shirt size={15} />{" "}
             {ownedCount === 0 ? "Add a piece" : "Add another piece"}
           </Button>

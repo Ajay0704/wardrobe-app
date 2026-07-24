@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { countStyleEntriesThisWeek } from "@/lib/community";
+import { isSampleItem } from "@/lib/demo-data";
 import { forgottenItems } from "@/lib/rediscover";
 import {
   challengeOfWeek,
@@ -154,8 +155,10 @@ const Kicker = ({ children }: { children: React.ReactNode }) => (
 
 export function ExploreForYouHeader({
   onOpenFollowing,
+  onOpenShop,
 }: {
   onOpenFollowing?: () => void;
+  onOpenShop?: () => void;
 }) {
   const items = useWardrobe((s) => s.items);
   const profile = useWardrobe((s) => s.profile);
@@ -163,7 +166,8 @@ export function ExploreForYouHeader({
   const setDraft = useWardrobe((s) => s.setDraft);
   const setView = useWardrobe((s) => s.setView);
   const openStylist = useWardrobe((s) => s.openStylist);
-  const openAdd = useWardrobe((s) => s.openAdd);
+  const openSplit = useWardrobe((s) => s.openSplit);
+  const clearSamples = useWardrobe((s) => s.clearSamples);
   const addItem = useWardrobe((s) => s.addItem);
   const logWear = useWardrobe((s) => s.logWear);
 
@@ -185,6 +189,7 @@ export function ExploreForYouHeader({
   const unit = (profile.temperatureUnit ?? "C") as TempUnit;
   const owned = useMemo(() => items.filter((it) => !it.wishlist && itemImage(it)), [items]);
   const poolKey = useMemo(() => owned.map((it) => it.id).join(","), [owned]);
+  const hasSamples = useMemo(() => items.some(isSampleItem), [items]);
 
   useEffect(() => {
     const loc = profile.location?.trim();
@@ -284,18 +289,30 @@ export function ExploreForYouHeader({
           <Sparkles size={13} /> For you
         </Kicker>
         <p className="mt-2 text-base font-semibold text-foreground">
-          Build your closet to unlock daily looks
+          Wardrobe builds outfits from clothes you already own
         </p>
         <p className="mt-1 text-xs text-muted">
-          Add a few pieces and I&apos;ll style an outfit from what you own every day.
+          Add your clothes and I&apos;ll style a look from what you own — every day.
         </p>
         <button
           type="button"
-          onClick={() => openAdd()}
+          onClick={() => openSplit()}
           className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-medium text-accent-foreground"
         >
-          <Plus size={15} /> Add clothes
+          <Plus size={15} /> Add my clothes
         </button>
+        <p className="mt-3 text-[11px] font-medium text-muted">
+          {`${owned.length} of 2 pieces added — snap one photo, I’ll catalog each piece.`}
+        </p>
+        {onOpenShop && (
+          <button
+            type="button"
+            onClick={onOpenShop}
+            className="mt-2 text-xs font-medium text-accent underline-offset-2 hover:underline"
+          >
+            Or browse the shop
+          </button>
+        )}
       </div>
     );
   }
@@ -338,6 +355,41 @@ export function ExploreForYouHeader({
   return (
     <>
       <div className="space-y-3">
+        {/* Sample-closet banner — value prop + honest "these aren't yours yet" */}
+        {hasSamples && (
+          <div className="rounded-2xl border border-accent/30 bg-accent-soft p-4">
+            <Kicker>
+              <Sparkles size={13} /> Sample closet
+            </Kicker>
+            <p className="mt-1.5 text-sm font-semibold text-foreground">
+              Wardrobe builds outfits from clothes you already own
+            </p>
+            <p className="mt-0.5 text-xs text-muted">
+              This look is styled from sample pieces. Add your own — snap one
+              photo and I&apos;ll catalog each piece.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openSplit()}
+                className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-sm font-medium text-accent-foreground"
+              >
+                <Plus size={14} /> Add my clothes
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  clearSamples();
+                  flash("Samples cleared");
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-line px-4 py-1.5 text-sm font-medium text-muted"
+              >
+                Clear samples
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Occasion bar */}
         <div className="-mx-1 flex gap-1.5 overflow-x-auto px-1">
           {OCCASIONS.map((o) => (

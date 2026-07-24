@@ -3,6 +3,7 @@
 import { Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
+import { isSampleItem } from "@/lib/demo-data";
 import type { Category, WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -254,7 +255,7 @@ function ClosetGrid({
           onClick={() => onEdit(item)}
           className={`border-b border-line text-left ${i % 3 !== 2 ? "border-r" : ""}`}
         >
-          <div className="flex aspect-square items-center justify-center overflow-hidden bg-surface">
+          <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={item.imageUrl}
@@ -262,6 +263,11 @@ function ClosetGrid({
               loading="lazy"
               className="h-full w-full object-contain"
             />
+            {isSampleItem(item) && !item.wishlist && (
+              <span className="absolute left-1.5 top-1.5 rounded-full bg-accent/85 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-accent-foreground backdrop-blur">
+                Sample
+              </span>
+            )}
           </div>
           <div className="px-2.5 py-2">
             <p className="truncate text-[13px] text-muted">
