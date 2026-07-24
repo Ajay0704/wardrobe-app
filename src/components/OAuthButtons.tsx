@@ -1,8 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isNativeApp } from "@/lib/platform";
 import { authErrorMessage } from "@/lib/supabase/auth";
-import { signInWithProvider, type OAuthProvider } from "@/lib/supabase/oauth";
+import {
+  oauthSupported,
+  signInWithProvider,
+  type OAuthProvider,
+} from "@/lib/supabase/oauth";
 
 function GoogleIcon() {
   return (
@@ -32,6 +37,21 @@ function AppleIcon() {
 export function OAuthButtons({ divider = true }: { divider?: boolean }) {
   const [busy, setBusy] = useState<OAuthProvider | null>(null);
   const [error, setError] = useState("");
+  // Web works immediately; native only once the build has the deep-link scheme.
+  const [supported, setSupported] = useState<boolean | null>(() =>
+    isNativeApp() ? null : true,
+  );
+
+  useEffect(() => {
+    if (supported !== null) return;
+    let alive = true;
+    oauthSupported().then((s) => {
+      if (alive) setSupported(s);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [supported]);
 
   const go = async (provider: OAuthProvider) => {
     setError("");
@@ -46,6 +66,10 @@ export function OAuthButtons({ divider = true }: { divider?: boolean }) {
 
   const base =
     "flex w-full items-center justify-center gap-2.5 rounded-full px-6 py-3 text-sm font-medium transition-opacity disabled:opacity-50";
+
+  // Hidden on native builds without the deep-link scheme (< 1.1.0) so the
+  // buttons never dead-end while the web is deployed ahead of the App Store build.
+  if (!supported) return null;
 
   return (
     <div className="space-y-3">

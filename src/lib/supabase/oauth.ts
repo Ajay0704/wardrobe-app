@@ -1,8 +1,39 @@
+import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { isNativeApp } from "@/lib/platform";
 import { getSupabase } from "./client";
 
 export type OAuthProvider = "google" | "apple";
+
+/** First native build that registered the `app.wardrobe.personal://` scheme. */
+const MIN_NATIVE_OAUTH_VERSION = "1.1.0";
+
+function cmpVersion(a: string, b: string): number {
+  const pa = a.split(".").map((n) => parseInt(n, 10) || 0);
+  const pb = b.split(".").map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const d = (pa[i] || 0) - (pb[i] || 0);
+    if (d !== 0) return d;
+  }
+  return 0;
+}
+
+/**
+ * Whether OAuth sign-in can actually complete on this client. On the web the
+ * redirect flow always works. In the native app it needs the deep-link scheme,
+ * which only exists from v1.1.0 — so on older installed builds we hide the
+ * buttons rather than let them dead-end in the system browser. This lets the
+ * web ship ahead of the App Store build without breaking the current app.
+ */
+export async function oauthSupported(): Promise<boolean> {
+  if (!isNativeApp()) return true;
+  try {
+    const { version } = await App.getInfo();
+    return cmpVersion(version, MIN_NATIVE_OAUTH_VERSION) >= 0;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Custom URL scheme the iOS app registers (Info.plist). Supabase redirects here
