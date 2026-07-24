@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { Lightbulb, Mail, Share2, Star } from "lucide-react";
+import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
 import { Button, Chip, Field, inputClass } from "./ui";
@@ -325,11 +326,12 @@ export function SettingsView() {
                     Danger zone
                   </p>
                   <p className="mt-0.5 text-xs text-muted">
-                    Permanently delete all wardrobe items, outfits, and profile
-                    data from this browser.
+                    Clear all wardrobe items, outfits, and profile data from this
+                    browser. Your synced account stays intact.
                   </p>
                   <ClearDataButton />
                 </div>
+                <DeleteAccountBlock />
               </div>
             </SettingsPanel>
           )}
@@ -671,5 +673,31 @@ function ClearDataButton() {
     >
       {confirm ? "Click again to confirm" : "Clear all data"}
     </Button>
+  );
+}
+
+/**
+ * Permanent account deletion — distinct from "clear all data" (which only wipes
+ * this browser). Only signed-in users have an account to delete. Opens the
+ * shared type-to-confirm dialog. (App Store Guideline 5.1.1(v).)
+ */
+function DeleteAccountBlock() {
+  const authUser = useWardrobe((s) => s.authUser);
+  const [open, setOpen] = useState(false);
+  if (!authUser) return null;
+  return (
+    <div className="border-t border-red-200/60 pt-4 dark:border-red-900/40">
+      <p className="text-sm font-medium text-red-700 dark:text-red-400">
+        Delete account
+      </p>
+      <p className="mt-0.5 text-xs text-muted">
+        Permanently delete your account and everything synced to it — wardrobe,
+        posts, trips, and messages. This can’t be undone.
+      </p>
+      <Button variant="danger" className="mt-3" onClick={() => setOpen(true)}>
+        Delete account
+      </Button>
+      {open && <DeleteAccountDialog onClose={() => setOpen(false)} />}
+    </div>
   );
 }

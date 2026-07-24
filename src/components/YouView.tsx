@@ -37,6 +37,7 @@ import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
+import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { Button, Chip, inputClass } from "./ui";
 
@@ -67,6 +68,7 @@ export function YouView() {
   const [brandInput, setBrandInput] = useState("");
   const [notifOn, setNotifOn] = useState(false);
   const [notifBusy, setNotifBusy] = useState(false);
+  const [showDelete, setShowDelete] = useState(false);
 
   useEffect(() => {
     setIsNative(document.documentElement.classList.contains("native-app"));
@@ -243,7 +245,7 @@ export function YouView() {
       {/* Account */}
       <SettingsCard label="Account">
         {authUser && <SRow label="Sign out" chevron onClick={logOut} />}
-        <SRow label="Delete account" chevron danger onClick={() => soon("Delete account")} last />
+        <SRow label="Delete account" chevron danger onClick={() => setShowDelete(true)} last />
       </SettingsCard>
 
       {/* --- inline sheets --- */}
@@ -383,6 +385,8 @@ export function YouView() {
           ))}
         </Sheet>
       )}
+
+      {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
