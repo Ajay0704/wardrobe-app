@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth-server";
 import { brandFromHost, splitTitleAndBrand } from "@/lib/extract-product";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 interface Extracted {
   name?: string;
@@ -303,69 +303,21 @@ async function geminiEnrich(
   }
 }
 
-export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
-    return Response.json({ error: "Please sign in to use this." }, { status: 401 });
-  }
-
-  let body: { url?: string };
-  try {
-    body = await request.json();
-  } catch {
-    return Response.json({ error: "Invalid request." }, { status: 400 });
-  }
-
-  let target: URL;
-  try {
-    target = new URL((body.url ?? "").trim());
-  } catch {
-    return Response.json({ error: "Enter a valid product link." }, { status: 400 });
-  }
-
-  let html: string;
-  try {
-    const res = await safeFetch(target.toString(), {
-      headers: {
-        // Look like a real browser so pages return their SEO meta tags.
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9",
-      },
-      signal: AbortSignal.timeout(12000),
-    });
-    if (!res.ok) {
-      return Response.json(
-        { error: `The site returned an error (${res.status}).` },
-        { status: 502 },
-      );
-    }
-    html = (await res.text()).slice(0, 1_500_000); // cap parsing work
-  } catch (e) {
-    const blocked = e instanceof Error && e.message.startsWith("blocked");
-    return Response.json(
-      {
-        error: blocked
-          ? "That link can't be fetched."
-          : "Couldn't reach that link. Fill the details in manually.",
-      },
-      { status: blocked ? 400 : 502 },
-    );
-  }
-
+/** Parse product fields from a page's HTML (JSON-LD, embedded JSON, OG/meta, title). */
+function parseProduct(html: string, target: URL): Extracted {
   const ld = fromJsonLd(html);
   const embedded = fromEmbeddedJson(html);
   const titleTag = /<title[^>]*>([^<]+)<\/title>/i.exec(html)?.[1];
   const hostBrand = brandFromHost(target.hostname);
 
-  let result: Extracted = {
+  const result: Extracted = {
     name:
       ld.name ??
       embedded.name ??
       meta(html, "og:title") ??
       meta(html, "twitter:title") ??
       itemprop(html, "name") ??
-      (titleTag && decode(titleTag)),
+      (titleTag ? decode(titleTag) : undefined),
     imageUrl: pickImage(
       ld.imageUrl,
       embedded.imageUrl,
@@ -398,8 +350,111 @@ export async function POST(request: Request) {
   const split = splitTitleAndBrand(result.name, result.brand);
   result.name = split.name;
   result.brand = split.brand ?? result.brand;
+  return result;
+}
+
+/**
+ * Free fallback for bot-walled retailers (Zara, etc.): retry the fetch identifying as a
+ * social-preview crawler. Sites that 403 a normal browser UA often still serve their full
+ * product page — og tags + JSON-LD — to link-unfurl bots so their links preview on
+ * iMessage / WhatsApp / Slack. That preview is exactly what we're building, so it needs no
+ * proxy, key, or cost. Returns the first response that carries real product markup.
+ */
+const PREVIEW_BOT_UAS = [
+  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+  "WhatsApp/2.23.20.0",
+  "Twitterbot/1.0",
+  "Googlebot/2.1 (+http://www.google.com/bot.html)",
+];
+
+async function botFetchHtml(target: URL): Promise<string | null> {
+  for (const ua of PREVIEW_BOT_UAS) {
+    try {
+      const res = await safeFetch(target.toString(), {
+        headers: {
+          "User-Agent": ua,
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+      if (!res.ok) continue;
+      const html = (await res.text()).slice(0, 1_500_000);
+      if (/og:image|application\/ld\+json|"@type"\s*:\s*"Product"/i.test(html)) {
+        return html;
+      }
+    } catch {
+      /* SSRF-blocked or network error — try the next UA */
+    }
+  }
+  return null;
+}
+
+export async function POST(request: Request) {
+  if (!(await requireUser(request))) {
+    return Response.json({ error: "Please sign in to use this." }, { status: 401 });
+  }
+
+  let body: { url?: string };
+  try {
+    body = await request.json();
+  } catch {
+    return Response.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  let target: URL;
+  try {
+    target = new URL((body.url ?? "").trim());
+  } catch {
+    return Response.json({ error: "Enter a valid product link." }, { status: 400 });
+  }
+
+  // Fetch the page directly first (fast, free). A blocked/SSRF target is a hard stop;
+  // a 403 bot wall or network error just leaves html null so the render proxy can try.
+  let html: string | null = null;
+  try {
+    const res = await safeFetch(target.toString(), {
+      headers: {
+        // Look like a real browser so pages return their SEO meta tags.
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+      },
+      signal: AbortSignal.timeout(12000),
+    });
+    if (res.ok) {
+      html = (await res.text()).slice(0, 1_500_000); // cap parsing work
+    }
+  } catch (e) {
+    if (e instanceof Error && e.message.startsWith("blocked")) {
+      return Response.json({ error: "That link can't be fetched." }, { status: 400 });
+    }
+    // network error: leave html null; the render proxy may still succeed.
+  }
+
+  let result: Extracted = html ? parseProduct(html, target) : {};
+
+  // Social-bot-UA fallback: retailers like Zara 403 a normal browser but serve their full
+  // product page to link-preview crawlers. Retry as one of those when the direct fetch was
+  // blocked or came back with no product image.
+  if (!html || !result.imageUrl) {
+    const viaBot = await botFetchHtml(target);
+    if (viaBot) {
+      html = viaBot;
+      result = parseProduct(viaBot, target);
+    }
+  }
+
+  if (!html) {
+    return Response.json(
+      { error: "Couldn't reach that link. Fill the details in manually." },
+      { status: 502 },
+    );
+  }
 
   // SPA retailers (Gap / Banana Republic) often ship empty OG tags — ask Gemini.
+  const hostBrand = brandFromHost(target.hostname);
   const enriched = await geminiEnrich(target.toString(), result, html);
   result = {
     name: result.name ?? enriched.name,
