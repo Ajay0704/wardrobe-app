@@ -57,7 +57,7 @@ final class ShareViewController: UIViewController {
         complete()
     }
 
-    private static func firstURL(in text: String) -> String? {
+    private nonisolated static func firstURL(in text: String) -> String? {
         let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
         let range = NSRange(text.startIndex..., in: text)
         return detector?.firstMatch(in: text, options: [], range: range)?.url?.absoluteString
@@ -118,17 +118,25 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    /// App extensions can't call `UIApplication.shared.open`; walk the responder chain to find a
-    /// UIApplication that responds to `openURL:` and invoke it. Standard Share-Extension workaround.
+    /// App extensions can't call `UIApplication.shared.open`; walk the responder chain to the
+    /// `UIApplication` and invoke the non-deprecated `open(_:options:completionHandler:)` through
+    /// its IMP. (iOS now force-disables the old `openURL:` selector — it logs
+    /// "BUG IN CLIENT OF UIKIT … Force returning false (NO)" and never opens the app.)
     private func openHostApp(_ url: URL) {
-        let selector = sel_registerName("openURL:")
-        var responder: UIResponder? = self
-        while let current = responder {
-            if current.responds(to: selector) {
-                _ = current.perform(selector, with: url)
-                return
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let selector = NSSelectorFromString("openURL:options:completionHandler:")
+            var responder: UIResponder? = self
+            while let current = responder {
+                if let application = current as? UIApplication,
+                   let method = application.method(for: selector) {
+                    typealias OpenURL = @convention(c) (AnyObject, Selector, URL, NSDictionary, Any?) -> Void
+                    let openURL = unsafeBitCast(method, to: OpenURL.self)
+                    openURL(application, selector, url, NSDictionary(), nil)
+                    return
+                }
+                responder = current.next
             }
-            responder = current.next
         }
     }
 }
