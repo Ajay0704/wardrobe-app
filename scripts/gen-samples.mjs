@@ -32,12 +32,11 @@ const U = (id) => `https://images.unsplash.com/${id}?w=1000&q=80&auto=format&fit
 // This run regenerates only the 6 items that needed a fix. Slugs are provisional; final
 // names/colors come from what each shot ACTUALLY renders as (Gemini redraws the source).
 const CAPSULE = [
-  // Fix-run 6: men's 2nd shoe = leather loafers. The beautify prompt is garment-specific
-  // (shoulders/sleeves), so footwear is hit-or-miss; loafer PAIRS on plain bg render reliably.
-  // Two men's candidates + the proven source as a guaranteed fallback; keep the cleanest.
-  { gender: "men", slug: "loafers-a", category: "shoes", cut: "flood", src: U("photo-1521330784804-5f69f8a17b1d") },
-  { gender: "men", slug: "loafers-b", category: "shoes", cut: "flood", src: U("photo-1649503377051-e092f490c482") },
-  { gender: "men", slug: "loafers", category: "shoes", cut: "flood", src: U("photo-1662541089338-c7d53b88be70") },
+  // Reroll 3: men's oxford — take more flood rolls of the source that rendered a perfect matte
+  // shirt for the women's slot, aiming for a roll that lands on pure white (clean, no drape/holes).
+  { gender: "men", slug: "oxford-h", category: "top", cut: "flood", src: U("photo-1608691047324-3de3da59e3a1") },
+  { gender: "men", slug: "oxford-i", category: "top", cut: "flood", src: U("photo-1608691047324-3de3da59e3a1") },
+  { gender: "men", slug: "oxford-j", category: "top", cut: "flood", src: U("photo-1608691047324-3de3da59e3a1") },
 ];
 
 const args = Object.fromEntries(process.argv.slice(2).map((a) => a.replace(/^--/, "").split("=")));

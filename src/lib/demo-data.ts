@@ -76,9 +76,9 @@ export const demoItemsWomen: WardrobeItem[] = [
     wearCount: 7, lastWornAt: daysAgo(9),
   }),
   beauty("women", "blue-jeans", {
-    name: "Straight-Leg Jeans", category: "bottom", color: "#3a567a", colorName: "blue",
+    name: "Slim Jeans", category: "bottom", color: "#93b1d4", colorName: "light blue",
     tags: ["casual", "everyday"], seasons: ["spring", "summer", "fall", "winter"],
-    brand: "Levi's", price: 98, fit: "regular", tone: "blue", formality: "casual",
+    brand: "Levi's", price: 98, fit: "slim", tone: "blue", formality: "casual",
     favorite: true, wearCount: 21, lastWornAt: daysAgo(2),
   }),
   beauty("women", "trousers", {
