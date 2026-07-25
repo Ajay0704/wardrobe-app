@@ -391,6 +391,21 @@ html.native-app .native-item-page {
   padding: 1.25rem 1rem 1.5rem;
 }
 
+/* Pinned Save / Cancel / Delete bar under the scrolling body. */
+.native-item-page-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--background) 92%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  padding: 0.7rem 1rem;
+}
+
+/* The item editor covers the screen — hide the shell's floating chat button so it
+ * doesn't overlap the pinned Save bar. */
+body.item-editor-open .native-shell-fab {
+  display: none;
+}
+
 /*
  * Smart Buy result sheet — separate fixed layer above the item editor.
  * Must NOT expand inside the form (that reflow flipped the native layout).

@@ -1,17 +1,19 @@
 "use client";
 
 import {
+  ArrowRight,
   Camera,
+  ChevronDown,
   ChevronLeft,
   ExternalLink,
-  Link2,
+  Image as ImageIcon,
   Pipette,
   RefreshCw,
   Trash2,
-  Search,
   Sparkles,
   Upload,
   Wand2,
+  type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -128,6 +130,27 @@ export function ItemForm({
   );
   const [findMessage, setFindMessage] = useState("");
   const [findMsg, setFindMsg] = useState("");
+  const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const photoMenuRef = useRef<HTMLDivElement>(null);
+
+  // Close the "Edit photo" menu on an outside tap (mirrors ProfileMenu).
+  useEffect(() => {
+    if (!photoMenuOpen) return;
+    const onDown = (e: MouseEvent) => {
+      if (photoMenuRef.current && !photoMenuRef.current.contains(e.target as Node)) {
+        setPhotoMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [photoMenuOpen]);
+
+  // Hide the shell's floating chat button while the editor covers the screen, so it
+  // never overlaps the pinned Save bar.
+  useEffect(() => {
+    document.body.classList.add("item-editor-open");
+    return () => document.body.classList.remove("item-editor-open");
+  }, []);
 
   // Phone: don't steal focus into Name when opening a clipped wishlist item.
   useEffect(() => {
@@ -306,7 +329,7 @@ export function ItemForm({
   };
 
   /** Revert to the pre-cutout image (undo a bad removal). */
-  const useOriginal = () => {
+  const restoreOriginal = () => {
     if (!originalImageUrl) return;
     setImageUrl(originalImageUrl);
     setCutoutEngine(undefined);
@@ -577,9 +600,9 @@ export function ItemForm({
   const form = (
     <>
       <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
-        {/* Live image preview */}
-        <div className="mx-auto w-44 space-y-2 lg:mx-0 lg:w-auto">
-          {/* Hidden input the "+ → Photo library" intent triggers programmatically. */}
+        {/* Live image preview + a single photo-actions menu */}
+        <div className="mx-auto w-44 space-y-2.5 lg:mx-0 lg:w-auto">
+          {/* Hidden input; the menu's Upload item and the "+ → library" intent both trigger it. */}
           <input
             ref={uploadInputRef}
             type="file"
@@ -597,100 +620,100 @@ export function ItemForm({
               />
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
-                Upload an image to preview it here
+                Add a photo to preview it here
               </div>
             )}
           </div>
-          {isNative ? (
-            <div className="flex gap-2">
-              <label className="flex flex-1 cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
-                <Upload size={13} /> {uploading ? "…" : "Upload"}
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  disabled={uploading}
-                  onChange={(e) =>
-                    e.target.files?.[0] && handleFile(e.target.files[0])
-                  }
-                />
-              </label>
-              <button
-                type="button"
-                disabled={uploading}
-                onClick={() => void handleTakePhoto()}
-                className="flex flex-1 items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
-              >
-                <Camera size={13} /> {uploading ? "…" : "Take photo"}
-              </button>
-            </div>
-          ) : (
-            <label className="flex cursor-pointer items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground">
-              <Upload size={13} /> {uploading ? "Uploading…" : "Upload image"}
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                disabled={uploading}
-                onChange={(e) =>
-                  e.target.files?.[0] && handleFile(e.target.files[0])
-                }
-              />
-            </label>
-          )}
 
-          {imageUrl && (
-            <div className="flex flex-col gap-1.5">
-              {!beautifyDisabled && (
-                <button
-                  type="button"
-                  onClick={() => handleBeautify()}
-                  disabled={beautifying || uploading || removingBg}
-                  className="flex items-center justify-center gap-1.5 rounded-full border border-accent/50 px-3 py-2 text-xs font-medium text-accent transition-colors hover:bg-accent-soft disabled:opacity-60"
-                >
-                  <Wand2 size={13} />{" "}
-                  {beautifying
+          {/* One control for every photo action (replaces the old stack of buttons). */}
+          <div ref={photoMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() => setPhotoMenuOpen((o) => !o)}
+              disabled={uploading || removingBg || beautifying}
+              aria-haspopup="menu"
+              aria-expanded={photoMenuOpen}
+              className="flex w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-accent/60 disabled:opacity-60"
+            >
+              <ImageIcon size={13} />
+              {uploading
+                ? "Uploading…"
+                : removingBg
+                  ? "Removing background…"
+                  : beautifying
                     ? "Beautifying…"
-                    : beautifyApplied
-                      ? "Revert"
-                      : "Beautify"}
-                </button>
-              )}
-              {!beautifyDisabled && beautifyStale && !beautifying && (
-                <button
-                  type="button"
-                  onClick={() => handleBeautify(true)}
-                  disabled={uploading || removingBg}
-                  className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
-                >
-                  <RefreshCw size={13} /> Regenerate product shot
-                </button>
-              )}
-              {originalImageUrl && originalImageUrl !== imageUrl && !removingBg && (
-                <button
-                  type="button"
-                  onClick={useOriginal}
-                  className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground"
-                >
-                  <Upload size={13} /> Use original
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => void handleFindProduct()}
-                disabled={findingProduct || uploading || fetching}
-                className="flex items-center justify-center gap-1.5 rounded-full border border-line px-3 py-2 text-xs font-medium text-muted transition-colors hover:border-accent/60 hover:text-foreground disabled:opacity-60"
+                    : imageUrl
+                      ? "Edit photo"
+                      : "Add photo"}
+              <ChevronDown size={13} className="text-muted" />
+            </button>
+
+            {photoMenuOpen && (
+              <div
+                role="menu"
+                className="animate-fade-up absolute left-1/2 top-full z-50 mt-2 w-60 -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-lg shadow-black/10"
               >
-                <Search size={13} />{" "}
-                {findingProduct ? "Searching…" : "Find product online"}
-              </button>
-            </div>
-          )}
-          {findMsg && (
-            <span className="block text-center text-[11px] text-muted">
-              {findMsg}
-            </span>
-          )}
+                <PhotoMenuItem
+                  icon={Upload}
+                  onClick={() => {
+                    setPhotoMenuOpen(false);
+                    uploadInputRef.current?.click();
+                  }}
+                >
+                  {imageUrl ? "Replace with upload" : "Upload photo"}
+                </PhotoMenuItem>
+                {isNative && (
+                  <PhotoMenuItem
+                    icon={Camera}
+                    onClick={() => {
+                      setPhotoMenuOpen(false);
+                      void handleTakePhoto();
+                    }}
+                  >
+                    Take photo
+                  </PhotoMenuItem>
+                )}
+                {imageUrl && !beautifyDisabled && (
+                  <>
+                    <div className="my-1 border-t border-line" />
+                    <PhotoMenuItem
+                      icon={Wand2}
+                      accent
+                      onClick={() => {
+                        setPhotoMenuOpen(false);
+                        void handleBeautify();
+                      }}
+                    >
+                      {beautifyApplied ? "Revert to cutout" : "Beautify — product shot"}
+                    </PhotoMenuItem>
+                    {beautifyStale && (
+                      <PhotoMenuItem
+                        icon={RefreshCw}
+                        onClick={() => {
+                          setPhotoMenuOpen(false);
+                          void handleBeautify(true);
+                        }}
+                      >
+                        Regenerate product shot
+                      </PhotoMenuItem>
+                    )}
+                  </>
+                )}
+                {imageUrl && originalImageUrl && originalImageUrl !== imageUrl && (
+                  <PhotoMenuItem
+                    icon={ImageIcon}
+                    onClick={() => {
+                      setPhotoMenuOpen(false);
+                      restoreOriginal();
+                    }}
+                  >
+                    Use original photo
+                  </PhotoMenuItem>
+                )}
+              </div>
+            )}
+          </div>
+
           {analyzeMsg && (
             <span className="block text-center text-[11px] text-muted">
               {analyzeMsg}
@@ -699,44 +722,54 @@ export function ItemForm({
         </div>
 
         <div className="space-y-4">
-          <Field label="Name">
-            <input
-              className={inputClass}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Camel Knit Sweater"
-            />
-          </Field>
-
-          <Field
-            label="Product URL (optional)"
-            hint="Paste a shop link, then Fetch details to auto-fill name, photo, price and brand."
-          >
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          {/* Auto-fill from the web — one helper replacing Product URL + Fetch details + Find product online */}
+          <div className="rounded-2xl border border-accent/25 bg-accent-soft/50 p-3.5">
+            <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
+              <Sparkles size={13} /> Auto-fill from the web
+            </p>
+            <div className="flex gap-2">
               <input
                 ref={urlInputRef}
-                className={`${inputClass} min-w-0 flex-1`}
+                className={`${inputClass} min-w-0 flex-1 bg-surface`}
                 type="text"
                 inputMode="url"
                 autoCapitalize="off"
                 autoCorrect="off"
                 value={productUrl}
                 onChange={(e) => setProductUrl(e.target.value)}
-                placeholder="https://store.com/product"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && productUrl.trim() && !fetching) {
+                    e.preventDefault();
+                    void handleFetchDetails();
+                  }
+                }}
+                placeholder="Paste a shop link…"
               />
-              <Button
-                variant="outline"
+              <button
+                type="button"
                 onClick={() => void handleFetchDetails()}
                 disabled={!productUrl.trim() || fetching}
-                title="Fetch product details from this link"
-                className="w-full shrink-0 !px-3 !py-2.5 text-xs whitespace-nowrap sm:w-auto"
+                aria-label="Fetch details from this link"
+                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
               >
-                <Link2 size={13} />
-                {fetching ? "Fetching…" : "Fetch details"}
-              </Button>
+                <ArrowRight size={18} className={fetching ? "animate-pulse" : ""} />
+              </button>
             </div>
-            {fetchMsg && (
-              <span className="mt-1 block text-xs text-muted">{fetchMsg}</span>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted">
+              Fills name, photo, price &amp; brand — or{" "}
+              <button
+                type="button"
+                onClick={() => void handleFindProduct()}
+                disabled={findingProduct || uploading || fetching}
+                className="font-semibold text-accent underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                {findingProduct ? "searching…" : "search the web for this item"}
+              </button>
+            </p>
+            {(fetchMsg || findMsg) && (
+              <span className="mt-1.5 block text-[11px] text-muted">
+                {fetchMsg || findMsg}
+              </span>
             )}
             {productUrl.trim() && (
               <button
@@ -745,12 +778,21 @@ export function ItemForm({
                   const url = affiliateUrl(productUrl.trim());
                   if (url) void openExternalUrl(url);
                 }}
-                className="mt-2 flex items-center gap-1.5 text-xs font-medium text-accent"
+                className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-accent"
               >
-                <ExternalLink size={12} />
+                <ExternalLink size={11} />
                 {isNative ? "Open product page in Safari" : "Open product page"}
               </button>
             )}
+          </div>
+
+          <Field label="Name">
+            <input
+              className={inputClass}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Camel Knit Sweater"
+            />
           </Field>
 
           <div className="grid grid-cols-2 gap-4">
@@ -780,11 +822,11 @@ export function ItemForm({
                   variant="outline"
                   onClick={handleExtract}
                   disabled={!imageUrl || extracting}
-                  title="Extract dominant color from the image"
+                  title="Pick the dominant color from the photo"
                   className="!px-3 !py-2 text-xs"
                 >
                   <Pipette size={13} />
-                  {extracting ? "…" : "From image"}
+                  {extracting ? "…" : "From photo"}
                 </Button>
               </div>
               {extractError && (
@@ -900,22 +942,6 @@ export function ItemForm({
               )}
             </div>
           )}
-          <div className="flex items-center gap-2 pt-2">
-            {initial && (
-              <Button variant="danger" onClick={handleDelete}>
-                <Trash2 size={15} />
-                {confirmDelete ? "Confirm delete" : "Delete"}
-              </Button>
-            )}
-            <div className="ml-auto flex gap-2">
-              <Button variant="ghost" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button onClick={save} disabled={!canSave}>
-                {initial ? "Save changes" : "Add to wardrobe"}
-              </Button>
-            </div>
-          </div>
         </div>
       </div>
       {findCandidates !== null && (
@@ -929,12 +955,32 @@ export function ItemForm({
     </>
   );
 
+  // Save / Cancel / Delete — pinned in a footer on phone, inline under the form on desktop.
+  const actions = (
+    <div className="flex items-center gap-2">
+      {initial && (
+        <Button variant="danger" onClick={handleDelete}>
+          <Trash2 size={15} />
+          {confirmDelete ? "Confirm delete" : "Delete"}
+        </Button>
+      )}
+      <div className="ml-auto flex gap-2">
+        <Button variant="ghost" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button onClick={save} disabled={!canSave}>
+          {initial ? "Save changes" : "Add to wardrobe"}
+        </Button>
+      </div>
+    </div>
+  );
+
   // Phone + Capacitor: full-page editor portaled to <body> so iOS WebKit
   // doesn't trap position:fixed inside .native-shell { overflow:hidden }
   // (that bug felt like flipping off the mobile layout — AJA-33 / clipper).
   if (phoneEditor) {
     return portalToBody(
-      <NativeItemPage title={title} onClose={onClose}>
+      <NativeItemPage title={title} onClose={onClose} footer={actions}>
         {form}
       </NativeItemPage>,
     );
@@ -943,6 +989,7 @@ export function ItemForm({
   return portalToBody(
     <Modal title={title} onClose={onClose} wide>
       {form}
+      <div className="mt-5">{actions}</div>
     </Modal>,
   );
 }
@@ -950,10 +997,12 @@ export function ItemForm({
 function NativeItemPage({
   title,
   onClose,
+  footer,
   children,
 }: {
   title: string;
   onClose: () => void;
+  footer?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -972,6 +1021,34 @@ function NativeItemPage({
         <span className="native-item-page-spacer" aria-hidden />
       </header>
       <div className="native-item-page-body">{children}</div>
+      {footer && <div className="native-item-page-footer">{footer}</div>}
     </div>
+  );
+}
+
+/** Row in the "Edit photo" dropdown (mirrors ProfileMenu's MenuItem). */
+function PhotoMenuItem({
+  icon: Icon,
+  children,
+  onClick,
+  accent,
+}: {
+  icon: LucideIcon;
+  children: ReactNode;
+  onClick: () => void;
+  accent?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={`flex w-full items-center gap-2.5 px-4 py-2.5 text-left text-sm transition-colors hover:bg-surface-2 ${
+        accent ? "font-medium text-accent" : "text-foreground"
+      }`}
+    >
+      <Icon size={16} strokeWidth={1.75} className={accent ? "" : "text-muted"} />
+      {children}
+    </button>
   );
 }
