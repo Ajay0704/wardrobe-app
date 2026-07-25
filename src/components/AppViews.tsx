@@ -14,6 +14,10 @@ import { InsightsView } from "./InsightsView";
 import { YouView } from "./YouView";
 import { ExploreView } from "./ExploreView";
 import { ProfileView } from "./ProfileView";
+import { FitSizesPage } from "./you/FitSizesPage";
+import { StyleTastePage } from "./you/StyleTastePage";
+import { AppRegionPage } from "./you/AppRegionPage";
+import { AccountPage } from "./you/AccountPage";
 import { NativeProfileView } from "./native/NativeProfileView";
 import { NativeUserProfileView } from "./native/NativeUserProfileView";
 import { NotificationsView } from "./NotificationsView";
@@ -64,6 +68,10 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       {view === "insights" && <InsightsView />}
       {view === "you" && <YouView />}
       {view === "profile" && <ProfileView />}
+      {view === "fitSizes" && <FitSizesPage />}
+      {view === "styleTaste" && <StyleTastePage />}
+      {view === "settingsApp" && <AppRegionPage />}
+      {view === "settingsAccount" && <AccountPage />}
       {view === "userProfile" && <NativeUserProfileView />}
       {view === "settings" && <SettingsView />}
       {view === "notifications" && <NotificationsView />}

@@ -4,11 +4,11 @@ import { useWardrobe } from "@/lib/store";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
 import { ProfileFields } from "./ProfileFields";
-import { SectionHeader, StyleProfileFields } from "./StyleProfileFields";
 
 /**
- * Profile-only editor opened from "My Profile" on My page. Deliberately shows
- * just the profile (photo + fields) — no settings sidebar or other sections.
+ * Profile editor — the public-facing identity only (photo + name, @handle, bio,
+ * links). Fit/sizes, style, and account details now live in their own Settings
+ * sub-pages (AJA-202), so this stays short and focused.
  */
 export function ProfileView() {
   const { profile, updateProfile, authUser } = useWardrobe();
@@ -19,9 +19,7 @@ export function ProfileView() {
         avatarUrl: await resolveImageSource(file, authUser?.id ?? null),
       });
     } catch (err) {
-      window.alert(
-        err instanceof Error ? err.message : "Couldn't upload that photo.",
-      );
+      window.alert(err instanceof Error ? err.message : "Couldn't upload that photo.");
     }
   };
 
@@ -33,11 +31,7 @@ export function ProfileView() {
         onUpload={handleAvatarUpload}
         onRemove={() => updateProfile({ avatarUrl: undefined })}
       />
-      <section className="space-y-4">
-        <SectionHeader title="You" />
-        <ProfileFields profile={profile} onChange={updateProfile} />
-      </section>
-      <StyleProfileFields profile={profile} onChange={updateProfile} />
+      <ProfileFields profile={profile} onChange={updateProfile} />
     </div>
   );
 }
