@@ -10,6 +10,7 @@ import {
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { getSupabase } from "@/lib/supabase/client";
+import { useWardrobe } from "@/lib/store";
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 type Listener = () => void;
@@ -108,7 +109,23 @@ export function NativeAppClass() {
     // dismiss the system browser.
     let authSub: { remove: () => void } | undefined;
     void App.addListener("appUrlOpen", async ({ url }) => {
-      if (!url || !url.includes("login-callback")) return;
+      if (!url) return;
+
+      // Share deep link from the iOS Share Extension:
+      //   app.wardrobe.personal://share?url=<encoded product url>
+      // Queue the URL for ClipLinkLoader, which quick-saves it to the wishlist.
+      const afterScheme = url.replace(/^[a-z0-9.+-]+:\/\//i, "");
+      if (afterScheme.startsWith("share") || afterScheme.startsWith("clip")) {
+        const q = url.indexOf("?");
+        const params = new URLSearchParams(q >= 0 ? url.slice(q + 1) : "");
+        const shared = (params.get("url") || "").trim();
+        if (/^https?:\/\//i.test(shared)) {
+          useWardrobe.getState().setPendingClipUrl(shared);
+        }
+        return;
+      }
+
+      if (!url.includes("login-callback")) return;
       const supabase = getSupabase();
       if (!supabase) return;
       const hashIndex = url.indexOf("#");

@@ -113,6 +113,9 @@ interface WardrobeState {
   splitSource: "camera" | "library" | null;
   /** Global "closets selector" sheet (opened from the Closet header dropdown). */
   closetsOpen: boolean;
+  /** A product URL shared into the app (iOS Share Extension / Web Share Target) to
+   *  quick-save to the wishlist. ClipLinkLoader consumes it, then clears it. */
+  pendingClipUrl: string | null;
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
@@ -180,6 +183,8 @@ interface WardrobeState {
   openUserProfile: (userId: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
+  /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
+  setPendingClipUrl: (url: string | null) => void;
   /** Open the add form pointed at a specific input (camera/upload/link). */
   openAdd: (intent?: "camera" | "upload" | "link" | null) => void;
   setBulkOpen: (open: boolean) => void;
@@ -359,6 +364,7 @@ export const useWardrobe = create<WardrobeState>()(
       splitSource: null,
       scanOpen: false,
       closetsOpen: false,
+      pendingClipUrl: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
@@ -596,6 +602,7 @@ export const useWardrobe = create<WardrobeState>()(
       openScan: () => set({ scanOpen: true }),
       setScanOpen: (scanOpen) => set({ scanOpen }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
+      setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
 
