@@ -49,20 +49,27 @@ No App Group / entitlements are needed for the links flow — the URL rides in t
   completes automatically.
 - Share plain text containing a link (e.g. from Messages) → the link is detected and saved.
 
-## Part B — sharing images (future)
-A shared image has no URL and its bytes can't ride in the deep link, so it needs a shared container
-and a native→web bridge. Scope:
-- **App Group** `group.app.wardrobe.personal`: add `.entitlements` (with `CODE_SIGN_ENTITLEMENTS`) to
-  **both** the `App` and `ShareExtension` targets; register the group in the Apple Developer portal.
-- **Extension:** on `public.image`, write the image to the App Group container
-  (`shared/inbox/<uuid>.jpg`) + a "pending" marker in the group's `UserDefaults`, then open
+## Part B — sharing images (implemented)
+Sharing a photo/screenshot into Wardrobe opens the add form pre-loaded with it (auto-tagged), for a
+quick review + Save. A shared image can't ride in the deep link, so it goes via an **App Group**:
+- **Extension** (`ShareViewController.openImage`): on a `public.image`, writes the bytes to the App
+  Group container (`shared/inbox/<uuid>.jpg`) + a marker in the group's `UserDefaults`, then opens
   `app.wardrobe.personal://share?type=image`.
-- **Native bridge:** a local Capacitor plugin `SharedInbox` in `ios/App/CapApp-SPM`
-  (`consumePending() → { type, url?, imageBase64?, mime? }`, clears the marker).
-- **Web:** a `share?type=image` branch in `NativeAppClass` → `SharedInbox.consumePending()` → base64 →
-  `File` → open the photo-add flow pre-loaded (`ItemForm.handleFile` runs analyze + cutout) for a
-  quick review + Save. (Android image share would also need a POST `share_target` + a `fetch` handler
-  in `public/sw.js` — deferred.)
+- **Native bridge** (`ios/App/App/SharedInboxPlugin.swift`): `SharedInbox.consumePending()` reads that
+  file, returns it as base64, and clears it. JS wrapper: `src/lib/native/shared-inbox.ts`.
+- **Web:** `NativeAppClass` `share?type=image` branch → `SharedInbox.consumePending()` → data URL →
+  `openAddWithImage` → `ItemForm` runs `handleFile` (analyze + cutout).
+
+**One-time Xcode step — add the App Group capability** (the entitlements files + `CODE_SIGN_ENTITLEMENTS`
+are already committed; this registers the group with your account):
+1. Select the **App** target → **Signing & Capabilities** → confirm **App Groups** shows
+   `group.app.wardrobe.personal` (checked). If it shows an error, click **+ Capability → App Groups**
+   and add `group.app.wardrobe.personal` (Xcode registers it in the portal).
+2. Repeat for the **ShareExtension** target (same group).
+3. Rebuild. Test: share a **photo** from Photos/Safari → Wardrobe → the add form opens with the image,
+   auto-tagged → **Save**.
+
+(Android image share would also need a POST `share_target` + a `fetch` handler in `public/sw.js` — deferred.)
 
 ## Caveats
 - Opening the host app from a Share Extension uses the responder-chain `openURL:` walk

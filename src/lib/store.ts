@@ -116,6 +116,9 @@ interface WardrobeState {
   /** A product URL shared into the app (iOS Share Extension / Web Share Target) to
    *  quick-save to the wishlist. ClipLinkLoader consumes it, then clears it. */
   pendingClipUrl: string | null;
+  /** An image shared into the app (iOS Share Extension) as a data URL — opens the add
+   *  form pre-loaded with the photo. ItemForm consumes it, then clears it. */
+  pendingSharedImage: string | null;
   filters: Filters;
   /** Item ids currently placed in each builder slot. */
   draft: Record<SlotKey, string[]>;
@@ -185,6 +188,10 @@ interface WardrobeState {
   setAddOpen: (open: boolean) => void;
   /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
   setPendingClipUrl: (url: string | null) => void;
+  /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
+  setPendingSharedImage: (dataUrl: string | null) => void;
+  /** Open the add form pre-loaded with a shared image (iOS Share Extension). */
+  openAddWithImage: (dataUrl: string) => void;
   /** Open the add form pointed at a specific input (camera/upload/link). */
   openAdd: (intent?: "camera" | "upload" | "link" | null) => void;
   setBulkOpen: (open: boolean) => void;
@@ -365,6 +372,7 @@ export const useWardrobe = create<WardrobeState>()(
       scanOpen: false,
       closetsOpen: false,
       pendingClipUrl: null,
+      pendingSharedImage: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
@@ -603,6 +611,9 @@ export const useWardrobe = create<WardrobeState>()(
       setScanOpen: (scanOpen) => set({ scanOpen }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
+      setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
+      openAddWithImage: (dataUrl) =>
+        set({ addOpen: true, addIntent: null, pendingSharedImage: dataUrl }),
       setFilters: (patch) =>
         set((s) => ({ filters: { ...s.filters, ...patch } })),
 

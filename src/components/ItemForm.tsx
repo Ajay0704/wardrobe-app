@@ -75,6 +75,8 @@ export function ItemForm({
   onClose: () => void;
 }) {
   const { addItem, updateItem, deleteItem, authUser } = useWardrobe();
+  const pendingSharedImage = useWardrobe((s) => s.pendingSharedImage);
+  const setPendingSharedImage = useWardrobe((s) => s.setPendingSharedImage);
   const uploadInputRef = useRef<HTMLInputElement>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const nativeHook = useIsNativeApp();
@@ -266,6 +268,25 @@ export function ItemForm({
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intent]);
+
+  // A photo shared via the iOS Share Extension: load it into the add form and run the
+  // normal photo pipeline (analyze + cutout), so the user reviews the auto-tagged item.
+  const sharedImageConsumed = useRef(false);
+  useEffect(() => {
+    if (sharedImageConsumed.current || initial || !pendingSharedImage) return;
+    sharedImageConsumed.current = true;
+    const dataUrl = pendingSharedImage;
+    setPendingSharedImage(null);
+    const t = setTimeout(() => {
+      try {
+        void handleFile(dataUrlToFile(dataUrl));
+      } catch {
+        /* ignore a malformed shared image */
+      }
+    }, 80);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSharedImage]);
 
   /** Ask Gemini to read the photo and pre-fill category/color/name/tags/season. */
   const runAnalyze = async (src: string): Promise<Category | undefined> => {

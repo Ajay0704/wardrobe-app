@@ -11,6 +11,7 @@ import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { getSupabase } from "@/lib/supabase/client";
 import { useWardrobe } from "@/lib/store";
+import { SharedInbox } from "@/lib/native/shared-inbox";
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
 
 type Listener = () => void;
@@ -118,6 +119,24 @@ export function NativeAppClass() {
       if (afterScheme.startsWith("share") || afterScheme.startsWith("clip")) {
         const q = url.indexOf("?");
         const params = new URLSearchParams(q >= 0 ? url.slice(q + 1) : "");
+        // Shared image: read the bytes the extension stashed in the App Group and open the
+        // add form pre-loaded with the photo.
+        if (params.get("type") === "image") {
+          try {
+            const pending = await SharedInbox.consumePending();
+            if (pending?.imageBase64) {
+              useWardrobe
+                .getState()
+                .openAddWithImage(
+                  `data:${pending.mime || "image/jpeg"};base64,${pending.imageBase64}`,
+                );
+            }
+          } catch {
+            /* plugin unavailable or nothing pending */
+          }
+          return;
+        }
+        // Shared link: quick-save to the wishlist.
         const shared = (params.get("url") || "").trim();
         if (/^https?:\/\//i.test(shared)) {
           useWardrobe.getState().setPendingClipUrl(shared);

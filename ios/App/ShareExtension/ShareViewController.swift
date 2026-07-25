@@ -8,45 +8,53 @@
 import UIKit
 import UniformTypeIdentifiers
 
-/// Captures a shared URL (or the first link found in shared text/web page) and hands it to the
-/// main app via its custom URL scheme `app.wardrobe.personal://share?url=<encoded>`. The app's
-/// `NativeAppClass` `appUrlOpen` handler then quick-saves it to the wishlist through `/api/clip`.
+/// Captures what the user shared and hands it to the main app:
+///   • a URL (or the first link in shared text/web page) → `app.wardrobe.personal://share?url=…`
+///     → the app quick-saves it to the wishlist (`ClipLinkLoader` → `/api/clip`).
+///   • an image → written to the App Group container, then `app.wardrobe.personal://share?type=image`
+///     → the app reads it via the `SharedInbox` plugin and opens the add form pre-loaded.
 /// No compose UI — we open the app and finish immediately.
-///
-/// Links only for now. Image sharing needs an App Group + a native bridge — see
-/// `docs/Share Extension.md` (Part B).
 final class ShareViewController: UIViewController {
     private let hostScheme = "app.wardrobe.personal"
+    private let appGroup = "group.app.wardrobe.personal"
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        extractSharedURL { [weak self] shared in
-            self?.finish(with: shared)
+        process()
+    }
+
+    private func process() {
+        let providers = (extensionContext?.inputItems as? [NSExtensionItem])?
+            .flatMap { $0.attachments ?? [] } ?? []
+        let urlType = UTType.url.identifier
+        let imageType = UTType.image.identifier
+        let textType = UTType.plainText.identifier
+
+        // Prefer a real URL (a shared web page also carries a preview image — we want the link).
+        if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(urlType) }) {
+            p.loadItem(forTypeIdentifier: urlType, options: nil) { [weak self] item, _ in
+                self?.openLink((item as? URL)?.absoluteString ?? (item as? String))
+            }
+        } else if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(imageType) }) {
+            p.loadItem(forTypeIdentifier: imageType, options: nil) { [weak self] item, _ in
+                self?.openImage(item)
+            }
+        } else if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(textType) }) {
+            p.loadItem(forTypeIdentifier: textType, options: nil) { [weak self] item, _ in
+                self?.openLink((item as? String).flatMap(Self.firstURL(in:)))
+            }
+        } else {
+            complete()
         }
     }
 
-    /// Prefer a real `public.url`; else pull the first http(s) link out of shared plain text.
-    private func extractSharedURL(_ completion: @escaping (String?) -> Void) {
-        guard let items = extensionContext?.inputItems as? [NSExtensionItem] else {
-            return completion(nil)
-        }
-        let urlType = UTType.url.identifier
-        let textType = UTType.plainText.identifier
-        let providers = items.flatMap { $0.attachments ?? [] }
+    // MARK: - Links
 
-        if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(urlType) }) {
-            p.loadItem(forTypeIdentifier: urlType, options: nil) { data, _ in
-                completion((data as? URL)?.absoluteString ?? (data as? String))
-            }
-            return
+    private func openLink(_ shared: String?) {
+        if let shared, let deepLink = deepLink("share?url=\(percentEncode(shared))") {
+            openHostApp(deepLink)
         }
-        if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(textType) }) {
-            p.loadItem(forTypeIdentifier: textType, options: nil) { data, _ in
-                completion((data as? String).flatMap(Self.firstURL(in:)))
-            }
-            return
-        }
-        completion(nil)
+        complete()
     }
 
     private static func firstURL(in text: String) -> String? {
@@ -55,23 +63,59 @@ final class ShareViewController: UIViewController {
         return detector?.firstMatch(in: text, options: [], range: range)?.url?.absoluteString
     }
 
-    private func finish(with sharedURL: String?) {
-        if let sharedURL, let deepLink = deepLink(for: sharedURL) {
-            openHostApp(deepLink)
+    // MARK: - Images
+
+    private func openImage(_ item: NSSecureCoding?) {
+        var data: Data?
+        var mime = "image/jpeg"
+        if let url = item as? URL, let d = try? Data(contentsOf: url) {
+            data = d
+            mime = url.pathExtension.lowercased() == "png" ? "image/png" : "image/jpeg"
+        } else if let image = item as? UIImage {
+            data = image.jpegData(compressionQuality: 0.9)
+        } else if let d = item as? Data {
+            data = d
         }
+        if let data, stashImage(data, mime: mime) {
+            if let deepLink = deepLink("share?type=image") {
+                openHostApp(deepLink)
+            }
+        }
+        complete()
+    }
+
+    /// Write the image to the App Group container and record a marker the app reads once.
+    private func stashImage(_ data: Data, mime: String) -> Bool {
+        guard let container = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: appGroup),
+            let defaults = UserDefaults(suiteName: appGroup)
+        else { return false }
+        let dir = container.appendingPathComponent("shared/inbox", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let ext = mime == "image/png" ? "png" : "jpg"
+        let fileURL = dir.appendingPathComponent("\(UUID().uuidString).\(ext)")
+        guard (try? data.write(to: fileURL)) != nil else { return false }
+        defaults.set(fileURL.path, forKey: "pendingSharedImagePath")
+        defaults.set(mime, forKey: "pendingSharedImageMime")
+        return true
+    }
+
+    // MARK: - Helpers
+
+    private func percentEncode(_ s: String) -> String {
+        let unreserved = CharacterSet(charactersIn:
+            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        return s.addingPercentEncoding(withAllowedCharacters: unreserved) ?? ""
+    }
+
+    private func deepLink(_ query: String) -> URL? {
+        URL(string: "\(hostScheme)://\(query)")
+    }
+
+    private func complete() {
         DispatchQueue.main.async { [weak self] in
             self?.extensionContext?.completeRequest(returningItems: [], completionHandler: nil)
         }
-    }
-
-    private func deepLink(for sharedURL: String) -> URL? {
-        // Encode everything but the RFC-3986 unreserved set so the value is a safe query arg.
-        let unreserved = CharacterSet(charactersIn:
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
-        guard let encoded = sharedURL.addingPercentEncoding(withAllowedCharacters: unreserved) else {
-            return nil
-        }
-        return URL(string: "\(hostScheme)://share?url=\(encoded)")
     }
 
     /// App extensions can't call `UIApplication.shared.open`; walk the responder chain to find a
