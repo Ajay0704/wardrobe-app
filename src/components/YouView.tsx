@@ -131,6 +131,11 @@ export function YouView() {
         </span>
       </button>
 
+      <Group label="Account">
+        <Row icon={UserCog} label="Account details" onClick={() => setView("settingsAccount")} chevron />
+        <Row icon={Download} label="Export your data" onClick={exportData} chevron />
+      </Group>
+
       {/* Upgrade card */}
       <button
         type="button"
@@ -185,18 +190,24 @@ export function YouView() {
         <Row icon={CalendarDays} label="Calendar" onClick={() => setView("calendar")} chevron />
       </Group>
 
-      <Group label="Account">
-        <Row icon={UserCog} label="Account details" onClick={() => setView("settingsAccount")} chevron />
-        <Row icon={Download} label="Export your data" onClick={exportData} chevron />
-        {authUser && <Row label="Sign out" onClick={logOut} chevron />}
-        <Row label="Delete account" danger onClick={() => setShowDelete(true)} chevron />
-      </Group>
-
       <Group label="About" right="Ver 1.1.0">
         <Row icon={LifeBuoy} label="Help & feedback" onClick={() => soon("Help & feedback")} chevron />
         <Row icon={Shield} label="Privacy policy" onClick={() => soon("Privacy policy")} chevron />
         <Row icon={FileText} label="Terms of Service" onClick={() => soon("Terms of Service")} chevron />
       </Group>
+
+      <div className="space-y-3 pt-2 text-center">
+        {authUser && (
+          <button type="button" onClick={logOut} className="text-[15px] font-medium text-accent">
+            Sign out
+          </button>
+        )}
+        <div>
+          <button type="button" onClick={() => setShowDelete(true)} className="text-sm text-red-600">
+            Delete account
+          </button>
+        </div>
+      </div>
 
       {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
 
