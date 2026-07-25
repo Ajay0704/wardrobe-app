@@ -77,6 +77,7 @@ function isActive(tab: View, view: View): boolean {
 export function NativeShell() {
   const { view, setView, openAdd, openSplit, openScan } = useWardrobe();
   const profile = useWardrobe((s) => s.profile);
+  const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const [createOpen, setCreateOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
@@ -216,7 +217,9 @@ export function NativeShell() {
 
         <button
           type="button"
-          onClick={() => setCreateOpen(true)}
+          onClick={() =>
+            view === "wishlist" ? setWishlistAddOpen(true) : setCreateOpen(true)
+          }
           className="native-tab"
           aria-label="Create"
         >

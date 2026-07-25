@@ -106,6 +106,7 @@ interface WardrobeState {
   settingsSection: SettingsSection;
   /** Global "add item" modal (opened from the center Create button). */
   addOpen: boolean;
+  wishlistAddOpen: boolean;
   /** Which input the add form should jump to when opened from a "+" row. */
   addIntent: "camera" | "upload" | "link" | null;
   /** Global "import from photos" (bulk) modal, opened from Create / Closet. */
@@ -190,6 +191,7 @@ interface WardrobeState {
   openUserProfile: (userId: string) => void;
   setSettingsSection: (s: SettingsSection) => void;
   setAddOpen: (open: boolean) => void;
+  setWishlistAddOpen: (open: boolean) => void;
   /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
   setPendingClipUrl: (url: string | null) => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
@@ -369,6 +371,7 @@ export const useWardrobe = create<WardrobeState>()(
       viewUserId: null,
       settingsSection: "profile",
       addOpen: false,
+      wishlistAddOpen: false,
       addIntent: null,
       bulkOpen: false,
       splitOpen: false,
@@ -606,6 +609,7 @@ export const useWardrobe = create<WardrobeState>()(
       openUserProfile: (userId) => set({ viewUserId: userId, view: "userProfile" }),
       setSettingsSection: (settingsSection) => set({ settingsSection }),
       setAddOpen: (addOpen) => set({ addOpen, ...(addOpen ? {} : { addIntent: null }) }),
+      setWishlistAddOpen: (wishlistAddOpen) => set({ wishlistAddOpen }),
       openAdd: (intent = null) => set({ addOpen: true, addIntent: intent }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),
       openSplit: (source) => set({ splitOpen: true, splitSource: source ?? null }),

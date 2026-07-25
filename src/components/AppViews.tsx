@@ -26,6 +26,7 @@ import { ChatView } from "./chat/ChatView";
 import { StylistView } from "./stylist/StylistView";
 import { PhotoDetailView } from "./PhotoDetailView";
 import { ItemForm } from "./ItemForm";
+import { AddToWishlistSheet } from "./wishlist/AddToWishlistSheet";
 import { BulkImport } from "./BulkImport";
 import { OutfitSplitImport } from "./OutfitSplitImport";
 import { ClosetScanImport } from "./ClosetScanImport";
@@ -40,6 +41,8 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
   const addOpen = useWardrobe((s) => s.addOpen);
   const addIntent = useWardrobe((s) => s.addIntent);
   const setAddOpen = useWardrobe((s) => s.setAddOpen);
+  const wishlistAddOpen = useWardrobe((s) => s.wishlistAddOpen);
+  const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const bulkOpen = useWardrobe((s) => s.bulkOpen);
   const setBulkOpen = useWardrobe((s) => s.setBulkOpen);
   const splitOpen = useWardrobe((s) => s.splitOpen);
@@ -81,6 +84,9 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       {view === "photoDetail" && <PhotoDetailView />}
 
       {addOpen && <ItemForm intent={addIntent} onClose={() => setAddOpen(false)} />}
+      {wishlistAddOpen && (
+        <AddToWishlistSheet onClose={() => setWishlistAddOpen(false)} />
+      )}
       {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}
       {splitOpen && (
         <OutfitSplitImport source={splitSource ?? undefined} onClose={() => setSplitOpen(false)} />

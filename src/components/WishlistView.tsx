@@ -12,9 +12,9 @@ import { Button, EmptyState } from "./ui";
 
 export function WishlistView() {
   const { items } = useWardrobe();
+  const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
-  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
 
   const wishlist = useMemo(
@@ -34,7 +34,7 @@ export function WishlistView() {
             your wardrobe.
           </p>
         </div>
-        <Button onClick={() => setAdding(true)}>
+        <Button onClick={() => setWishlistAddOpen(true)}>
           <Plus size={15} /> Add wishlist item
         </Button>
       </div>
@@ -52,7 +52,7 @@ export function WishlistView() {
           title="Your wishlist is empty"
           subtitle="Save items you're eyeing from shop pages with the browser clipper, or add one manually."
           action={
-            <Button onClick={() => setAdding(true)}>
+            <Button onClick={() => setWishlistAddOpen(true)}>
               <Heart size={15} /> Add your first wish
             </Button>
           }
@@ -65,14 +65,11 @@ export function WishlistView() {
         </div>
       )}
 
-      {(adding || editing) && (
+      {editing && (
         <ItemForm
-          initial={editing ?? undefined}
+          initial={editing}
           defaultWishlist
-          onClose={() => {
-            setAdding(false);
-            setEditing(null);
-          }}
+          onClose={() => setEditing(null)}
         />
       )}
     </div>
