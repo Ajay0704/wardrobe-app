@@ -1,15 +1,20 @@
+//
+//  ShareViewController.swift
+//  ShareExtension
+//
+//  Wardrobe "Share → Wardrobe" extension.
+//
+
 import UIKit
 import UniformTypeIdentifiers
 
-/// Wardrobe Share Extension.
+/// Captures a shared URL (or the first link found in shared text/web page) and hands it to the
+/// main app via its custom URL scheme `app.wardrobe.personal://share?url=<encoded>`. The app's
+/// `NativeAppClass` `appUrlOpen` handler then quick-saves it to the wishlist through `/api/clip`.
+/// No compose UI — we open the app and finish immediately.
 ///
-/// Captures a shared URL (or the first link found in shared text/web page) and hands it to
-/// the main app via its custom URL scheme `app.wardrobe.personal://share?url=<encoded>`.
-/// The app's `NativeAppClass` `appUrlOpen` handler then quick-saves it to the wishlist through
-/// the existing `/api/clip` pipeline. No UI is shown — we open the app and finish immediately.
-///
-/// Links only for now. Image sharing needs an App Group shared container + a native bridge to
-/// hand the bytes to the WebView — see `docs/Share Extension.md` (Part B).
+/// Links only for now. Image sharing needs an App Group + a native bridge — see
+/// `docs/Share Extension.md` (Part B).
 final class ShareViewController: UIViewController {
     private let hostScheme = "app.wardrobe.personal"
 
@@ -20,8 +25,7 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    /// Pull a URL from the extension's input items: prefer a real `public.url`, then fall back
-    /// to the first http(s) link inside shared plain text (many apps share the link as text).
+    /// Prefer a real `public.url`; else pull the first http(s) link out of shared plain text.
     private func extractSharedURL(_ completion: @escaping (String?) -> Void) {
         guard let items = extensionContext?.inputItems as? [NSExtensionItem] else {
             return completion(nil)
@@ -32,8 +36,7 @@ final class ShareViewController: UIViewController {
 
         if let p = providers.first(where: { $0.hasItemConformingToTypeIdentifier(urlType) }) {
             p.loadItem(forTypeIdentifier: urlType, options: nil) { data, _ in
-                let url = (data as? URL)?.absoluteString ?? (data as? String)
-                completion(url)
+                completion((data as? URL)?.absoluteString ?? (data as? String))
             }
             return
         }
