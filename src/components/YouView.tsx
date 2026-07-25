@@ -4,7 +4,6 @@ import {
   Bell,
   CalendarDays,
   ChartBar,
-  Crown,
   Download,
   FileText,
   LifeBuoy,
@@ -16,7 +15,7 @@ import {
   SunMoon,
   UserCog,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   disableNativeOutfitReminders,
   enableNativeOutfitReminders,
@@ -59,8 +58,6 @@ export function YouView() {
   const [notifBusy, setNotifBusy] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
 
-  const owned = useMemo(() => items.filter((it) => !it.wishlist).length, [items]);
-  const closetPct = Math.min(100, Math.round((owned / 100) * 100));
   const name = profile.displayName?.trim() || "You";
   const handle = profileHandle(profile);
   const isDark = theme === "dark";
@@ -135,29 +132,6 @@ export function YouView() {
         <Row icon={UserCog} label="Account details" onClick={() => setView("settingsAccount")} chevron />
         <Row icon={Download} label="Export your data" onClick={exportData} chevron />
       </Group>
-
-      {/* Upgrade card */}
-      <button
-        type="button"
-        onClick={() => soon("Wardrobe Premium")}
-        className="w-full rounded-2xl bg-accent-soft p-4 text-left"
-      >
-        <div className="flex items-center gap-3">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/15 text-accent">
-            <Crown size={20} />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-semibold text-accent">Wardrobe Free</p>
-            <p className="text-xs text-accent/80">{owned}/100 items · unlock unlimited + AI</p>
-          </div>
-          <span className="shrink-0 rounded-full bg-accent px-4 py-1.5 text-sm font-semibold text-accent-foreground">
-            Upgrade
-          </span>
-        </div>
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-accent/15">
-          <div className="h-full rounded-full bg-accent" style={{ width: `${closetPct}%` }} />
-        </div>
-      </button>
 
       <Group label="You">
         <Row icon={Ruler} label="Fit & sizes" onClick={() => setView("fitSizes")} chevron />
