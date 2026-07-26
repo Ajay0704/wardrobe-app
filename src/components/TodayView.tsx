@@ -1,7 +1,7 @@
 "use client";
 
 import { CloudSun, RefreshCw, Shirt } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { generateOutfit, outfitScore } from "@/lib/matching";
 import {
   habitLabel,
@@ -12,7 +12,13 @@ import {
 import { primaryStyleVibe } from "@/lib/profile";
 import { draftItemIds, useWardrobe } from "@/lib/store";
 import type { Season, WardrobeItem } from "@/lib/types";
-import { fetchLocalWeather, type WeatherSnapshot } from "@/lib/weather";
+import {
+  cacheWeather,
+  fetchLocalWeather,
+  fetchWeatherForPlace,
+  readCachedWeather,
+  type WeatherSnapshot,
+} from "@/lib/weather";
 import { OutfitPreview } from "./OutfitPreview";
 import { Button, EmptyState, MatchBadge } from "./ui";
 
@@ -82,9 +88,14 @@ function buildSuggestions(
 export function TodayView() {
   const { items, logWear, setDraft, setView, saveOutfit, profile, openSplit } =
     useWardrobe();
-  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  // Show the last known forecast instantly, then refresh below.
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(() =>
+    readCachedWeather(),
+  );
   const [weatherError, setWeatherError] = useState<string | null>(null);
   const [loadingWeather, setLoadingWeather] = useState(false);
+  // The city we've already auto-loaded, so we don't refetch on every render.
+  const autoLoadedCity = useRef<string | null>(null);
   const [seed, setSeed] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const [habit, setHabit] = useState<HabitWeek>(() => readHabitWeek());
@@ -101,6 +112,7 @@ export function TodayView() {
     fetchLocalWeather({ fallbackPlace: profile.location })
       .then((w) => {
         setWeather(w);
+        cacheWeather(w);
         setWeatherError(null);
       })
       .catch((err) => {
@@ -111,6 +123,28 @@ export function TodayView() {
       })
       .finally(() => setLoadingWeather(false));
   };
+
+  // Auto-load the forecast from the saved city — no GPS prompt — so Today shows
+  // weather without a manual tap. "Use my location" still refines it via GPS.
+  useEffect(() => {
+    const city = profile.location?.trim();
+    if (!city || autoLoadedCity.current === city) return;
+    autoLoadedCity.current = city;
+    let alive = true;
+    fetchWeatherForPlace(city)
+      .then((w) => {
+        if (!alive) return;
+        setWeather(w);
+        cacheWeather(w);
+        setWeatherError(null);
+      })
+      .catch(() => {
+        /* keep whatever we already show (cached / none) */
+      });
+    return () => {
+      alive = false;
+    };
+  }, [profile.location]);
 
   const pool = useMemo(
     () => filterForWeather(items, weather),

@@ -68,8 +68,13 @@ export function convertTemp(celsius: number, unit: TempUnit): number {
 }
 
 export type WeatherOptions = {
-  /** Timeout for GPS + forecast fetch (ms). */
+  /** Timeout for the forecast / geocode network fetch (ms). */
   timeoutMs?: number;
+  /**
+   * Timeout for acquiring a GPS fix (ms). iOS cold fixes are slow, so this
+   * defaults higher than the network timeout.
+   */
+  gpsTimeoutMs?: number;
   /**
    * Optional city/region from profile (e.g. "Toronto") used when GPS fails
    * or is denied — geocoded via Open-Meteo.
@@ -249,6 +254,7 @@ export async function fetchLocalWeather(
   const opts: WeatherOptions =
     typeof options === "number" ? { timeoutMs: options } : options;
   const timeoutMs = opts.timeoutMs ?? 10_000;
+  const gpsTimeoutMs = opts.gpsTimeoutMs ?? 20_000;
   const fallbackPlace = opts.fallbackPlace?.trim();
 
   let coords: { latitude: number; longitude: number } | null = null;
@@ -256,8 +262,8 @@ export async function fetchLocalWeather(
 
   try {
     coords = Capacitor.isNativePlatform()
-      ? await coordsFromNative(timeoutMs)
-      : await coordsFromBrowser(timeoutMs);
+      ? await coordsFromNative(gpsTimeoutMs)
+      : await coordsFromBrowser(gpsTimeoutMs);
   } catch (err) {
     gpsError = geoErrorMessage(err);
   }
@@ -287,4 +293,45 @@ export async function fetchWeatherForPlace(
 ): Promise<WeatherSnapshot> {
   const geo = await geocodePlace(place, timeoutMs);
   return forecastAt(geo.latitude, geo.longitude, timeoutMs, geo.name);
+}
+
+/**
+ * Remembered last forecast (device-local, ~12h TTL). Lets the Home screen show
+ * weather instantly on return, before a fresh fetch resolves.
+ */
+const WEATHER_CACHE_KEY = "wardrobe:lastWeather";
+const WEATHER_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+export function readCachedWeather(): WeatherSnapshot | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(WEATHER_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as {
+      savedAt?: number;
+      snapshot?: WeatherSnapshot;
+    };
+    if (
+      typeof parsed.savedAt !== "number" ||
+      !parsed.snapshot ||
+      Date.now() - parsed.savedAt > WEATHER_CACHE_MAX_AGE_MS
+    ) {
+      return null;
+    }
+    return parsed.snapshot;
+  } catch {
+    return null;
+  }
+}
+
+export function cacheWeather(snapshot: WeatherSnapshot): void {
+  if (typeof localStorage === "undefined") return;
+  try {
+    localStorage.setItem(
+      WEATHER_CACHE_KEY,
+      JSON.stringify({ savedAt: Date.now(), snapshot }),
+    );
+  } catch {
+    /* storage full / private mode — ignore */
+  }
 }
