@@ -127,6 +127,10 @@ interface WardrobeState {
   /** Bumped by the native dock on any tab tap so an open (portaled) item editor
    *  dismisses itself — otherwise it stays over the newly-selected view. */
   editorCloseNonce: number;
+  /** Set when a shared-closet invite notification is tapped, so WardrobeView opens
+   *  its "Shared" tab. WardrobeView consumes + clears it (survives a cold mount on
+   *  web where the closet tab isn't kept alive). */
+  pendingWardrobeTab: "shared" | null;
   /** An image shared into the app (iOS Share Extension) as a data URL — opens the add
    *  form pre-loaded with the photo. ItemForm consumes it, then clears it. */
   pendingSharedImage: string | null;
@@ -202,6 +206,8 @@ interface WardrobeState {
   setPendingClipUrl: (url: string | null) => void;
   setPendingOpenItemId: (id: string | null) => void;
   dismissItemEditor: () => void;
+  jumpToSharedCloset: () => void;
+  setPendingWardrobeTab: (t: "shared" | null) => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
   setPendingSharedImage: (dataUrl: string | null) => void;
   /** Open the add form pre-loaded with a shared image (iOS Share Extension). */
@@ -389,6 +395,7 @@ export const useWardrobe = create<WardrobeState>()(
       pendingClipUrl: null,
       pendingOpenItemId: null,
       editorCloseNonce: 0,
+      pendingWardrobeTab: null,
       pendingSharedImage: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -632,6 +639,9 @@ export const useWardrobe = create<WardrobeState>()(
       setPendingOpenItemId: (pendingOpenItemId) => set({ pendingOpenItemId }),
       dismissItemEditor: () =>
         set((s) => ({ editorCloseNonce: s.editorCloseNonce + 1 })),
+      jumpToSharedCloset: () =>
+        set({ pendingWardrobeTab: "shared", view: "wardrobe" }),
+      setPendingWardrobeTab: (pendingWardrobeTab) => set({ pendingWardrobeTab }),
       setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
       openAddWithImage: (dataUrl) =>
         set({ addOpen: true, addIntent: null, pendingSharedImage: dataUrl }),

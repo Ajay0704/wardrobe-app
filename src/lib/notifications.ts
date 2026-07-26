@@ -7,7 +7,13 @@
 
 import { getSupabase } from "./supabase/client";
 
-export type NotificationKind = "like" | "comment" | "follow" | "vote" | "trip_invite";
+export type NotificationKind =
+  | "like"
+  | "comment"
+  | "follow"
+  | "vote"
+  | "trip_invite"
+  | "closet_invite";
 
 export interface AppNotification {
   id: string;

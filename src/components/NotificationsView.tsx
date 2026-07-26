@@ -7,6 +7,7 @@ import {
   Luggage,
   MessageCircle,
   UserPlus,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -26,6 +27,7 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   follow: UserPlus,
   vote: BarChart3,
   trip_invite: Luggage,
+  closet_invite: Users,
 };
 
 function actionText(n: AppNotification): string {
@@ -37,6 +39,10 @@ function actionText(n: AppNotification): string {
     return n.preview ? `voted “${n.preview}” on your poll` : "voted on your poll";
   if (n.kind === "trip_invite")
     return n.preview ? `invited you to “${n.preview}”` : "invited you to a trip";
+  if (n.kind === "closet_invite")
+    return n.preview
+      ? `invited you to the shared closet “${n.preview}”`
+      : "invited you to a shared closet";
   return "sent you a notification";
 }
 
@@ -63,6 +69,7 @@ function timeAgo(iso: string): string {
  */
 export function NotificationsView() {
   const setView = useWardrobe((s) => s.setView);
+  const jumpToSharedCloset = useWardrobe((s) => s.jumpToSharedCloset);
   const openUserProfile = useWardrobe((s) => s.openUserProfile);
   const profile = useWardrobe((s) => s.profile);
   const authUser = useWardrobe((s) => s.authUser);
@@ -121,6 +128,7 @@ export function NotificationsView() {
   const openTarget = (n: AppNotification) => {
     if (n.kind === "follow" && n.actorId) return openUserProfile(n.actorId);
     if (n.kind === "trip_invite") return setView("travel");
+    if (n.kind === "closet_invite") return jumpToSharedCloset();
     return setView("explore");
   };
 

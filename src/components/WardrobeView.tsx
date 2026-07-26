@@ -11,6 +11,7 @@ import { useIsNativeApp } from "./NativeAppClass";
 import { ClosetsSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
+import { SharedClosetView } from "./SharedClosetView";
 import { Button, Chip, EmptyState } from "./ui";
 
 // Top-level closet tabs. Outfits lives on its own page/tab, so it's intentionally not here.
@@ -59,6 +60,12 @@ export function WardrobeView() {
         setEditing(target);
       }
     };
+    const openTab = (t: "shared") => {
+      useWardrobe.getState().setPendingWardrobeTab(null);
+      setEditing(null);
+      setAdding(false);
+      setTab(t);
+    };
     const unsub = useWardrobe.subscribe((s, prev) => {
       if (s.pendingOpenItemId && s.pendingOpenItemId !== prev.pendingOpenItemId) {
         open(s.pendingOpenItemId);
@@ -69,9 +76,17 @@ export function WardrobeView() {
         setEditing(null);
         setAdding(false);
       }
+      // A shared-closet invite notification was tapped — open the Shared tab.
+      if (s.pendingWardrobeTab && s.pendingWardrobeTab !== prev.pendingWardrobeTab) {
+        openTab(s.pendingWardrobeTab);
+      }
     });
-    // Catch a deep link that set the id before this subscribed (cold start).
-    queueMicrotask(() => open(useWardrobe.getState().pendingOpenItemId));
+    // Catch deep links that set state before this subscribed (cold start).
+    queueMicrotask(() => {
+      open(useWardrobe.getState().pendingOpenItemId);
+      const pt = useWardrobe.getState().pendingWardrobeTab;
+      if (pt) openTab(pt);
+    });
     return unsub;
   }, []);
 
@@ -144,10 +159,7 @@ export function WardrobeView() {
       </div>
 
       {tab === "shared" ? (
-        <EmptyState
-          title="Shared wardrobe"
-          subtitle="Coming soon — you'll be able to share your closet and see closets shared with you here."
-        />
+        <SharedClosetView />
       ) : (
         <>
           {/* Category tabs */}
