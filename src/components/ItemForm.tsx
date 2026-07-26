@@ -3,8 +3,10 @@
 import {
   ArrowRight,
   Camera,
+  Check,
   ChevronDown,
   ChevronLeft,
+  ChevronRight,
   ExternalLink,
   Image as ImageIcon,
   Maximize2,
@@ -22,6 +24,7 @@ import { createPortal } from "react-dom";
 import type { ProductCandidate } from "@/app/api/find-product/route";
 import { affiliateUrl } from "@/lib/affiliate";
 import { extractDominantColor, nameColor } from "@/lib/color";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { useWardrobe } from "@/lib/store";
@@ -37,6 +40,28 @@ import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { useIsNativeApp } from "./NativeAppClass";
+
+/** Which attribute row's picker sheet is open (Acloset-style edit — AJA-207). */
+type SheetKey =
+  | "category"
+  | "color"
+  | "fit"
+  | "brand"
+  | "price"
+  | "season"
+  | "tags"
+  | "notes";
+
+const SHEET_TITLES: Record<SheetKey, string> = {
+  category: "Category",
+  color: "Color",
+  fit: "Fit",
+  brand: "Brand",
+  price: "Price",
+  season: "Season",
+  tags: "Tags",
+  notes: "Notes",
+};
 
 /** Phone / Capacitor: keep the stacked editor — never jump to desktop modal chrome. */
 function usePhoneEditorLayout(nativeHook: boolean): boolean {
@@ -77,6 +102,7 @@ export function ItemForm({
   onClose: () => void;
 }) {
   const { addItem, updateItem, deleteItem, authUser } = useWardrobe();
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const pendingSharedImage = useWardrobe((s) => s.pendingSharedImage);
   const setPendingSharedImage = useWardrobe((s) => s.setPendingSharedImage);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -120,6 +146,7 @@ export function ItemForm({
   const [wishlist, setWishlist] = useState(
     initial?.wishlist ?? defaultWishlist ?? false,
   );
+  const [openSheet, setOpenSheet] = useState<SheetKey | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -621,278 +648,399 @@ export function ItemForm({
   // On the detail screen show the garment-on-white product shot; the transparent sticker
   // (imageUrl) is for the canvas. Fall back to imageUrl before/without Beautify.
   const previewUrl = beautifyApplied && beautifyWhiteUrl ? beautifyWhiteUrl : imageUrl;
-  const form = (
-    <>
-      <div className="item-form-layout grid gap-5 lg:grid-cols-[180px_1fr]">
-        {/* Live image preview + a single photo-actions menu */}
-        <div className="mx-auto w-44 space-y-2.5 lg:mx-0 lg:w-auto">
-          {/* Hidden input; the menu's Upload item and the "+ → library" intent both trigger it. */}
-          <input
-            ref={uploadInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-          />
-          <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
-            {imageUrl ? (
-              <button
-                type="button"
-                onClick={() => setZoomOpen(true)}
-                aria-label="Enlarge photo"
-                className="relative h-full w-full"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewUrl}
-                  alt="Preview"
-                  className="h-full w-full object-contain"
-                />
-                <span className="absolute bottom-2 right-2 flex items-center justify-center rounded-full bg-black/45 p-1.5 text-white backdrop-blur">
-                  <Maximize2 size={13} />
-                </span>
-              </button>
-            ) : (
-              <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
-                Add a photo to preview it here
-              </div>
-            )}
+
+  // The link auto-fill only makes sense when you're saving something you found
+  // online — hide it entirely when editing a piece you already own (AJA-207).
+  const showAutofill = wishlist || intent === "link";
+  const categoryLabel =
+    CATEGORIES.find((c) => c.value === category)?.label ?? category;
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  // Large live preview + one "Edit photo" menu (upload / camera / beautify / restore).
+  const photoBlock = (
+    <div className="mx-auto w-44 space-y-2.5">
+      {/* Hidden input; the menu's Upload item and the "+ → library" intent both trigger it. */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
+      <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
+        {imageUrl ? (
+          <button
+            type="button"
+            onClick={() => setZoomOpen(true)}
+            aria-label="Enlarge photo"
+            className="relative h-full w-full"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewUrl}
+              alt="Preview"
+              className="h-full w-full object-contain"
+            />
+            <span className="absolute bottom-2 right-2 flex items-center justify-center rounded-full bg-black/45 p-1.5 text-white backdrop-blur">
+              <Maximize2 size={13} />
+            </span>
+          </button>
+        ) : (
+          <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
+            Add a photo to preview it here
           </div>
-          {zoomOpen &&
-            previewUrl &&
-            portalToBody(
-              <PhotoLightbox src={previewUrl} onClose={() => setZoomOpen(false)} />,
-            )}
+        )}
+      </div>
+      {zoomOpen &&
+        previewUrl &&
+        portalToBody(
+          <PhotoLightbox src={previewUrl} onClose={() => setZoomOpen(false)} />,
+        )}
 
-          {/* One control for every photo action (replaces the old stack of buttons). */}
-          <div ref={photoMenuRef} className="relative">
-            <button
-              type="button"
-              onClick={() => setPhotoMenuOpen((o) => !o)}
-              disabled={uploading || removingBg || beautifying}
-              aria-haspopup="menu"
-              aria-expanded={photoMenuOpen}
-              className="flex w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-accent/60 disabled:opacity-60"
+      {/* One control for every photo action (replaces the old stack of buttons). */}
+      <div ref={photoMenuRef} className="relative">
+        <button
+          type="button"
+          onClick={() => setPhotoMenuOpen((o) => !o)}
+          disabled={uploading || removingBg || beautifying}
+          aria-haspopup="menu"
+          aria-expanded={photoMenuOpen}
+          className="flex w-full items-center justify-center gap-1.5 rounded-full border border-line bg-surface px-3 py-2 text-xs font-medium text-foreground transition-colors hover:border-accent/60 disabled:opacity-60"
+        >
+          <ImageIcon size={13} />
+          {uploading
+            ? "Uploading…"
+            : removingBg
+              ? "Removing background…"
+              : beautifying
+                ? "Beautifying…"
+                : imageUrl
+                  ? "Edit photo"
+                  : "Add photo"}
+          <ChevronDown size={13} className="text-muted" />
+        </button>
+
+        {photoMenuOpen && (
+          <div
+            role="menu"
+            className="animate-fade-up absolute left-1/2 top-full z-50 mt-2 w-60 -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-lg shadow-black/10"
+          >
+            <PhotoMenuItem
+              icon={Upload}
+              onClick={() => {
+                setPhotoMenuOpen(false);
+                uploadInputRef.current?.click();
+              }}
             >
-              <ImageIcon size={13} />
-              {uploading
-                ? "Uploading…"
-                : removingBg
-                  ? "Removing background…"
-                  : beautifying
-                    ? "Beautifying…"
-                    : imageUrl
-                      ? "Edit photo"
-                      : "Add photo"}
-              <ChevronDown size={13} className="text-muted" />
-            </button>
-
-            {photoMenuOpen && (
-              <div
-                role="menu"
-                className="animate-fade-up absolute left-1/2 top-full z-50 mt-2 w-60 -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-lg shadow-black/10"
+              {imageUrl ? "Replace with upload" : "Upload photo"}
+            </PhotoMenuItem>
+            {isNative && (
+              <PhotoMenuItem
+                icon={Camera}
+                onClick={() => {
+                  setPhotoMenuOpen(false);
+                  void handleTakePhoto();
+                }}
               >
+                Take photo
+              </PhotoMenuItem>
+            )}
+            {imageUrl && !beautifyDisabled && (
+              <>
+                <div className="my-1 border-t border-line" />
                 <PhotoMenuItem
-                  icon={Upload}
+                  icon={Wand2}
+                  accent
                   onClick={() => {
                     setPhotoMenuOpen(false);
-                    uploadInputRef.current?.click();
+                    void handleBeautify();
                   }}
                 >
-                  {imageUrl ? "Replace with upload" : "Upload photo"}
+                  {beautifyApplied ? "Revert to cutout" : "Beautify — product shot"}
                 </PhotoMenuItem>
-                {isNative && (
+                {beautifyStale && (
                   <PhotoMenuItem
-                    icon={Camera}
+                    icon={RefreshCw}
                     onClick={() => {
                       setPhotoMenuOpen(false);
-                      void handleTakePhoto();
+                      void handleBeautify(true);
                     }}
                   >
-                    Take photo
+                    Regenerate product shot
                   </PhotoMenuItem>
                 )}
-                {imageUrl && !beautifyDisabled && (
-                  <>
-                    <div className="my-1 border-t border-line" />
-                    <PhotoMenuItem
-                      icon={Wand2}
-                      accent
-                      onClick={() => {
-                        setPhotoMenuOpen(false);
-                        void handleBeautify();
-                      }}
-                    >
-                      {beautifyApplied ? "Revert to cutout" : "Beautify — product shot"}
-                    </PhotoMenuItem>
-                    {beautifyStale && (
-                      <PhotoMenuItem
-                        icon={RefreshCw}
-                        onClick={() => {
-                          setPhotoMenuOpen(false);
-                          void handleBeautify(true);
-                        }}
-                      >
-                        Regenerate product shot
-                      </PhotoMenuItem>
-                    )}
-                  </>
-                )}
-                {imageUrl && originalImageUrl && originalImageUrl !== imageUrl && (
-                  <PhotoMenuItem
-                    icon={ImageIcon}
-                    onClick={() => {
-                      setPhotoMenuOpen(false);
-                      restoreOriginal();
-                    }}
-                  >
-                    Use original photo
-                  </PhotoMenuItem>
-                )}
-              </div>
+              </>
+            )}
+            {imageUrl && originalImageUrl && originalImageUrl !== imageUrl && (
+              <PhotoMenuItem
+                icon={ImageIcon}
+                onClick={() => {
+                  setPhotoMenuOpen(false);
+                  restoreOriginal();
+                }}
+              >
+                Use original photo
+              </PhotoMenuItem>
             )}
           </div>
+        )}
+      </div>
 
-          {analyzeMsg && (
-            <span className="block text-center text-[11px] text-muted">
-              {analyzeMsg}
-            </span>
-          )}
-        </div>
+      {analyzeMsg && (
+        <span className="block text-center text-[11px] text-muted">
+          {analyzeMsg}
+        </span>
+      )}
+    </div>
+  );
 
-        <div className="space-y-4">
-          {/* Auto-fill from the web — one helper replacing Product URL + Fetch details + Find product online */}
-          <div className="rounded-2xl border border-accent/25 bg-accent-soft/50 p-3.5">
-            <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
-              <Sparkles size={13} /> Auto-fill from the web
-            </p>
-            <div className="flex gap-2">
-              <input
-                ref={urlInputRef}
-                className={`${inputClass} min-w-0 flex-1 bg-surface`}
-                type="text"
-                inputMode="url"
-                autoCapitalize="off"
-                autoCorrect="off"
-                value={productUrl}
-                onChange={(e) => setProductUrl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && productUrl.trim() && !fetching) {
-                    e.preventDefault();
-                    void handleFetchDetails();
-                  }
-                }}
-                placeholder="Paste a shop link…"
-              />
+  // Paste-a-link auto-fill — only shown for wishlist / "paste a link" adds.
+  const autofillCard = (
+    <div className="rounded-2xl border border-accent/25 bg-accent-soft/50 p-3.5">
+      <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
+        <Sparkles size={13} /> Auto-fill from the web
+      </p>
+      <div className="flex gap-2">
+        <input
+          ref={urlInputRef}
+          className={`${inputClass} min-w-0 flex-1 bg-surface`}
+          type="text"
+          inputMode="url"
+          autoCapitalize="off"
+          autoCorrect="off"
+          value={productUrl}
+          onChange={(e) => setProductUrl(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && productUrl.trim() && !fetching) {
+              e.preventDefault();
+              void handleFetchDetails();
+            }
+          }}
+          placeholder="Paste a shop link…"
+        />
+        <button
+          type="button"
+          onClick={() => void handleFetchDetails()}
+          disabled={!productUrl.trim() || fetching}
+          aria-label="Fetch details from this link"
+          className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
+        >
+          <ArrowRight size={18} className={fetching ? "animate-pulse" : ""} />
+        </button>
+      </div>
+      <p className="mt-2 text-[11px] leading-relaxed text-muted">
+        Fills name, photo, price &amp; brand — or{" "}
+        <button
+          type="button"
+          onClick={() => void handleFindProduct()}
+          disabled={findingProduct || uploading || fetching}
+          className="font-semibold text-accent underline-offset-2 hover:underline disabled:opacity-50"
+        >
+          {findingProduct ? "searching…" : "search the web for this item"}
+        </button>
+      </p>
+      {(fetchMsg || findMsg) && (
+        <span className="mt-1.5 block text-[11px] text-muted">
+          {fetchMsg || findMsg}
+        </span>
+      )}
+      {productUrl.trim() && (
+        <button
+          type="button"
+          onClick={() => {
+            const url = affiliateUrl(productUrl.trim());
+            if (url) void openExternalUrl(url);
+          }}
+          className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-accent"
+        >
+          <ExternalLink size={11} />
+          {isNative ? "Open product page in Safari" : "Open product page"}
+        </button>
+      )}
+    </div>
+  );
+
+  // The tappable attribute rows (Acloset-style) — each opens a bottom-sheet picker.
+  const rows = (
+    <div className="overflow-hidden rounded-2xl border border-line bg-surface">
+      <EditRow
+        label="Category"
+        value={categoryLabel}
+        onClick={() => setOpenSheet("category")}
+      />
+      <EditRow
+        label="Color"
+        value={colorName}
+        swatch={color}
+        onClick={() => setOpenSheet("color")}
+      />
+      <EditRow
+        label="Fit"
+        value={fit ? cap(fit) : undefined}
+        onClick={() => setOpenSheet("fit")}
+      />
+      <EditRow
+        label="Brand"
+        value={brand.trim() || undefined}
+        onClick={() => setOpenSheet("brand")}
+      />
+      <EditRow
+        label="Price"
+        value={price.trim() ? formatMoney(Number(price), currency, 0) : undefined}
+        onClick={() => setOpenSheet("price")}
+      />
+      <EditRow
+        label="Season"
+        value={seasons.length ? seasons.join(" · ") : undefined}
+        onClick={() => setOpenSheet("season")}
+      />
+      <EditRow
+        label="Tags"
+        value={tags.length ? tags.join(" · ") : undefined}
+        onClick={() => setOpenSheet("tags")}
+      />
+      <EditRow
+        label="Notes"
+        value={notes.trim() || undefined}
+        onClick={() => setOpenSheet("notes")}
+        last
+      />
+    </div>
+  );
+
+  // Body of the currently-open picker sheet.
+  const sheetBody = (() => {
+    switch (openSheet) {
+      case "category":
+        return (
+          <div className="pb-1">
+            {CATEGORIES.map((c) => (
               <button
-                type="button"
-                onClick={() => void handleFetchDetails()}
-                disabled={!productUrl.trim() || fetching}
-                aria-label="Fetch details from this link"
-                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl bg-accent text-accent-foreground transition-opacity disabled:opacity-40"
-              >
-                <ArrowRight size={18} className={fetching ? "animate-pulse" : ""} />
-              </button>
-            </div>
-            <p className="mt-2 text-[11px] leading-relaxed text-muted">
-              Fills name, photo, price &amp; brand — or{" "}
-              <button
-                type="button"
-                onClick={() => void handleFindProduct()}
-                disabled={findingProduct || uploading || fetching}
-                className="font-semibold text-accent underline-offset-2 hover:underline disabled:opacity-50"
-              >
-                {findingProduct ? "searching…" : "search the web for this item"}
-              </button>
-            </p>
-            {(fetchMsg || findMsg) && (
-              <span className="mt-1.5 block text-[11px] text-muted">
-                {fetchMsg || findMsg}
-              </span>
-            )}
-            {productUrl.trim() && (
-              <button
+                key={c.value}
                 type="button"
                 onClick={() => {
-                  const url = affiliateUrl(productUrl.trim());
-                  if (url) void openExternalUrl(url);
+                  setCategory(c.value);
+                  setOpenSheet(null);
                 }}
-                className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-accent"
+                className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px] last:border-0"
               >
-                <ExternalLink size={11} />
-                {isNative ? "Open product page in Safari" : "Open product page"}
+                <span>{c.label}</span>
+                {category === c.value && (
+                  <Check size={18} className="ml-auto text-accent" />
+                )}
               </button>
-            )}
+            ))}
           </div>
-
-          <Field label="Name">
+        );
+      case "fit":
+        return (
+          <div className="pb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setFit(undefined);
+                setOpenSheet(null);
+              }}
+              className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px]"
+            >
+              <span className="text-muted">None</span>
+              {!fit && <Check size={18} className="ml-auto text-accent" />}
+            </button>
+            {FIT_VALUES.map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => {
+                  setFit(f);
+                  setOpenSheet(null);
+                }}
+                className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px] last:border-0"
+              >
+                <span>{cap(f)}</span>
+                {fit === f && <Check size={18} className="ml-auto text-accent" />}
+              </button>
+            ))}
+          </div>
+        );
+      case "color":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="h-12 w-16 cursor-pointer rounded-lg border border-line bg-transparent p-1"
+              />
+              <span className="text-sm text-muted">{colorName}</span>
+              <Button
+                variant="outline"
+                onClick={handleExtract}
+                disabled={!imageUrl || extracting}
+                title="Pick the dominant color from the photo"
+                className="ml-auto !px-3 !py-2 text-xs"
+              >
+                <Pipette size={13} />
+                {extracting ? "…" : "From photo"}
+              </Button>
+            </div>
+            {extractError && (
+              <span className="block text-xs text-amber-600">{extractError}</span>
+            )}
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      case "brand":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <BrandPicker value={brand} onChange={setBrand} />
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      case "price":
+        return (
+          <div className="space-y-3 px-1 pb-1">
             <input
               className={inputClass}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Camel Knit Sweater"
+              type="number"
+              min="0"
+              inputMode="decimal"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="49"
             />
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Category">
-              <select
-                className={inputClass}
-                value={category}
-                onChange={(e) => setCategory(e.target.value as Category)}
-              >
-                {CATEGORIES.map((c) => (
-                  <option key={c.value} value={c.value}>
-                    {c.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label={`Color — ${colorName}`}>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="h-10 w-14 cursor-pointer rounded-lg border border-line bg-transparent p-1"
-                />
-                <Button
-                  variant="outline"
-                  onClick={handleExtract}
-                  disabled={!imageUrl || extracting}
-                  title="Pick the dominant color from the photo"
-                  className="!px-3 !py-2 text-xs"
-                >
-                  <Pipette size={13} />
-                  {extracting ? "…" : "From photo"}
-                </Button>
-              </div>
-              {extractError && (
-                <span className="mt-1 block text-xs text-amber-600">
-                  {extractError}
-                </span>
-              )}
-            </Field>
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
           </div>
-
-          <Field label="Fit">
-            <select
-              className={inputClass}
-              value={fit ?? ""}
-              onChange={(e) => setFit(e.target.value ? (e.target.value as Fit) : undefined)}
-            >
-              <option value="">—</option>
-              {FIT_VALUES.map((f) => (
-                <option key={f} value={f}>
-                  {f[0].toUpperCase() + f.slice(1)}
-                </option>
+        );
+      case "season":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <div className="flex flex-wrap gap-1.5">
+              {SEASONS.map((s) => (
+                <Chip
+                  key={s}
+                  active={seasons.includes(s)}
+                  onClick={() => setSeasons(toggle(seasons, s))}
+                >
+                  {s}
+                </Chip>
               ))}
-            </select>
-          </Field>
-
-          <Field label="Tags">
-            <div className="mb-2 flex flex-wrap gap-1.5">
+            </div>
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      case "tags":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <div className="flex flex-wrap gap-1.5">
               {[...new Set([...SUGGESTED_TAGS, ...tags])].map((t) => (
                 <Chip
                   key={t}
@@ -913,76 +1061,102 @@ export function ItemForm({
                   commitTagInput();
                 }
               }}
-              onBlur={commitTagInput}
               placeholder="Add custom tag, press Enter"
             />
-          </Field>
-
-          <Field label="Seasons">
-            <div className="flex flex-wrap gap-1.5">
-              {SEASONS.map((s) => (
-                <Chip
-                  key={s}
-                  active={seasons.includes(s)}
-                  onClick={() => setSeasons(toggle(seasons, s))}
-                >
-                  {s}
-                </Chip>
-              ))}
-            </div>
-          </Field>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Field label="Brand (optional)">
-              <BrandPicker value={brand} onChange={setBrand} />
-            </Field>
-            <Field label="Price (optional)">
-              <input
-                className={inputClass}
-                type="number"
-                min="0"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="49"
-              />
-            </Field>
+            <Button
+              onClick={() => {
+                commitTagInput();
+                setOpenSheet(null);
+              }}
+              className="w-full"
+            >
+              Done
+            </Button>
           </div>
-
-          <Field label="Notes (optional)">
+        );
+      case "notes":
+        return (
+          <div className="space-y-3 px-1 pb-1">
             <textarea
-              className={`${inputClass} min-h-16 resize-y`}
+              className={`${inputClass} min-h-24 resize-y`}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Fit notes, care instructions…"
             />
-          </Field>
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      default:
+        return null;
+    }
+  })();
 
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={wishlist}
-              onChange={(e) => setWishlist(e.target.checked)}
-              className="h-4 w-4 accent-[var(--accent)]"
+  const form = (
+    <>
+      <div className="mx-auto max-w-md space-y-5">
+        {photoBlock}
+
+        {showAutofill && autofillCard}
+
+        <Field label="Name">
+          <input
+            className={inputClass}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. Camel Knit Sweater"
+          />
+        </Field>
+
+        {rows}
+
+        {/* Wishlist toggle — a clean switch row instead of a bare checkbox. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={wishlist}
+          onClick={() => setWishlist(!wishlist)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-line bg-surface px-4 py-3.5 text-left"
+        >
+          <span className="text-sm text-foreground">
+            I don&apos;t own this yet
+          </span>
+          <span
+            className={`ml-auto flex h-[26px] w-[44px] items-center rounded-full p-0.5 transition-colors ${
+              wishlist ? "bg-accent" : "border border-line bg-surface-2"
+            }`}
+          >
+            <span
+              className={`h-[21px] w-[21px] rounded-full bg-white shadow transition-transform ${
+                wishlist ? "translate-x-[18px]" : ""
+              }`}
             />
-            This is a wishlist item (I don&apos;t own it yet)
-          </label>
+          </span>
+        </button>
 
-          {wishlist && (
-            <div className="rounded-xl border border-line bg-surface-2/40 p-4">
-              <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
-                <Sparkles size={13} /> Smart Buy
+        {wishlist && (
+          <div className="rounded-2xl border border-line bg-surface-2/40 p-4">
+            <p className="mb-3 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted">
+              <Sparkles size={13} /> Smart Buy
+            </p>
+            {imageUrl ? (
+              <SmartBuy item={candidate} />
+            ) : (
+              <p className="text-sm text-muted">
+                Add a photo to check how this piece fits your closet.
               </p>
-              {imageUrl ? (
-                <SmartBuy item={candidate} />
-              ) : (
-                <p className="text-sm text-muted">
-                  Add a photo to check how this piece fits your closet.
-                </p>
-              )}
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {openSheet && (
+        <RowSheet title={SHEET_TITLES[openSheet]} onClose={() => setOpenSheet(null)}>
+          {sheetBody}
+        </RowSheet>
+      )}
+
       {findCandidates !== null && (
         <FindProductSheet
           candidates={findCandidates}
@@ -1030,6 +1204,77 @@ export function ItemForm({
       {form}
       <div className="mt-5">{actions}</div>
     </Modal>,
+  );
+}
+
+/** One tappable attribute row: label on the left, current value + chevron on the right. */
+function EditRow({
+  label,
+  value,
+  swatch,
+  onClick,
+  last,
+}: {
+  label: string;
+  value?: string;
+  swatch?: string;
+  onClick: () => void;
+  last?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-2/50 ${
+        last ? "" : "border-b border-line/70"
+      }`}
+    >
+      <span className="shrink-0 text-sm text-foreground">{label}</span>
+      <span className="ml-auto flex min-w-0 items-center gap-2 text-sm">
+        {swatch && (
+          <span
+            className="h-4 w-4 shrink-0 rounded-full border border-black/10"
+            style={{ backgroundColor: swatch }}
+          />
+        )}
+        <span className={`truncate ${value ? "text-muted" : "text-muted/50"}`}>
+          {value ?? "Add"}
+        </span>
+        <ChevronRight size={16} className="shrink-0 text-muted/40" />
+      </span>
+    </button>
+  );
+}
+
+/** Bottom-sheet picker opened from a row (reuses the native sheet chrome). */
+function RowSheet({
+  title,
+  onClose,
+  children,
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  return portalToBody(
+    <div
+      className="native-sheet-backdrop"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="native-sheet max-h-[80vh] overflow-y-auto"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-label={title}
+      >
+        <div className="native-sheet-handle" />
+        <p className="pb-3 text-center text-sm font-semibold text-foreground">
+          {title}
+        </p>
+        {children}
+      </div>
+    </div>,
   );
 }
 
