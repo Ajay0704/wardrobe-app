@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Send } from "lucide-react";
+import { Plus, Share2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { isSampleItem } from "@/lib/demo-data";
@@ -269,8 +269,8 @@ function Grid({
   );
 }
 
-/** Edge-to-edge 3-col grid with hairline dividers — the item photo, a centered
-    brand (blank when unknown), and an Instagram-style share button. */
+/** Edge-to-edge 3-col grid with hairline dividers — the item photo (with a
+    share button overlaid top-right) and a centered brand below. */
 function ClosetGrid({
   items,
   onEdit,
@@ -308,29 +308,24 @@ function ClosetGrid({
                 Sample
               </span>
             )}
+            <button
+              type="button"
+              aria-label={`Share ${item.name}`}
+              title="Share"
+              onClick={(e) => {
+                e.stopPropagation();
+                void shareItem(item);
+              }}
+              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-sm backdrop-blur transition-colors hover:bg-white"
+            >
+              <Share2 size={15} />
+            </button>
           </div>
-          <div className="px-2.5 pb-2 pt-1.5">
-            {/* Brand line — falls back to "No Brand" so tiles never show an
-                empty gap, and the share icons stay aligned across a row. */}
-            <div className="flex h-4 items-center justify-center">
-              <p className="truncate text-center text-[12.5px] text-muted">
-                {item.brand?.trim() || "No Brand"}
-              </p>
-            </div>
-            <div className="mt-1 flex justify-end">
-              <button
-                type="button"
-                aria-label={`Share ${item.name}`}
-                title="Share"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  void shareItem(item);
-                }}
-                className="-mr-0.5 inline-flex items-center justify-center p-1 text-foreground/80 transition-colors hover:text-foreground"
-              >
-                <Send size={18} />
-              </button>
-            </div>
+          <div className="px-2.5 py-2">
+            {/* Falls back to "No Brand" so tiles never show an empty gap. */}
+            <p className="truncate text-center text-[12.5px] text-muted">
+              {item.brand?.trim() || "No Brand"}
+            </p>
           </div>
         </div>
       ))}
