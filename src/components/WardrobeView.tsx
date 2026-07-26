@@ -9,6 +9,7 @@ import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ClosetsSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
+import { ItemPhotoViewer } from "./ItemPhotoViewer";
 import { ItemForm } from "./ItemForm";
 import { Button, Chip, EmptyState } from "./ui";
 
@@ -246,13 +247,15 @@ function ClosetGrid({
   items: WardrobeItem[];
   onEdit: (item: WardrobeItem) => void;
 }) {
+  const [viewing, setViewing] = useState<WardrobeItem | null>(null);
   return (
+    <>
     <div className="-mx-4 grid grid-cols-3 border-t border-line">
       {items.map((item, i) => (
         <button
           key={item.id}
           type="button"
-          onClick={() => onEdit(item)}
+          onClick={() => setViewing(item)}
           className={`border-b border-line text-left ${i % 3 !== 2 ? "border-r" : ""}`}
         >
           <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-surface">
@@ -280,5 +283,17 @@ function ClosetGrid({
         </button>
       ))}
     </div>
+    {viewing && (
+      <ItemPhotoViewer
+        item={viewing}
+        onEdit={() => {
+          const it = viewing;
+          setViewing(null);
+          if (it) onEdit(it);
+        }}
+        onClose={() => setViewing(null)}
+      />
+    )}
+    </>
   );
 }
