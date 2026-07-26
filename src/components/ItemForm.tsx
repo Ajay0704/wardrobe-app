@@ -891,7 +891,7 @@ export function ItemForm({
             disabled={photoBusy}
             aria-haspopup="menu"
             aria-expanded={photoMenuOpen}
-            className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-white disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-[transform,background-color] duration-150 ease-out hover:bg-white active:scale-95 disabled:opacity-60"
           >
             <ImageIcon size={13} />
             {uploading
@@ -906,7 +906,7 @@ export function ItemForm({
           {photoMenuOpen && (
             <div
               role="menu"
-              className="animate-fade-up absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-surface py-1 text-left shadow-lg shadow-black/10"
+              className="animate-pop absolute right-0 top-full z-50 mt-2 w-60 origin-top-right overflow-hidden rounded-xl border border-line bg-surface py-1 text-left shadow-lg shadow-black/10"
             >
               {photoMenuItems}
             </div>
@@ -918,7 +918,7 @@ export function ItemForm({
           <button
             type="button"
             onClick={() => setOpenSheet("category")}
-            className="pointer-events-auto mb-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur transition-colors hover:bg-white/30"
+            className="pointer-events-auto mb-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur transition-[transform,background-color] duration-150 ease-out hover:bg-white/30 active:scale-95"
           >
             {categoryLabel}
             <ChevronRight size={12} className="opacity-70" />
@@ -927,7 +927,7 @@ export function ItemForm({
             type="button"
             onClick={() => setOpenSheet("name")}
             aria-label="Edit name"
-            className="pointer-events-auto block w-full text-left"
+            className="pointer-events-auto block w-full text-left transition-opacity duration-150 ease-out active:opacity-70"
           >
             <span
               className={`line-clamp-2 text-[21px] font-semibold leading-tight tracking-tight ${
