@@ -1,7 +1,7 @@
 "use client";
 
 import { Plus, Send } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { isSampleItem } from "@/lib/demo-data";
 import { shareItem } from "@/lib/share";
@@ -44,6 +44,30 @@ export function WardrobeView() {
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [addWishlist, setAddWishlist] = useState(false);
+
+  // A shared link's "Open in Wardrobe" deep link queues an item id in the store.
+  // Consume it from a store subscription (not a synchronous effect body) and open
+  // that item's editor, switching to the tab that holds it.
+  useEffect(() => {
+    const open = (id: string | null) => {
+      if (!id) return;
+      const s = useWardrobe.getState();
+      const target = s.items.find((it) => it.id === id);
+      s.setPendingOpenItemId(null);
+      if (target) {
+        setTab(target.wishlist ? "wishlist" : "items");
+        setEditing(target);
+      }
+    };
+    const unsub = useWardrobe.subscribe((s, prev) => {
+      if (s.pendingOpenItemId && s.pendingOpenItemId !== prev.pendingOpenItemId) {
+        open(s.pendingOpenItemId);
+      }
+    });
+    // Catch a deep link that set the id before this subscribed (cold start).
+    queueMicrotask(() => open(useWardrobe.getState().pendingOpenItemId));
+    return unsub;
+  }, []);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
   const wish = useMemo(() => items.filter((it) => it.wishlist), [items]);

@@ -144,6 +144,21 @@ export function NativeAppClass() {
         return;
       }
 
+      // Item deep link from a shared link's "Open in Wardrobe" button:
+      //   app.wardrobe.personal://item?id=<itemId>
+      // Route to the closet and open that item (WardrobeView consumes the id).
+      if (afterScheme.startsWith("item")) {
+        const q = url.indexOf("?");
+        const params = new URLSearchParams(q >= 0 ? url.slice(q + 1) : "");
+        const itemId = (params.get("id") || "").trim();
+        if (itemId) {
+          const store = useWardrobe.getState();
+          store.setView("wardrobe");
+          store.setPendingOpenItemId(itemId);
+        }
+        return;
+      }
+
       if (!url.includes("login-callback")) return;
       const supabase = getSupabase();
       if (!supabase) return;

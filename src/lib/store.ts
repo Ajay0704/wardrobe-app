@@ -121,6 +121,9 @@ interface WardrobeState {
   /** A product URL shared into the app (iOS Share Extension / Web Share Target) to
    *  quick-save to the wishlist. ClipLinkLoader consumes it, then clears it. */
   pendingClipUrl: string | null;
+  /** Item id to open in the closet editor — set by the `://item?id=` deep link
+   *  from a shared link's "Open in Wardrobe". WardrobeView consumes + clears it. */
+  pendingOpenItemId: string | null;
   /** An image shared into the app (iOS Share Extension) as a data URL — opens the add
    *  form pre-loaded with the photo. ItemForm consumes it, then clears it. */
   pendingSharedImage: string | null;
@@ -194,6 +197,7 @@ interface WardrobeState {
   setWishlistAddOpen: (open: boolean) => void;
   /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
   setPendingClipUrl: (url: string | null) => void;
+  setPendingOpenItemId: (id: string | null) => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
   setPendingSharedImage: (dataUrl: string | null) => void;
   /** Open the add form pre-loaded with a shared image (iOS Share Extension). */
@@ -379,6 +383,7 @@ export const useWardrobe = create<WardrobeState>()(
       scanOpen: false,
       closetsOpen: false,
       pendingClipUrl: null,
+      pendingOpenItemId: null,
       pendingSharedImage: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -619,6 +624,7 @@ export const useWardrobe = create<WardrobeState>()(
       setScanOpen: (scanOpen) => set({ scanOpen }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
+      setPendingOpenItemId: (pendingOpenItemId) => set({ pendingOpenItemId }),
       setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
       openAddWithImage: (dataUrl) =>
         set({ addOpen: true, addIntent: null, pendingSharedImage: dataUrl }),
