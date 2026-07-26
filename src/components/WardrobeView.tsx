@@ -304,14 +304,12 @@ function ClosetGrid({
             )}
           </div>
           <div className="px-2.5 pb-2 pt-1.5">
-            {/* Fixed-height brand line keeps the share icons aligned across a row
-                even when some items have no brand (nothing is shown then). */}
+            {/* Brand line — falls back to "No Brand" so tiles never show an
+                empty gap, and the share icons stay aligned across a row. */}
             <div className="flex h-4 items-center justify-center">
-              {item.brand?.trim() && (
-                <p className="truncate text-center text-[12.5px] text-muted">
-                  {item.brand.trim()}
-                </p>
-              )}
+              <p className="truncate text-center text-[12.5px] text-muted">
+                {item.brand?.trim() || "No Brand"}
+              </p>
             </div>
             <div className="mt-1 flex justify-end">
               <button
