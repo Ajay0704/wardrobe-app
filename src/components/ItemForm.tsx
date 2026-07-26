@@ -677,6 +677,16 @@ export function ItemForm({
 
   const photoBusy = uploading || removingBg || beautifying;
 
+  // Accessories (watch/jewelry/bag) are often shot held in a hand, which the
+  // background remover can't isolate — nudge a flat-lay reshoot (AJA-217 / fix C).
+  const captureTip =
+    imageUrl && (category === "accessory" || category === "bag") ? (
+      <p className="text-center text-[11px] leading-relaxed text-muted">
+        Tip: watches, jewelry &amp; bags cut out best shot flat on a plain surface — not
+        held in hand.
+      </p>
+    ) : null;
+
   // The "Edit photo" menu items, shared by the desktop square block and the phone
   // editorial hero's Edit pill (both anchor their own dropdown around these).
   const photoMenuItems = (
@@ -813,6 +823,7 @@ export function ItemForm({
           {analyzeMsg}
         </span>
       )}
+      {captureTip}
     </div>
   );
 
@@ -908,6 +919,7 @@ export function ItemForm({
       {analyzeMsg && (
         <p className="mt-2 text-center text-[11px] text-muted">{analyzeMsg}</p>
       )}
+      {captureTip && <div className="mt-2">{captureTip}</div>}
 
       {zoomOpen &&
         previewUrl &&
@@ -934,6 +946,9 @@ export function ItemForm({
           </Button>
         )}
       </div>
+      <p className="text-[11px] leading-relaxed text-muted/80">
+        Tip: lay the item flat on a plain surface for the cleanest cutout.
+      </p>
     </div>
   );
 

@@ -18,7 +18,7 @@ const MODEL = "gemini-2.5-flash-image";
 
 // Ghost-mannequin (invisible mannequin) framing enforced by the prompt; the deterministic sharp
 // pass below then pins the exact canvas size, garment scale and centring regardless of Gemini's shot.
-const PROMPT =
+const GARMENT_PROMPT =
   "You are given a single garment. Render it as a professional GHOST-MANNEQUIN (invisible " +
   "mannequin) e-commerce product photograph: the garment shown as if worn by an invisible person, " +
   "with a natural shoulder shape, realistic three-dimensional volume and fabric drape, and sleeves " +
@@ -32,6 +32,26 @@ const PROMPT =
   "long-sleeve sweater must stay a long-sleeve sweater and must never become a different garment. " +
   "If the input is not a single clear garment, reproduce it as faithfully as possible rather than " +
   "inventing one.";
+
+// Accessories / bags / shoes aren't worn on a body, so the ghost-mannequin framing fails on them
+// (a watch or handbag has no shoulders/sleeves). Use a flat product-shot prompt that crucially
+// removes the HAND or surface the item was photographed on — the common accessory failure.
+const PRODUCT_PROMPT =
+  "You are given a single accessory or product — for example a watch, a piece of jewellery, a " +
+  "handbag, a belt, a hat, sunglasses, or a pair of shoes. Render it as a professional e-commerce " +
+  "PRODUCT photograph: the object shown straight-on at a natural, flattering angle, complete and " +
+  "fully visible, centred with even margins. Complete any occluded or cut-off parts so the ENTIRE " +
+  "object is visible and neatly presented. Output ONLY the product on a pure flat white background " +
+  "with NO shadow — you MUST remove any hand, fingers, wrist, arm, body part, mannequin, stand, " +
+  "hanger, table, prop or background clutter, showing the product by itself. Preserve the object's " +
+  "EXACT shape, colour, material, texture, pattern/print and ALL logos or text exactly as shown; do " +
+  "not invent, move, recolour or restyle anything. If the input is not a single clear product, " +
+  "reproduce it as faithfully as possible rather than inventing one.";
+
+// Categories that are products, not body-worn garments → use the flat product prompt.
+const PRODUCT_CATEGORIES = new Set(["accessory", "bag", "shoes"]);
+const promptFor = (category?: string): string =>
+  category && PRODUCT_CATEGORIES.has(category) ? PRODUCT_PROMPT : GARMENT_PROMPT;
 
 // Fixed output geometry so every beautified item shares canvas size, garment scale and centring.
 const CANVAS = 1000; // square output edge (px)
@@ -87,7 +107,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Beautify isn't configured (missing GEMINI_API_KEY)." }, { status: 501 });
   }
 
-  let body: { imageUrl?: string; imageData?: string };
+  let body: { imageUrl?: string; imageData?: string; category?: string };
   try {
     body = await request.json();
   } catch {
@@ -119,7 +139,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const parts = [
-    { text: PROMPT },
+    { text: promptFor(body.category) },
     { inline_data: { mime_type: srcMime, data: srcBuf.toString("base64") } },
   ];
 

@@ -13,7 +13,7 @@ import { cutout } from "./cutout";
  * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
  * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
  */
-export const BEAUTIFY_PIPELINE = "pipe6";
+export const BEAUTIFY_PIPELINE = "pipe7";
 
 /** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
 const CANVAS = 1000;
@@ -29,17 +29,22 @@ export interface BeautifyResult {
 
 export interface BeautifyEngine {
   id: string;
-  run(src: string): Promise<Blob>;
+  run(src: string, category?: string): Promise<Blob>;
 }
 
 const geminiEngine: BeautifyEngine = {
   id: "gemini@2.5-flash-image",
-  async run(src) {
+  async run(src, category) {
     const isHttp = src.startsWith("http");
     const res = await fetch("/api/beautify", {
       method: "POST",
       headers: { "Content-Type": "application/json", ...(await authHeaders()) },
-      body: JSON.stringify(isHttp ? { imageUrl: src } : { imageData: src }),
+      // category lets the API pick the prompt: ghost-mannequin for garments, flat
+      // product-shot (hand/background removed) for accessories/bags/shoes.
+      body: JSON.stringify({
+        ...(isHttp ? { imageUrl: src } : { imageData: src }),
+        category,
+      }),
     });
     if (!res.ok) throw new Error(`beautify ${res.status}`); // 501 propagates → caller disables
     return res.blob();
@@ -142,7 +147,7 @@ export async function beautify(
   category?: string,
 ): Promise<BeautifyResult> {
   const engine = getBeautifyEngine();
-  const blob = await engine.run(src); // ghost-mannequin on white (501/other errors propagate)
+  const blob = await engine.run(src, category); // prompt picked by category (501/other errors propagate)
   const whiteUrl = await resolveImageSource(
     new File([blob], "beautified.png", { type: "image/png" }),
     userId,
