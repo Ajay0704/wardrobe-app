@@ -1,9 +1,10 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { Plus, Send } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { isSampleItem } from "@/lib/demo-data";
+import { shareItem } from "@/lib/share";
 import type { Category, WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -238,7 +239,8 @@ function Grid({
   );
 }
 
-/** Edge-to-edge 3-col grid with hairline dividers — the item photo, brand, and date. */
+/** Edge-to-edge 3-col grid with hairline dividers — the item photo, a centered
+    brand (blank when unknown), and an Instagram-style share button. */
 function ClosetGrid({
   items,
   onEdit,
@@ -249,11 +251,19 @@ function ClosetGrid({
   return (
     <div className="-mx-4 grid grid-cols-3 border-t border-line">
       {items.map((item, i) => (
-        <button
+        // A div (not a button) so the share control can be a real nested button.
+        <div
           key={item.id}
-          type="button"
+          role="button"
+          tabIndex={0}
           onClick={() => onEdit(item)}
-          className={`border-b border-line text-left ${i % 3 !== 2 ? "border-r" : ""}`}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              onEdit(item);
+            }
+          }}
+          className={`cursor-pointer border-b border-line text-left ${i % 3 !== 2 ? "border-r" : ""}`}
         >
           <div className="relative flex aspect-square items-center justify-center overflow-hidden bg-surface">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -269,15 +279,32 @@ function ClosetGrid({
               </span>
             )}
           </div>
-          <div className="px-2.5 py-2">
-            <p className="truncate text-[13px] text-muted">
-              {item.brand?.trim() || "No Brand"}
-            </p>
-            <p className="text-[11px] text-muted/70">
-              {new Date(item.createdAt).toLocaleDateString("en-US")}
-            </p>
+          <div className="px-2.5 pb-2 pt-1.5">
+            {/* Fixed-height brand line keeps the share icons aligned across a row
+                even when some items have no brand (nothing is shown then). */}
+            <div className="flex h-4 items-center justify-center">
+              {item.brand?.trim() && (
+                <p className="truncate text-center text-[12.5px] text-muted">
+                  {item.brand.trim()}
+                </p>
+              )}
+            </div>
+            <div className="mt-1 flex justify-end">
+              <button
+                type="button"
+                aria-label={`Share ${item.name}`}
+                title="Share"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void shareItem(item);
+                }}
+                className="-mr-0.5 inline-flex items-center justify-center p-1 text-foreground/80 transition-colors hover:text-foreground"
+              >
+                <Send size={18} />
+              </button>
+            </div>
           </div>
-        </button>
+        </div>
       ))}
     </div>
   );
