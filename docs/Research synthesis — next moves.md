@@ -5,7 +5,20 @@ Synthesized from `~/Desktop/Digital_Wardrobe_Research` (Jul 2026) against the cu
 **Library index:** [[Research library]] · **Competitor UX:** [[Acloset competitive notes]]  
 Related: [[Features]] · [[Architecture]] · [[Data model]] · [[Share Closet]]
 
-Last refreshed: 2026-07-12
+Last refreshed: 2026-07-12 · **product alignment note: 2026-07-25**
+
+## Jul 25 product alignment (docs sync)
+
+Positioning locked as **closet-grounded shopping copilot** (“Before you buy it, run it through your closet”). Shipped toward that wedge since Jul 12:
+
+- Decision outcome capture + Decision bank (AJA-190)
+- Share-to-app capture — iOS Share Extension + Web Share Target (AJA-201)
+- Sample closet first-run (AJA-198/199)
+- Pack with friends; Shop gender filters; Stylist buy_advice
+
+Still open for the wedge: auto-verdict on capture (AJA-191), private decision councils (AJA-192), wire Share Closet UI (AJA-179). Do **not** expand feed/follower social as the retention bet.
+
+Canonical feature inventory: [[Features]] · hub: [[Wardrobe App]]
 
 ## Verdict
 
@@ -103,16 +116,16 @@ Stop or pivot to acqui-hire if: onboarding stays multi-hour, D30 collapses post-
 3. Upgrade `matching.ts` with weather + occasion — weather shipped; occasion = AJA-59
 4. Wear fields — `wearCount` / `lastWornAt` in product
 
-## Current research → product alignment (Jul 12)
+## Current research → product alignment (Jul 25)
 
 | Research priority | Status in product / Linear |
 |---|---|
-| Kill setup friction | Partial: AI tag, bg remove, clipper, gallery import; full camera-roll scan = AJA-76/82 |
-| Daily/weekly habit | Shipped: Home/Today, wear log, calendar, push |
-| Purchase filter (Hyp A) | Partial: Smart Buy, wishlist; deepen via AJA-43 |
-| Social / Explore | In progress: AJA-87, AJA-95 (community) — watch trust vs shoppable-feed risk |
-| Wear-data moat | Instrumentation idea AJA-70; wear log exists |
-| Resale / routing | Backlog AJA-42; don’t over-index vs Indyx yet |
+| Kill setup friction | Better: sample closet (AJA-198), share-in (AJA-201), AI tag/bg/beautify; camera-roll scan still AJA-76/82 |
+| Daily/weekly habit | Shipped: Explore For-you, wear log, calendar, push (Home tab retired) |
+| Purchase filter (Hyp A) | **Primary wedge:** Smart Buy + decision outcomes + Decision bank (AJA-190); capture→verdict = AJA-191 |
+| Social / Explore | Feed exists; **prefer private councils** (AJA-192) over feed gravity; Share Closet UI unwired (AJA-179) |
+| Wear-data moat | Wear log + decision events; keep instrumenting funnel |
+| Resale / routing | Light resale links; don’t over-index vs Indyx yet |
 | B2B fit engine (Hyp B) | Park until consumer habit proof (AJA-69) |
 
 #project #wardrobe #research #strategy

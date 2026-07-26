@@ -44,6 +44,7 @@ import { useIsNativeApp } from "./NativeAppClass";
 
 /** Which attribute row's picker sheet is open (Acloset-style edit — AJA-207). */
 type SheetKey =
+  | "name"
   | "category"
   | "color"
   | "fit"
@@ -54,6 +55,7 @@ type SheetKey =
   | "notes";
 
 const SHEET_TITLES: Record<SheetKey, string> = {
+  name: "Name",
   category: "Category",
   color: "Color",
   fit: "Fit",
@@ -673,17 +675,76 @@ export function ItemForm({
     CATEGORIES.find((c) => c.value === category)?.label ?? category;
   const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
+  const photoBusy = uploading || removingBg || beautifying;
+
+  // The "Edit photo" menu items, shared by the desktop square block and the phone
+  // editorial hero's Edit pill (both anchor their own dropdown around these).
+  const photoMenuItems = (
+    <>
+      <PhotoMenuItem
+        icon={Upload}
+        onClick={() => {
+          setPhotoMenuOpen(false);
+          uploadInputRef.current?.click();
+        }}
+      >
+        {imageUrl ? "Replace with upload" : "Upload photo"}
+      </PhotoMenuItem>
+      {isNative && (
+        <PhotoMenuItem
+          icon={Camera}
+          onClick={() => {
+            setPhotoMenuOpen(false);
+            void handleTakePhoto();
+          }}
+        >
+          Take photo
+        </PhotoMenuItem>
+      )}
+      {imageUrl && !beautifyDisabled && (
+        <>
+          <div className="my-1 border-t border-line" />
+          <PhotoMenuItem
+            icon={Wand2}
+            accent
+            onClick={() => {
+              setPhotoMenuOpen(false);
+              void handleBeautify();
+            }}
+          >
+            {beautifyApplied ? "Revert to cutout" : "Beautify — product shot"}
+          </PhotoMenuItem>
+          {beautifyStale && (
+            <PhotoMenuItem
+              icon={RefreshCw}
+              onClick={() => {
+                setPhotoMenuOpen(false);
+                void handleBeautify(true);
+              }}
+            >
+              Regenerate product shot
+            </PhotoMenuItem>
+          )}
+        </>
+      )}
+      {imageUrl && originalImageUrl && originalImageUrl !== imageUrl && (
+        <PhotoMenuItem
+          icon={ImageIcon}
+          onClick={() => {
+            setPhotoMenuOpen(false);
+            restoreOriginal();
+          }}
+        >
+          Use original photo
+        </PhotoMenuItem>
+      )}
+    </>
+  );
+
   // Large live preview + one "Edit photo" menu (upload / camera / beautify / restore).
+  // Desktop modal only — the phone editor uses the editorial hero below.
   const photoBlock = (
     <div className="mx-auto w-44 space-y-2.5">
-      {/* Hidden input; the menu's Upload item and the "+ → library" intent both trigger it. */}
-      <input
-        ref={uploadInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
-      />
       <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
         {imageUrl ? (
           <button
@@ -742,63 +803,7 @@ export function ItemForm({
             role="menu"
             className="animate-fade-up absolute left-1/2 top-full z-50 mt-2 w-60 -translate-x-1/2 overflow-hidden rounded-xl border border-line bg-surface py-1 shadow-lg shadow-black/10"
           >
-            <PhotoMenuItem
-              icon={Upload}
-              onClick={() => {
-                setPhotoMenuOpen(false);
-                uploadInputRef.current?.click();
-              }}
-            >
-              {imageUrl ? "Replace with upload" : "Upload photo"}
-            </PhotoMenuItem>
-            {isNative && (
-              <PhotoMenuItem
-                icon={Camera}
-                onClick={() => {
-                  setPhotoMenuOpen(false);
-                  void handleTakePhoto();
-                }}
-              >
-                Take photo
-              </PhotoMenuItem>
-            )}
-            {imageUrl && !beautifyDisabled && (
-              <>
-                <div className="my-1 border-t border-line" />
-                <PhotoMenuItem
-                  icon={Wand2}
-                  accent
-                  onClick={() => {
-                    setPhotoMenuOpen(false);
-                    void handleBeautify();
-                  }}
-                >
-                  {beautifyApplied ? "Revert to cutout" : "Beautify — product shot"}
-                </PhotoMenuItem>
-                {beautifyStale && (
-                  <PhotoMenuItem
-                    icon={RefreshCw}
-                    onClick={() => {
-                      setPhotoMenuOpen(false);
-                      void handleBeautify(true);
-                    }}
-                  >
-                    Regenerate product shot
-                  </PhotoMenuItem>
-                )}
-              </>
-            )}
-            {imageUrl && originalImageUrl && originalImageUrl !== imageUrl && (
-              <PhotoMenuItem
-                icon={ImageIcon}
-                onClick={() => {
-                  setPhotoMenuOpen(false);
-                  restoreOriginal();
-                }}
-              >
-                Use original photo
-              </PhotoMenuItem>
-            )}
+            {photoMenuItems}
           </div>
         )}
       </div>
@@ -808,6 +813,127 @@ export function ItemForm({
           {analyzeMsg}
         </span>
       )}
+    </div>
+  );
+
+  // Phone editorial hero (Option C — AJA-210): a tall edge-to-edge photo with the
+  // name + category laid over a gradient scrim, and an "Edit" pill for the photo menu.
+  const editorialHero = (
+    <div>
+      <div
+        className="relative -mx-4 -mt-5 overflow-hidden bg-gradient-to-b from-surface to-surface-2"
+        style={{ height: "min(58vh, 480px)" }}
+      >
+        {/* The photo — tap to enlarge. */}
+        <button
+          type="button"
+          onClick={() => setZoomOpen(true)}
+          aria-label="Enlarge photo"
+          className="absolute inset-0 h-full w-full"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={previewUrl}
+            alt="Preview"
+            className="h-full w-full object-contain"
+          />
+        </button>
+
+        {/* Zoom hint — non-interactive, the tap falls through to the photo. */}
+        <span className="pointer-events-none absolute left-3 top-3 flex items-center justify-center rounded-full bg-black/40 p-1.5 text-white backdrop-blur">
+          <Maximize2 size={13} />
+        </span>
+
+        {/* Legibility scrim under the name. */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/75 via-black/25 to-transparent" />
+
+        {/* Edit-photo pill + dropdown, top-right. */}
+        <div ref={photoMenuRef} className="absolute right-3 top-3">
+          <button
+            type="button"
+            onClick={() => setPhotoMenuOpen((o) => !o)}
+            disabled={photoBusy}
+            aria-haspopup="menu"
+            aria-expanded={photoMenuOpen}
+            className="flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm backdrop-blur transition-colors hover:bg-white disabled:opacity-60"
+          >
+            <ImageIcon size={13} />
+            {uploading
+              ? "Uploading…"
+              : removingBg
+                ? "Removing…"
+                : beautifying
+                  ? "Beautifying…"
+                  : "Edit"}
+            <ChevronDown size={13} className="text-muted" />
+          </button>
+          {photoMenuOpen && (
+            <div
+              role="menu"
+              className="animate-fade-up absolute right-0 top-full z-50 mt-2 w-60 overflow-hidden rounded-xl border border-line bg-surface py-1 text-left shadow-lg shadow-black/10"
+            >
+              {photoMenuItems}
+            </div>
+          )}
+        </div>
+
+        {/* Name + category overlaid on the scrim (tap either to edit). */}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4">
+          <button
+            type="button"
+            onClick={() => setOpenSheet("category")}
+            className="pointer-events-auto mb-2 inline-flex items-center gap-1 rounded-full bg-white/20 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-white backdrop-blur transition-colors hover:bg-white/30"
+          >
+            {categoryLabel}
+            <ChevronRight size={12} className="opacity-70" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setOpenSheet("name")}
+            aria-label="Edit name"
+            className="pointer-events-auto block w-full text-left"
+          >
+            <span
+              className={`line-clamp-2 text-[21px] font-semibold leading-tight tracking-tight ${
+                name.trim() ? "text-white" : "text-white/60"
+              }`}
+              style={{ textShadow: "0 1px 12px rgba(0,0,0,.45)" }}
+            >
+              {name.trim() || "Name this item"}
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {analyzeMsg && (
+        <p className="mt-2 text-center text-[11px] text-muted">{analyzeMsg}</p>
+      )}
+
+      {zoomOpen &&
+        previewUrl &&
+        portalToBody(
+          <PhotoLightbox src={previewUrl} onClose={() => setZoomOpen(false)} />,
+        )}
+    </div>
+  );
+
+  // Phone empty state (no photo yet): a clean prompt with direct add actions.
+  const addPhotoPlaceholder = (
+    <div className="flex aspect-[4/5] max-h-[46vh] w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-line bg-surface px-6 text-center">
+      <ImageIcon size={26} className="text-muted/60" />
+      <p className="text-sm text-muted">Add a photo to get started</p>
+      <div className="flex flex-wrap items-center justify-center gap-2">
+        <Button onClick={() => uploadInputRef.current?.click()} disabled={uploading}>
+          <Upload size={15} />
+          {uploading ? "Uploading…" : "Upload"}
+        </Button>
+        {isNative && (
+          <Button variant="outline" onClick={() => void handleTakePhoto()}>
+            <Camera size={15} />
+            Camera
+          </Button>
+        )}
+      </div>
     </div>
   );
 
@@ -877,14 +1003,20 @@ export function ItemForm({
     </div>
   );
 
+  // On phone with a photo, the editorial hero shows the name overlay + category chip,
+  // so those move off the rows/standalone-Name field (they stay for desktop + empty state).
+  const heroActive = phoneEditor && !!imageUrl;
+
   // The tappable attribute rows (Acloset-style) — each opens a bottom-sheet picker.
   const rows = (
     <div className="overflow-hidden rounded-2xl border border-line bg-surface">
-      <EditRow
-        label="Category"
-        value={categoryLabel}
-        onClick={() => setOpenSheet("category")}
-      />
+      {!heroActive && (
+        <EditRow
+          label="Category"
+          value={categoryLabel}
+          onClick={() => setOpenSheet("category")}
+        />
+      )}
       <EditRow
         label="Color"
         value={colorName}
@@ -928,6 +1060,27 @@ export function ItemForm({
   // Body of the currently-open picker sheet.
   const sheetBody = (() => {
     switch (openSheet) {
+      case "name":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <input
+              className={inputClass}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Camel Knit Sweater"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setOpenSheet(null);
+                }
+              }}
+            />
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
       case "category":
         return (
           <div className="pb-1">
@@ -1112,19 +1265,34 @@ export function ItemForm({
 
   const form = (
     <>
+      {/* Shared hidden file input — triggered by the photo menu, the empty-state
+          buttons, and the "+ → library" intent, on every layout. */}
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+      />
       <div className="mx-auto max-w-md space-y-5">
-        {photoBlock}
+        {phoneEditor
+          ? imageUrl
+            ? editorialHero
+            : addPhotoPlaceholder
+          : photoBlock}
 
         {showAutofill && autofillCard}
 
-        <Field label="Name">
-          <input
-            className={inputClass}
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="e.g. Camel Knit Sweater"
-          />
-        </Field>
+        {!heroActive && (
+          <Field label="Name">
+            <input
+              className={inputClass}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Camel Knit Sweater"
+            />
+          </Field>
+        )}
 
         {rows}
 

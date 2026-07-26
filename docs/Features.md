@@ -1,127 +1,111 @@
 # Features
 
-Last updated: 2026-07-16
+Last updated: 2026-07-25
 
-## Today (default home)
+## Product wedge
 
-Weather-aware outfit suggestions via Open-Meteo + geolocation (Capacitor Geolocation on iOS; city fallback from profile location). One-tap **I wore this**, edit in builder, or save.
+**Shopping copilot** — capture a temptation → closet-aware Smart Buy verdict → log bought / skipped / wait → **Decision bank** (savings) on Insights. See [[Research synthesis — next moves]] and Linear AJA-190–192.
 
-**Component:** `TodayView.tsx` · **Logic:** `src/lib/weather.ts`, `generateOutfit`
+## Explore (native default after onboarding)
 
-## Item management
+For-you feed: daily looks, Rediscover, shop picks, challenges, sample-closet / activation banners. Shop tab uses SerpAPI Google Shopping with department/gender filters (`shopGender`).
 
-Add clothing with name, image URL (or upload), category, color, tags, seasons, brand, price, and notes.
+**Components:** `ExploreView.tsx`, `explore/ExploreForYouHeader.tsx` · Shop APIs under `/api/shop/*`
 
-- **AI auto-tag** on upload (`/api/analyze` + Gemini) pre-fills fields
-- **Background removal** — client WASM `@imgly/background-removal`, or garment-only SegFormer via `/api/cutout` when `NEXT_PUBLIC_REMOVAL_ENGINE=garment`
-- **Beautify** — Gemini packshot polish (`/api/beautify` + refine) for clean product-style photos
-- **Fetch details** from a product URL (`/api/extract`) — name, photo, brand, price
-- **Find product online** — closet photo → shop links via SerpAPI / SearchApi (`/api/find-product`); see [[Photo to product]]
-- **Wear logging** from item cards (increments `wearCount` / `lastWornAt`)
-- **Brand picker** (searchable) + **currency** from Settings (formats prices / Insights)
-- **Native only:** **Take photo** via Capacitor Camera plugin (not HTML capture — that flashes and exits in WKWebView)
+## Closet & items
 
-**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx`, `FindProductSheet.tsx` · **Logic:** `src/lib/brands.ts`, `src/lib/currency.ts`, `src/lib/beautify.ts`
+Add clothing with name, image (upload / camera / share-in), category, color, tags, seasons, brand, price, fit, notes.
 
-## Outfit builder
+- **AI auto-tag** (`/api/analyze` + Gemini)
+- **Background removal** — `@imgly/background-removal` or `/api/cutout`
+- **Beautify** — Gemini packshot / sticker (`/api/beautify`)
+- **Fetch details** from product URL (`/api/extract`) — social-preview bot UA fallback for bot-walled retailers (AJA-201)
+- **Find product online** — photo → shop links (AJA-79); see [[Photo to product]]
+- **Whole-outfit detect** / multi-garment split
+- **Sample closet** — labeled SAMPLE items for first-run; clear / “Add my clothes” (AJA-198/199)
+- **Wear logging** (`wearCount` / `lastWornAt`)
+- **Brand picker** + **currency** + **fit picker** (AJA-176)
+- **Native:** Take photo via Capacitor Camera; Share Extension image → add form ([[Share Extension]])
 
-Drag-and-drop or click-to-add into layer slots:
+**Tabs:** Items / Wishlist / Shared (Shared still “Coming soon” placeholder — Share Closet UI entry gap, AJA-179 / AJA-192)
 
-- tops, bottoms, dress, outerwear, shoes, accessories
+**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx`, `FindProductSheet.tsx`
 
-**Component:** `OutfitBuilderView.tsx`
+## Capture (temptation → app)
 
-## Virtual try-on
+- **Browser clipper** — Chrome/Edge MV3 → `/api/clip` ([[Browser extension]])
+- **iOS Share Extension** — Share → Wardrobe (links → wishlist; images → add form) ([[Share Extension]], AJA-201)
+- **Web Share Target** — PWA/Android `manifest` → `/n?clipUrl=…`
+- **Deep link:** `app.wardrobe.personal://share?url=` / `?type=image`
 
-**Try it on me** in the builder — person photo + garment images → full-body studio result via Gemini (`/api/tryon`). Needs `GEMINI_API_KEY`. Planned upgrade: FASHN VTON (AJA-21, budget-blocked).
+## Smart Buy & decision loop
 
-## AI stylist chat
+- **Smart Buy** — buy / maybe / skip vs closet (`SmartBuy.tsx`, `src/lib/smart-buy.ts`)
+- **Outcome capture** — I bought it / I skipped it / wait → `decision` events (`src/lib/decisions.ts`, AJA-190)
+- **Decision bank** — savings + counts on Insights (`/api/decisions/summary`)
 
-Conversational styling help (`/api/stylist/chat`) with wardrobe-aware replies and attach-a-piece sheet.
+Still open: auto-verdict on share capture (AJA-191); private decision councils (AJA-192).
 
-**Components:** `src/components/stylist/*`
+## Outfit builder & try-on
 
-## Live preview & harmony
+Drag-and-drop / click into layer slots; color harmony; PNG export.
 
-Stacked outfit preview with a color harmony score (complementary, analogous, clash).
+**Try it on me** — Gemini `/api/tryon` (env-gated). FASHN upgrade AJA-21 budget-blocked.
 
-**Components:** `OutfitPreview.tsx` — logic in `src/lib/color.ts`
+## AI stylist
 
-## Smart matching
-
-"Generate outfit" engine based on color rules and category slots.
-
-**Logic:** `src/lib/matching.ts`
+Closet-grounded chat (`/api/stylist/chat`): dress me, style anchor, **buy_advice**, forgotten, stats, pack, compare. Deterministic tools + short Gemini narration. Pinned in Messages.
 
 ## Saved outfits, calendar & wishlist
 
-- **Outfits** — save looks; **I wore this** logs wear (`OutfitsView.tsx`)
-- **Calendar** — plan outfits + worn history (`CalendarView.tsx`); friendly dates via `formatDisplayDate`
-- **Wishlist** — mindful-buying gate (similar owned items + cost-per-wear) + affiliate links (`WishlistView.tsx`, `src/lib/affiliate.ts`)
-- **Smart Buy** — opt-in closet-fit sheet (wear-based CPW, tag/season scoring); never expands inline on mobile (`SmartBuy.tsx`, `src/lib/smart-buy.ts`)
-- **Browser clipper** — Chrome/Edge MV3: icon / right‑click / ⌥⇧W / on-page Save → `POST /api/clip` (see [[Browser extension]])
+- Outfits + wear log · Calendar · Wishlist (mindful gate + affiliate hooks)
 
 ## Insights
 
-Closet analytics: category mix, wardrobe value, usage %, cost-per-wear, most/never worn, recently added.
+Category mix, value, usage %, CPW, most/never worn, **Decision bank**.
 
-**Component:** `InsightsView.tsx` · entry via web profile menu or native **You** hub
+## Travel / Pack with friends
 
-## Travel mode
-
-Create a trip → pack items → auto capsule outfits.
-
-**Component:** `TravelView.tsx`
+Server-backed trips: members, invites, Your bag / Everyone, realtime sync, `trip_invite` notifications (`TravelView.tsx`, `src/lib/trips.ts`).
 
 ## Export & share
 
-- Download outfit as PNG (`html-to-image`)
-- Copy shareable link (`ShareLinkLoader.tsx`)
-- **Share Closet** — pick up to 8 items + a question → public guest page for replies (`ShareClosetSheet.tsx`, `/share/closet/[id]`). See [[Share Closet]].
+- Outfit PNG / share link
+- **Share Closet** — backend + guest page exist; Closet redesign entry currently unwired — see [[Share Closet]]
 
-## Explore feed
+## Social
 
-Native **Explore** tab — product / social feed (`/api/explore/feed` + cron ingest). Affiliate-ready (eBay / Skimlinks when keys set).
+Public `/u/[handle]`; in-app profiles; followers/following; posts; human DMs + Stylist. Validated `@handle` onboarding (AJA-195). Find-friends / follow-back fixes (AJA-196).
 
 ## Auth & sync
 
-Supabase email/password + cloud snapshot sync (items, outfits, trips, calendar, profile). See [[Supabase sync]].
+- Email/password + snapshot sync ([[Supabase sync]])
+- **Google + Apple OAuth** — system-browser flow (AJA-194, In Progress; needs provider dashboards)
+- **Delete account** in-app (AJA-197, Apple 5.1.1(v))
 
-## Onboarding + style quiz (first run)
+## Onboarding + style quiz
 
-Research-backed quiz (see [[Onboarding quiz research]]): **goal → occasions → style lean → “we get you” snapshot → Enter Wardrobe**. Activation is on **empty Today** (ambient “2 for a look”), not a fifth wizard step. Answers map to `styleVibes` for Today / Builder. Editable under Settings → Preferences. Skip anytime.
+Goal → gender/shop → occasions → style lean → username/handle → snapshot → Enter. Lands on **Explore**. Sample closet + activation empty-state after clear. Skip anytime.
 
-**AJA-35 still open** — first-win activation UX (bulk/gallery path, etc.) not fully done.
+## Habit + notifications
 
-## Weekly habit + notifications (opt-in)
+Local habit strip; web push (env); native local reminders. Remote APNs later.
 
-- **Local habit strip** on Today (`src/lib/habit.ts`): days opened, outfits saved, wears logged this ISO week — privacy-first, no server.
-- **Website / PWA:** web push (morning + Sunday) via Settings → Notifications. Needs signed-in session + VAPID/cron env.
-- **Native iOS app:** on-device local reminders (7am daily + Sunday 10am) via `@capacitor/local-notifications` — same Settings entry. Remote APNs later (needs paid Apple Developer Program).
+## Theme / prefs / support
 
-## Theme
+Dark/light; App starts in; Rate / Share app / Feedback (AJA-55/56).
 
-Dark/light mode persisted in localStorage (`ThemeEffect.tsx`).
+## Native chrome (Capacitor)
 
-## App starts in
-
-Settings → Preferences → **App starts in** (`profile.startView`). Launch opens that screen (Today by default) instead of the last-visited tab. Syncs with the profile snapshot.
-
-## Support (Settings)
-
-- **Rate the app** — App Store write-review URL when `NEXT_PUBLIC_IOS_APP_ID` is set (AJA-55)
-- **Share the app** — native share sheet (`@capacitor/share`) or copy link (AJA-55)
-- **Send feedback** / **Feature request** — mailto to `NEXT_PUBLIC_SUPPORT_EMAIL` (AJA-56)
-
-## Native app chrome (Capacitor)
-
-Bottom tabs: **Explore · Closet · ＋ Create · Outfits · Home**. Profile / social via header avatar. Wishlist, Packing, Insights, Calendar, Settings reachable from create sheet / profile. Website keeps top-nav chrome. See [[iOS Capacitor]].
+Bottom tabs: **Explore · Closet · ＋ Create · Outfits · Profile**. Create sheet for add paths. Website keeps top-nav. See [[iOS Capacitor]].
 
 ## Related
 
 - [[Phase 0-1 status]]
+- [[Share Extension]]
 - [[Browser extension]]
 - [[Photo to product]]
 - [[Share Closet]]
 - [[Architecture]]
 - [[Data model]]
+- [[Linear]]

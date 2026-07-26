@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-16
+Last updated: 2026-07-25 (nav/chrome: Profile tab replaces Home; see [[Features]] for full inventory)
 
 Canonical org map of surfaces, APIs, services, and data. For product status see [[Wardrobe App]]. **Required apps + costs** are listed in a dedicated section below (and in the Cursor canvas `required-apps-costs`).
 

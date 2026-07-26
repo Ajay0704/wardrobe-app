@@ -6,7 +6,7 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 
 - Workspace / team: [Ajay Karthick](https://linear.app/ajay-karthick)
 - Project: [Your Personal Wardrobe](https://linear.app/ajay-karthick/project/your-personal-wardrobe-629ac27fcd73)
-- Brief doc: [Project brief & workflow](https://linear.app/ajay-karthick/document/project-brief-and-workflow-9f3e51149062)
+- Brief doc: [Project brief and workflow](https://linear.app/ajay-karthick/document/project-brief-and-workflow-9f3e51149062)
 - Commit activity log: [AJA-24](https://linear.app/ajay-karthick/issue/AJA-24)
 
 ## Cursor + Claude Code
@@ -16,89 +16,68 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 - `scripts/linear-commit-notify.mjs` + `.git/hooks/post-commit` comments commits onto `AJA-xx` (or AJA-24 if no id)
 - Hook is **comment-only** — agents must still move issues to Done
 
+## Product thesis (for issue framing)
+
+Closet-grounded **shopping copilot**: capture → Smart Buy → decision outcome → Decision bank. Social = private councils (not feed gravity). See [[Wardrobe App]] and [[Research synthesis — next moves]].
+
+## Board snapshot (checked 2026-07-25)
+
+### In Progress
+
+| ID | Title |
+|----|-------|
+| [AJA-194](https://linear.app/ajay-karthick/issue/AJA-194) | Google + Apple sign-in (native OAuth) — v1.1.0 |
+
+### Recently Done (verify Linear status matches git)
+
+| ID | Title |
+|----|-------|
+| [AJA-201](https://linear.app/ajay-karthick/issue/AJA-201) | Share to Wardrobe: iOS Share Extension + Web Share Target |
+| [AJA-198](https://linear.app/ajay-karthick/issue/AJA-198) | Frictionless first-run: labeled sample closet + activation |
+| [AJA-199](https://linear.app/ajay-karthick/issue/AJA-199) | Gender-matched beautified sample capsules |
+| [AJA-195](https://linear.app/ajay-karthick/issue/AJA-195) | Username / @handle picker |
+| [AJA-196](https://linear.app/ajay-karthick/issue/AJA-196) | Find-friends / follow-back / profile counts |
+| [AJA-197](https://linear.app/ajay-karthick/issue/AJA-197) | In-app account deletion |
+| [AJA-200](https://linear.app/ajay-karthick/issue/AJA-200) | Declutter Edit item |
+| [AJA-153](https://linear.app/ajay-karthick/issue/AJA-153) | Monogram W icon + splash (1.0.1) |
+
+### Copilot wedge
+
+| ID | Title | Status |
+|----|-------|--------|
+| [AJA-190](https://linear.app/ajay-karthick/issue/AJA-190) | Decision loop + savings bank | **Code shipped** — Linear may still say Backlog; mark Done when confirmed |
+| [AJA-191](https://linear.app/ajay-karthick/issue/AJA-191) | Capture → Smart Buy verdict | Backlog |
+| [AJA-192](https://linear.app/ajay-karthick/issue/AJA-192) | Share Closet → decision councils | Backlog |
+
+### Open QA / wiring (from Jul 18 QA)
+
+| ID | Title |
+|----|-------|
+| [AJA-179](https://linear.app/ajay-karthick/issue/AJA-179) | Wire Share Closet into redesigned Closet |
+| [AJA-178](https://linear.app/ajay-karthick/issue/AJA-178)–[AJA-189](https://linear.app/ajay-karthick/issue/AJA-189) | QA cluster (extract 403, Safari copy, a11y, public Follow, etc.) — extract UA fallback improved via AJA-201 |
+
+### Gated / later
+
+| ID | Title |
+|----|-------|
+| [AJA-8](https://linear.app/ajay-karthick/issue/AJA-8) | App Store public submission — do not start unless asked |
+| [AJA-100](https://linear.app/ajay-karthick/issue/AJA-100) | Scale: separate web + stores — [[Scale architecture]] |
+| [AJA-21](https://linear.app/ajay-karthick/issue/AJA-21) | FASHN VTON — budget-blocked |
+
+## Active branch
+
+`feat/v1.1.0-social-auth` — OAuth + share-in + first-run polish (marketing version **1.1.0**, build **5**).
+
 ## Labels
 
 | Label | Use |
 |-------|-----|
-| Feature / Bug / Improvement | Type (defaults) |
+| Feature / Bug / Improvement | Type |
 | iOS | Capacitor / Xcode / device |
 | Capacitor | Native config / bridge |
 | Web | Next.js / Vercel |
 | Docs | Obsidian / Notion / README |
 
-## Milestones
-
-1. **iOS shell** — AJA-5 Done
-2. **Dual UI (app vs web)** — AJA-6 Done (shipped in `a1a43c7`)
-3. **App Store later** — AJA-8 Backlog
-4. **Scale: separate web + stores** — [AJA-100](https://linear.app/ajay-karthick/issue/AJA-100) Backlog · see [[Scale architecture]]
-
-## Board snapshot (checked 2026-07-11)
-
-### Done (Claude Code + Cursor)
-
-| ID | Title |
-|----|-------|
-| [AJA-5](https://linear.app/ajay-karthick/issue/AJA-5) | Capacitor iOS shell |
-| [AJA-6](https://linear.app/ajay-karthick/issue/AJA-6) | Dual UI Option 1 (`NativeShell`, `platform.ts`) |
-| [AJA-9](https://linear.app/ajay-karthick/issue/AJA-9) | PWA install support |
-| [AJA-10](https://linear.app/ajay-karthick/issue/AJA-10) | Wishlist Smart Buy (v2: wear CPW + opt-in sheet) |
-| [AJA-11](https://linear.app/ajay-karthick/issue/AJA-11) | Closet ROI insights |
-| [AJA-12](https://linear.app/ajay-karthick/issue/AJA-12) | AI auto-catalog + bg removal |
-| [AJA-13](https://linear.app/ajay-karthick/issue/AJA-13) | Wishlist link extraction |
-| [AJA-14](https://linear.app/ajay-karthick/issue/AJA-14) | Sync reliability (soft timeout, no auth-lock await, scrub poisoned snapshots) |
-| [AJA-15](https://linear.app/ajay-karthick/issue/AJA-15) | Today weather opt-in; hide push in native |
-| [AJA-22](https://linear.app/ajay-karthick/issue/AJA-22) | Native shell flash of web chrome |
-| [AJA-23](https://linear.app/ajay-karthick/issue/AJA-23) | Format ISO dates in Outfits/Calendar |
-| [AJA-25](https://linear.app/ajay-karthick/issue/AJA-25) | Linear ↔ git commit auto-sync |
-| [AJA-36](https://linear.app/ajay-karthick/issue/AJA-36) | Weekly habit loop + activate web push |
-| [AJA-75](https://linear.app/ajay-karthick/issue/AJA-75) | Native app local notification reminders |
-| [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) | Browser wishlist clipper |
-| [AJA-55](https://linear.app/ajay-karthick/issue/AJA-55) | Settings: Rate + Share the app |
-| [AJA-56](https://linear.app/ajay-karthick/issue/AJA-56) | Settings: Send feedback + Feature request |
-| [AJA-79](https://linear.app/ajay-karthick/issue/AJA-79) | Closet photo → product link/price |
-
-### Todo (next)
-
-| ID | Title | Priority |
-|----|-------|----------|
-| [AJA-35](https://linear.app/ajay-karthick/issue/AJA-35) | Onboarding first-win polish | Medium |
-| [AJA-17](https://linear.app/ajay-karthick/issue/AJA-17) | Packing capsule — weather-aware trips | Medium |
-| [AJA-18](https://linear.app/ajay-karthick/issue/AJA-18) | Flat-lay → packshot polish | Medium |
-
-### Backlog
-
-| ID | Title |
-|----|-------|
-| [AJA-7](https://linear.app/ajay-karthick/issue/AJA-7) | Mac disk space for Xcode |
-| [AJA-8](https://linear.app/ajay-karthick/issue/AJA-8) | App Store / TestFlight |
-| [AJA-19](https://linear.app/ajay-karthick/issue/AJA-19) | Social-lite outfit polls |
-| [AJA-20](https://linear.app/ajay-karthick/issue/AJA-20) | Mannequin / collage moodboard |
-| [AJA-21](https://linear.app/ajay-karthick/issue/AJA-21) | FASHN VTON try-on (blocked on budget) |
-| [AJA-24](https://linear.app/ajay-karthick/issue/AJA-24) | Commit activity log (meta) |
-| [AJA-34](https://linear.app/ajay-karthick/issue/AJA-34)–[AJA-49](https://linear.app/ajay-karthick/issue/AJA-49) | Prior research backlog (bulk ingest, stylist, resale, …) |
-| [AJA-58](https://linear.app/ajay-karthick/issue/AJA-58)–[AJA-72](https://linear.app/ajay-karthick/issue/AJA-72) | Market-gap ideas Jul 11 (utilization, calendar, wash, family, DPP, B2B, local store finder, …) |
-| [AJA-79](https://linear.app/ajay-karthick/issue/AJA-79) | Closet photo → product link/price — **Done** (SerpAPI Lens + Find product sheet) |
-| [AJA-81](https://linear.app/ajay-karthick/issue/AJA-81) | Find product: improve match precision (Gemini rank + better hints) |
-
 Notion scratchpad: [New ideas](https://app.notion.com/p/39ac075eff4c8146990be35f0d3506b3)
-
-## Code landed (verify)
-
-Big commit `a1a43c7` — dual UI + PWA + Smart Buy + insights + sync fixes. Later: clipper, Smart Buy sheet, sync soft-timeout, AJA-22/23.
-
-Key paths:
-
-- `src/lib/platform.ts`
-- `src/components/native/NativeShell.tsx`
-- `src/components/NativeAppClass.tsx`
-- `src/components/AppViews.tsx`
-- `src/components/SmartBuy.tsx`
-- `src/app/api/clip/route.ts`
-- `extensions/wishlist-clipper/`
-
-## GitHub (optional)
-
-**Settings → Integrations → GitHub** → connect `Ajay0704/wardrobe-app`.
 
 #linear #project #wardrobe

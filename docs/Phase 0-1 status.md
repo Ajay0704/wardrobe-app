@@ -1,6 +1,6 @@
 # Phase 0 + Phase 1 roadmap status
 
-Last updated: 2026-07-16
+Last updated: 2026-07-25
 
 ## Phase 0 — Frictionless input + monetization seed ✅
 
@@ -9,49 +9,60 @@ Last updated: 2026-07-16
 | 0.1 | AI auto-tag on upload | Done | `/api/analyze` + ItemForm pre-fill |
 | 0.2 | Background removal | Done | `@imgly/background-removal` in ItemForm (manual button; falls back on failure) |
 | 0.3 | Wishlist mindful gate + affiliate | Done | Similar-owned warning + CPW; `src/lib/affiliate.ts` (fill tags when account ready) |
-| 0.4 | Packing / Travel mode | Done | `Trip` + `TravelView` + capsule outfits |
+| 0.4 | Packing / Travel mode | Done | Now **Pack with friends** (server trips + invites) |
 
 ## Phase 1 — Retention core ✅
 
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| 1.1 | Wear-logging | Done | `logWear` → calendar + wearCount; Outfits / ItemCard / Today |
-| 1.2 | What to wear today | Done | Default `TodayView`; Open-Meteo + `generateOutfit` |
-| 1.3 | PWA push + weekly habit | Done | AJA-36: VAPID + cron + `push_subscriptions`; local habit strip on Today |
-| 1.4 | Outfit calendar | Done | `CalendarView` over worn + planned entries |
+| 1.1 | Wear-logging | Done | `logWear` → calendar + wearCount |
+| 1.2 | What to wear today | Done | Explore For-you + weather outfits (Home tab retired) |
+| 1.3 | PWA push + weekly habit | Done | AJA-36 |
+| 1.4 | Outfit calendar | Done | `CalendarView` |
 
-## Shipped after Phase 1 (Jul 2026)
+## Shipped after Phase 1 (through Jul 25, 2026)
 
 | ID | Feature | Status | Notes |
 |----|---------|--------|-------|
-| AJA-28 | Insights screen | Done | Category mix, value, usage, CPW — earlier than research “Phase 3” |
-| AJA-31 | Native IA | Done | Today / Closet / ＋ / Outfits / You |
-| AJA-32 | Take photo | Done | Capacitor `@capacitor/camera` + Info.plist camera permission (HTML capture broken in WKWebView) |
-| AJA-33 | Native shell stability | Done | `/n` entry, in-app editor + tabs, no WebView shop nav, input zoom fix |
-| AJA-35 | Onboarding + style quiz | In progress | Quiz + Today activation shipped; first-win polish still open |
-| AJA-50/51 | Currency + brand picker | Done | Settings currency; searchable brands |
-| AJA-78 | Browser wishlist clipper | Done | MV3 extension → `/api/clip`; deep link `/?clipUrl=` |
-| AJA-10 | Smart Buy v2 | Done | Wear-based CPW, tag/season scoring; opt-in sheet (no editor reflow) |
-| AJA-22 | Native web-chrome flash | Done | Sticky native detection + CSS hide landing/header |
-| AJA-23 | Friendly dates | Done | `formatDisplayDate` in Outfits + Calendar |
-| AJA-79 | Find product online | Done | SerpAPI Lens → `/api/extract`; see [[Photo to product]] |
-| — | Share Closet | Done | Guest replies on `/share/closet/[id]`; see [[Share Closet]] |
-| AJA-86 | Native tabs Explore/Home | Done | Explore · Closet · ＋ · Outfits · Home |
-| AJA-90 | My page redesign | Done | Header avatar → social / profile |
-| — | Beautify + stylist chat | Done | `/api/beautify`, `/api/stylist/chat` (Gemini) |
-| AJA-55/56 | Support / Rate / Share app | Done | Settings support row |
+| AJA-28 | Insights | Done | + **Decision bank** (AJA-190) |
+| AJA-79 | Find product | Done | SerpAPI Lens |
+| AJA-78 | Browser clipper | Done | MV3 |
+| AJA-10 | Smart Buy v2 | Done | + outcome buttons (bought/skipped/wait) |
+| AJA-86 → AJA-169 | Native tabs | Done | Explore · Closet · ＋ · Outfits · **Profile** (Home retired) |
+| — | Beautify + Stylist | Done | Closet-grounded intents |
+| AJA-172 | Shop | Done | SerpAPI Google Shopping + gender filters (AJA-177) |
+| — | Pack with friends | Done | Phases 0–3 server trips |
+| AJA-190 | Decision loop + savings bank | Code shipped | Linear may still say Backlog — verify Done |
+| AJA-198/199 | Sample closet first-run | Done | Gender-matched labeled samples |
+| AJA-201 | Share Extension + Web Share Target | Done | Links + images; see [[Share Extension]] |
+| AJA-195 | Username / @handle | Done | Onboarding + Settings |
+| AJA-196 | Find-friends / follow-back | Done | Profile counts, pull-to-refresh |
+| AJA-197 | Delete account | Done | Apple 5.1.1(v) |
+| AJA-200 | Declutter Edit item | Done | |
+| AJA-153 | Icon + splash | Done | Monogram W; earlier 1.0.1 build 3 |
+
+## In progress / next (Jul 25)
+
+| ID | Feature | Status | Notes |
+|----|---------|--------|-------|
+| AJA-194 | Google + Apple OAuth | In Progress | v1.1.0 build; provider dashboards may block |
+| AJA-191 | Capture → Smart Buy verdict | Backlog | After share lands in wishlist |
+| AJA-192 | Decision councils (rewire Share Closet) | Backlog | After solo decision metrics |
+| AJA-179 | Wire Share Closet into Closet UI | Open | Entry removed in redesign |
+| AJA-8 | Public App Store | Gated | Don’t start unless asked |
 
 ## Ops checklist (push) — AJA-36 done 2026-07-11
 
 1. ~~`push_subscriptions` table~~ + calendar column (AJA-16)
 2. ~~VAPID keys + `SUPABASE_SERVICE_ROLE_KEY` + `CRON_SECRET` on Vercel~~
 3. Redeploy production after env changes
-4. **Verify:** website Settings → Notifications → Enable; **native app** You → Settings → Notifications → Enable reminders (needs Xcode rebuild for LocalNotifications plugin)
-5. Cron: `0 11 * * *` UTC → `/api/cron/daily-outfit` (Bearer `CRON_SECRET`) — web push only; native uses on-device schedules
+4. **Verify:** website Settings → Notifications → Enable; native Local Notifications after rebuild
+5. Cron: `0 11 * * *` UTC → `/api/cron/daily-outfit`
 
 ## Related
 
 - [[Features]]
+- [[Share Extension]]
 - [[iOS Capacitor]]
 - [[Research synthesis — next moves]]
 - [[Browser extension]]
