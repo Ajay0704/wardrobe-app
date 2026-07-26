@@ -339,10 +339,13 @@ html.native-app .web-auth-landing {
   }
 }
 
-/* Leave the Capacitor tab bar visible and tappable */
+/* Full-screen focused editor (AJA-210): the tab dock is hidden while an item
+   editor is open (see body.item-editor-open below), so the page covers the whole
+   screen and the Save bar sits at the true bottom, clear of the home indicator —
+   no dock gap and no closet peeking through underneath. */
 html.native-app .native-item-page {
-  bottom: calc(3.5rem + env(safe-area-inset-bottom));
-  padding-bottom: 0;
+  bottom: 0;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .native-item-page-header {
@@ -403,6 +406,13 @@ html.native-app .native-item-page {
 /* The item editor covers the screen — hide the shell's floating chat button so it
  * doesn't overlap the pinned Save bar. */
 body.item-editor-open .native-shell-fab {
+  display: none;
+}
+
+/* Focused editor (AJA-210): hide the floating tab dock while an item editor is
+ * open so the Save bar sits at the true bottom and the page isn't cut at the dock.
+ * Leave the editor via Back / Cancel / Save. */
+body.item-editor-open .native-tabbar {
   display: none;
 }
 
