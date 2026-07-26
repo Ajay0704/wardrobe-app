@@ -434,7 +434,7 @@ export function SharedClosetView() {
                 type="button"
                 aria-label="Delete shared closet"
                 onClick={() => setConfirmDeleteId(closet.id)}
-                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-line text-muted transition-colors hover:border-red-300/60 hover:text-red-600"
+                className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-xl border border-line text-muted transition-[transform,border-color,color] duration-150 ease-out hover:border-red-300/60 hover:text-red-600 active:scale-95"
               >
                 <Trash2 size={17} />
               </button>
@@ -461,7 +461,7 @@ export function SharedClosetView() {
               <button
                 type="button"
                 onClick={openInvite}
-                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-accent hover:bg-surface-2/70"
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-accent transition-[transform,background-color] duration-150 ease-out hover:bg-surface-2/70 active:scale-95"
               >
                 <UserPlus size={14} /> Invite
               </button>
@@ -469,7 +469,7 @@ export function SharedClosetView() {
               <button
                 type="button"
                 onClick={() => leave(closet.id)}
-                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-muted hover:text-red-600"
+                className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-sm font-medium text-muted transition-[transform,color] duration-150 ease-out hover:text-red-600 active:scale-95"
               >
                 Leave
               </button>
@@ -477,7 +477,7 @@ export function SharedClosetView() {
           </div>
 
           {inviteOpen && isOwner && (
-            <div className="mt-3 overflow-hidden rounded-2xl border border-line">
+            <div className="animate-fade-up mt-3 overflow-hidden rounded-2xl border border-line">
               {following === null ? (
                 <p className="px-4 py-3 text-sm text-muted">Loading…</p>
               ) : invitable.length === 0 ? (
@@ -519,7 +519,7 @@ export function SharedClosetView() {
           </div>
 
           {addOpen && (
-            <div className="mb-4 rounded-2xl border border-line bg-surface-2/40 p-3">
+            <div className="animate-fade-up mb-4 rounded-2xl border border-line bg-surface-2/40 p-3">
               <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 border-b border-line">
                 {MAIN_TABS.map((t) => (
                   <button
@@ -546,9 +546,9 @@ export function SharedClosetView() {
                       type="button"
                       disabled={added}
                       onClick={() => toggleSel(it.id)}
-                      className={`relative aspect-[3/4] overflow-hidden rounded-xl border transition-all ${
+                      className={`relative aspect-[3/4] overflow-hidden rounded-xl border transition-[border-color,box-shadow,opacity,transform] duration-150 ease-out active:scale-95 ${
                         on ? "border-accent ring-2 ring-accent/30" : "border-line opacity-80 hover:opacity-100"
-                      } ${added ? "cursor-default" : ""}`}
+                      } ${added ? "cursor-default active:scale-100" : ""}`}
                       title={it.name}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -606,7 +606,7 @@ export function SharedClosetView() {
                     type="button"
                     aria-label="Remove from shared closet"
                     onClick={() => removeItem(it)}
-                    className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition-colors hover:bg-black/65"
+                    className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition-[transform,background-color] duration-150 ease-out hover:bg-black/65 active:scale-90"
                   >
                     <X size={14} />
                   </button>
@@ -663,7 +663,7 @@ export function SharedClosetView() {
                 key={c.id}
                 type="button"
                 onClick={() => openCloset(c.id)}
-                className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-left transition-colors hover:border-foreground/30"
+                className="flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-left transition-[transform,border-color] duration-150 ease-out hover:border-foreground/30 active:scale-[0.98]"
               >
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-semibold">

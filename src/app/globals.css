@@ -118,6 +118,20 @@ body {
   animation: fade-up 260ms ease both;
 }
 
+/* Accessibility: honor the OS "reduce motion" setting — collapse animations and
+ * transitions to near-instant so movement/scale never induces motion sickness
+ * (Emil / WCAG 2.3.3). Content still appears; it just doesn't travel. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ---------------------------------------------------------------------------
  * Native app (Capacitor iOS shell) chrome. Scoped to .native-shell so the
  * website is untouched. Rendered by AppShell only when isNativeApp() is true.
