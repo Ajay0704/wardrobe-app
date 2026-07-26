@@ -118,9 +118,6 @@ export function ItemForm({
   const [wishlist, setWishlist] = useState(
     initial?.wishlist ?? defaultWishlist ?? false,
   );
-  // Auto-fill from a shop link only makes sense for wishlist items or an explicit
-  // "add via link" — hide it on items you own + photographed (user feedback).
-  const showAutoFill = wishlist || intent === "link";
   const [extracting, setExtracting] = useState(false);
   const [extractError, setExtractError] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -746,8 +743,7 @@ export function ItemForm({
         </div>
 
         <div className="space-y-4">
-          {/* Auto-fill from the web — only for wishlist / shop adds, not items you own */}
-          {showAutoFill && (
+          {/* Auto-fill from the web — one helper replacing Product URL + Fetch details + Find product online */}
           <div className="rounded-2xl border border-accent/25 bg-accent-soft/50 p-3.5">
             <p className="mb-2.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-accent">
               <Sparkles size={13} /> Auto-fill from the web
@@ -810,7 +806,6 @@ export function ItemForm({
               </button>
             )}
           </div>
-          )}
 
           <Field label="Name">
             <input
