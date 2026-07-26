@@ -63,6 +63,12 @@ export function WardrobeView() {
       if (s.pendingOpenItemId && s.pendingOpenItemId !== prev.pendingOpenItemId) {
         open(s.pendingOpenItemId);
       }
+      // Native dock tapped — close the open editor so the tab navigates instead
+      // of leaving the portaled editor stuck on top (AJA-206).
+      if (s.editorCloseNonce !== prev.editorCloseNonce) {
+        setEditing(null);
+        setAdding(false);
+      }
     });
     // Catch a deep link that set the id before this subscribed (cold start).
     queueMicrotask(() => open(useWardrobe.getState().pendingOpenItemId));

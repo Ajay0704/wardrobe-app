@@ -75,7 +75,8 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, openAdd, openSplit, openScan } = useWardrobe();
+  const { view, setView, openAdd, openSplit, openScan, dismissItemEditor } =
+    useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const [createOpen, setCreateOpen] = useState(false);
@@ -147,6 +148,13 @@ export function NativeShell() {
     fn();
   };
 
+  // Every dock tap dismisses an open (portaled) item editor first, so the tab
+  // actually navigates instead of leaving the editor stuck on top (AJA-206).
+  const navTo = (v: View) => {
+    dismissItemEditor();
+    setView(v);
+  };
+
   return (
     <div className="native-shell flex h-[100svh] max-h-[100svh] flex-col overflow-hidden bg-background">
       <header className="native-topbar">
@@ -212,14 +220,16 @@ export function NativeShell() {
       </main>
 
       <nav className="native-tabbar" aria-label="Primary">
-        <TabBtn tab={{ view: "explore", label: "Explore", Icon: Compass }} view={view} onClick={setView} />
-        <TabBtn tab={{ view: "wardrobe", label: "Closet", Icon: Shirt }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "explore", label: "Explore", Icon: Compass }} view={view} onClick={navTo} />
+        <TabBtn tab={{ view: "wardrobe", label: "Closet", Icon: Shirt }} view={view} onClick={navTo} />
 
         <button
           type="button"
-          onClick={() =>
-            view === "wishlist" ? setWishlistAddOpen(true) : setCreateOpen(true)
-          }
+          onClick={() => {
+            dismissItemEditor();
+            if (view === "wishlist") setWishlistAddOpen(true);
+            else setCreateOpen(true);
+          }}
           className="native-tab"
           aria-label="Create"
         >
@@ -228,11 +238,11 @@ export function NativeShell() {
           </span>
         </button>
 
-        <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={setView} />
+        <TabBtn tab={{ view: "outfits", label: "Outfits", Icon: LayoutGrid }} view={view} onClick={navTo} />
 
         <button
           type="button"
-          onClick={() => setView("social")}
+          onClick={() => navTo("social")}
           aria-label="Profile"
           aria-current={view === "social" ? "page" : undefined}
           className="native-tab"

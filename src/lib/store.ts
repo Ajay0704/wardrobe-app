@@ -124,6 +124,9 @@ interface WardrobeState {
   /** Item id to open in the closet editor — set by the `://item?id=` deep link
    *  from a shared link's "Open in Wardrobe". WardrobeView consumes + clears it. */
   pendingOpenItemId: string | null;
+  /** Bumped by the native dock on any tab tap so an open (portaled) item editor
+   *  dismisses itself — otherwise it stays over the newly-selected view. */
+  editorCloseNonce: number;
   /** An image shared into the app (iOS Share Extension) as a data URL — opens the add
    *  form pre-loaded with the photo. ItemForm consumes it, then clears it. */
   pendingSharedImage: string | null;
@@ -198,6 +201,7 @@ interface WardrobeState {
   /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
   setPendingClipUrl: (url: string | null) => void;
   setPendingOpenItemId: (id: string | null) => void;
+  dismissItemEditor: () => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
   setPendingSharedImage: (dataUrl: string | null) => void;
   /** Open the add form pre-loaded with a shared image (iOS Share Extension). */
@@ -384,6 +388,7 @@ export const useWardrobe = create<WardrobeState>()(
       closetsOpen: false,
       pendingClipUrl: null,
       pendingOpenItemId: null,
+      editorCloseNonce: 0,
       pendingSharedImage: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
@@ -625,6 +630,8 @@ export const useWardrobe = create<WardrobeState>()(
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
       setPendingOpenItemId: (pendingOpenItemId) => set({ pendingOpenItemId }),
+      dismissItemEditor: () =>
+        set((s) => ({ editorCloseNonce: s.editorCloseNonce + 1 })),
       setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
       openAddWithImage: (dataUrl) =>
         set({ addOpen: true, addIntent: null, pendingSharedImage: dataUrl }),
