@@ -52,9 +52,13 @@ Drag-and-drop / click into layer slots; color harmony; PNG export.
 
 **Try it on me** — Gemini `/api/tryon` (env-gated). FASHN upgrade AJA-21 budget-blocked.
 
+## Outfit suggestions (hybrid engine · AJA-38)
+
+`suggestLooks` / `bestLook` in `matching.ts`: multi-signal score (color, formality, weather, vibe/occasion, anti-repeat, style embeddings, taste). Used by Explore For-you, Today, Calendar, Travel, Explore closet pins. Each look carries a short why-reason.
+
 ## AI stylist
 
-Closet-grounded chat (`/api/stylist/chat`): dress me, style anchor, **buy_advice**, forgotten, stats, pack, compare. Deterministic tools + short Gemini narration. Pinned in Messages.
+Closet-grounded chat: dress me, style anchor, **buy_advice**, forgotten, stats, pack, compare. Hybrid tools rank real closet looks → optional `/api/stylist/assemble` picks among candidate IDs → `/api/stylist/chat` narrates. Like/dislike on outfit cards trains a local taste vector. Pinned in Messages.
 
 ## Saved outfits, calendar & wishlist
 

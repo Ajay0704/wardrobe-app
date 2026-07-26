@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Check, PencilRuler, Plus, Shirt, Sparkles } from "lucide-react";
+import { Bookmark, Check, PencilRuler, Plus, Shirt, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 import { useState } from "react";
 import type { WardrobeItem } from "@/lib/types";
 import type {
@@ -19,6 +19,8 @@ export interface BlockHandlers {
   onOpen: (o: OutfitCardData) => void;
   onChip: (send: string) => void;
   onAddItems: () => void;
+  /** Taste loop — like/dislike nudges future rankings. */
+  onFeedback?: (o: OutfitCardData, verdict: "like" | "dislike") => void;
 }
 
 function Thumb({ item, size = 64 }: { item?: WardrobeItem; size?: number }) {
@@ -51,6 +53,7 @@ function OutfitCard({
   compact?: boolean;
 }) {
   const items = outfit.itemIds.map(h.resolve).filter((x): x is WardrobeItem => !!x);
+  const [voted, setVoted] = useState<"like" | "dislike" | null>(null);
   return (
     <div className={`overflow-hidden rounded-2xl border border-line bg-surface ${compact ? "w-60 shrink-0" : ""}`}>
       <div className="flex items-center gap-2 overflow-x-auto p-3">
@@ -61,6 +64,11 @@ function OutfitCard({
           {Math.round(outfit.score)}
         </span>
       </div>
+      {outfit.reason && (
+        <p className="border-t border-line px-3 py-2 text-[11px] leading-snug text-muted">
+          {outfit.reason}
+        </p>
+      )}
       <div className="flex items-center gap-1.5 border-t border-line px-2 py-2">
         <button
           type="button"
@@ -85,6 +93,38 @@ function OutfitCard({
         >
           <PencilRuler size={16} />
         </button>
+        {h.onFeedback && (
+          <>
+            <button
+              type="button"
+              aria-label="Like this look"
+              disabled={voted != null}
+              onClick={() => {
+                setVoted("like");
+                h.onFeedback?.(outfit, "like");
+              }}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg border border-line ${
+                voted === "like" ? "bg-accent-soft text-accent" : "bg-surface text-foreground hover:bg-surface-2"
+              } disabled:opacity-60`}
+            >
+              <ThumbsUp size={15} />
+            </button>
+            <button
+              type="button"
+              aria-label="Dislike this look"
+              disabled={voted != null}
+              onClick={() => {
+                setVoted("dislike");
+                h.onFeedback?.(outfit, "dislike");
+              }}
+              className={`flex h-9 w-9 items-center justify-center rounded-lg border border-line ${
+                voted === "dislike" ? "bg-surface-2 text-muted" : "bg-surface text-foreground hover:bg-surface-2"
+              } disabled:opacity-60`}
+            >
+              <ThumbsDown size={15} />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

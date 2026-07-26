@@ -2,7 +2,7 @@
 
 import { CloudSun, RefreshCw, Shirt } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { generateOutfit, outfitScore } from "@/lib/matching";
+import { lookReasonLine, suggestLooks } from "@/lib/matching";
 import {
   habitLabel,
   readHabitWeek,
@@ -10,8 +10,9 @@ import {
   type HabitWeek,
 } from "@/lib/habit";
 import { primaryStyleVibe } from "@/lib/profile";
-import { draftItemIds, useWardrobe } from "@/lib/store";
-import type { Season, WardrobeItem } from "@/lib/types";
+import { useWardrobe } from "@/lib/store";
+import { readTaste } from "@/lib/taste";
+import type { WardrobeItem } from "@/lib/types";
 import {
   cacheWeather,
   fetchLocalWeather,
@@ -27,62 +28,38 @@ type Suggestion = {
   itemIds: string[];
   items: WardrobeItem[];
   score: number | null;
+  reason?: string;
 };
-
-function filterForWeather(
-  items: WardrobeItem[],
-  weather: WeatherSnapshot | null,
-): WardrobeItem[] {
-  const owned = items.filter((it) => !it.wishlist && it.imageUrl);
-  if (!weather) return owned;
-
-  const season = weather.season;
-  const seasonal = owned.filter(
-    (it) => it.seasons.length === 0 || it.seasons.includes(season),
-  );
-  const pool = seasonal.length >= 4 ? seasonal : owned;
-
-  if (!weather.needsOuterwear) {
-    // Prefer looks without forcing coats when it's warm/dry.
-    return pool;
-  }
-  return pool;
-}
 
 function buildSuggestions(
   pool: WardrobeItem[],
-  season: Season | undefined,
-  needsOuterwear: boolean,
+  weather: WeatherSnapshot | null,
   vibe: string | undefined,
   count = 3,
 ): Suggestion[] {
   if (pool.length < 2) return [];
-  const out: Suggestion[] = [];
-  const seen = new Set<string>();
-
-  for (let i = 0; i < count * 4 && out.length < count; i++) {
-    const draft = generateOutfit(pool, {
-      season,
-      vibe,
-      // Bias outerwear when cold/wet by treating as winter-ish.
-      ...(needsOuterwear && season !== "winter" ? { season: "winter" as Season } : {}),
-    });
-    const itemIds = draftItemIds(draft);
-    if (itemIds.length < 2) continue;
-    const key = itemIds.slice().sort().join("|");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const items = itemIds
-      .map((id) => pool.find((it) => it.id === id))
-      .filter(Boolean) as WardrobeItem[];
-    out.push({
-      key,
-      itemIds,
-      items,
-      score: items.length >= 2 ? outfitScore(items) : null,
-    });
-  }
-  return out;
+  return suggestLooks(pool, {
+    vibe,
+    occasion: "today",
+    mood: vibe || "everyday",
+    weather: weather
+      ? {
+          season: weather.season,
+          needsOuterwear: weather.needsOuterwear,
+          tempC: weather.tempC,
+        }
+      : null,
+    season: weather?.season,
+    taste: typeof window !== "undefined" ? readTaste() : undefined,
+    count,
+    candidates: count * 8,
+  }).map((look) => ({
+    key: look.itemIds.slice().sort().join("|"),
+    itemIds: look.itemIds,
+    items: look.items,
+    score: look.score,
+    reason: lookReasonLine(look),
+  }));
 }
 
 export function TodayView() {
@@ -147,21 +124,14 @@ export function TodayView() {
   }, [profile.location]);
 
   const pool = useMemo(
-    () => filterForWeather(items, weather),
-    [items, weather],
+    () => items.filter((it) => !it.wishlist && it.imageUrl),
+    [items],
   );
 
   const styleVibe = primaryStyleVibe(profile);
 
   const suggestions = useMemo(
-    () =>
-      buildSuggestions(
-        pool,
-        weather?.season,
-        weather?.needsOuterwear ?? false,
-        styleVibe,
-        3,
-      ),
+    () => buildSuggestions(pool, weather, styleVibe, 3),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed forces reshuffle
     [pool, weather, seed, styleVibe],
   );
@@ -329,7 +299,7 @@ export function TodayView() {
                   <div>
                     <h3 className="font-medium">Look {i + 1}</h3>
                     <p className="mt-0.5 line-clamp-2 text-xs text-muted">
-                      {s.items.map((it) => it.name).join(" · ")}
+                      {s.reason || s.items.map((it) => it.name).join(" · ")}
                     </p>
                   </div>
                   {s.score !== null && <MatchBadge score={s.score} />}

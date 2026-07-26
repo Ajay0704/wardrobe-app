@@ -109,6 +109,14 @@ export interface WardrobeItem {
   fit?: Fit; // canonical fit vocab (FIT_VALUES); writers normalize via FIT_ALIASES
   tone?: string; // colour group: 'neutral' | 'warm' | 'cool' | 'black' | 'white' | ...
   formality?: string; // 'casual' | 'smart-casual' | 'formal' | 'statement' | ...
+  /** Fabric / material hint from analyze (e.g. "linen", "wool"). */
+  material?: string;
+  /** Pattern hint from analyze (e.g. "stripe", "solid"). */
+  pattern?: string;
+  /** Short style caption used to build / refresh styleEmbedding. */
+  styleCaption?: string;
+  /** Dense style vector (see style-embed.ts); optional, recomputed from attrs if absent. */
+  styleEmbedding?: number[];
   /** Wishlist items are things the user wants to buy, not yet owned. */
   wishlist: boolean;
   /** Favourited pieces the user loves — independent of wishlist. */

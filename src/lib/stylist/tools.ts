@@ -8,10 +8,18 @@
 
 import { scorePair } from "../color";
 import { computeFullInsights } from "../insights";
-import { generateOutfit, outfitScore } from "../matching";
+import {
+  bestLook,
+  lookReasonLine,
+  outfitScore,
+  suggestLooks,
+  type ScoredLook,
+} from "../matching";
 import { primaryStyleVibe, type UserProfile } from "../profile";
 import { forgottenItems, styleWays } from "../rediscover";
 import { analyzeSmartBuy } from "../smart-buy";
+import { authHeaders } from "../supabase/client";
+import { readTaste } from "../taste";
 import type { SlotKey, WardrobeItem } from "../types";
 import { SLOT_CONFIG, slotForCategory } from "../types";
 import { fetchWeatherForPlace, type WeatherSnapshot } from "../weather";
@@ -114,29 +122,94 @@ function dressability(own: WardrobeItem[]): { ok: boolean; needed: string } {
   return { ok: false, needed: missing.join(", ") || "a few more pieces" };
 }
 
-/** Generate the best-scoring distinct look over a few tries. */
+function lookToCard(look: ScoredLook): OutfitCardData {
+  return {
+    itemIds: look.itemIds,
+    score: look.score,
+    draft: look.draft,
+    reason: lookReasonLine(look) || describeOutfit(look.items),
+  };
+}
+
+/** Hybrid ranker — multi-signal best look (replaces random best-of-N). */
 function bestOutfit(
   own: WardrobeItem[],
-  opts: { vibe?: string; season?: WardrobeItem["seasons"][number]; anchor?: WardrobeItem },
-  byId: Map<string, WardrobeItem>,
+  opts: {
+    vibe?: string;
+    season?: WardrobeItem["seasons"][number];
+    anchor?: WardrobeItem;
+    occasion?: string;
+    mood?: string;
+    formality?: string;
+    weather?: WeatherSnapshot | null;
+  },
+  _byId: Map<string, WardrobeItem>,
   tries = 6,
 ): OutfitCardData | null {
-  let best: { draft: Record<SlotKey, string[]>; ids: string[]; score: number } | null = null;
-  const seen = new Set<string>();
-  for (let i = 0; i < tries; i++) {
-    const draft = generateOutfit(own, opts);
-    const ids = draftIds(draft);
-    if (ids.length < 2) continue;
-    const key = [...ids].sort().join(",");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const its = ids.map((id) => byId.get(id)).filter((x): x is WardrobeItem => !!x);
-    const score = outfitScore(its);
-    if (!best || score > best.score) best = { draft, ids, score };
+  const look = bestLook(own, {
+    vibe: opts.vibe,
+    season: opts.season,
+    anchor: opts.anchor,
+    occasion: opts.occasion,
+    mood: opts.mood ?? opts.occasion ?? opts.vibe,
+    formality: opts.formality,
+    weather: opts.weather
+      ? {
+          season: opts.weather.season,
+          needsOuterwear: opts.weather.needsOuterwear,
+          tempC: opts.weather.tempC,
+        }
+      : null,
+    taste: typeof window !== "undefined" ? readTaste() : undefined,
+    candidates: Math.max(tries * 3, 12),
+  });
+  return look ? lookToCard(look) : null;
+}
+
+/** Ask Gemini to pick among ranked candidates; fall back to #1. */
+async function assembleFromCandidates(
+  message: string,
+  looks: ScoredLook[],
+  occasion?: string,
+  mood?: string,
+): Promise<ScoredLook | null> {
+  if (!looks.length) return null;
+  if (looks.length === 1) return looks[0];
+  try {
+    const res = await fetch("/api/stylist/assemble", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({
+        message,
+        occasion,
+        mood,
+        candidates: looks.slice(0, 5).map((l) => ({
+          key: l.itemIds.slice().sort().join("|"),
+          itemIds: l.itemIds,
+          labels: l.items.map((it) => [it.colorName, it.name].filter(Boolean).join(" ")),
+          score: l.score,
+          reasons: l.reasons,
+        })),
+      }),
+    });
+    if (!res.ok) return looks[0];
+    const json = (await res.json()) as { key?: string; reason?: string; itemIds?: string[] };
+    const match =
+      looks.find((l) => l.itemIds.slice().sort().join("|") === json.key) ??
+      looks.find(
+        (l) =>
+          Array.isArray(json.itemIds) &&
+          json.itemIds.length === l.itemIds.length &&
+          json.itemIds.every((id) => l.itemIds.includes(id)),
+      );
+    if (!match) return looks[0];
+    if (json.reason) {
+      return { ...match, reasons: [json.reason, ...match.reasons].slice(0, 3) };
+    }
+    return match;
+  } catch {
+    return looks[0];
   }
-  if (!best) return null;
-  const its = best.ids.map((id) => byId.get(id)!).filter(Boolean);
-  return { itemIds: best.ids, score: best.score, draft: best.draft, reason: describeOutfit(its) };
 }
 
 async function resolveWeather(
@@ -192,13 +265,43 @@ export async function runTool(
       const weather = await resolveWeather(ctx, slots);
       const season = slots.season ?? (weather ? (weather.needsOuterwear ? "winter" : weather.season) : undefined);
       const vibe = slots.vibe ?? primaryStyleVibe(ctx.profile);
-      const outfit = bestOutfit(own, { vibe, season }, byId);
-      if (!outfit) {
+      const formality =
+        vibe === "formal" || /\bwedding|gala|black.?tie\b/i.test(slots.event ?? "")
+          ? "formal"
+          : vibe === "work"
+            ? "smart-casual"
+            : undefined;
+      const looks = suggestLooks(own, {
+        vibe,
+        season,
+        occasion: slots.event || (intent === "dress_me" ? "today" : vibe),
+        mood: slots.event || vibe,
+        formality,
+        weather: weather
+          ? {
+              season: weather.season,
+              needsOuterwear: weather.needsOuterwear,
+              tempC: weather.tempC,
+            }
+          : null,
+        taste: typeof window !== "undefined" ? readTaste() : undefined,
+        count: 5,
+        candidates: 24,
+      });
+      const chosen =
+        (await assembleFromCandidates(
+          slots.event || vibe || "dress me today",
+          looks,
+          slots.event,
+          vibe,
+        )) ?? looks[0];
+      if (!chosen) {
         return {
           blocks: [{ type: "empty_closet", needed: check.needed || "a few more pieces" }],
           compact: { intent, note: "couldn't form a look" },
         };
       }
+      const outfit = lookToCard(chosen);
       const note = slots.event
         ? slots.event
         : weather
@@ -494,5 +597,10 @@ function swapSlot(
   const draft = draftFromItems(newItems);
   const ids = draftIds(draft);
   const its = ids.map((id) => byId.get(id)!).filter(Boolean);
-  return { itemIds: ids, score: outfitScore(its), draft, reason: `Swapped the ${dropSlot}.` };
+  return {
+    itemIds: ids,
+    score: outfitScore(its),
+    draft,
+    reason: `Swapped the ${dropSlot}.`,
+  };
 }

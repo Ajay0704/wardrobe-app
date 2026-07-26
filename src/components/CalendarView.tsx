@@ -21,8 +21,8 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { generateOutfit, outfitScore } from "@/lib/matching";
-import { draftItemIds, useWardrobe } from "@/lib/store";
+import { bestLook } from "@/lib/matching";
+import { useWardrobe } from "@/lib/store";
 import {
   formatDisplayDate,
   todayISO,
@@ -147,18 +147,21 @@ export function CalendarView() {
 
   const season = weather?.season ?? currentSeason();
 
-  /** Best-of-N generated look → item ids. */
+  /** Hybrid ranked look → item ids. */
   const genLook = (): string[] => {
-    let best: string[] | null = null;
-    let bestScore = -Infinity;
-    for (let i = 0; i < 6; i++) {
-      const ids = draftItemIds(generateOutfit(owned, { season }));
-      const chosen = resolve(ids);
-      if (chosen.length < 2) continue;
-      const s = outfitScore(chosen) + (chosen.some((c) => c.category === "shoes") ? 0.15 : 0);
-      if (s > bestScore) { bestScore = s; best = ids; }
-    }
-    return best ?? draftItemIds(generateOutfit(owned, { season }));
+    const look = bestLook(owned, {
+      season,
+      weather: weather
+        ? {
+            season: weather.season,
+            needsOuterwear: weather.needsOuterwear,
+            tempC: weather.tempC,
+          }
+        : null,
+      occasion: "day",
+      candidates: 18,
+    });
+    return look?.itemIds ?? [];
   };
 
   const toDraft = (its: WardrobeItem[]) => {

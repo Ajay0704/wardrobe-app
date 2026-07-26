@@ -1,10 +1,26 @@
 /**
- * Outfit suggestion engine. Pure functions over the item collection so the
- * logic is easy to unit test and to move server-side later.
+ * Context-scored hybrid outfit engine (AJA-38).
+ *
+ * Pipeline: hard filters → candidate generation → multi-signal score → rank
+ * with why-reasons. Randomness is only used for ties / reshuffle diversity.
+ * Pure functions over the item collection (easy to unit test / move server-side).
  */
 
 import { scoreOutfit, scorePair } from "./color";
+import {
+  cosineAffinity,
+  embedItem,
+  embedQuery,
+  outfitQueryAffinity,
+} from "./style-embed";
+import { tasteAffinity, type TasteState } from "./taste";
 import type { Season, SlotKey, WardrobeItem } from "./types";
+
+export interface WeatherContext {
+  season: Season;
+  needsOuterwear: boolean;
+  tempC?: number;
+}
 
 export interface GenerateOptions {
   /** Anchor the outfit around this item (always included). */
@@ -13,22 +29,165 @@ export interface GenerateOptions {
   vibe?: string;
   /** Prefer items suitable for this season. */
   season?: Season | "all";
+  /** Free-text occasion ("work meeting", "date night"). */
+  occasion?: string;
+  /** Free-text mood ("cozy brunch", "sharp and minimal"). */
+  mood?: string;
+  /** Target dress code. */
+  formality?: string;
+  /** Live weather — drives season + outerwear hard/soft rules. */
+  weather?: WeatherContext | null;
+  /** Down-rank items worn within this many days (default 3). */
+  excludeRecentlyWornDays?: number;
+  /** How many candidate looks to sample before ranking (default 24). */
+  candidates?: number;
+  /** How many top looks to return from suggestLooks (default 1). */
+  count?: number;
+  /** Optional taste state (like/dislike loop). */
+  taste?: TasteState;
   /** Randomness source, injectable for tests. */
   random?: () => number;
 }
 
-/** How well an item fits the requested vibe/season, 0-1. */
-function contextAffinity(
-  item: WardrobeItem,
-  vibe: string | undefined,
-  season: Season | "all" | undefined,
-): number {
-  let score = 0.5;
-  if (vibe) score += item.tags.includes(vibe) ? 0.35 : -0.2;
-  if (season && season !== "all") {
-    score += item.seasons.includes(season) ? 0.15 : -0.25;
+export interface ScoredLook {
+  draft: Record<SlotKey, string[]>;
+  itemIds: string[];
+  items: WardrobeItem[];
+  /** Composite 0–100 score (same scale as legacy outfitScore for UI badges). */
+  score: number;
+  /** Breakdown 0–1 for debugging / future UI. */
+  signals: {
+    color: number;
+    formality: number;
+    weather: number;
+    vibe: number;
+    antiRepeat: number;
+    semantic: number;
+    taste: number;
+  };
+  /** Short human "why this works" lines. */
+  reasons: string[];
+}
+
+const FORMALITY_RANK: Record<string, number> = {
+  casual: 0,
+  everyday: 0,
+  "smart-casual": 1,
+  smartcasual: 1,
+  business: 1,
+  work: 1,
+  formal: 2,
+  "black-tie": 3,
+  statement: 1.5,
+};
+
+function formalityRank(f?: string | null): number | null {
+  if (!f) return null;
+  const k = f.toLowerCase().trim().replace(/\s+/g, "-");
+  if (k in FORMALITY_RANK) return FORMALITY_RANK[k];
+  if (k.includes("formal")) return 2;
+  if (k.includes("smart")) return 1;
+  if (k.includes("casual")) return 0;
+  return null;
+}
+
+function daysSinceWorn(item: WardrobeItem, today = new Date()): number | null {
+  if (!item.lastWornAt) return null;
+  const t = Date.parse(item.lastWornAt);
+  if (!Number.isFinite(t)) return null;
+  return Math.floor((today.getTime() - t) / 86_400_000);
+}
+
+function emptyDraft(): Record<SlotKey, string[]> {
+  return {
+    top: [],
+    bottom: [],
+    dress: [],
+    outerwear: [],
+    shoes: [],
+    accessories: [],
+  };
+}
+
+function draftFromPicked(picked: WardrobeItem[]): Record<SlotKey, string[]> {
+  const draft = emptyDraft();
+  for (const item of picked) {
+    if (item.category === "top") draft.top = [item.id];
+    else if (item.category === "bottom") draft.bottom = [item.id];
+    else if (item.category === "dress") draft.dress = [item.id];
+    else if (item.category === "outerwear") draft.outerwear = [item.id];
+    else if (item.category === "shoes") draft.shoes = [item.id];
+    else if (draft.accessories.length < 3) draft.accessories.push(item.id);
   }
-  return Math.max(0, Math.min(1, score));
+  return draft;
+}
+
+function draftIds(draft: Record<SlotKey, string[]>): string[] {
+  return [
+    ...draft.outerwear,
+    ...draft.dress,
+    ...draft.top,
+    ...draft.bottom,
+    ...draft.shoes,
+    ...draft.accessories,
+  ];
+}
+
+/** Soft pool filter — prefer seasonal / weather-fit pieces, keep fallbacks. */
+export function filterPool(
+  items: WardrobeItem[],
+  opts: GenerateOptions,
+): WardrobeItem[] {
+  const owned = items.filter((it) => !it.wishlist);
+  const season = opts.weather?.season ?? (opts.season !== "all" ? opts.season : undefined);
+  if (!season) return owned;
+  const seasonal = owned.filter(
+    (it) => it.seasons.length === 0 || it.seasons.includes(season),
+  );
+  return seasonal.length >= 4 ? seasonal : owned;
+}
+
+function itemWeight(
+  item: WardrobeItem,
+  picked: WardrobeItem[],
+  opts: GenerateOptions,
+  queryVec: number[] | null,
+  recentDays: number,
+): number {
+  let harmony = 0.8;
+  if (picked.length) {
+    const worst = Math.min(
+      ...picked.map((p) => scorePair(p.color, item.color).score),
+    );
+    harmony = worst / 100;
+  }
+
+  let vibe = 0.5;
+  if (opts.vibe) vibe += item.tags.includes(opts.vibe) ? 0.35 : -0.15;
+  const season = opts.weather?.season ?? opts.season;
+  if (season && season !== "all") {
+    vibe += item.seasons.includes(season) ? 0.15 : -0.2;
+  }
+
+  let form = 1;
+  const target = formalityRank(opts.formality);
+  const ir = formalityRank(item.formality);
+  if (target != null && ir != null) {
+    form = Math.max(0.15, 1 - Math.abs(target - ir) * 0.35);
+  }
+
+  let fresh = 1;
+  const days = daysSinceWorn(item);
+  if (days != null && days < recentDays) fresh = 0.15 + (days / recentDays) * 0.35;
+  else if ((item.wearCount ?? 0) === 0) fresh = 1.15;
+  else if ((item.wearCount ?? 0) <= 2) fresh = 1.05;
+
+  let semantic = 1;
+  if (queryVec) {
+    semantic = 0.4 + cosineAffinity(embedItem(item), queryVec) * 0.6;
+  }
+
+  return Math.max(0.01, harmony ** 2 * vibe * form * fresh * semantic);
 }
 
 function pickWeighted<T>(
@@ -46,48 +205,25 @@ function pickWeighted<T>(
 }
 
 /**
- * Generate an outfit draft. Strategy: decide dress vs top+bottom, then fill
- * each slot by sampling items weighted by (color harmony with what's already
- * picked) x (vibe/season affinity). Weighted sampling keeps results varied
- * across repeated clicks while still favoring good combinations.
+ * Sample one outfit draft with weighted slot fill (internal candidate gen).
  */
-export function generateOutfit(
-  items: WardrobeItem[],
-  opts: GenerateOptions = {},
-): Record<SlotKey, string[]> {
+function sampleOutfit(
+  pool: WardrobeItem[],
+  opts: GenerateOptions,
+  queryVec: number[] | null,
+): WardrobeItem[] {
   const random = opts.random ?? Math.random;
-  const draft: Record<SlotKey, string[]> = {
-    top: [],
-    bottom: [],
-    dress: [],
-    outerwear: [],
-    shoes: [],
-    accessories: [],
-  };
+  const recentDays = opts.excludeRecentlyWornDays ?? 3;
   const picked: WardrobeItem[] = [];
 
   const place = (item: WardrobeItem) => {
-    picked.push(item);
-    if (item.category === "top") draft.top = [item.id];
-    else if (item.category === "bottom") draft.bottom = [item.id];
-    else if (item.category === "dress") draft.dress = [item.id];
-    else if (item.category === "outerwear") draft.outerwear = [item.id];
-    else if (item.category === "shoes") draft.shoes = [item.id];
-    else draft.accessories = [...draft.accessories, item.id];
+    if (!picked.some((p) => p.id === item.id)) picked.push(item);
   };
 
   if (opts.anchor) place(opts.anchor);
 
-  const harmonyWith = (item: WardrobeItem): number => {
-    if (picked.length === 0) return 0.8;
-    const worst = Math.min(
-      ...picked.map((p) => scorePair(p.color, item.color).score),
-    );
-    return worst / 100;
-  };
-
   const fill = (categories: WardrobeItem["category"][]) => {
-    const candidates = items.filter(
+    const candidates = pool.filter(
       (it) =>
         categories.includes(it.category) &&
         !picked.some((p) => p.id === it.id),
@@ -95,40 +231,302 @@ export function generateOutfit(
     const pick = pickWeighted(
       candidates.map((it) => ({
         value: it,
-        weight:
-          harmonyWith(it) ** 2 *
-          contextAffinity(it, opts.vibe, opts.season),
+        weight: itemWeight(it, picked, opts, queryVec, recentDays),
       })),
       random,
     );
     if (pick) place(pick);
   };
 
-  const hasDress = draft.dress.length > 0;
-  const hasTopOrBottom = draft.top.length > 0 || draft.bottom.length > 0;
-  const dressesAvailable = items.some((it) => it.category === "dress");
+  const hasDress = picked.some((p) => p.category === "dress");
+  const hasTopOrBottom = picked.some(
+    (p) => p.category === "top" || p.category === "bottom",
+  );
+  const dressesAvailable = pool.some((it) => it.category === "dress");
   const useDress =
-    hasDress || (!hasTopOrBottom && dressesAvailable && random() < 0.3);
+    hasDress || (!hasTopOrBottom && dressesAvailable && random() < 0.28);
 
   if (useDress) {
     if (!hasDress) fill(["dress"]);
   } else {
-    if (draft.top.length === 0) fill(["top"]);
-    if (draft.bottom.length === 0) fill(["bottom"]);
+    if (!picked.some((p) => p.category === "top")) fill(["top"]);
+    if (!picked.some((p) => p.category === "bottom")) fill(["bottom"]);
   }
-  if (draft.shoes.length === 0) fill(["shoes"]);
-  // Outerwear ~half the time (always in winter), one accessory most times.
-  if (draft.outerwear.length === 0 && (opts.season === "winter" || random() < 0.5)) {
-    fill(["outerwear"]);
+  if (!picked.some((p) => p.category === "shoes")) fill(["shoes"]);
+
+  const needCoat =
+    opts.weather?.needsOuterwear ||
+    opts.season === "winter" ||
+    opts.weather?.season === "winter";
+  if (!picked.some((p) => p.category === "outerwear")) {
+    if (needCoat || random() < 0.45) fill(["outerwear"]);
   }
-  if (draft.accessories.length === 0 && random() < 0.75) {
+  if (!picked.some((p) => p.category === "accessory" || p.category === "bag") && random() < 0.7) {
     fill(["accessory", "bag"]);
   }
 
-  return draft;
+  return picked;
 }
 
-/** Convenience: overall harmony score for a set of items. */
+function formalityConsistency(items: WardrobeItem[], target?: string): number {
+  const ranks = items
+    .map((it) => formalityRank(it.formality))
+    .filter((r): r is number => r != null);
+  if (ranks.length < 2 && !target) return 0.7;
+  const spread =
+    ranks.length >= 2 ? Math.max(...ranks) - Math.min(...ranks) : 0;
+  let score = spread <= 1 ? 1 : spread <= 1.5 ? 0.7 : 0.35;
+  const tr = formalityRank(target);
+  if (tr != null && ranks.length) {
+    const avg = ranks.reduce((s, v) => s + v, 0) / ranks.length;
+    score *= Math.max(0.2, 1 - Math.abs(avg - tr) * 0.35);
+  }
+  return score;
+}
+
+function weatherFitness(items: WardrobeItem[], weather?: WeatherContext | null, season?: Season | "all"): number {
+  const szn = weather?.season ?? (season !== "all" ? season : undefined);
+  if (!szn && !weather) return 0.7;
+  let score = 0.75;
+  if (szn) {
+    const tagged = items.filter((it) => it.seasons.length > 0);
+    if (tagged.length) {
+      const ok = tagged.filter((it) => it.seasons.includes(szn)).length;
+      score = 0.4 + (ok / tagged.length) * 0.6;
+    }
+  }
+  const hasCoat = items.some((it) => it.category === "outerwear");
+  if (weather?.needsOuterwear) {
+    score *= hasCoat ? 1.1 : 0.45;
+  } else if (weather && weather.tempC != null && weather.tempC >= 22 && hasCoat) {
+    score *= 0.55;
+  }
+  return Math.max(0, Math.min(1, score));
+}
+
+function vibeMatch(items: WardrobeItem[], vibe?: string, occasion?: string): number {
+  if (!vibe && !occasion) return 0.65;
+  const tokens = new Set<string>();
+  if (vibe) tokens.add(vibe.toLowerCase());
+  if (occasion) {
+    for (const w of occasion.toLowerCase().split(/\W+/)) {
+      if (w.length > 2) tokens.add(w);
+    }
+  }
+  if (!tokens.size) return 0.65;
+  let hits = 0;
+  for (const it of items) {
+    if (it.tags.some((t) => tokens.has(t.toLowerCase()))) hits += 1;
+  }
+  return Math.max(0.2, Math.min(1, 0.35 + (hits / Math.max(items.length, 1)) * 0.65));
+}
+
+function antiRepeatScore(items: WardrobeItem[], recentDays: number): number {
+  let score = 0.7;
+  let boosts = 0;
+  for (const it of items) {
+    const days = daysSinceWorn(it);
+    if (days != null && days < recentDays) score -= 0.18;
+    else if ((it.wearCount ?? 0) === 0) {
+      score += 0.08;
+      boosts += 1;
+    } else if ((it.wearCount ?? 0) <= 2) score += 0.04;
+  }
+  if (boosts >= 1) score += 0.05;
+  return Math.max(0, Math.min(1, score));
+}
+
+function buildReasons(
+  items: WardrobeItem[],
+  signals: ScoredLook["signals"],
+  opts: GenerateOptions,
+): string[] {
+  const reasons: string[] = [];
+  if (items.length >= 2) {
+    const pair = scorePair(items[0].color, items[1].color);
+    const a = items[0].colorName || "this";
+    const b = items[1].colorName || "that";
+    if (pair.kind !== "clash") {
+      reasons.push(
+        pair.kind === "neutral"
+          ? `${a} and ${b} stay easy together`
+          : `${pair.label.toLowerCase()} colours (${a} + ${b})`,
+      );
+    }
+  }
+  if (signals.formality >= 0.75 && opts.formality) {
+    reasons.push(`Keeps a ${opts.formality} dress code`);
+  } else if (signals.formality >= 0.75) {
+    const forms = items.map((i) => i.formality).filter(Boolean);
+    if (forms[0]) reasons.push(`Consistent ${forms[0]} pieces`);
+  }
+  if (opts.weather?.needsOuterwear && items.some((i) => i.category === "outerwear")) {
+    reasons.push("Layered for today's weather");
+  } else if (opts.weather?.season) {
+    reasons.push(`Suited to ${opts.weather.season}`);
+  }
+  if (opts.vibe || opts.occasion) {
+    const label = opts.occasion || opts.vibe!;
+    reasons.push(`Tuned for ${label}`);
+  }
+  const forgotten = items.find((it) => (it.wearCount ?? 0) === 0 || (daysSinceWorn(it) ?? 999) > 21);
+  if (forgotten && signals.antiRepeat >= 0.7) {
+    reasons.push(
+      (forgotten.wearCount ?? 0) === 0
+        ? `Brings back your ${forgotten.name}`
+        : `Haven't worn ${forgotten.name} in a while`,
+    );
+  }
+  if (signals.semantic >= 0.72 && (opts.mood || opts.occasion)) {
+    reasons.push(`Matches “${opts.mood || opts.occasion}”`);
+  }
+  return reasons.slice(0, 3);
+}
+
+/** Multi-signal score for a complete look → ScoredLook. */
+export function scoreLook(
+  items: WardrobeItem[],
+  opts: GenerateOptions = {},
+  queryVec: number[] | null = null,
+): ScoredLook {
+  const recentDays = opts.excludeRecentlyWornDays ?? 3;
+  const color = items.length >= 2 ? scoreOutfit(items.map((i) => i.color)) / 100 : 0.7;
+  const formality = formalityConsistency(items, opts.formality);
+  const weather = weatherFitness(items, opts.weather, opts.season);
+  const vibe = vibeMatch(items, opts.vibe, opts.occasion);
+  const antiRepeat = antiRepeatScore(items, recentDays);
+  const semantic = queryVec
+    ? outfitQueryAffinity(items, queryVec)
+    : 0.55;
+  const taste = opts.taste ? tasteAffinity(items, opts.taste) : 0.5;
+
+  // Weights from plan (semantic slot used when query present; else redistributed lightly).
+  const hasSemantic = Boolean(queryVec && (opts.mood || opts.occasion || opts.vibe));
+  const w = hasSemantic
+    ? { semantic: 0.25, color: 0.2, formality: 0.2, weather: 0.15, vibe: 0.1, antiRepeat: 0.1 }
+    : { semantic: 0.05, color: 0.28, formality: 0.22, weather: 0.18, vibe: 0.14, antiRepeat: 0.13 };
+
+  let composite =
+    w.semantic * semantic +
+    w.color * color +
+    w.formality * formality +
+    w.weather * weather +
+    w.vibe * vibe +
+    w.antiRepeat * antiRepeat;
+
+  // Soft taste nudge (not in the published weights table — small).
+  composite = composite * 0.92 + taste * 0.08;
+
+  // Completeness bonus
+  const hasShoes = items.some((i) => i.category === "shoes");
+  const hasCore =
+    items.some((i) => i.category === "dress") ||
+    (items.some((i) => i.category === "top") && items.some((i) => i.category === "bottom"));
+  if (hasShoes) composite += 0.03;
+  if (!hasCore) composite *= 0.5;
+
+  const signals = { color, formality, weather, vibe, antiRepeat, semantic, taste };
+  const draft = draftFromPicked(items);
+  const score = Math.round(Math.max(0, Math.min(1, composite)) * 100);
+  return {
+    draft,
+    itemIds: draftIds(draft),
+    items,
+    score,
+    signals,
+    reasons: buildReasons(items, signals, opts),
+  };
+}
+
+/**
+ * Ranked outfit suggestions — primary API for Explore / Today / Stylist / Calendar.
+ */
+export function suggestLooks(
+  items: WardrobeItem[],
+  opts: GenerateOptions = {},
+): ScoredLook[] {
+  const pool = filterPool(items, opts);
+  if (pool.length < 2 && !opts.anchor) return [];
+
+  const queryText = [opts.mood, opts.occasion, opts.vibe].filter(Boolean).join(" ");
+  const queryVec = queryText
+    ? embedQuery(queryText, {
+        vibe: opts.vibe,
+        season: opts.weather?.season ?? opts.season,
+        formality: opts.formality,
+      })
+    : null;
+
+  const n = opts.candidates ?? 24;
+  const want = opts.count ?? 3;
+  const seen = new Set<string>();
+  const looks: ScoredLook[] = [];
+
+  for (let i = 0; i < n; i++) {
+    const picked = sampleOutfit(pool, opts, queryVec);
+    if (picked.length < 2) continue;
+    const key = picked
+      .map((p) => p.id)
+      .sort()
+      .join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    looks.push(scoreLook(picked, opts, queryVec));
+  }
+
+  looks.sort((a, b) => b.score - a.score);
+  // Light diversity: if top two share ≥80% of pieces, prefer next distinct.
+  const out: ScoredLook[] = [];
+  for (const look of looks) {
+    if (out.length >= want) break;
+    const overlapHeavy = out.some((prev) => {
+      const set = new Set(prev.itemIds);
+      const shared = look.itemIds.filter((id) => set.has(id)).length;
+      return shared / Math.max(look.itemIds.length, 1) >= 0.8;
+    });
+    if (overlapHeavy && out.length > 0 && looks.length > out.length + 1) continue;
+    out.push(look);
+  }
+  // Fill if diversity filter was too aggressive.
+  for (const look of looks) {
+    if (out.length >= want) break;
+    if (!out.some((o) => o.itemIds.join() === look.itemIds.join())) out.push(look);
+  }
+  return out;
+}
+
+/**
+ * Generate a single outfit draft (backward-compatible). Uses the hybrid ranker
+ * under the hood; falls back to one sample if ranking yields nothing.
+ */
+export function generateOutfit(
+  items: WardrobeItem[],
+  opts: GenerateOptions = {},
+): Record<SlotKey, string[]> {
+  const ranked = suggestLooks(items, { ...opts, count: 1, candidates: opts.candidates ?? 12 });
+  if (ranked[0]) return ranked[0].draft;
+  const pool = filterPool(items, opts);
+  const queryText = [opts.mood, opts.occasion, opts.vibe].filter(Boolean).join(" ");
+  const queryVec = queryText
+    ? embedQuery(queryText, { vibe: opts.vibe, season: opts.season, formality: opts.formality })
+    : null;
+  return draftFromPicked(sampleOutfit(pool, opts, queryVec));
+}
+
+/** Best single look with reasons — preferred over raw generateOutfit for UI. */
+export function bestLook(
+  items: WardrobeItem[],
+  opts: GenerateOptions = {},
+): ScoredLook | null {
+  return suggestLooks(items, { ...opts, count: 1, candidates: opts.candidates ?? 18 })[0] ?? null;
+}
+
+/** Convenience: overall color-harmony score for a set of items (legacy badge). */
 export function outfitScore(items: WardrobeItem[]): number {
   return scoreOutfit(items.map((it) => it.color));
+}
+
+/** One-line reason for UI (joins top reasons). */
+export function lookReasonLine(look: ScoredLook): string {
+  return look.reasons[0] ?? "A solid pairing from your closet.";
 }

@@ -92,6 +92,7 @@ export async function POST(request: Request) {
     return Response.json({ error: "Couldn't read that image." }, { status: 400 });
   }
 
+  const FORMALITY = ["casual", "smart-casual", "formal", "statement"];
   const prompt =
     `You are a fashion cataloguing assistant. The photo may show a full outfit or a mirror selfie with several garments. Pick the SINGLE most prominent garment — the one that fills the most of the frame and is clearly the main subject — and describe ONLY that item. Ignore smaller or partially-visible garments (for example trousers at the bottom of a sweater selfie), the background, and the person. Respond with JSON of this exact shape:\n` +
     `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
@@ -100,7 +101,11 @@ export async function POST(request: Request) {
     ` "colorName": a common colour name like "navy" or "cream",\n` +
     ` "seasons": an array with any of [${SEASONS.join(", ")}] when it is typically worn,\n` +
     ` "brand": the visible brand name, or null if none is visible,\n` +
-    ` "tags": 2-5 lowercase style tags like "casual", "work", "minimal"}\n` +
+    ` "tags": 2-5 lowercase style tags like "casual", "work", "minimal",\n` +
+    ` "formality": exactly one of [${FORMALITY.join(", ")}],\n` +
+    ` "material": a short fabric guess like "cotton", "linen", "wool", "denim", "leather", or null,\n` +
+    ` "pattern": "solid", "stripe", "check", "print", or null,\n` +
+    ` "styleCaption": one short phrase for styling, e.g. "smart-casual navy knit for cool weather"}\n` +
     `Output only the JSON object.`;
 
   const payload = {
@@ -157,6 +162,13 @@ export async function POST(request: Request) {
         .slice(0, 6)
     : [];
 
+  const formalityRaw = str(parsed.formality)?.toLowerCase();
+  const formality =
+    formalityRaw && FORMALITY.includes(formalityRaw) ? formalityRaw : undefined;
+  const material = str(parsed.material)?.toLowerCase();
+  const pattern = str(parsed.pattern)?.toLowerCase();
+  const styleCaption = str(parsed.styleCaption);
+
   return Response.json({
     name: str(parsed.name),
     category,
@@ -165,5 +177,9 @@ export async function POST(request: Request) {
     seasons,
     tags,
     brand: str(parsed.brand),
+    formality,
+    material,
+    pattern,
+    styleCaption,
   });
 }

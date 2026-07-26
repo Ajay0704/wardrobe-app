@@ -3,15 +3,15 @@
  * fashion, but every pin knows your closet" idea (see Linear AJA-87).
  *
  * Two of the three real content "fuel tanks" run here without any backend:
- *  - AI-recombined looks: generateOutfit over the user's closet -> outfit pins,
- *    quality-ranked by colour harmony so the best fits surface first.
+ *  - Closet-recombined looks: hybrid suggestLooks over the user's closet ->
+ *    outfit pins, ranked by multi-signal score (color, formality, vibe, wear).
  *  - Seeded inspiration/shop looks: a small mock catalogue with brands + prices
  *    (stands in for the affiliate/product feeds ingested for real in v2).
  * Community/UGC is the third tank (added once the social layer lands).
  */
 
-import { hexToHsl, hueDistance, isNeutral, nameColor, scoreOutfit } from "./color";
-import { generateOutfit } from "./matching";
+import { hexToHsl, hueDistance, isNeutral, nameColor } from "./color";
+import { suggestLooks } from "./matching";
 import type { Category, SlotKey, WardrobeItem } from "./types";
 import { slotForCategory } from "./types";
 
@@ -185,23 +185,27 @@ export function buildClosetLooks(
   const pool = items.filter((it) => !it.wishlist && it.imageUrl);
   if (pool.length < 2) return [];
   const seen = new Set(exclude ?? []);
+  const looks = suggestLooks(pool, {
+    vibe,
+    mood: vibe,
+    occasion: vibe,
+    count: count * 2,
+    candidates: count * 8,
+  });
   const cands: { id: string; ids: string[]; chosen: WardrobeItem[]; score: number }[] = [];
-  for (let i = 0; i < count * 8 && cands.length < count; i++) {
-    const draft = generateOutfit(pool, vibe ? { vibe } : {});
-    const ids = Object.values(draft).flat();
-    if (ids.length < 2) continue;
-    const key = ids.slice().sort().join("|");
+  for (const look of looks) {
+    if (cands.length >= count) break;
+    const key = look.itemIds.slice().sort().join("|");
     const id = `closet-${key}`;
     if (seen.has(id)) continue;
     seen.add(id);
-    const chosen = ids
-      .map((cid) => pool.find((it) => it.id === cid))
-      .filter(Boolean) as WardrobeItem[];
-    const harmony = scoreOutfit(chosen.map((c) => c.color));
-    const vibeBonus = vibe && chosen.some((c) => c.tags.includes(vibe)) ? 8 : 0;
-    cands.push({ id, ids, chosen, score: harmony + vibeBonus });
+    cands.push({
+      id,
+      ids: look.itemIds,
+      chosen: look.items,
+      score: look.score,
+    });
   }
-  cands.sort((a, b) => b.score - a.score);
   return cands.map((c, i) => ({
     id: c.id,
     kind: "closet",

@@ -1,11 +1,10 @@
 /**
  * Stylist chatbot — shared types.
  *
- * The Stylist is a closet-grounded assistant. The deterministic engines
- * (matching / rediscover / smart-buy / insights) choose the actual item IDs and
- * scores client-side; the LLM only writes a short narration about the result and
- * NEVER sees or picks item IDs. These types are the contract between the intent
- * classifier, the tools, the UI blocks, and the narration route.
+ * Closet-grounded assistant (AJA-38): the hybrid matching engine ranks real
+ * closet looks client-side; `/api/stylist/assemble` may pick among those
+ * candidate IDs only (validated in code); `/api/stylist/chat` only narrates.
+ * The LLM never invents garments outside the candidate set.
  */
 
 import type { Season, SlotKey } from "../types";

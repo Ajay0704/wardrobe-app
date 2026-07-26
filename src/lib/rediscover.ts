@@ -6,9 +6,8 @@
  */
 
 import { scorePair } from "./color";
-import { generateOutfit, outfitScore } from "./matching";
-import type { SlotKey, WardrobeItem } from "./types";
-import { SLOT_CONFIG } from "./types";
+import { suggestLooks } from "./matching";
+import type { WardrobeItem } from "./types";
 
 export interface OutfitIdea {
   itemIds: string[];
@@ -17,11 +16,6 @@ export interface OutfitIdea {
   score: number;
   /** Short human "why this works" line. */
   reason: string;
-}
-
-/** Flatten a builder draft into item ids in the canonical slot/layer order. */
-function draftIds(draft: Record<SlotKey, string[]>): string[] {
-  return SLOT_CONFIG.flatMap((s) => draft[s.key] ?? []);
 }
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -67,30 +61,21 @@ export function styleWays(
   count = 3,
   random: () => number = Math.random,
 ): OutfitIdea[] {
+  void random;
   const owned = allItems.filter((it) => !it.wishlist);
-  const byId = new Map(owned.map((it) => [it.id, it]));
-  const seen = new Set<string>();
-  const ideas: OutfitIdea[] = [];
-
-  // Oversample generations, then dedupe by item-set and keep the best-scoring.
-  for (let i = 0; i < count * 10 && ideas.length < count * 3; i++) {
-    const ids = draftIds(generateOutfit(owned, { anchor, random }));
-    if (!ids.includes(anchor.id) || ids.length < 3) continue; // need a real look
-    const key = [...ids].sort().join(",");
-    if (seen.has(key)) continue;
-    seen.add(key);
-    const items = ids
-      .map((id) => byId.get(id))
-      .filter((it): it is WardrobeItem => !!it);
-    ideas.push({
-      itemIds: ids,
-      items,
-      score: outfitScore(items),
-      reason: reasonFor(anchor, items),
-    });
-  }
-
-  return ideas.sort((a, b) => b.score - a.score).slice(0, count);
+  return suggestLooks(owned, {
+    anchor,
+    count,
+    candidates: count * 10,
+    mood: anchor.tags[0] || "everyday",
+  })
+    .filter((look) => look.itemIds.includes(anchor.id) && look.items.length >= 3)
+    .map((look) => ({
+      itemIds: look.itemIds,
+      items: look.items,
+      score: look.score,
+      reason: look.reasons[0] || reasonFor(anchor, look.items),
+    }));
 }
 
 /**

@@ -168,7 +168,8 @@ All under `src/app/api/` (Node runtime).
 | `/api/beautify` · `/api/beautify/refine` | Packshot / white-bg polish | Gemini |
 | `/api/cutout` | Garment-only segmentation | Hugging Face SegFormer |
 | `/api/detect-garments` | Multi-garment detect in a photo | Gemini |
-| `/api/stylist/chat` | AI stylist conversation | Gemini |
+| `/api/stylist/chat` | AI stylist narration (no item inventing) | Gemini |
+| `/api/stylist/assemble` | Pick among ranked closet candidate looks | Gemini (ID-validated) |
 | `/api/find-product` | Closet photo → shop links | SerpAPI / SearchApi |
 | `/api/shop/search` · `/api/shop/product/[id]` | Shop catalog search / product | eBay / Skimlinks / DummyJSON |
 | `/api/clip` | Extension wishlist append | Supabase service role |
@@ -233,6 +234,18 @@ docs/                    # Obsidian vault
 scripts/                 # Linear commit notify, seeds
 ```
 
+## Outfit suggestion engine (AJA-38)
+
+Hybrid **context-scored** pipeline in `src/lib/matching.ts` (not freeform LLM picks):
+
+1. Hard filters (owned, season/weather pool)
+2. Weighted candidate generation per slot
+3. Multi-signal rank: semantic style embed · color · formality · weather · vibe · anti-repeat · taste
+4. Why-reasons on every look
+5. Stylist: `/api/stylist/assemble` may choose among ranked candidate IDs only; `/api/stylist/chat` narrates
+
+Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/taste.ts` (like/dislike), Open-Meteo via `weather.ts`. Analyze (`/api/analyze`) also returns formality / material / pattern / styleCaption for richer scoring.
+
 ## Key files
 
 | Area | Path |
@@ -244,6 +257,9 @@ scripts/                 # Linear commit notify, seeds
 | Capacitor config | `capacitor.config.ts` |
 | Zustand store | `src/lib/store.ts` |
 | Domain types | `src/lib/types.ts` |
+| Outfit matching | `src/lib/matching.ts` |
+| Style embeddings | `src/lib/style-embed.ts` |
+| Taste feedback | `src/lib/taste.ts` |
 | Supabase sync | `src/lib/supabase/sync.ts` |
 | Env template | `.env.example` |
 

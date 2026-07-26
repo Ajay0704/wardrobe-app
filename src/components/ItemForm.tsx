@@ -27,6 +27,7 @@ import { extractDominantColor, nameColor } from "@/lib/color";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
+import { embedItem } from "@/lib/style-embed";
 import { useWardrobe } from "@/lib/store";
 import { cutout } from "@/lib/cutout";
 import { BEAUTIFY_PIPELINE, beautify } from "@/lib/beautify";
@@ -142,6 +143,12 @@ export function ItemForm({
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
   const [fit, setFit] = useState<Fit | undefined>(initial?.fit);
+  const [formality, setFormality] = useState<string | undefined>(initial?.formality);
+  const [material, setMaterial] = useState<string | undefined>(initial?.material);
+  const [pattern, setPattern] = useState<string | undefined>(initial?.pattern);
+  const [styleCaption, setStyleCaption] = useState<string | undefined>(
+    initial?.styleCaption,
+  );
   const [color, setColor] = useState(initial?.color ?? "#a8a29e");
   const [tags, setTags] = useState<string[]>(initial?.tags ?? []);
   const [tagInput, setTagInput] = useState("");
@@ -356,6 +363,18 @@ export function ItemForm({
       }
       if (Array.isArray(data.tags) && data.tags.length) {
         setTags((prev) => [...new Set([...prev, ...(data.tags as string[])])]);
+      }
+      if (typeof data.formality === "string" && data.formality) {
+        setFormality((prev) => prev || data.formality);
+      }
+      if (typeof data.material === "string" && data.material) {
+        setMaterial((prev) => prev || data.material);
+      }
+      if (typeof data.pattern === "string" && data.pattern) {
+        setPattern((prev) => prev || data.pattern);
+      }
+      if (typeof data.styleCaption === "string" && data.styleCaption) {
+        setStyleCaption((prev) => prev || data.styleCaption);
       }
       setAnalyzeMsg("Auto-filled from photo — review and adjust.");
       return detected;
@@ -622,7 +641,7 @@ export function ItemForm({
   };
 
   const save = () => {
-    const data = {
+    const partial = {
       name: name.trim(),
       imageUrl: imageUrl.trim(),
       originalImageUrl:
@@ -637,6 +656,10 @@ export function ItemForm({
       productUrl: productUrl.trim() || undefined,
       category,
       fit,
+      formality: formality || undefined,
+      material: material || undefined,
+      pattern: pattern || undefined,
+      styleCaption: styleCaption || undefined,
       color,
       colorName,
       tags,
@@ -646,6 +669,8 @@ export function ItemForm({
       notes: notes.trim() || undefined,
       wishlist,
     };
+    const styleEmbedding = embedItem(partial);
+    const data = { ...partial, styleEmbedding };
     if (initial) updateItem(initial.id, data);
     else addItem(data);
     onClose();

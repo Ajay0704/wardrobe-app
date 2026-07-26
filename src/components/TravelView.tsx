@@ -3,9 +3,9 @@
 import { Luggage, Plus, Sparkles, Trash2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
-import { generateOutfit } from "@/lib/matching";
+import { suggestLooks } from "@/lib/matching";
 import { profileHandle } from "@/lib/profile";
-import { draftItemIds, useWardrobe } from "@/lib/store";
+import { useWardrobe } from "@/lib/store";
 import { formatDisplayDate } from "@/lib/types";
 import * as Trips from "@/lib/trips";
 import { Button, EmptyState, Field, inputClass } from "./ui";
@@ -323,17 +323,13 @@ export function TravelView() {
 
   const suggest = () => {
     if (myPacked.length < 2) return;
-    const seen = new Set<string>();
-    const out: string[][] = [];
-    for (let i = 0; i < 16 && out.length < 4; i++) {
-      const ids = draftItemIds(generateOutfit(myPacked));
-      const key = [...ids].sort().join(",");
-      if (ids.length >= 2 && !seen.has(key)) {
-        seen.add(key);
-        out.push(ids);
-      }
-    }
-    setCapsules(out);
+    const looks = suggestLooks(myPacked, {
+      mood: "travel",
+      occasion: "trip",
+      count: 4,
+      candidates: 20,
+    });
+    setCapsules(looks.map((l) => l.itemIds));
   };
 
   const openInvite = async () => {

@@ -31,13 +31,18 @@ import {
 import { EXPLORE_FEATURES, type PartnerCapsule } from "@/lib/explore/foundation";
 import { yourSize } from "@/lib/fit";
 import { computeInsights } from "@/lib/insights";
-import { generateOutfit, outfitScore } from "@/lib/matching";
+import {
+  bestLook,
+  lookReasonLine,
+  type ScoredLook,
+} from "@/lib/matching";
 import { fetchPartnerCapsules } from "@/lib/partners";
 import { openExternalUrl } from "@/lib/platform";
 import { resaleSummary } from "@/lib/resale";
 import { searchProducts, type ShopResult } from "@/lib/shop-search";
-import { draftItemIds, useWardrobe } from "@/lib/store";
-import type { Category, Season, WardrobeItem } from "@/lib/types";
+import { useWardrobe } from "@/lib/store";
+import { readTaste } from "@/lib/taste";
+import type { Category, WardrobeItem } from "@/lib/types";
 import type { TryOnGarment } from "@/lib/tryon";
 import {
   convertTemp,
@@ -53,7 +58,7 @@ import { TryOnView } from "./TryOnView";
  * the approved prototype: occasion bar + Ask-stylist, a weather-aware Today hero
  * built from the user's closet, on-body try-on, a Recreate-from-your-closet look,
  * a fit-matched Shop pick, Wardrobe Wrapped, and Refresh-your-closet (resale).
- * All reuse existing engines (generateOutfit, weather, insights, shop search).
+ * All reuse existing engines (suggestLooks/bestLook, weather, insights, shop search).
  */
 
 const OCCASIONS = [
@@ -87,43 +92,51 @@ const CAT_QUERY: Record<string, string> = {
 
 const SAGE = "#7c8a6f";
 
-function currentSeason(): Season {
-  const m = new Date().getMonth();
-  if (m === 11 || m <= 1) return "winter";
-  if (m <= 4) return "spring";
-  if (m <= 7) return "summer";
-  return "fall";
-}
+const OCCASION_META: Record<
+  OccKey,
+  { vibe?: string; occasion?: string; formality?: string; mood?: string }
+> = {
+  today: { occasion: "today", mood: "everyday" },
+  work: { vibe: "work", occasion: "work", formality: "smart-casual", mood: "work" },
+  date: { vibe: "party", occasion: "date night", formality: "smart-casual", mood: "date" },
+  event: { vibe: "formal", occasion: "event", formality: "formal", mood: "evening" },
+  trip: { vibe: "casual", occasion: "travel", formality: "casual", mood: "travel" },
+};
 
 const itemImage = (it: WardrobeItem): string | undefined =>
   it.beautifiedImageUrl ?? it.imageUrl;
 
-/** Best-of-N: generateOutfit is randomized — sample a few, keep the fullest,
- *  most coherent look (nudged toward including shoes). */
-function bestDraft(owned: WardrobeItem[], vibe: string | undefined, seed: number) {
-  const season = currentSeason();
-  void seed;
-  let best: ReturnType<typeof generateOutfit> | null = null;
-  let bestScore = -Infinity;
-  for (let i = 0; i < 6; i++) {
-    const d = generateOutfit(owned, { season, vibe });
-    const chosen = draftItemIds(d)
-      .map((id) => owned.find((it) => it.id === id))
-      .filter((it): it is WardrobeItem => Boolean(it));
-    if (chosen.length < 2) continue;
-    const score = outfitScore(chosen) + (chosen.some((it) => it.category === "shoes") ? 0.15 : 0);
-    if (score > bestScore) {
-      bestScore = score;
-      best = d;
-    }
-  }
-  return best ?? generateOutfit(owned, { season, vibe });
+/** Hybrid ranker: weather-aware, multi-signal, with why-reasons. */
+function bestDraft(
+  owned: WardrobeItem[],
+  occ: OccKey,
+  weather: WeatherSnapshot | null,
+  seed: number,
+): ScoredLook | null {
+  const meta = OCCASION_META[occ];
+  void seed; // reshuffle re-runs suggestLooks (stochastic sampling)
+  return bestLook(owned, {
+    vibe: meta.vibe,
+    occasion: meta.occasion,
+    mood: meta.mood,
+    formality: meta.formality,
+    weather: weather
+      ? {
+          season: weather.season,
+          needsOuterwear: weather.needsOuterwear,
+          tempC: weather.tempC,
+        }
+      : null,
+    season: weather?.season,
+    taste: typeof window !== "undefined" ? readTaste() : undefined,
+    candidates: 20,
+  });
 }
 
-function resolveOutfit(draft: ReturnType<typeof generateOutfit>, owned: WardrobeItem[]) {
-  return draftItemIds(draft)
-    .map((id) => owned.find((it) => it.id === id))
-    .filter((it): it is WardrobeItem => Boolean(it))
+function resolveOutfit(look: ScoredLook | null): WardrobeItem[] {
+  if (!look) return [];
+  return look.items
+    .slice()
     .sort((a, b) => (CAT_ORDER[a.category] ?? 9) - (CAT_ORDER[b.category] ?? 9));
 }
 
@@ -265,18 +278,31 @@ export function ExploreForYouHeader({
     };
   }, [family, dominantColor, mostOwnedCat]);
 
-  const vibe = OCCASIONS.find((o) => o.key === occ)?.vibe;
-  const heroOutfit = useMemo(
-    () => resolveOutfit(bestDraft(owned, vibe, seed), owned),
+  const heroLook = useMemo(
+    () => bestDraft(owned, occ, weather, seed),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, occ, seed],
+    [poolKey, occ, seed, weather?.season, weather?.needsOuterwear, weather?.tempC],
   );
-  const recreateDraft = useMemo(
-    () => bestDraft(owned, "minimal", 0),
+  const heroOutfit = useMemo(() => resolveOutfit(heroLook), [heroLook]);
+  const recreateLook = useMemo(
+    () =>
+      bestLook(owned, {
+        vibe: "minimal",
+        mood: "minimal",
+        weather: weather
+          ? {
+              season: weather.season,
+              needsOuterwear: weather.needsOuterwear,
+              tempC: weather.tempC,
+            }
+          : null,
+        season: weather?.season,
+        candidates: 16,
+      }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey],
+    [poolKey, weather?.season],
   );
-  const recreateOutfit = useMemo(() => resolveOutfit(recreateDraft, owned), [recreateDraft, owned]);
+  const recreateOutfit = useMemo(() => resolveOutfit(recreateLook), [recreateLook]);
 
   const ins = useMemo(() => computeInsights(owned), [owned]);
   const resale = useMemo(() => resaleSummary(owned), [owned]);
@@ -323,8 +349,9 @@ export function ExploreForYouHeader({
     window.setTimeout(() => setToast(null), 2000);
   };
   // Open a look on the canvas to tweak before saving (Recreate + the hero's Edit).
-  const wearIt = (draft: ReturnType<typeof generateOutfit>) => {
-    setDraft(draft);
+  const wearIt = (look: ScoredLook | null) => {
+    if (!look) return;
+    setDraft(look.draft);
     setView("builder");
   };
   // One-tap: log today's hero look as worn (moved from the retired Home, AJA-169).
@@ -426,7 +453,9 @@ export function ExploreForYouHeader({
             {occ === "today" ? (temp != null ? `Today · ${temp}°${unit}` : "Today") : "For you"}
           </p>
           <p className="mt-1 text-lg font-semibold leading-tight">{heroTitle(occ, weather)}</p>
-          <p className="mt-0.5 text-xs text-white/70">From your closet — nothing to buy.</p>
+          <p className="mt-0.5 text-xs text-white/70">
+            {heroLook ? lookReasonLine(heroLook) : "From your closet — nothing to buy."}
+          </p>
 
           {heroOutfit.length > 0 ? (
             <div className="mt-3 flex gap-2">
@@ -466,7 +495,7 @@ export function ExploreForYouHeader({
             <button
               type="button"
               aria-label="Edit this look"
-              onClick={() => wearIt(bestDraft(owned, vibe, seed))}
+              onClick={() => wearIt(heroLook)}
               disabled={heroOutfit.length < 2}
               className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-xl border border-white/30 bg-white/15 text-white disabled:opacity-50"
             >
@@ -567,7 +596,7 @@ export function ExploreForYouHeader({
             </div>
             <button
               type="button"
-              onClick={() => wearIt(recreateDraft)}
+              onClick={() => wearIt(recreateLook)}
               className="mt-3 flex w-full items-center justify-center rounded-xl bg-accent py-2 text-sm font-medium text-accent-foreground"
             >
               Build it

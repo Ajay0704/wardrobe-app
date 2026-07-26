@@ -63,7 +63,7 @@ Moat = proprietary **wear data**; category ~$224M pure apps but sits next to hug
 | Capability | Current product | Research must-have |
 |---|---|---|
 | Cataloging | Manual + product URL extract | Bulk photo, bg removal, auto-tag, receipt/gallery ingest |
-| Styling | Weather Today + color-harmony generate + builder | Weather / occasion / calendar-aware outfits |
+| Styling | Hybrid multi-signal suggestLooks (weather, formality, occasion, anti-repeat, embeddings) + grounded Stylist assemble (AJA-38) | Calendar-event context (AJA-59) still open |
 | Habit | Today + wear log + calendar + push scaffold | Wear log, weekly return, gentle nudges |
 | Analytics | Insights screen (CPW, unworn, value, usage) | Cost-per-wear, unworn %, balance |
 | Try-on | Gemini try-on (env-gated) | Keep as wow; not the core habit |
@@ -113,7 +113,7 @@ Stop or pivot to acqui-hire if: onboarding stays multi-hour, D30 collapses post-
 
 1. Habit instrumentation (local) — shipped AJA-36
 2. First-session path: 5 items → generate → save → wear — still polish AJA-35
-3. Upgrade `matching.ts` with weather + occasion — weather shipped; occasion = AJA-59
+3. Upgrade `matching.ts` with weather + occasion — hybrid engine shipped (AJA-38); external calendar events still AJA-59
 4. Wear fields — `wearCount` / `lastWornAt` in product
 
 ## Current research → product alignment (Jul 25)

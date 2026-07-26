@@ -8,6 +8,7 @@ import { runTool } from "@/lib/stylist/tools";
 import { clearTranscript, loadTranscript, saveTranscript } from "@/lib/stylist/transcript";
 import type { OutfitCardData, StylistBlock, StylistTurn } from "@/lib/stylist/types";
 import { useWardrobe } from "@/lib/store";
+import { recordOutfitFeedback } from "@/lib/taste";
 import { todayISO, type WardrobeItem } from "@/lib/types";
 import { StylistAttachSheet } from "./StylistAttachSheet";
 import { StylistBlocks, type BlockHandlers } from "./StylistBlocks";
@@ -189,8 +190,15 @@ export function StylistView() {
       },
       onChip: (send) => void submit(send),
       onAddItems: () => openAdd(),
+      onFeedback: (o, verdict) => {
+        const its = o.itemIds
+          .map((id) => items.find((it) => it.id === id))
+          .filter((x): x is WardrobeItem => Boolean(x));
+        recordOutfitFeedback(its, verdict);
+        flash(verdict === "like" ? "Got it — more like this" : "Noted — I'll try different");
+      },
     }),
-    [resolve, logWear, saveOutfit, setDraft, setView, openAdd, submit],
+    [resolve, logWear, saveOutfit, setDraft, setView, openAdd, submit, items],
   );
 
   const clearChat = () => {
