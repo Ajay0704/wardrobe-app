@@ -215,7 +215,7 @@ export function NativeShell() {
         </div>
       </header>
 
-      <main ref={mainRef} className="native-main flex-1 overflow-y-auto px-4 pt-5">
+      <main ref={mainRef} className="native-main flex-1 overflow-y-auto overflow-x-hidden px-4 pt-5">
         <AppViews keepAliveTabs />
       </main>
 
