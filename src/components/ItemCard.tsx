@@ -10,6 +10,7 @@ import { openExternalUrl } from "@/lib/platform";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
+import { ItemPhotoViewer } from "./ItemPhotoViewer";
 import { RediscoverModal } from "./RediscoverModal";
 import { ColorDot, MatchBadge } from "./ui";
 
@@ -36,15 +37,16 @@ export function ItemCard({
   const [imgError, setImgError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [styling, setStyling] = useState(false);
+  const [viewing, setViewing] = useState(false);
 
   const addAndGo = () => {
     addToDraft(item.id);
     if (!compact) setView("builder");
   };
 
-  const openEditor = () => {
+  const openCard = () => {
     if (compact) addAndGo();
-    else onEdit?.(item);
+    else setViewing(true);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -70,14 +72,14 @@ export function ItemCard({
       tabIndex={0}
       draggable={!isNative && !compact}
       onDragStart={isNative ? undefined : handleDragStart}
-      onClick={openEditor}
+      onClick={openCard}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          openEditor();
+          openCard();
         }
       }}
-      title={compact ? "Add to outfit" : "Edit item"}
+      title={compact ? "Add to outfit" : "View item"}
       className="group animate-fade-up cursor-pointer overflow-hidden rounded-2xl border border-line bg-surface transition-shadow active:cursor-grabbing hover:shadow-lg hover:shadow-black/5"
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
@@ -223,6 +225,16 @@ export function ItemCard({
     </div>
     {styling && (
       <RediscoverModal anchor={item} onClose={() => setStyling(false)} />
+    )}
+    {viewing && (
+      <ItemPhotoViewer
+        item={item}
+        onEdit={() => {
+          setViewing(false);
+          onEdit?.(item);
+        }}
+        onClose={() => setViewing(false)}
+      />
     )}
     </>
   );
