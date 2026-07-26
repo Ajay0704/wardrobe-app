@@ -277,6 +277,63 @@ body {
   }
 }
 
+/* ---- Vaul bottom sheet (shared BottomSheet.tsx) ------------------------------
+ * Drag-to-dismiss, momentum, rubber-band, and a symmetric slide-down exit are
+ * handled by Vaul; these rules are just the look (matching the old .native-sheet)
+ * + the dim/blur scrim. Vaul owns the transform, so we only position the surface. */
+.native-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.native-sheet-content {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  max-height: 88vh;
+  background: var(--surface);
+  border-radius: 1.25rem 1.25rem 0 0;
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  padding: 0.5rem 1.25rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  outline: none;
+}
+.native-sheet-grip {
+  flex: none;
+  margin: 0.25rem auto 0.5rem;
+  height: 5px;
+  width: 2.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--foreground) 18%, transparent);
+}
+.native-sheet-title {
+  flex: none;
+  padding-bottom: 0.75rem;
+  text-align: center;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--foreground);
+}
+.native-sheet-scroll {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+@media (prefers-reduced-transparency: reduce) {
+  .native-sheet-overlay {
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 .native-sheet {
   width: 100%;
   background: var(--surface);

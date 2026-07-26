@@ -33,6 +33,7 @@
     "react-rnd": "^10.5.3",
     "react-zoom-pan-pinch": "^4.0.3",
     "sharp": "^0.34.5",
+    "vaul": "^1.1.2",
     "web-push": "^3.6.7",
     "zustand": "^5.0.14"
   },

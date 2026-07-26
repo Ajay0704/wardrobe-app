@@ -36,6 +36,7 @@ import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Fit, Season, WardrobeItem } from "@/lib/types";
 import { CATEGORIES, FIT_VALUES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
+import { BottomSheet } from "./BottomSheet";
 import { FindProductSheet } from "./FindProductSheet";
 import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
@@ -1376,11 +1377,13 @@ export function ItemForm({
         )}
       </div>
 
-      {openSheet && (
-        <RowSheet title={SHEET_TITLES[openSheet]} onClose={() => setOpenSheet(null)}>
-          {sheetBody}
-        </RowSheet>
-      )}
+      <RowSheet
+        open={!!openSheet}
+        title={openSheet ? SHEET_TITLES[openSheet] : ""}
+        onClose={() => setOpenSheet(null)}
+      >
+        {sheetBody}
+      </RowSheet>
 
       {findCandidates !== null && (
         <FindProductSheet
@@ -1483,33 +1486,20 @@ function EditRow({
 
 /** Bottom-sheet picker opened from a row (reuses the native sheet chrome). */
 function RowSheet({
+  open,
   title,
   onClose,
   children,
 }: {
+  open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
 }) {
-  return portalToBody(
-    <div
-      className="native-sheet-backdrop"
-      onClick={onClose}
-      role="presentation"
-    >
-      <div
-        className="native-sheet max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={title}
-      >
-        <div className="native-sheet-handle" />
-        <p className="pb-3 text-center text-sm font-semibold text-foreground">
-          {title}
-        </p>
-        {children}
-      </div>
-    </div>,
+  return (
+    <BottomSheet open={open} title={title} onClose={onClose}>
+      {children}
+    </BottomSheet>
   );
 }
 

@@ -8,13 +8,13 @@ import {
   Users,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { CATEGORIES } from "@/lib/types";
 import * as SC from "@/lib/shared-closet";
+import { BottomSheet } from "./BottomSheet";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
 
 // Closet category grouping for the "add from my closet" picker — mirrors
@@ -27,11 +27,6 @@ const MAIN_TABS = [
   { key: "accessories", label: "Accessories", cats: ["accessory", "bag"] },
 ] as const;
 type MainTabKey = (typeof MAIN_TABS)[number]["key"];
-
-function portal(node: ReactNode): ReactNode {
-  if (typeof document === "undefined") return node;
-  return createPortal(node, document.body);
-}
 
 function Avatar({
   name,
@@ -616,16 +611,21 @@ export function SharedClosetView() {
           )}
         </div>
 
-        {editItem &&
-          portal(
-            <ItemEditSheet
+        <BottomSheet
+          open={!!editItem}
+          onClose={() => setEditItem(null)}
+          ariaLabel="Edit item"
+        >
+          {editItem && (
+            <ItemEditBody
+              key={editItem.id}
               item={editItem}
               addedByLabel={memberName(editItem.addedBy)}
               onSave={saveItemEdit}
               onRemove={() => removeItem(editItem)}
-              onClose={() => setEditItem(null)}
-            />,
+            />
           )}
+        </BottomSheet>
       </div>
     );
   }
@@ -688,40 +688,24 @@ export function SharedClosetView() {
   );
 }
 
-/** Bottom-sheet editor for one shared item (any member — co-owned). */
-function ItemEditSheet({
+/** Content of the shared-item editor (any member — co-owned). Rendered inside BottomSheet. */
+function ItemEditBody({
   item,
   addedByLabel,
   onSave,
   onRemove,
-  onClose,
 }: {
   item: SC.SharedClosetItem;
   addedByLabel: string;
   onSave: (patch: { name?: string; category?: string }) => void;
   onRemove: () => void;
-  onClose: () => void;
 }) {
   const [name, setName] = useState(item.name ?? "");
   const [category, setCategory] = useState(item.category ?? "");
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Edit item"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-3 flex items-center justify-center overflow-hidden">
+    <>
+      <div className="mb-3 flex items-center justify-center overflow-hidden">
           {item.imageUrl && (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={item.imageUrl} alt={item.name ?? ""} className="h-40 w-40 rounded-2xl object-contain" />
@@ -766,7 +750,6 @@ function ItemEditSheet({
             Save
           </Button>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
