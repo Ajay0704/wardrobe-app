@@ -308,6 +308,14 @@ function ClosetGrid({
                 Sample
               </span>
             )}
+          </div>
+          {/* Brand + Share in the footer (off the photo — AJA-211) so the share
+              control never covers the garment. */}
+          <div className="flex items-center gap-1 py-1 pl-2.5 pr-1">
+            {/* Falls back to "No Brand" so tiles never show an empty gap. */}
+            <p className="min-w-0 flex-1 truncate text-left text-[12.5px] text-muted">
+              {item.brand?.trim() || "No Brand"}
+            </p>
             <button
               type="button"
               aria-label={`Share ${item.name}`}
@@ -316,16 +324,10 @@ function ClosetGrid({
                 e.stopPropagation();
                 void shareItem(item);
               }}
-              className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-full bg-white/90 text-neutral-800 shadow-sm backdrop-blur transition-colors hover:bg-white"
+              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
             >
-              <Share2 size={15} />
+              <Share2 size={14} />
             </button>
-          </div>
-          <div className="px-2.5 py-2">
-            {/* Falls back to "No Brand" so tiles never show an empty gap. */}
-            <p className="truncate text-center text-[12.5px] text-muted">
-              {item.brand?.trim() || "No Brand"}
-            </p>
           </div>
         </div>
       ))}
