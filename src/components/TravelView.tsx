@@ -568,7 +568,7 @@ export function TravelView() {
             <Field label="Start date">
               <input
                 type="date"
-                className={inputClass}
+                className={`${inputClass} min-w-0`}
                 value={trip.startDate ?? ""}
                 disabled={!isOwner}
                 onChange={(e) => {
@@ -580,7 +580,7 @@ export function TravelView() {
             <Field label="End date">
               <input
                 type="date"
-                className={inputClass}
+                className={`${inputClass} min-w-0`}
                 value={trip.endDate ?? ""}
                 disabled={!isOwner}
                 onChange={(e) => {
