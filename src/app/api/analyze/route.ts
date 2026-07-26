@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   }
 
   const prompt =
-    `You are a fashion cataloguing assistant. Look at the single clothing or accessory item in this photo and describe ONLY that garment (ignore the background, model, or other items). Respond with JSON of this exact shape:\n` +
+    `You are a fashion cataloguing assistant. The photo may show a full outfit or a mirror selfie with several garments. Pick the SINGLE most prominent garment — the one that fills the most of the frame and is clearly the main subject — and describe ONLY that item. Ignore smaller or partially-visible garments (for example trousers at the bottom of a sweater selfie), the background, and the person. Respond with JSON of this exact shape:\n` +
     `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
     ` "category": exactly one of [${CATEGORIES.join(", ")}],\n` +
     ` "color": the dominant colour as a #rrggbb hex string,\n` +

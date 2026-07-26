@@ -27,7 +27,11 @@ const PROMPT =
   "garment is visible and neatly presented. Output ONLY the single garment on a pure flat white " +
   "background with NO shadow — no visible person, no body parts, no mannequin, no hanger, no props. " +
   "Preserve the garment's EXACT colour, fabric texture, pattern/print and ALL logos or text exactly " +
-  "as shown; do not invent, move, recolour or restyle anything.";
+  "as shown; do not invent, move, recolour or restyle anything. Keep the garment's exact TYPE and " +
+  "silhouette — sleeve length, neckline, hem length and overall fit must match the input; a " +
+  "long-sleeve sweater must stay a long-sleeve sweater and must never become a different garment. " +
+  "If the input is not a single clear garment, reproduce it as faithfully as possible rather than " +
+  "inventing one.";
 
 // Fixed output geometry so every beautified item shares canvas size, garment scale and centring.
 const CANVAS = 1000; // square output edge (px)

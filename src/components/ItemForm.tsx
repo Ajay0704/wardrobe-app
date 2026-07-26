@@ -38,6 +38,7 @@ import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { FindProductSheet } from "./FindProductSheet";
 import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
+import { BeautifyCompare } from "./BeautifyCompare";
 import { PhotoLightbox } from "./PhotoLightbox";
 import { useIsNativeApp } from "./NativeAppClass";
 
@@ -133,6 +134,9 @@ export function ItemForm({
   );
   const [beautifying, setBeautifying] = useState(false);
   const [beautifyDisabled, setBeautifyDisabled] = useState(false);
+  const [beautifyCompare, setBeautifyCompare] = useState<
+    { before: string; after: string } | null
+  >(null);
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
   const [fit, setFit] = useState<Fit | undefined>(initial?.fit);
@@ -410,9 +414,11 @@ export function ItemForm({
         return;
       }
       if (beautifiedImageUrl) {
-        // Cached → re-apply without regenerating.
-        setImageUrl(beautifiedImageUrl);
-        setAnalyzeMsg("Applied the beautified image.");
+        // Cached → show the before/after again instead of silently re-applying.
+        setBeautifyCompare({
+          before: cutoutImageUrl ?? imageUrl,
+          after: beautifyWhiteUrl ?? beautifiedImageUrl,
+        });
         return;
       }
     }
@@ -426,10 +432,9 @@ export function ItemForm({
       setBeautifiedImageUrl(r.url);
       setBeautifyWhiteUrl(r.whiteUrl);
       setBeautifyModel(r.model);
-      setImageUrl(r.url);
-      setAnalyzeMsg(
-        force ? "Regenerated — transparent sticker ready." : "Beautified into a product shot.",
-      );
+      // Don't silently replace the photo — let the user compare and choose.
+      setBeautifyCompare({ before: base, after: r.whiteUrl });
+      setAnalyzeMsg("");
     } catch (e) {
       if ((e as Error).message === "beautify 501") {
         setBeautifyDisabled(true);
@@ -440,6 +445,18 @@ export function ItemForm({
     } finally {
       setBeautifying(false);
     }
+  };
+
+  const keepBeautify = () => {
+    if (beautifiedImageUrl) {
+      setImageUrl(beautifiedImageUrl);
+      setAnalyzeMsg("Beautified into a product shot.");
+    }
+    setBeautifyCompare(null);
+  };
+  const discardBeautify = () => {
+    setBeautifyCompare(null);
+    setAnalyzeMsg("Kept your original photo.");
   };
 
   const handleFetchDetails = async (
@@ -1165,6 +1182,16 @@ export function ItemForm({
           onClose={() => setFindCandidates(null)}
         />
       )}
+
+      {beautifyCompare &&
+        portalToBody(
+          <BeautifyCompare
+            before={beautifyCompare.before}
+            after={beautifyCompare.after}
+            onKeep={keepBeautify}
+            onDiscard={discardBeautify}
+          />,
+        )}
     </>
   );
 
