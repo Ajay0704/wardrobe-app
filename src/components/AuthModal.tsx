@@ -374,8 +374,9 @@ function ForgotPasswordForm({
       <div className="space-y-4">
         <p className="text-sm text-muted">
           If an account exists for <span className="font-medium text-foreground">{email.trim()}</span>,
-          we&apos;ve sent a link to reset your password. Open it on this device to
-          choose a new password.
+          we&apos;ve sent a link to reset your password. Open it to choose a new
+          password, then come back here to log in. Check your spam folder if it
+          doesn&apos;t arrive within a few minutes.
         </p>
         <Button variant="outline" onClick={onBack} className="w-full">
           Back to log in

@@ -6,6 +6,7 @@
 import type { UserProfile, AuthUser } from "../profile";
 import type { ThemeMode } from "../store";
 import type { CalendarEntry, Outfit, SlotKey, WardrobeItem } from "../types";
+import { APP_SHARE_URL } from "../support";
 import { getSupabase } from "./client";
 import { pullSnapshot, pushSnapshot } from "./sync";
 
@@ -117,15 +118,28 @@ export async function signOut(): Promise<void> {
 }
 
 /**
- * Send a password-reset email. The link returns the user to the app with a
- * recovery session, which fires a PASSWORD_RECOVERY auth event.
+ * Send a password-reset email. The link returns the user to the app (root path,
+ * which mounts AppShell) with a recovery token in the URL hash — supabase-js runs
+ * the implicit/token flow (auth-js default), so it works even when the link is
+ * opened in a different browser (e.g. Safari from the email on the native app).
+ *
+ * The redirect is pinned to the canonical APP_SHARE_URL rather than the raw
+ * origin so it stays deterministic from preview builds and the native WebView
+ * (whose origin is the prod alias anyway); localhost keeps using the live origin
+ * so local dev still round-trips. The chosen URL MUST be listed in Supabase →
+ * Authentication → URL Configuration → Redirect URLs, or Supabase falls back to
+ * the Site URL.
  */
 export async function sendPasswordReset(email: string): Promise<void> {
   const supabase = getSupabase();
   if (!supabase) throw new Error("Cloud sync is not configured.");
+  const origin =
+    typeof window !== "undefined" ? window.location.origin : APP_SHARE_URL;
+  const redirectTo = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(origin)
+    ? origin
+    : APP_SHARE_URL;
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo:
-      typeof window !== "undefined" ? window.location.origin : undefined,
+    redirectTo,
   });
   if (error) throw error;
 }
