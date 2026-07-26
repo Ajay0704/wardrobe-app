@@ -7,6 +7,7 @@ import {
   ChevronLeft,
   ExternalLink,
   Image as ImageIcon,
+  Maximize2,
   Pipette,
   RefreshCw,
   Trash2,
@@ -34,6 +35,7 @@ import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { FindProductSheet } from "./FindProductSheet";
 import { SmartBuy } from "./SmartBuy";
 import { BrandPicker } from "./BrandPicker";
+import { PhotoLightbox } from "./PhotoLightbox";
 import { useIsNativeApp } from "./NativeAppClass";
 
 /** Phone / Capacitor: keep the stacked editor — never jump to desktop modal chrome. */
@@ -133,6 +135,7 @@ export function ItemForm({
   const [findMessage, setFindMessage] = useState("");
   const [findMsg, setFindMsg] = useState("");
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const photoMenuRef = useRef<HTMLDivElement>(null);
 
   // Close the "Edit photo" menu on an outside tap (mirrors ProfileMenu).
@@ -633,18 +636,33 @@ export function ItemForm({
           />
           <div className="flex aspect-square items-center justify-center overflow-hidden rounded-2xl border border-line bg-surface">
             {imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={previewUrl}
-                alt="Preview"
-                className="h-full w-full object-contain"
-              />
+              <button
+                type="button"
+                onClick={() => setZoomOpen(true)}
+                aria-label="Enlarge photo"
+                className="relative h-full w-full"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewUrl}
+                  alt="Preview"
+                  className="h-full w-full object-contain"
+                />
+                <span className="absolute bottom-2 right-2 flex items-center justify-center rounded-full bg-black/45 p-1.5 text-white backdrop-blur">
+                  <Maximize2 size={13} />
+                </span>
+              </button>
             ) : (
               <div className="flex h-full items-center justify-center p-4 text-center text-xs text-muted">
                 Add a photo to preview it here
               </div>
             )}
           </div>
+          {zoomOpen &&
+            previewUrl &&
+            portalToBody(
+              <PhotoLightbox src={previewUrl} onClose={() => setZoomOpen(false)} />,
+            )}
 
           {/* One control for every photo action (replaces the old stack of buttons). */}
           <div ref={photoMenuRef} className="relative">
