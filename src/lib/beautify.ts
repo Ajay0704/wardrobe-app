@@ -27,7 +27,7 @@ export const AUTO_BEAUTIFY_CATEGORIES = new Set<Category>([
  * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
  * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
  */
-export const BEAUTIFY_PIPELINE = "pipe9";
+export const BEAUTIFY_PIPELINE = "pipe10";
 
 /** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
 const CANVAS = 1000;

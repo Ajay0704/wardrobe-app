@@ -750,10 +750,10 @@ export function ItemForm({
   };
 
   const title = initial ? "Edit item" : "Add item";
-  // Show the transparent, trim-centered cutout (imageUrl) — the same sticker the outfit canvas
-  // uses — so the item always sits centered in the hero. (We used to show the garment-on-white
-  // product shot here, but that white shot inherits any Gemini background scrap and reads
-  // off-center; the cutout is what the user wants to see.)
+  // Show the transparent cutout (imageUrl) — the same sticker the outfit canvas uses, which the
+  // beautify refine step already trims + centers — so the item sits centered in the hero. (We used
+  // to show the garment-on-white product shot here, but that white shot inherits any Gemini
+  // background scrap and reads off-center; the cutout is what the user wants to see.)
   const previewUrl = imageUrl;
 
   // The link auto-fill only makes sense when you're saving something you found

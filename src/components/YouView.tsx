@@ -27,8 +27,6 @@ import { profileHandle } from "@/lib/profile";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
-import { resolveImageSource } from "@/lib/supabase/storage";
-import { trimAndCenter } from "@/lib/trim-center";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -119,12 +117,12 @@ export function YouView() {
   };
 
   /**
-   * Batch "Standardize my closet" (AJA-225): bring every owned item onto the current pipeline so
-   * the closet + canvas read as one tidy, centered set. Garments (tops/bottoms/dresses/outerwear)
-   * get the per-category beautify redraw (which trims + centers via refine); products (shoes/bags/
-   * accessories) get a deterministic trim-and-center of their existing cutout — NO generative
-   * redraw, which mangles products. Both keep the source for per-item revert and stamp the current
-   * pipeline so they're skipped next run. Two workers + cancel; updateItems coalesce into one sync.
+   * Batch "Standardize my closet" (AJA-225): bring every owned item onto the current pipeline.
+   * Garments (tops/bottoms/dresses/outerwear) get the per-category beautify redraw, which centers
+   * the sticker via refine. Products (shoes/bags/accessories) are NEVER redrawn — the generative
+   * beautify mangles them into white blobs — so any product that was previously beautified is
+   * REVERTED to its real cut-out photo. Both stamp the current pipeline so they're skipped next
+   * run. Two workers + cancel; updateItems coalesce into one debounced sync push.
    */
   const standardizeCloset = async () => {
     if (stdBusy || !authUser) return;
@@ -148,7 +146,7 @@ export function YouView() {
         const it = targets[idx++];
         try {
           if (AUTO_BEAUTIFY_CATEGORIES.has(it.category)) {
-            // Garment → per-category beautify; refine trims + centers the sticker.
+            // Garment → per-category beautify; refine centers the sticker.
             const base = it.cutoutImageUrl ?? it.originalImageUrl ?? it.imageUrl;
             const r = await beautify(base, authUser.id, it.category);
             updateItem(it.id, {
@@ -159,17 +157,14 @@ export function YouView() {
               beautifyModel: r.model,
             });
           } else {
-            // Product → just trim + center the existing cutout (deterministic, no drift).
-            const res = await fetch(it.imageUrl);
-            const centered = await trimAndCenter(await res.blob());
-            const url = await resolveImageSource(
-              new File([centered], "cutout.png", { type: "image/png" }),
-              authUser.id,
-            );
+            // Product → never redraw. Revert a previously-beautified product to its clean cut-out
+            // photo and clear the beautify so the editor shows the real item; just stamp the rest.
+            const photo = it.cutoutImageUrl ?? it.originalImageUrl ?? it.imageUrl;
             updateItem(it.id, {
-              imageUrl: url,
-              cutoutImageUrl: it.cutoutImageUrl ?? it.imageUrl,
-              beautifyModel: `centered+${BEAUTIFY_PIPELINE}`,
+              imageUrl: photo,
+              beautifiedImageUrl: undefined,
+              beautifyWhiteUrl: undefined,
+              beautifyModel: `photo+${BEAUTIFY_PIPELINE}`,
             });
           }
         } catch (e) {
