@@ -312,7 +312,8 @@ export function CanvasBuilderView() {
       put(bySlot.dress[0], leftX, bh * 0.14, HERO); // dress owns the left column
     } else {
       if (bySlot.top?.length) put(bySlot.top[0], leftX, bh * 0.06, HERO);
-      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.52, HERO);
+      // Pants read narrow, so give them a slightly bigger box to feel proportionate to the top.
+      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.5, Math.round(HERO * 1.12));
     }
     // RIGHT — supports stacked from the top, centred on rCx; shoes pinned bottom-right
     let ry = bh * 0.06;
