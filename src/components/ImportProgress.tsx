@@ -16,6 +16,7 @@ export function ImportProgress() {
   const importStatus = useWardrobe((s) => s.importStatus);
   const pendingImports = useWardrobe((s) => s.pendingImports);
   const importReviewOpen = useWardrobe((s) => s.importReviewOpen);
+  const scanOpen = useWardrobe((s) => s.scanOpen);
   const setImportStatus = useWardrobe((s) => s.setImportStatus);
   const setImportReviewOpen = useWardrobe((s) => s.setImportReviewOpen);
   const setView = useWardrobe((s) => s.setView);
@@ -31,8 +32,8 @@ export function ImportProgress() {
     return () => window.clearTimeout(t);
   }, [committedDone, setImportStatus]);
 
-  // Hide the pill while the review sheet itself is open (avoid double UI).
-  if (importReviewOpen) return null;
+  // Hide the pill while the launcher modal (its own progress) or the review sheet is open.
+  if (scanOpen || importReviewOpen) return null;
   if (!importStatus && pendingImports.length === 0) return null;
 
   const shell = "animate-fade-up fixed left-1/2 z-50 -translate-x-1/2";
