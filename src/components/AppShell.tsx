@@ -9,6 +9,7 @@ import { hasStoredSession, isSupabaseConfigured } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ClipLinkLoader } from "./ClipLinkLoader";
+import { ImportProgress } from "./ImportProgress";
 import { OAuthButtons } from "./OAuthButtons";
 import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
@@ -423,6 +424,7 @@ export function AppShell() {
     <AuthProvider>
       <PushBootstrap />
       <ClipLinkLoader />
+      <ImportProgress />
       <AppShellInner />
     </AuthProvider>
   );

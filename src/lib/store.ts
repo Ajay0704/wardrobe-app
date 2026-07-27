@@ -33,6 +33,21 @@ import { scrubSnapshotImages } from "./heal";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
 
 export type ThemeMode = "light" | "dark";
+
+/** Background photo-import progress (AJA-236). Transient UI state — never persisted. */
+export interface ImportStatus {
+  /** Photos enqueued this run. */
+  total: number;
+  /** Photos finished (success or failure). */
+  done: number;
+  /** Photos that yielded no items / errored. */
+  failed: number;
+  /** Garments added to the closet so far. */
+  itemsAdded: number;
+  /** True while the queue is still draining. */
+  running: boolean;
+}
+
 export type View =
   | "today"
   | "wardrobe"
@@ -92,6 +107,8 @@ interface WardrobeState {
   syncStatus: SyncStatus;
   /** Last sync failure message — shown on the SyncBadge when status is error. */
   syncError: string | null;
+  /** Background photo-import progress (AJA-236); null when idle. Transient — NOT persisted. */
+  importStatus: ImportStatus | null;
   /** True while a password-recovery link is active (set-new-password flow). */
   passwordRecovery: boolean;
   theme: ThemeMode;
@@ -190,6 +207,7 @@ interface WardrobeState {
   setAuthUser: (user: AuthUser | null) => void;
   setAuthChecked: (checked: boolean) => void;
   setSyncStatus: (status: SyncStatus, error?: string | null) => void;
+  setImportStatus: (status: ImportStatus | null) => void;
   setPasswordRecovery: (active: boolean) => void;
 
   setTheme: (t: ThemeMode) => void;
@@ -416,6 +434,7 @@ export const useWardrobe = create<WardrobeState>()(
       editorCloseNonce: 0,
       pendingWardrobeTab: null,
       pendingSharedImage: null,
+      importStatus: null,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
@@ -634,6 +653,7 @@ export const useWardrobe = create<WardrobeState>()(
               ? (error ?? "Sync failed")
               : null,
         }),
+      setImportStatus: (importStatus) => set({ importStatus }),
       setPasswordRecovery: (passwordRecovery) => set({ passwordRecovery }),
 
       setTheme: (theme) => set({ theme }),
