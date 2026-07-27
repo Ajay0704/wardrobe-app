@@ -1,9 +1,10 @@
 "use client";
 
+import { Capacitor } from "@capacitor/core";
 import { Camera, Check, Images, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { detectGarments } from "@/lib/detect-garments";
-import { captureNativePhoto } from "@/lib/native-camera";
+import { captureNativePhoto, pickNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
 import type { Category, Season } from "@/lib/types";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/types";
@@ -56,6 +57,10 @@ export function ClosetScanImport({
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const isCamera = source === "camera";
+  // iOS WKWebView won't honour <input multiple> for the library, so on native we
+  // pick one photo at a time via the native picker and accumulate (AJA-235). Real
+  // browsers (web) keep true multi-select through the file input.
+  const native = Capacitor.isNativePlatform();
 
   const patch = (id: string, p: Partial<ScanRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
@@ -100,8 +105,6 @@ export function ClosetScanImport({
     }
   };
 
-  const pickLibrary = () => fileRef.current?.click();
-
   const captureMore = async () => {
     try {
       const file = await captureNativePhoto();
@@ -111,17 +114,31 @@ export function ClosetScanImport({
     }
   };
 
-  // Auto-open the chosen source once.
+  const pickMore = async () => {
+    if (!native) {
+      fileRef.current?.click(); // web: real browsers honour <input multiple>
+      return;
+    }
+    try {
+      const file = await pickNativePhoto();
+      if (file) await scanFiles([file]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the photo library.");
+    }
+  };
+
+  // Auto-open the chosen source once. Native plugin calls (camera + native library)
+  // are deferred so their async setState isn't attributed to the effect body
+  // (react-hooks/set-state-in-effect) and because they need no DOM gesture; the web
+  // file input is clicked directly to preserve the user-gesture chain.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    if (isCamera) {
-      // Native camera plugin — no DOM gesture required; defer so its async setState
-      // isn't attributed to the effect body (react-hooks/set-state-in-effect).
-      const id = setTimeout(() => void captureMore(), 0);
+    if (isCamera || native) {
+      const id = setTimeout(() => void (isCamera ? captureMore() : pickMore()), 0);
       return () => clearTimeout(id);
     }
-    pickLibrary(); // gesture-preserving programmatic click; no setState
+    fileRef.current?.click();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
 
@@ -166,17 +183,19 @@ export function ClosetScanImport({
             <>
               <div>
                 <p className="font-medium">
-                  {isCamera ? "Snap each piece" : "Build your closet from photos"}
+                  {isCamera ? "Snap each piece" : "Add from your library"}
                 </p>
                 <p className="mt-1 text-sm text-muted">
                   {isCamera
                     ? "Take a photo of each item — I'll detect the clothes and you can keep adding more."
-                    : "Pick several photos and I'll detect the clothes and add each piece."}
+                    : native
+                      ? "Add a photo of each item — I'll detect the clothes and you can keep adding more."
+                      : "Pick several photos and I'll detect the clothes and add each piece."}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={isCamera ? () => void captureMore() : pickLibrary}
+                onClick={isCamera ? () => void captureMore() : () => void pickMore()}
                 className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white"
               >
                 {isCamera ? (
@@ -185,7 +204,7 @@ export function ClosetScanImport({
                   </>
                 ) : (
                   <>
-                    <Images size={15} /> Choose photos
+                    <Images size={15} /> {native ? "Choose photo" : "Choose photos"}
                   </>
                 )}
               </button>
@@ -269,7 +288,7 @@ export function ClosetScanImport({
           <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
             <Button
               variant="outline"
-              onClick={isCamera ? () => void captureMore() : pickLibrary}
+              onClick={isCamera ? () => void captureMore() : () => void pickMore()}
               disabled={scanning || busy}
               className="mr-auto"
             >
@@ -279,7 +298,7 @@ export function ClosetScanImport({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  <Images size={15} /> Add more
+                  <Images size={15} /> {native ? "Add another" : "Add more"}
                 </span>
               )}
             </Button>

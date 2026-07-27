@@ -69,3 +69,38 @@ export async function captureNativePhoto(): Promise<File | null> {
     throw err instanceof Error ? err : new Error(msg);
   }
 }
+
+/**
+ * Pick ONE photo from the library via the native picker (AJA-235). Returns an inline
+ * data URL (like {@link captureNativePhoto}) — NOT a `capacitor://` webPath, which this
+ * remotely-hosted WKWebView can't read cross-origin. iOS WKWebView also won't honour
+ * `<input type="file" multiple>`, so callers accumulate multiple photos by calling this
+ * repeatedly ("Add another"). Returns null if the user cancels.
+ */
+export async function pickNativePhoto(): Promise<File | null> {
+  if (Capacitor.isNativePlatform() && !Capacitor.isPluginAvailable("Camera")) {
+    throw new Error(
+      "The photo picker needs the latest app build. Please reinstall the app from Xcode (Product → Run).",
+    );
+  }
+
+  try {
+    const photo = await Camera.getPhoto({
+      quality: 90,
+      resultType: CameraResultType.DataUrl,
+      source: CameraSource.Photos,
+      correctOrientation: true,
+      allowEditing: false,
+      presentationStyle: "fullscreen",
+    });
+
+    if (!photo.dataUrl) return null;
+    return dataUrlToFile(photo.dataUrl);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/cancel|dismiss|user cancelled|OS-PLUG-CAMR.*cancel/i.test(msg)) {
+      return null;
+    }
+    throw err instanceof Error ? err : new Error(msg);
+  }
+}
