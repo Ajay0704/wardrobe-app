@@ -15,6 +15,7 @@ import { guessCategory } from "@/lib/import-item";
 import { getSupabase } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import { useWardrobe } from "@/lib/store";
+import { BottomSheet } from "../BottomSheet";
 import { Button, Field, inputClass } from "../ui";
 
 type Panel = "choose" | "link" | "fetching" | "confirm";
@@ -25,7 +26,23 @@ type Panel = "choose" | "link" | "fetching" | "confirm";
  * the full closet item form. The link path reuses /api/extract (same engine as the
  * share-to-app clip). Opened by the "+" on the wishlist view + the in-page button.
  */
-export function AddToWishlistSheet({ onClose }: { onClose: () => void }) {
+export function AddToWishlistSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  // Body gated on `open` so each open starts fresh on the "choose" panel; the
+  // BottomSheet latch keeps it visible through the slide-down exit.
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Add to wishlist">
+      {open && <AddToWishlistBody onClose={onClose} />}
+    </BottomSheet>
+  );
+}
+
+function AddToWishlistBody({ onClose }: { onClose: () => void }) {
   const addItem = useWardrobe((s) => s.addItem);
   const authUser = useWardrobe((s) => s.authUser);
 
@@ -156,7 +173,7 @@ export function AddToWishlistSheet({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
+    <>
       <input
         ref={fileRef}
         type="file"
@@ -164,15 +181,8 @@ export function AddToWishlistSheet({ onClose }: { onClose: () => void }) {
         hidden
         onChange={(e) => onPhoto(e.target.files?.[0])}
       />
-      <div
-        className="native-sheet max-h-[88vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Add to wishlist"
-      >
-        <div className="native-sheet-handle" />
 
-        {panel === "choose" && (
+      {panel === "choose" && (
           <div className="animate-fade-up">
             <h2 className="heading text-xl">Add to wishlist</h2>
             <p className="mt-0.5 text-sm text-muted">How did you spot it?</p>
@@ -318,8 +328,7 @@ export function AddToWishlistSheet({ onClose }: { onClose: () => void }) {
             </Button>
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import { Check, ChevronRight, X, type LucideIcon } from "lucide-react";
 import { type ReactNode } from "react";
+import { BottomSheet } from "../BottomSheet";
 
 /** Inset-grouped card with a small label above it — one calm section of settings. */
 export function Group({
@@ -84,34 +85,28 @@ export function Snapshot({ children }: { children: ReactNode }) {
   );
 }
 
-/** Bottom sheet — reuses the app's native sheet chrome. */
+/** Bottom sheet — the app-wide Vaul sheet (drag-to-dismiss + slide-down exit). */
 export function Sheet({
+  open,
   title,
   onClose,
   children,
 }: {
+  open: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
 }) {
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet max-h-[85vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={title}
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">{title}</h2>
-          <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
-            <X size={20} />
-          </button>
-        </div>
-        {children}
+    <BottomSheet open={open} onClose={onClose} ariaLabel={title}>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="heading text-lg">{title}</h2>
+        <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
+          <X size={20} />
+        </button>
       </div>
-    </div>
+      {children}
+    </BottomSheet>
   );
 }
 

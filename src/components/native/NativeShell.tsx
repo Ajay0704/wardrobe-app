@@ -23,6 +23,7 @@ import { unreadCount } from "@/lib/notifications";
 import { unreadCount as chatUnreadCount } from "@/lib/chat";
 import { useWardrobe, type View } from "@/lib/store";
 import { AppViews } from "../AppViews";
+import { BottomSheet } from "../BottomSheet";
 import { ProfileAvatar } from "../ProfileAvatar";
 
 // useLayoutEffect on the client (avoids the SSR warning); noop-safe on the server.
@@ -257,42 +258,27 @@ export function NativeShell() {
         </button>
       </nav>
 
-      {createOpen && (
-        <div
-          className="native-sheet-backdrop"
-          onClick={() => setCreateOpen(false)}
-          role="presentation"
-        >
-          <div
-            className="native-sheet max-h-[85vh] overflow-y-auto"
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-label="Add"
-          >
-            <div className="native-sheet-handle" />
+      <BottomSheet open={createOpen} onClose={() => setCreateOpen(false)} ariaLabel="Add">
+        <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
+          Add item
+        </p>
+        <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openSplit("camera"))} />
+        <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openSplit("library"))} />
+        <SheetRow icon={Sparkles} label="Build closet from photos" onClick={() => runSheet(() => openScan())} />
+        <SheetRow icon={Globe} label="Paste a link" onClick={() => runSheet(() => openAdd("link"))} />
 
-            <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
-              Add item
-            </p>
-            <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openSplit("camera"))} />
-            <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openSplit("library"))} />
-            <SheetRow icon={Sparkles} label="Build closet from photos" onClick={() => runSheet(() => openScan())} />
-            <SheetRow icon={Globe} label="Paste a link" onClick={() => runSheet(() => openAdd("link"))} />
+        <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
+          Closet
+        </p>
+        <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} />
+        <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} last />
 
-            <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
-              Closet
-            </p>
-            <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} />
-            <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} last />
-
-            {sheetNote && (
-              <p className="mt-3 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">
-                {sheetNote}
-              </p>
-            )}
-          </div>
-        </div>
-      )}
+        {sheetNote && (
+          <p className="mt-3 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">
+            {sheetNote}
+          </p>
+        )}
+      </BottomSheet>
 
       {/* Floating chat button — bottom-right above the tab bar, on main views only */}
       {showActions && (

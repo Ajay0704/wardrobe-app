@@ -84,9 +84,7 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       {view === "photoDetail" && <PhotoDetailView />}
 
       {addOpen && <ItemForm intent={addIntent} onClose={() => setAddOpen(false)} />}
-      {wishlistAddOpen && (
-        <AddToWishlistSheet onClose={() => setWishlistAddOpen(false)} />
-      )}
+      <AddToWishlistSheet open={wishlistAddOpen} onClose={() => setWishlistAddOpen(false)} />
       {bulkOpen && <BulkImport onClose={() => setBulkOpen(false)} />}
       {splitOpen && (
         <OutfitSplitImport source={splitSource ?? undefined} onClose={() => setSplitOpen(false)} />

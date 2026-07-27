@@ -234,9 +234,7 @@ export function WardrobeView() {
         />
       )}
 
-      {closetsOpen && (
-        <ClosetsSheet items={items} onClose={() => setClosetsOpen(false)} />
-      )}
+      <ClosetsSheet open={closetsOpen} items={items} onClose={() => setClosetsOpen(false)} />
     </div>
   );
 }

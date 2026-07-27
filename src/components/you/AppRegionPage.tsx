@@ -56,8 +56,7 @@ export function AppRegionPage() {
         />
       </Group>
 
-      {sheet === "opens" && (
-        <Sheet title="App opens to" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "opens"} title="App opens to" onClose={() => setSheet(null)}>
           {START_SCREEN_OPTIONS.map((o) => (
             <PickRow
               key={o.id}
@@ -74,10 +73,8 @@ export function AppRegionPage() {
             </PickRow>
           ))}
         </Sheet>
-      )}
 
-      {sheet === "currency" && (
-        <Sheet title="Currency" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "currency"} title="Currency" onClose={() => setSheet(null)}>
           {CURRENCIES.map((c) => (
             <PickRow
               key={c.code}
@@ -94,10 +91,8 @@ export function AppRegionPage() {
             </PickRow>
           ))}
         </Sheet>
-      )}
 
-      {sheet === "country" && (
-        <Sheet title="Country" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "country"} title="Country" onClose={() => setSheet(null)}>
           {COUNTRIES.map((c) => (
             <PickRow
               key={c}
@@ -111,10 +106,8 @@ export function AppRegionPage() {
             </PickRow>
           ))}
         </Sheet>
-      )}
 
-      {sheet === "language" && (
-        <Sheet title="Language" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "language"} title="Language" onClose={() => setSheet(null)}>
           {LANGUAGES.map((l) => (
             <PickRow
               key={l.code}
@@ -128,7 +121,6 @@ export function AppRegionPage() {
             </PickRow>
           ))}
         </Sheet>
-      )}
     </PageShell>
   );
 }

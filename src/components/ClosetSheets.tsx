@@ -4,42 +4,41 @@ import { Archive, Check, DoorClosed, X } from "lucide-react";
 import { useState } from "react";
 import type { WardrobeItem } from "@/lib/types";
 import { SEASONS, type Season } from "@/lib/types";
+import { BottomSheet } from "./BottomSheet";
 
-/** Shared bottom-sheet chrome (reuses the native create-sheet styling). */
+/** Shared bottom-sheet chrome — now the app-wide Vaul sheet (drag-to-dismiss). */
 function Sheet({
+  open,
+  ariaLabel,
   children,
   onClose,
 }: {
+  open: boolean;
+  ariaLabel: string;
   children: React.ReactNode;
   onClose: () => void;
 }) {
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="native-sheet-handle" />
-        {children}
-      </div>
-    </div>
+    <BottomSheet open={open} onClose={onClose} ariaLabel={ariaLabel}>
+      {children}
+    </BottomSheet>
   );
 }
 
 /** Closet selector — All clothes / Archive / New closet (AJA-86). */
 export function ClosetsSheet({
+  open,
   items,
   onClose,
 }: {
+  open: boolean;
   items: WardrobeItem[];
   onClose: () => void;
 }) {
   const owned = items.filter((it) => !it.wishlist);
   const preview = owned.slice(0, 4);
   return (
-    <Sheet onClose={onClose}>
+    <Sheet open={open} ariaLabel="Closets" onClose={onClose}>
       <button
         type="button"
         onClick={onClose}
@@ -80,18 +79,20 @@ export function ClosetsSheet({
 
 /** Sort selector — radio list (AJA-86). Options are provided by the caller. */
 export function SortSheet<T extends string>({
+  open,
   value,
   options,
   onSelect,
   onClose,
 }: {
+  open: boolean;
   value: T;
   options: { key: T; label: string }[];
   onSelect: (key: T) => void;
   onClose: () => void;
 }) {
   return (
-    <Sheet onClose={onClose}>
+    <Sheet open={open} ariaLabel="Sort" onClose={onClose}>
       <div className="max-h-[70vh] overflow-y-auto">
         {options.map((o) => (
           <button
@@ -121,6 +122,7 @@ export function SortSheet<T extends string>({
 /** Filter sheet — Season + Occasions functional; other sections collapsible
  *  placeholders matching the reference (AJA-86). */
 export function FilterSheet({
+  open,
   season,
   tag,
   allTags,
@@ -128,6 +130,7 @@ export function FilterSheet({
   onClear,
   onClose,
 }: {
+  open: boolean;
   season: Season | "all";
   tag: string;
   allTags: string[];
@@ -135,16 +138,16 @@ export function FilterSheet({
   onClear: () => void;
   onClose: () => void;
 }) {
-  const [open, setOpen] = useState<string | null>("season");
-  const sec = { open, setOpen };
+  const [openSection, setOpenSection] = useState<string | null>("season");
+  const sec = { open: openSection, setOpen: setOpenSection };
   const pill = (active: boolean) =>
     `rounded-full border px-4 py-2 text-sm capitalize ${
       active ? "border-accent bg-accent-soft text-accent" : "border-line text-foreground"
     }`;
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div className="native-sheet !max-h-[88vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true">
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Filter">
+      <div>
         <div className="mb-2 flex items-center justify-between">
           <button type="button" onClick={onClose} aria-label="Close"><X size={22} /></button>
           <span className="text-lg font-semibold">Filter</span>
@@ -186,7 +189,7 @@ export function FilterSheet({
           </button>
         </div>
       </div>
-    </div>
+    </BottomSheet>
   );
 }
 

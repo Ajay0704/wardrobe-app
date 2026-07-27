@@ -61,8 +61,7 @@ export function FitSizesPage() {
         <Row label="Body shape" value={profile.bodyShape || "Add"} onClick={() => setSheet("body")} chevron />
       </Group>
 
-      {sheet === "shop" && (
-        <Sheet title="How you shop" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "shop"} title="How you shop" onClose={() => setSheet(null)}>
           {SHOP.map((s) => (
             <PickRow
               key={s.value}
@@ -76,20 +75,17 @@ export function FitSizesPage() {
             </PickRow>
           ))}
         </Sheet>
-      )}
 
-      {sizeSheet && (
-        <InputSheet
-          title={`${sheet![0].toUpperCase()}${sheet!.slice(1)} size`}
-          initial={sizes[sheet as SizeKey] ?? ""}
-          placeholder={sheet === "bottom" ? "32" : sheet === "shoes" ? "10" : "M"}
-          onSave={(v) => setSize(sheet as SizeKey, v)}
-          onClose={() => setSheet(null)}
-        />
-      )}
+      <InputSheet
+        open={sizeSheet}
+        title={sizeSheet && sheet ? `${sheet[0].toUpperCase()}${sheet.slice(1)} size` : "Size"}
+        initial={sizeSheet && sheet ? (sizes[sheet as SizeKey] ?? "") : ""}
+        placeholder={sheet === "bottom" ? "32" : sheet === "shoes" ? "10" : "M"}
+        onSave={(v) => sheet && setSize(sheet as SizeKey, v)}
+        onClose={() => setSheet(null)}
+      />
 
-      {sheet === "fit" && (
-        <Sheet title="Fit preference" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "fit"} title="Fit preference" onClose={() => setSheet(null)}>
           <div className="flex flex-wrap gap-2 pt-1">
             {FIT_PREFERENCES.map((f) => (
               <Chip
@@ -105,22 +101,19 @@ export function FitSizesPage() {
             ))}
           </div>
         </Sheet>
-      )}
 
-      {sheet === "height" && (
-        <InputSheet
-          title="Height"
-          initial={profile.heightCm ? String(profile.heightCm) : ""}
-          placeholder="175"
-          suffix="cm"
-          numeric
-          onSave={(v) => updateProfile({ heightCm: v.trim() ? Number(v) : undefined })}
-          onClose={() => setSheet(null)}
-        />
-      )}
+      <InputSheet
+        open={sheet === "height"}
+        title="Height"
+        initial={profile.heightCm ? String(profile.heightCm) : ""}
+        placeholder="175"
+        suffix="cm"
+        numeric
+        onSave={(v) => updateProfile({ heightCm: v.trim() ? Number(v) : undefined })}
+        onClose={() => setSheet(null)}
+      />
 
-      {sheet === "body" && (
-        <Sheet title="Body shape" onClose={() => setSheet(null)}>
+      <Sheet open={sheet === "body"} title="Body shape" onClose={() => setSheet(null)}>
           <div className="flex flex-wrap gap-2 pt-1">
             {BODY_SHAPES.map((b) => (
               <Chip
@@ -136,12 +129,12 @@ export function FitSizesPage() {
             ))}
           </div>
         </Sheet>
-      )}
     </PageShell>
   );
 }
 
 function InputSheet({
+  open,
   title,
   initial,
   placeholder,
@@ -150,7 +143,41 @@ function InputSheet({
   onSave,
   onClose,
 }: {
+  open: boolean;
   title: string;
+  initial: string;
+  placeholder: string;
+  suffix?: string;
+  numeric?: boolean;
+  onSave: (v: string) => void;
+  onClose: () => void;
+}) {
+  // Body is gated on `open` so its `useState(initial)` re-seeds every time the
+  // sheet reopens for a different field; BottomSheet latches it through the exit.
+  return (
+    <Sheet open={open} title={title} onClose={onClose}>
+      {open && (
+        <InputSheetBody
+          initial={initial}
+          placeholder={placeholder}
+          suffix={suffix}
+          numeric={numeric}
+          onSave={onSave}
+          onClose={onClose}
+        />
+      )}
+    </Sheet>
+  );
+}
+
+function InputSheetBody({
+  initial,
+  placeholder,
+  suffix,
+  numeric,
+  onSave,
+  onClose,
+}: {
   initial: string;
   placeholder: string;
   suffix?: string;
@@ -164,7 +191,7 @@ function InputSheet({
     onClose();
   };
   return (
-    <Sheet title={title} onClose={onClose}>
+    <>
       <div className="relative pt-1">
         <input
           className={inputClass}
@@ -186,6 +213,6 @@ function InputSheet({
       <Button onClick={save} className="mt-4 w-full">
         Save
       </Button>
-    </Sheet>
+    </>
   );
 }
