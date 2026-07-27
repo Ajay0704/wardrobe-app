@@ -275,7 +275,7 @@ export function ChatView() {
         </div>
       )}
 
-      {attachOpen && <AttachSheet onClose={() => setAttachOpen(false)} onPick={pickAttachment} />}
+      <AttachSheet open={attachOpen} onClose={() => setAttachOpen(false)} onPick={pickAttachment} />
     </div>
   );
 }

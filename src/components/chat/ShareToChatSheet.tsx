@@ -11,6 +11,7 @@ import {
 } from "@/lib/chat";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
+import { BottomSheet } from "../BottomSheet";
 import { ProfileAvatar } from "../ProfileAvatar";
 import { NewMessageSheet } from "./NewMessageSheet";
 import { ShareCard } from "./ShareCard";
@@ -18,6 +19,24 @@ import { ShareCard } from "./ShareCard";
 /** Send an outfit / item / look into a chat: pick an existing conversation or
  *  start a new one. */
 export function ShareToChatSheet({
+  open,
+  kind,
+  payload,
+  onClose,
+}: {
+  open: boolean;
+  kind: ChatKind;
+  payload: ChatPayload;
+  onClose: () => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Share to chat">
+      {open && <ShareToChatBody kind={kind} payload={payload} onClose={onClose} />}
+    </BottomSheet>
+  );
+}
+
+function ShareToChatBody({
   kind,
   payload,
   onClose,
@@ -57,16 +76,9 @@ export function ShareToChatSheet({
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[80vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Share to chat"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="heading text-lg">{sent ? "Sent" : "Send to…"}</h2>
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="heading text-lg">{sent ? "Sent" : "Send to…"}</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
             <X size={20} />
           </button>
@@ -109,16 +121,14 @@ export function ShareToChatSheet({
           </div>
         )}
 
-        {newOpen && (
-          <NewMessageSheet
-            onClose={() => setNewOpen(false)}
-            onCreated={(id) => {
-              setNewOpen(false);
-              void sendTo(id);
-            }}
-          />
-        )}
-      </div>
-    </div>
+        <NewMessageSheet
+          open={newOpen}
+          onClose={() => setNewOpen(false)}
+          onCreated={(id) => {
+            setNewOpen(false);
+            void sendTo(id);
+          }}
+        />
+    </>
   );
 }

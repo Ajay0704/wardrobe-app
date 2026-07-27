@@ -109,15 +109,14 @@ export function MessagesView() {
         </div>
       )}
 
-      {newOpen && (
-        <NewMessageSheet
-          onClose={() => setNewOpen(false)}
-          onCreated={(id) => {
-            setNewOpen(false);
-            openThread(id);
-          }}
-        />
-      )}
+      <NewMessageSheet
+        open={newOpen}
+        onClose={() => setNewOpen(false)}
+        onCreated={(id) => {
+          setNewOpen(false);
+          openThread(id);
+        }}
+      />
     </div>
   );
 }

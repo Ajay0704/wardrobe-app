@@ -217,9 +217,7 @@ export function NativeProfileView() {
         />
       )}
 
-      {composeOpen && (
-        <CreatePostSheet onClose={() => setComposeOpen(false)} onCreated={onCreated} />
-      )}
+      <CreatePostSheet open={composeOpen} onClose={() => setComposeOpen(false)} onCreated={onCreated} />
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">

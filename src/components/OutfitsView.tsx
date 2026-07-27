@@ -268,13 +268,12 @@ export function OutfitsView() {
         </>
       )}
 
-      {shareOutfit && (
-        <ShareToChatSheet
-          kind="outfit"
-          payload={outfitPayload(shareOutfit, resolve(shareOutfit.itemIds))}
-          onClose={() => setShareOutfit(null)}
-        />
-      )}
+      <ShareToChatSheet
+        open={!!shareOutfit}
+        kind="outfit"
+        payload={shareOutfit ? outfitPayload(shareOutfit, resolve(shareOutfit.itemIds)) : {}}
+        onClose={() => setShareOutfit(null)}
+      />
     </div>
   );
 }

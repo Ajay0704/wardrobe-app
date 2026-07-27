@@ -5,12 +5,29 @@ import { useMemo, useRef, useState } from "react";
 import { itemPayload, outfitPayload, type ChatKind, type ChatPayload } from "@/lib/chat";
 import { useWardrobe } from "@/lib/store";
 import { resolveImageSource } from "@/lib/supabase/storage";
+import { BottomSheet } from "../BottomSheet";
 
 type Mode = "menu" | "outfit" | "item";
 
 /** In-thread attach: send a photo, a saved outfit, or a closet item. Builds a
  *  self-contained payload and hands it back to the thread to send. */
 export function AttachSheet({
+  open,
+  onClose,
+  onPick,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onPick: (kind: ChatKind, payload: ChatPayload) => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Attach">
+      {open && <AttachBody onClose={onClose} onPick={onPick} />}
+    </BottomSheet>
+  );
+}
+
+function AttachBody({
   onClose,
   onPick,
 }: {
@@ -40,15 +57,8 @@ export function AttachSheet({
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[80vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Attach"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
+    <>
+      <div className="mb-2 flex items-center justify-between">
           <div className="flex items-center gap-1">
             {mode !== "menu" && (
               <button type="button" onClick={() => setMode("menu")} aria-label="Back" className="p-1 text-muted">
@@ -131,8 +141,7 @@ export function AttachSheet({
             )}
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 

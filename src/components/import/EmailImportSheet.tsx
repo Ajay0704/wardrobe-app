@@ -15,10 +15,25 @@ import {
 import { useWardrobe } from "@/lib/store";
 import { pullSnapshot } from "@/lib/supabase/sync";
 import { CATEGORIES } from "@/lib/types";
+import { BottomSheet } from "../BottomSheet";
 
 /** Confirm-and-review sheet for email-imported purchases. Nothing here writes to the
  *  closet until the user taps "Add" (the review gate). */
-export function EmailImportSheet({ onClose }: { onClose: () => void }) {
+export function EmailImportSheet({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Import from email">
+      {open && <EmailImportBody onClose={onClose} />}
+    </BottomSheet>
+  );
+}
+
+function EmailImportBody({ onClose }: { onClose: () => void }) {
   const authUser = useWardrobe((s) => s.authUser);
   const hydrateFromRemote = useWardrobe((s) => s.hydrateFromRemote);
   const [address, setAddress] = useState<string | null>(null);
@@ -115,16 +130,9 @@ export function EmailImportSheet({ onClose }: { onClose: () => void }) {
   const heldSenders = [...new Set(held.map((c) => c.sender).filter(Boolean))] as string[];
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[88vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Import from email"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">Import from email</h2>
+    <>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="heading text-lg">Import from email</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
             <X size={20} />
           </button>
@@ -262,7 +270,6 @@ export function EmailImportSheet({ onClose }: { onClose: () => void }) {
         {toast && (
           <p className="mt-2 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">{toast}</p>
         )}
-      </div>
-    </div>
+    </>
   );
 }

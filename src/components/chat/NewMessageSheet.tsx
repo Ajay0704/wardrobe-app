@@ -4,9 +4,26 @@ import { Check, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createConversation, searchUsers, type SearchUser } from "@/lib/chat";
 import { ProfileAvatar } from "../ProfileAvatar";
+import { BottomSheet } from "../BottomSheet";
 
 /** Find people by username and start a 1:1 or group conversation. */
 export function NewMessageSheet({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated: (conversationId: string) => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="New message">
+      {open && <NewMessageBody onClose={onClose} onCreated={onCreated} />}
+    </BottomSheet>
+  );
+}
+
+function NewMessageBody({
   onClose,
   onCreated,
 }: {
@@ -74,16 +91,9 @@ export function NewMessageSheet({
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[85vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="New message"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">New message</h2>
+    <>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="heading text-lg">New message</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
             <X size={20} />
           </button>
@@ -173,7 +183,6 @@ export function NewMessageSheet({
         >
           {isGroup ? `Start group (${chosen.length})` : "Start chat"}
         </button>
-      </div>
-    </div>
+    </>
   );
 }

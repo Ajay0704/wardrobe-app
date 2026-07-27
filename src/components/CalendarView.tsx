@@ -23,6 +23,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { bestLook } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
+import { BottomSheet } from "./BottomSheet";
 import {
   formatDisplayDate,
   todayISO,
@@ -292,35 +293,30 @@ export function CalendarView() {
       )}
 
       {/* plan-a-look sheet */}
-      {planOpen && (
-        <div className="native-sheet-backdrop" onClick={() => setPlanOpen(false)} role="presentation">
-          <div className="native-sheet max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Plan a look">
-            <div className="native-sheet-handle" />
-            <div className="flex items-center justify-between pb-1">
-              <h2 className="heading text-lg">Plan a look</h2>
-              <button type="button" aria-label="Close" onClick={() => setPlanOpen(false)} className="p-1 text-muted"><X size={20} /></button>
-            </div>
-            <p className="pb-3 text-sm text-muted">For {selected === today ? "today" : formatDisplayDate(selected)}.</p>
-            {outfits.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">No saved outfits yet — try “Style me”.</p>
-            ) : (
-              <div className="space-y-2">
-                {outfits.map((o) => (
-                  <button key={o.id} type="button" onClick={() => planSaved(o.id)} className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface p-2.5 text-left">
-                    <div className="flex gap-1">
-                      {sortLook(resolve(o.itemIds)).slice(0, 3).map((it) => (
-                        <div key={it.id} className="h-11 w-9 overflow-hidden rounded-md bg-surface-2"><ItemThumb item={it} /></div>
-                      ))}
-                    </div>
-                    <span className="flex-1 truncate text-sm font-medium">{o.name}</span>
-                    <Plus size={16} className="text-accent" />
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+      <BottomSheet open={planOpen} onClose={() => setPlanOpen(false)} ariaLabel="Plan a look">
+        <div className="flex items-center justify-between pb-1">
+          <h2 className="heading text-lg">Plan a look</h2>
+          <button type="button" aria-label="Close" onClick={() => setPlanOpen(false)} className="p-1 text-muted"><X size={20} /></button>
         </div>
-      )}
+        <p className="pb-3 text-sm text-muted">For {selected === today ? "today" : formatDisplayDate(selected)}.</p>
+        {outfits.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted">No saved outfits yet — try “Style me”.</p>
+        ) : (
+          <div className="space-y-2">
+            {outfits.map((o) => (
+              <button key={o.id} type="button" onClick={() => planSaved(o.id)} className="flex w-full items-center gap-3 rounded-xl border border-line bg-surface p-2.5 text-left">
+                <div className="flex gap-1">
+                  {sortLook(resolve(o.itemIds)).slice(0, 3).map((it) => (
+                    <div key={it.id} className="h-11 w-9 overflow-hidden rounded-md bg-surface-2"><ItemThumb item={it} /></div>
+                  ))}
+                </div>
+                <span className="flex-1 truncate text-sm font-medium">{o.name}</span>
+                <Plus size={16} className="text-accent" />
+              </button>
+            ))}
+          </div>
+        )}
+      </BottomSheet>
     </div>
   );
 }

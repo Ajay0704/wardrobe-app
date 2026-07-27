@@ -36,6 +36,7 @@ import {
 } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
+import { BottomSheet } from "../BottomSheet";
 import { CreatePostSheet } from "./CreatePost";
 
 /**
@@ -200,13 +201,12 @@ export function CommunityFeed() {
         </div>
       )}
 
-      {composeOpen && (
-        <CreatePostSheet
-          initialKind={composeKind}
-          onClose={() => setComposeOpen(false)}
-          onCreated={onCreated}
-        />
-      )}
+      <CreatePostSheet
+        open={composeOpen}
+        initialKind={composeKind}
+        onClose={() => setComposeOpen(false)}
+        onCreated={onCreated}
+      />
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
@@ -450,13 +450,12 @@ function PostCard({
         </button>
       </div>
 
-      {commentsOpen && (
-        <CommentSheet
-          postId={post.id}
-          onClose={() => setCommentsOpen(false)}
-          onCountChange={(d) => setCommentCount((n) => Math.max(0, n + d))}
-        />
-      )}
+      <CommentSheet
+        open={commentsOpen}
+        postId={post.id}
+        onClose={() => setCommentsOpen(false)}
+        onCountChange={(d) => setCommentCount((n) => Math.max(0, n + d))}
+      />
     </article>
   );
 }
@@ -464,6 +463,26 @@ function PostCard({
 /* -------------------------------------------------------------- comments */
 
 function CommentSheet({
+  open,
+  postId,
+  onClose,
+  onCountChange,
+}: {
+  open: boolean;
+  postId: string;
+  onClose: () => void;
+  onCountChange: (delta: number) => void;
+}) {
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="Comments">
+      {open && (
+        <CommentBody postId={postId} onClose={onClose} onCountChange={onCountChange} />
+      )}
+    </BottomSheet>
+  );
+}
+
+function CommentBody({
   postId,
   onClose,
   onCountChange,
@@ -521,16 +540,9 @@ function CommentSheet({
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet flex max-h-[80vh] flex-col"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="Comments"
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="heading text-lg">Comments</h2>
+    <>
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="heading text-lg">Comments</h2>
           <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted">
             <X size={20} />
           </button>
@@ -593,8 +605,7 @@ function CommentSheet({
             <Send size={16} />
           </button>
         </div>
-      </div>
-    </div>
+    </>
   );
 }
 

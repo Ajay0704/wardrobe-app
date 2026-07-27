@@ -17,6 +17,7 @@ import { searchUsers, type SearchUser } from "@/lib/chat";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { resolveImageSource } from "@/lib/supabase/storage";
+import { BottomSheet } from "../BottomSheet";
 import { ProfileAvatar } from "../ProfileAvatar";
 
 /**
@@ -26,6 +27,28 @@ import { ProfileAvatar } from "../ProfileAvatar";
  * "＋ New post" can open the exact same flow.
  */
 export function CreatePostSheet({
+  open,
+  initialKind = null,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  initialKind?: PostKind | null;
+  onClose: () => void;
+  onCreated: (p: CommunityPost) => void;
+}) {
+  // Body gated on `open` so the flow resets to the type picker each open and the
+  // BottomSheet latch carries it through the slide-down exit.
+  return (
+    <BottomSheet open={open} onClose={onClose} ariaLabel="New post">
+      {open && (
+        <CreatePostInner initialKind={initialKind} onClose={onClose} onCreated={onCreated} />
+      )}
+    </BottomSheet>
+  );
+}
+
+function CreatePostInner({
   initialKind = null,
   onClose,
   onCreated,
@@ -35,7 +58,7 @@ export function CreatePostSheet({
   onCreated: (p: CommunityPost) => void;
 }) {
   const [kind, setKind] = useState<PostKind | null>(initialKind);
-  if (!kind) return <TypePicker onPick={setKind} onClose={onClose} />;
+  if (!kind) return <TypePicker onPick={setKind} />;
   return <CreateSheet kind={kind} onClose={onClose} onCreated={onCreated} />;
 }
 
@@ -49,42 +72,28 @@ export const POST_TYPES: { kind: PostKind; icon: LucideIcon; label: string; hint
   { kind: "tour", icon: Grid3x3, label: "Closet tour", hint: "Show your wardrobe" },
 ];
 
-function TypePicker({
-  onPick,
-  onClose,
-}: {
-  onPick: (t: PostKind) => void;
-  onClose: () => void;
-}) {
+function TypePicker({ onPick }: { onPick: (t: PostKind) => void }) {
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label="New post"
-      >
-        <div className="native-sheet-handle" />
-        <h2 className="heading mb-2 text-lg">New post</h2>
-        <div className="divide-y divide-line">
-          {POST_TYPES.map(({ kind, icon: Icon, label, hint }) => (
-            <button
-              key={kind}
-              type="button"
-              onClick={() => onPick(kind)}
-              className="flex w-full items-center gap-3 py-3 text-left"
-            >
-              <Icon size={20} className="text-accent" />
-              <span className="flex-1">
-                <span className="block text-sm font-medium">{label}</span>
-                <span className="block text-xs text-muted">{hint}</span>
-              </span>
-              <span className="text-muted">›</span>
-            </button>
-          ))}
-        </div>
+    <>
+      <h2 className="heading mb-2 text-lg">New post</h2>
+      <div className="divide-y divide-line">
+        {POST_TYPES.map(({ kind, icon: Icon, label, hint }) => (
+          <button
+            key={kind}
+            type="button"
+            onClick={() => onPick(kind)}
+            className="flex w-full items-center gap-3 py-3 text-left"
+          >
+            <Icon size={20} className="text-accent" />
+            <span className="flex-1">
+              <span className="block text-sm font-medium">{label}</span>
+              <span className="block text-xs text-muted">{hint}</span>
+            </span>
+            <span className="text-muted">›</span>
+          </button>
+        ))}
       </div>
-    </div>
+    </>
   );
 }
 
@@ -197,16 +206,9 @@ function CreateSheet({
   };
 
   return (
-    <div className="native-sheet-backdrop" onClick={onClose} role="presentation">
-      <div
-        className="native-sheet max-h-[88vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={title}
-      >
-        <div className="native-sheet-handle" />
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="heading text-lg">{title}</h2>
+    <>
+      <div className="mb-3 flex items-center justify-between">
+        <h2 className="heading text-lg">{title}</h2>
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -403,8 +405,7 @@ function CreateSheet({
         )}
 
         {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
-      </div>
-    </div>
+    </>
   );
 }
 
