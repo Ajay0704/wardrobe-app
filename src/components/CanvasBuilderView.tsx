@@ -43,6 +43,12 @@ const SHEET_TITLE: Record<Mode, string> = {
   sticker: "Stickers",
 };
 
+// Collapsed sheet peek height (grab bar sits above the iOS home-swipe strip); BOARD_RESERVE is the
+// fixed strip below the board (peek + floating toolbar) so the board fills the page and never
+// resizes with the sheet drag (AJA-232).
+const PEEK = 72;
+const BOARD_RESERVE = PEEK + 96;
+
 const TEXT_COLORS = ["#1c1917", "#ffffff", "#b05e3c", "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#ec4899"];
 
 const BG_SOLIDS = ["#ffffff", "#faf9f7", "#f3f1ed", "#ece4d4", "#f6e9e2", "#e6ece2", "#e4eef3", "#1c1917"];
@@ -105,10 +111,6 @@ export function CanvasBuilderView() {
   const [dragging, setDragging] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ startY: number; startOffset: number } | null>(null);
-  // Collapsed peek is tall enough that the grab bar sits well above the iOS
-  // home-swipe strip at the very bottom (avoids fighting the system gesture).
-  const PEEK = 72;
-  const BOARD_GAP = 14; // gap kept between the board bottom and the sheet top
 
   useEffect(() => {
     const measure = () => {
@@ -130,14 +132,12 @@ export function CanvasBuilderView() {
     const fit = () => {
       const el = areaRef.current;
       if (!el) return;
-      // Reserve the OPEN sheet height always (never the live drag `offset`) and cap the board, so it
-      // stays a comfortable fixed size — collapsing the sheet grows the margin, not the board.
-      const reserveNum = maxOffset > 0 ? maxOffset + PEEK : Math.round(window.innerHeight * 0.44);
-      const availW = el.clientWidth - 32;
-      const availH = Math.min(
-        el.clientHeight - reserveNum - BOARD_GAP - 8,
-        Math.round(window.innerHeight * 0.55),
-      );
+      // Fill the board like Pinterest: reserve only the collapsed peek + toolbar strip (a fixed
+      // amount, NOT the open sheet or the live drag `offset`), so the board grows to fill the width
+      // and stays a stable large size — the sheet just overlays the board's bottom when expanded.
+      const reserveNum = BOARD_RESERVE;
+      const availW = el.clientWidth - 24;
+      const availH = el.clientHeight - reserveNum;
       if (availW <= 0 || availH <= 0) return;
       const ratio = aspect === "3:4" ? 3 / 4 : 1; // w / h
       let w = availH * ratio;
@@ -151,7 +151,7 @@ export function CanvasBuilderView() {
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, [aspect, maxOffset]);
+  }, [aspect]);
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
@@ -406,7 +406,7 @@ export function CanvasBuilderView() {
       <div
         ref={areaRef}
         className="relative min-h-0 flex-1"
-        style={{ paddingBottom: `calc(var(--sheet-h) + ${BOARD_GAP}px)` }}
+        style={{ paddingBottom: `${BOARD_RESERVE}px` }}
       >
         {/* aspect chip — a small, always-there formatting control on the canvas */}
         <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
@@ -424,7 +424,7 @@ export function CanvasBuilderView() {
           ))}
         </div>
 
-        <div className="flex h-full items-center justify-center px-4">
+        <div className="flex h-full items-center justify-center px-3">
           <div
             onPointerDown={(e) => {
               if (e.target === e.currentTarget) {
