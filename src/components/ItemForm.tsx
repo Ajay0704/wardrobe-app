@@ -34,7 +34,8 @@ import { AUTO_BEAUTIFY_CATEGORIES, BEAUTIFY_PIPELINE, beautify } from "@/lib/bea
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Fit, Season, WardrobeItem } from "@/lib/types";
-import { CATEGORIES, FIT_VALUES, SEASONS, SUGGESTED_TAGS } from "@/lib/types";
+import { CATEGORIES, FIT_VALUES, SEASONS, SUGGESTED_TAGS, subcategoriesFor, subcategoryLabel } from "@/lib/types";
+import { inferSubcategory } from "@/lib/subcategory";
 import { Button, Chip, Field, Modal, inputClass } from "./ui";
 import { BottomSheet } from "./BottomSheet";
 import { FindProductSheet } from "./FindProductSheet";
@@ -48,6 +49,7 @@ import { useIsNativeApp } from "./NativeAppClass";
 type SheetKey =
   | "name"
   | "category"
+  | "subcategory"
   | "color"
   | "fit"
   | "formality"
@@ -65,6 +67,7 @@ type SheetKey =
 const SHEET_TITLES: Record<SheetKey, string> = {
   name: "Name",
   category: "Category",
+  subcategory: "Type",
   color: "Color",
   fit: "Fit",
   formality: "Formality",
@@ -128,6 +131,7 @@ export function ItemForm({
 }) {
   const { addItem, updateItem, deleteItem, authUser } = useWardrobe();
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
+  const shopGender = useWardrobe((s) => s.profile.shopGender ?? "all");
   const pendingSharedImage = useWardrobe((s) => s.pendingSharedImage);
   const setPendingSharedImage = useWardrobe((s) => s.setPendingSharedImage);
   const uploadInputRef = useRef<HTMLInputElement>(null);
@@ -163,6 +167,7 @@ export function ItemForm({
   >(null);
   const [productUrl, setProductUrl] = useState(initial?.productUrl ?? "");
   const [category, setCategory] = useState<Category>(initial?.category ?? "top");
+  const [subcategory, setSubcategory] = useState<string | undefined>(initial?.subcategory);
   const [fit, setFit] = useState<Fit | undefined>(initial?.fit);
   const [formality, setFormality] = useState<string | undefined>(initial?.formality);
   const [material, setMaterial] = useState<string | undefined>(initial?.material);
@@ -249,6 +254,7 @@ export function ItemForm({
       imageUrl,
       productUrl: productUrl.trim() || undefined,
       category,
+      subcategory: subcategory || undefined,
       color,
       colorName,
       tags,
@@ -265,6 +271,7 @@ export function ItemForm({
       imageUrl,
       productUrl,
       category,
+      subcategory,
       color,
       colorName,
       tags,
@@ -372,6 +379,15 @@ export function ItemForm({
       }
       const detected = data.category as Category | undefined;
       if (detected) setCategory(detected);
+      // Sub-category: prefer the API's value, else infer from the returned name/tags. Don't
+      // overwrite a value the user already picked.
+      const detectedSub =
+        (typeof data.subcategory === "string" && data.subcategory
+          ? (data.subcategory as string)
+          : detected
+            ? inferSubcategory(detected, (data.name as string) || name, (data.tags as string[]) || tags)
+            : undefined) || undefined;
+      if (detectedSub) setSubcategory((prev) => prev || detectedSub);
       if (data.color) setColor(data.color);
       // Use functional updates so a name/brand typed while analyzing isn't
       // overwritten, and empty fields still get filled from the photo.
@@ -714,6 +730,7 @@ export function ItemForm({
       beautifyModel: beautifyModel || undefined,
       productUrl: productUrl.trim() || undefined,
       category,
+      subcategory: subcategory || undefined,
       fit,
       formality: formality || undefined,
       material: material || undefined,
@@ -1121,6 +1138,11 @@ export function ItemForm({
         />
       )}
       <EditRow
+        label="Type"
+        value={subcategory ? subcategoryLabel(category, subcategory) : undefined}
+        onClick={() => setOpenSheet("subcategory")}
+      />
+      <EditRow
         label="Color"
         value={colorName}
         swatch={color}
@@ -1257,6 +1279,7 @@ export function ItemForm({
                 key={c.value}
                 type="button"
                 onClick={() => {
+                  if (c.value !== category) setSubcategory(undefined); // options depend on category
                   setCategory(c.value);
                   setOpenSheet(null);
                 }}
@@ -1264,6 +1287,38 @@ export function ItemForm({
               >
                 <span>{c.label}</span>
                 {category === c.value && (
+                  <Check size={18} className="ml-auto text-accent" />
+                )}
+              </button>
+            ))}
+          </div>
+        );
+      case "subcategory":
+        return (
+          <div className="pb-1">
+            <button
+              type="button"
+              onClick={() => {
+                setSubcategory(undefined);
+                setOpenSheet(null);
+              }}
+              className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px]"
+            >
+              <span className="text-muted">None</span>
+              {!subcategory && <Check size={18} className="ml-auto text-accent" />}
+            </button>
+            {subcategoriesFor(category, shopGender).map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                onClick={() => {
+                  setSubcategory(o.value);
+                  setOpenSheet(null);
+                }}
+                className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px] last:border-0"
+              >
+                <span>{o.label}</span>
+                {subcategory === o.value && (
                   <Check size={18} className="ml-auto text-accent" />
                 )}
               </button>

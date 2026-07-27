@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { isSampleItem } from "@/lib/demo-data";
 import { shareItem } from "@/lib/share";
-import type { Category, WardrobeItem } from "@/lib/types";
-import { CATEGORY_LABEL } from "@/lib/types";
+import type { WardrobeItem } from "@/lib/types";
+import { SUBCATEGORIES } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ClosetsSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
@@ -22,13 +22,16 @@ const TABS = [
 ] as const;
 type TabKey = (typeof TABS)[number]["key"];
 
-// Category tabs map to our category enum (sub-tabs = categories within the group).
+// One top-level tab per category (AJA-228); the chip row below drills into sub-categories.
 const MAIN_TABS = [
-  { key: "all", label: "All", cats: null },
-  { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
-  { key: "pants", label: "Pants", cats: ["bottom"] },
-  { key: "shoes", label: "Shoes", cats: ["shoes"] },
-  { key: "accessories", label: "Accessories", cats: ["accessory", "bag"] },
+  { key: "all", label: "All", cat: null },
+  { key: "top", label: "Tops", cat: "top" },
+  { key: "bottom", label: "Bottoms", cat: "bottom" },
+  { key: "dress", label: "Dresses", cat: "dress" },
+  { key: "outerwear", label: "Outerwear", cat: "outerwear" },
+  { key: "shoes", label: "Shoes", cat: "shoes" },
+  { key: "bag", label: "Bags", cat: "bag" },
+  { key: "accessory", label: "Accessories", cat: "accessory" },
 ] as const;
 type MainTabKey = (typeof MAIN_TABS)[number]["key"];
 
@@ -41,7 +44,7 @@ export function WardrobeView() {
 
   const [tab, setTab] = useState<TabKey>("items");
   const [mainTab, setMainTab] = useState<MainTabKey>("all");
-  const [subCat, setSubCat] = useState<Category | "all">("all");
+  const [subCat, setSubCat] = useState<string>("all");
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
   const [addWishlist, setAddWishlist] = useState(false);
@@ -94,19 +97,32 @@ export function WardrobeView() {
   const wish = useMemo(() => items.filter((it) => it.wishlist), [items]);
   const base = tab === "wishlist" ? wish : owned;
 
-  // Category-tab filter (recent-first); no search/sort/season filter in the redesigned closet.
+  // Category tab + sub-category chip filter (recent-first). "Others" collects items with no
+  // (or unknown) sub-category. No search/sort/season filter in the redesigned closet.
   const shown = useMemo(() => {
     const g = MAIN_TABS.find((t) => t.key === mainTab);
     let arr = [...base].sort((x, y) => y.createdAt - x.createdAt);
-    if (g?.cats) arr = arr.filter((it) => (g.cats as readonly string[]).includes(it.category));
-    if (subCat !== "all") arr = arr.filter((it) => it.category === subCat);
+    if (g?.cat) arr = arr.filter((it) => it.category === g.cat);
+    if (subCat !== "all") {
+      arr = arr.filter((it) =>
+        subCat === "others" ? !it.subcategory || it.subcategory === "others" : it.subcategory === subCat,
+      );
+    }
     return arr;
   }, [base, mainTab, subCat]);
 
-  const subCats = useMemo(() => {
+  // Sub-category chips present in the active category, ordered per the taxonomy, + "Others".
+  const subChips = useMemo(() => {
     const g = MAIN_TABS.find((t) => t.key === mainTab);
-    if (!g?.cats) return [];
-    return g.cats.filter((c) => base.some((it) => it.category === c));
+    if (!g?.cat) return [] as { value: string; label: string }[];
+    const present = new Set(
+      base.filter((it) => it.category === g.cat).map((it) => it.subcategory || "others"),
+    );
+    const ordered = (SUBCATEGORIES[g.cat] ?? [])
+      .filter((o) => present.has(o.value))
+      .map((o) => ({ value: o.value, label: o.label }));
+    if (present.has("others")) ordered.push({ value: "others", label: "Others" });
+    return ordered;
   }, [mainTab, base]);
 
   const openAdd = () => {
@@ -177,14 +193,14 @@ export function WardrobeView() {
             ))}
           </div>
 
-          {subCats.length > 1 && (
+          {subChips.length > 1 && (
             <div className="-mx-4 flex gap-2 overflow-x-auto px-4">
               <Chip active={subCat === "all"} onClick={() => setSubCat("all")}>
                 All
               </Chip>
-              {subCats.map((c) => (
-                <Chip key={c} active={subCat === c} onClick={() => setSubCat(c)}>
-                  {CATEGORY_LABEL[c]}
+              {subChips.map((c) => (
+                <Chip key={c.value} active={subCat === c.value} onClick={() => setSubCat(c.value)}>
+                  {c.label}
                 </Chip>
               ))}
             </div>

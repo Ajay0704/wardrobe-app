@@ -50,6 +50,133 @@ export const CATEGORY_LABEL: Record<Category, string> = Object.fromEntries(
   CATEGORIES.map((c) => [c.value, c.label]),
 ) as Record<Category, string>;
 
+/** One selectable sub-category within a category. `gender` omitted = shown to everyone. */
+export interface SubOption {
+  value: string;
+  label: string;
+  gender?: "male" | "female";
+}
+
+/**
+ * Sub-category taxonomy per top-level category, covering men's + women's garments (AJA-228).
+ * Values are canonical slugs (what we store); labels are for display. Gender-specific options
+ * are filtered by the user's `shopGender` via `subcategoriesFor`. A "Others" bucket is appended
+ * by the helper, not stored here.
+ */
+export const SUBCATEGORIES: Record<Category, SubOption[]> = {
+  top: [
+    { value: "tshirt", label: "T-shirt" },
+    { value: "shirt", label: "Shirt" },
+    { value: "polo", label: "Polo" },
+    { value: "sweater", label: "Sweater" },
+    { value: "hoodie", label: "Hoodie" },
+    { value: "sweatshirt", label: "Sweatshirt" },
+    { value: "zipup", label: "Zip-up" },
+    { value: "tank", label: "Tank" },
+    { value: "longsleeve", label: "Long-sleeve" },
+    { value: "jersey", label: "Jersey" },
+    { value: "cardigan", label: "Cardigan" },
+    { value: "blouse", label: "Blouse", gender: "female" },
+    { value: "crop", label: "Crop top", gender: "female" },
+    { value: "camisole", label: "Camisole", gender: "female" },
+    { value: "bodysuit", label: "Bodysuit", gender: "female" },
+  ],
+  bottom: [
+    { value: "jeans", label: "Jeans" },
+    { value: "trousers", label: "Trousers" },
+    { value: "shorts", label: "Shorts" },
+    { value: "joggers", label: "Joggers" },
+    { value: "leggings", label: "Leggings" },
+    { value: "chinos", label: "Chinos" },
+    { value: "cargo", label: "Cargo" },
+    { value: "skirt", label: "Skirt", gender: "female" },
+  ],
+  dress: [
+    { value: "mini", label: "Mini dress" },
+    { value: "midi", label: "Midi dress" },
+    { value: "maxi", label: "Maxi dress" },
+    { value: "gown", label: "Gown" },
+    { value: "jumpsuit", label: "Jumpsuit" },
+    { value: "romper", label: "Romper" },
+    { value: "sundress", label: "Sundress" },
+  ],
+  outerwear: [
+    { value: "jacket", label: "Jacket" },
+    { value: "coat", label: "Coat" },
+    { value: "blazer", label: "Blazer" },
+    { value: "puffer", label: "Puffer" },
+    { value: "parka", label: "Parka" },
+    { value: "bomber", label: "Bomber" },
+    { value: "denim", label: "Denim jacket" },
+    { value: "leather", label: "Leather jacket" },
+    { value: "trackjacket", label: "Zip-up / Track" },
+    { value: "vest", label: "Vest / Gilet" },
+    { value: "windbreaker", label: "Windbreaker" },
+  ],
+  shoes: [
+    { value: "sneakers", label: "Sneakers" },
+    { value: "boots", label: "Boots" },
+    { value: "loafers", label: "Loafers" },
+    { value: "sandals", label: "Sandals" },
+    { value: "dressshoes", label: "Dress shoes" },
+    { value: "slides", label: "Slides" },
+    { value: "espadrilles", label: "Espadrilles" },
+    { value: "heels", label: "Heels", gender: "female" },
+    { value: "flats", label: "Flats", gender: "female" },
+    { value: "wedges", label: "Wedges", gender: "female" },
+  ],
+  bag: [
+    { value: "backpack", label: "Backpack" },
+    { value: "tote", label: "Tote" },
+    { value: "crossbody", label: "Crossbody" },
+    { value: "duffel", label: "Duffel" },
+    { value: "beltbag", label: "Belt bag" },
+    { value: "messenger", label: "Messenger" },
+    { value: "handbag", label: "Handbag", gender: "female" },
+    { value: "shoulder", label: "Shoulder bag", gender: "female" },
+    { value: "clutch", label: "Clutch", gender: "female" },
+    { value: "satchel", label: "Satchel", gender: "female" },
+  ],
+  accessory: [
+    { value: "watch", label: "Watch" },
+    { value: "belt", label: "Belt" },
+    { value: "cap", label: "Cap" },
+    { value: "beanie", label: "Beanie" },
+    { value: "hat", label: "Hat" },
+    { value: "scarf", label: "Scarf" },
+    { value: "sunglasses", label: "Sunglasses" },
+    { value: "gloves", label: "Gloves" },
+    { value: "wallet", label: "Wallet" },
+    { value: "necklace", label: "Necklace", gender: "female" },
+    { value: "earrings", label: "Earrings", gender: "female" },
+    { value: "bracelet", label: "Bracelet", gender: "female" },
+    { value: "hair", label: "Hair accessory", gender: "female" },
+    { value: "tie", label: "Tie", gender: "male" },
+    { value: "cufflinks", label: "Cufflinks", gender: "male" },
+  ],
+};
+
+const SUBCATEGORY_OTHERS: SubOption = { value: "others", label: "Others" };
+
+/** Sub-category options for a category, filtered by shop gender ("all" = union), + "Others". */
+export function subcategoriesFor(
+  category: Category,
+  shopGender?: "male" | "female" | "all",
+): SubOption[] {
+  const g = shopGender ?? "all";
+  const opts = (SUBCATEGORIES[category] ?? []).filter(
+    (o) => !o.gender || g === "all" || o.gender === g,
+  );
+  return [...opts, SUBCATEGORY_OTHERS];
+}
+
+/** Display label for a stored sub-category slug (falls back to the raw value / "Others"). */
+export function subcategoryLabel(category: Category, value: string | undefined): string {
+  if (!value) return "";
+  if (value === SUBCATEGORY_OTHERS.value) return SUBCATEGORY_OTHERS.label;
+  return (SUBCATEGORIES[category] ?? []).find((o) => o.value === value)?.label ?? value;
+}
+
 export type Season = "spring" | "summer" | "fall" | "winter";
 
 export const SEASONS: Season[] = ["spring", "summer", "fall", "winter"];
@@ -91,6 +218,10 @@ export interface WardrobeItem {
   /** Optional link to the product page (where to buy or view the item). */
   productUrl?: string;
   category: Category;
+  /** Optional finer-grained type within the category (e.g. "polo", "bomber", "sneakers").
+   *  A free-form slug from SUBCATEGORIES — auto-inferred and user-editable. Deliberately NOT
+   *  part of the Category union, so it stays additive and never breaks category-keyed logic. */
+  subcategory?: string;
   /** Primary color as a hex string, e.g. "#1c1917". */
   color: string;
   /** Optional human-readable color name ("navy", "cream", ...). */

@@ -1,5 +1,7 @@
 import { requireUser } from "@/lib/auth-server";
 import { safeFetch } from "@/lib/net";
+import { inferSubcategory } from "@/lib/subcategory";
+import type { Category } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -99,6 +101,7 @@ export async function POST(request: Request) {
     `If the main subject is an accessory/bag/shoes being worn or held (a watch on a wrist, sunglasses on a face, a bag in a hand, shoes on feet), catalogue THAT item with the matching category — never the clothing, wrist, hand, skin or background behind it. If instead several garments are visible (e.g. a mirror selfie), pick the SINGLE most prominent garment that fills the most of the frame and ignore smaller or partially-visible ones (like trousers at the bottom of a sweater selfie). Always ignore the person and the background. Respond with JSON of this exact shape:\n` +
     `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
     ` "category": exactly one of [${CATEGORIES.join(", ")}],\n` +
+    ` "type": the specific garment type in 1-3 words, e.g. "polo shirt", "bomber jacket", "chelsea boots", "tote bag", "quarter-zip",\n` +
     ` "color": the dominant colour as a #rrggbb hex string,\n` +
     ` "colorName": a common colour name like "navy" or "cream",\n` +
     ` "seasons": an array with any of [${SEASONS.join(", ")}] when it is typically worn,\n` +
@@ -173,10 +176,16 @@ export async function POST(request: Request) {
   const toneRaw = str(parsed.tone)?.toLowerCase();
   const tone = toneRaw && TONE.includes(toneRaw) ? toneRaw : undefined;
   const styleCaption = str(parsed.styleCaption);
+  // Map the model's free-text garment "type" (+ name/tags) to a canonical sub-category slug for
+  // the detected category, reusing the deterministic inferrer so only valid values ever return.
+  const subcategory = category
+    ? inferSubcategory(category as Category, `${str(parsed.type) ?? ""} ${str(parsed.name) ?? ""}`, tags)
+    : undefined;
 
   return Response.json({
     name: str(parsed.name),
     category,
+    subcategory,
     color,
     colorName: str(parsed.colorName),
     seasons,

@@ -19,6 +19,7 @@ import type {
   CanvasItem,
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
+import { inferSubcategory } from "./subcategory";
 import { isSampleItem, sampleCloset } from "./demo-data";
 import {
   DEFAULT_PROFILE,
@@ -259,9 +260,14 @@ const uid = () =>
  */
 function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeItem {
   const it = (raw ?? {}) as Partial<WardrobeItem>;
+  const category = (it.category ?? "top") as Category;
+  const name = typeof it.name === "string" ? it.name : "";
+  const tags = Array.isArray(it.tags)
+    ? it.tags.filter((t): t is string => typeof t === "string")
+    : [];
   return {
     id: typeof it.id === "string" ? it.id : uid(),
-    name: typeof it.name === "string" ? it.name : "",
+    name,
     imageUrl: typeof it.imageUrl === "string" ? it.imageUrl : "",
     // Image-attribute fields must be whitelisted here or they're stripped on every
     // localStorage rehydrate / Supabase pull (revert sources + engine/model stamps).
@@ -275,12 +281,16 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     tone: typeof it.tone === "string" ? it.tone : undefined,
     formality: typeof it.formality === "string" ? it.formality : undefined,
     productUrl: typeof it.productUrl === "string" ? it.productUrl : undefined,
-    category: (it.category ?? "top") as Category,
+    category,
+    // Backfill a sub-category for existing items with none (AJA-228) — deterministic, from the
+    // name/tags; never overrides a value already set. Must be whitelisted here or it's stripped.
+    subcategory:
+      typeof it.subcategory === "string" && it.subcategory
+        ? it.subcategory
+        : inferSubcategory(category, name, tags),
     color: typeof it.color === "string" ? it.color : "#a8a29e",
     colorName: typeof it.colorName === "string" ? it.colorName : undefined,
-    tags: Array.isArray(it.tags)
-      ? it.tags.filter((t): t is string => typeof t === "string")
-      : [],
+    tags,
     seasons: Array.isArray(it.seasons)
       ? (it.seasons.filter((s) => typeof s === "string") as Season[])
       : [],
