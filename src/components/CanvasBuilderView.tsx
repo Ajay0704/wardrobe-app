@@ -132,10 +132,10 @@ export function CanvasBuilderView() {
     const fit = () => {
       const el = areaRef.current;
       if (!el) return;
-      // Fill the board like Pinterest: reserve only the collapsed peek + toolbar strip (a fixed
-      // amount, NOT the open sheet or the live drag `offset`), so the board grows to fill the width
-      // and stays a stable large size — the sheet just overlays the board's bottom when expanded.
-      const reserveNum = BOARD_RESERVE;
+      // Resize with the sheet (Pinterest): reserve the space the sheet currently occupies, floored
+      // to BOARD_RESERVE so a collapsed sheet leaves the board big/full. Full when the sheet is
+      // down, shrinks to stay above it when pulled up — and never balloons past full.
+      const reserveNum = Math.max(BOARD_RESERVE, maxOffset + PEEK - offset);
       const availW = el.clientWidth - 24;
       const availH = el.clientHeight - reserveNum;
       if (availW <= 0 || availH <= 0) return;
@@ -151,7 +151,7 @@ export function CanvasBuilderView() {
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, [aspect]);
+  }, [aspect, offset, maxOffset]);
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
@@ -363,6 +363,9 @@ export function CanvasBuilderView() {
   // with the sheet and stays just above it.
   const reserve = maxOffset === 0 ? null : maxOffset + PEEK - offset;
   const reserveCss = reserve === null ? "var(--sheet-h)" : `${reserve}px`;
+  // Space the board area reserves for the sheet — matches the board-sizing reserve so the board
+  // shrinks/grows in step with the sheet and stays centred above it (floored to BOARD_RESERVE).
+  const boardReserve = Math.max(BOARD_RESERVE, maxOffset + PEEK - offset);
 
   return (
     <div
@@ -406,7 +409,10 @@ export function CanvasBuilderView() {
       <div
         ref={areaRef}
         className="relative min-h-0 flex-1"
-        style={{ paddingBottom: `${BOARD_RESERVE}px` }}
+        style={{
+          paddingBottom: `${boardReserve}px`,
+          transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
+        }}
       >
         {/* aspect chip — a small, always-there formatting control on the canvas */}
         <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
@@ -437,7 +443,9 @@ export function CanvasBuilderView() {
               width: board.w || undefined,
               height: board.h || undefined,
               background: canvasBg || "#ffffff",
-              transition: "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
+              transition: dragging
+                ? "none"
+                : "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
             }}
           >
           {canvasDraft.length === 0 && (
