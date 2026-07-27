@@ -1098,31 +1098,26 @@ export function ItemForm({
       />
       <EditRow
         label="Formality"
-        ai
         value={formality ? cap(formality) : undefined}
         onClick={() => setOpenSheet("formality")}
       />
       <EditRow
         label="Material"
-        ai
         value={material ? cap(material) : undefined}
         onClick={() => setOpenSheet("material")}
       />
       <EditRow
         label="Pattern"
-        ai
         value={pattern ? cap(pattern) : undefined}
         onClick={() => setOpenSheet("pattern")}
       />
       <EditRow
         label="Tone"
-        ai
         value={tone ? cap(tone) : undefined}
         onClick={() => setOpenSheet("tone")}
       />
       <EditRow
         label="Size"
-        ai
         value={size.trim() || undefined}
         onClick={() => setOpenSheet("size")}
       />
@@ -1148,7 +1143,6 @@ export function ItemForm({
       />
       <EditRow
         label="Product link"
-        ai
         value={productUrl.trim() ? productUrl.trim().replace(/^https?:\/\/(www\.)?/, "") : undefined}
         onClick={() => setOpenSheet("link")}
       />
@@ -1650,15 +1644,12 @@ function EditRow({
   label,
   value,
   swatch,
-  ai,
   onClick,
   last,
 }: {
   label: string;
   value?: string;
   swatch?: string;
-  /** Show a small "AI" pill next to the label — this field can be auto-filled from the photo. */
-  ai?: boolean;
   onClick: () => void;
   last?: boolean;
 }) {
@@ -1670,14 +1661,7 @@ function EditRow({
         last ? "" : "border-b border-line/70"
       }`}
     >
-      <span className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
-        {label}
-        {ai && (
-          <span className="rounded bg-accent-soft px-1 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-accent">
-            AI
-          </span>
-        )}
-      </span>
+      <span className="shrink-0 text-sm text-foreground">{label}</span>
       <span className="ml-auto flex min-w-0 items-center gap-2 text-sm">
         {swatch && (
           <span
