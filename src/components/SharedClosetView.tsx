@@ -12,7 +12,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
+import type { Category } from "@/lib/types";
 import { CATEGORIES, matchesSubcategory, presentSubcategories } from "@/lib/types";
+import { inferSubcategory } from "@/lib/subcategory";
 import * as SC from "@/lib/shared-closet";
 import { BottomSheet } from "./BottomSheet";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
@@ -101,6 +103,9 @@ export function SharedClosetView() {
   const [addSel, setAddSel] = useState<Set<string>>(new Set());
   const [addTab, setAddTab] = useState<MainTabKey>("all");
   const [subCat, setSubCat] = useState<string>("all");
+  // Filter for the shared-items grid itself (separate from the "add from closet" picker above).
+  const [itemsCat, setItemsCat] = useState<string>("all");
+  const [itemsSubCat, setItemsSubCat] = useState<string>("all");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const [editItem, setEditItem] = useState<SC.SharedClosetItem | null>(null);
@@ -126,6 +131,53 @@ export function SharedClosetView() {
     const g = MAIN_TABS.find((t) => t.key === addTab);
     return g?.cat ? presentSubcategories(g.cat, owned) : [];
   }, [addTab, owned]);
+
+  // Shared-items grid filtering. Shared snapshots don't store a sub-category, so derive it from
+  // name+category with the same deterministic inferrer (works for every member's items, no DB change).
+  const sharedWithSub = useMemo(
+    () =>
+      closetItems.map((it) => {
+        const cat = (it.category ?? "top") as Category;
+        return { it, cat, subcategory: inferSubcategory(cat, it.name ?? "") };
+      }),
+    [closetItems],
+  );
+  // Category tabs shown only when the shared items span more than one category.
+  const itemCatTabs = useMemo(() => {
+    const present = new Set(sharedWithSub.map((s) => s.cat));
+    return CATEGORIES.filter((c) => present.has(c.value));
+  }, [sharedWithSub]);
+  // Sub-category chips across the active scope (all categories, or the selected tab), Others last.
+  const itemSubChips = useMemo(() => {
+    const cats =
+      itemsCat === "all"
+        ? CATEGORIES.map((c) => c.value).filter((v) => sharedWithSub.some((s) => s.cat === v))
+        : [itemsCat as Category];
+    const seen = new Set<string>();
+    const out: { value: string; label: string }[] = [];
+    for (const cat of cats) {
+      const asItems = sharedWithSub.map((s) => ({ category: s.cat, subcategory: s.subcategory }));
+      for (const chip of presentSubcategories(cat as Category, asItems)) {
+        if (!seen.has(chip.value)) {
+          seen.add(chip.value);
+          out.push(chip);
+        }
+      }
+    }
+    const others = out.some((c) => c.value === "others");
+    const final = out.filter((c) => c.value !== "others");
+    if (others) final.push({ value: "others", label: "Others" });
+    return final;
+  }, [itemsCat, sharedWithSub]);
+  const shownSharedItems = useMemo(
+    () =>
+      sharedWithSub.filter(
+        (s) =>
+          (itemsCat === "all" || s.cat === itemsCat) &&
+          matchesSubcategory({ subcategory: s.subcategory }, itemsSubCat),
+      ),
+    [sharedWithSub, itemsCat, itemsSubCat],
+  );
   const memberName = useCallback(
     (id: string) =>
       id === meId ? "You" : members.find((m) => m.userId === id)?.name ?? "A member",
@@ -597,8 +649,46 @@ export function SharedClosetView() {
               }
             />
           ) : (
-            <div className="-mx-4 grid grid-cols-3 border-t border-line">
-              {closetItems.map((it, i) => (
+            <>
+              {(itemCatTabs.length > 1 || itemSubChips.length > 1) && (
+                <div className="mb-3 space-y-2">
+                  {itemCatTabs.length > 1 && (
+                    <div className="flex gap-5 overflow-x-auto border-b border-line">
+                      {[{ value: "all", label: "All" }, ...itemCatTabs].map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => {
+                            setItemsCat(t.value);
+                            setItemsSubCat("all");
+                          }}
+                          className={`-mb-px shrink-0 border-b-2 pb-2 text-sm transition-colors ${
+                            itemsCat === t.value
+                              ? "border-accent font-medium text-accent"
+                              : "border-transparent text-muted hover:text-foreground"
+                          }`}
+                        >
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {itemSubChips.length > 1 && (
+                    <div className="flex gap-2 overflow-x-auto">
+                      <Chip active={itemsSubCat === "all"} onClick={() => setItemsSubCat("all")}>
+                        All
+                      </Chip>
+                      {itemSubChips.map((c) => (
+                        <Chip key={c.value} active={itemsSubCat === c.value} onClick={() => setItemsSubCat(c.value)}>
+                          {c.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="-mx-4 grid grid-cols-3 border-t border-line">
+                {shownSharedItems.map(({ it }, i) => (
                 <div
                   key={it.id}
                   className={`relative border-b border-line ${i % 3 !== 2 ? "border-r" : ""}`}
@@ -630,7 +720,8 @@ export function SharedClosetView() {
                   </button>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
 
