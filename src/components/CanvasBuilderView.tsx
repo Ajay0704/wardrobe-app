@@ -110,7 +110,13 @@ export function CanvasBuilderView() {
   const [maxOffset, setMaxOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ startY: number; startOffset: number } | null>(null);
+  const drag = useRef<{
+    startY: number;
+    startOffset: number;
+    lastY: number;
+    lastT: number;
+    vy: number; // px/ms, signed (+ = downward)
+  } | null>(null);
 
   useEffect(() => {
     const measure = () => {
@@ -155,27 +161,39 @@ export function CanvasBuilderView() {
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
-    drag.current = { startY: e.clientY, startOffset: offset };
+    drag.current = { startY: e.clientY, startOffset: offset, lastY: e.clientY, lastT: performance.now(), vy: 0 };
     setDragging(true);
     e.currentTarget.setPointerCapture(e.pointerId);
   };
   const moveDrag = (e: React.PointerEvent) => {
-    if (!drag.current) return;
-    const next = drag.current.startOffset + (e.clientY - drag.current.startY);
-    setOffset(Math.min(Math.max(next, 0), maxOffset));
+    const dc = drag.current;
+    if (!dc) return;
+    const now = performance.now();
+    const dt = now - dc.lastT;
+    if (dt > 0) dc.vy = (e.clientY - dc.lastY) / dt; // running velocity for flick detection
+    dc.lastY = e.clientY;
+    dc.lastT = now;
+    let next = dc.startOffset + (e.clientY - dc.startY);
+    // Firm stop at fully-open (top); rubber-band when over-collapsing past the peek (bottom).
+    if (next < 0) next = 0;
+    else if (next > maxOffset) next = maxOffset + (next - maxOffset) * 0.35;
+    setOffset(next);
   };
+  const FLICK = 0.4; // px/ms — above this, a flick wins over position
   const endDrag = (e: React.PointerEvent) => {
     const dc = drag.current;
     if (!dc) return;
-    const d = e.clientY - dc.startY;
     drag.current = null;
     setDragging(false);
-    if (Math.abs(d) < 6) {
-      setOffset(dc.startOffset > maxOffset * 0.5 ? 0 : maxOffset); // tap toggles
-    } else {
-      const cur = Math.min(Math.max(dc.startOffset + d, 0), maxOffset);
-      setOffset(cur > maxOffset * 0.4 ? maxOffset : 0); // snap to nearest
-    }
+    const moved = Math.abs(e.clientY - dc.startY);
+    const cur = Math.min(Math.max(dc.startOffset + (e.clientY - dc.startY), 0), maxOffset);
+    let open: boolean;
+    if (Math.abs(dc.vy) > FLICK)
+      open = dc.vy < 0; // flick up → open, flick down → collapse (momentum wins)
+    else if (moved < 6)
+      open = dc.startOffset > maxOffset * 0.5; // tap toggles
+    else open = cur < maxOffset * 0.5; // otherwise settle to nearest
+    setOffset(open ? 0 : maxOffset);
   };
 
   const flash = (m: string) => {
