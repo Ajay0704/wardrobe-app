@@ -45,27 +45,35 @@ const LEAD: Record<Category, string> = {
     "must mirror each other evenly, with NO lopsided, pinched or distorted neck opening. Render the " +
     "neckline and collar naturally and faithfully as in the input (crew, V, polo or button collar), " +
     "lying as it naturally would, neither flared open nor gaping. Complete any occluded or folded " +
-    "regions so the ENTIRE top is visible. Show no visible person, body parts, mannequin, hanger or " +
-    "props.",
+    "regions so the ENTIRE top is visible. The neck opening must be HOLLOW and EMPTY — show the plain " +
+    "white background through it, as if an invisible wearer vanished; render absolutely NO neck, bust, " +
+    "torso, shoulders, mannequin or dress-form of any colour (no cream, grey or skin-toned form), only " +
+    "the garment's own fabric. Show no visible person, body parts, hanger or props.",
   dress:
     "You are given a single dress. Render it as a professional GHOST-MANNEQUIN (invisible-mannequin) " +
     "e-commerce product photograph: shown as if worn by an invisible person, with a natural shoulder " +
     "line, realistic volume and drape through the bodice and skirt, and any sleeves hanging straight " +
     "down alongside the body. Front-facing, straight-on and bilaterally SYMMETRICAL — neckline, " +
     "waist and hem mirror evenly. Render the neckline, straps and hemline naturally and faithfully " +
-    "as in the input. Complete any occluded or folded regions so the ENTIRE dress is visible. Show " +
-    "no visible person, body parts, mannequin, hanger or props.",
+    "as in the input. Complete any occluded or folded regions so the ENTIRE dress is visible. The neck " +
+    "opening must be HOLLOW and EMPTY — show the plain white background through it; render absolutely " +
+    "NO neck, bust, torso, shoulders, mannequin or dress-form of any colour (no cream, grey or " +
+    "skin-toned form), only the garment's own fabric. Show no visible person, body parts, hanger or " +
+    "props.",
   outerwear:
     "You are given a single piece of outerwear (jacket, coat, blazer or hoodie). Render it as a " +
     "professional GHOST-MANNEQUIN (invisible-mannequin) e-commerce product photograph: shown as if " +
     "worn by an invisible person, with a natural shoulder line, realistic volume and drape, and " +
     "sleeves hanging straight down alongside the body. Front-facing, straight-on and bilaterally " +
     "SYMMETRICAL. Render the collar and lapels EXACTLY as they sit in the input — lying flat and " +
-    "folded down naturally against the shoulders; do NOT stand the collar up, flare it outward, or " +
-    "add pointed 'horns', wings or peaks that are not in the input. Keep the front closure faithful: " +
-    "show the zipper, buttons or placket exactly as in the input, closed or open to match. Complete " +
-    "any occluded or folded regions so the ENTIRE garment is visible. Show no visible person, body " +
-    "parts, mannequin, hanger or props.",
+    "folded down FLAT against the shoulders, pressed DOWN with its points resting on the garment's own " +
+    "fabric — lying as low as a shirt collar folded shut on a table. Do NOT stand the collar up, raise " +
+    "it, flare it outward, or add pointed 'horns', wings or peaks that are not in the input. Keep the " +
+    "front closure faithful: show the zipper, buttons or placket exactly as in the input, closed or " +
+    "open to match. Complete any occluded or folded regions so the ENTIRE garment is visible. The neck " +
+    "opening must be HOLLOW and EMPTY, showing the plain white background through it; render NO neck, " +
+    "bust, torso, mannequin or dress-form of any colour, only the garment's own fabric. Show no " +
+    "visible person, body parts, hanger or props.",
   bottom:
     "You are given a single pair of bottoms (trousers, jeans, shorts or a skirt). Render it as a " +
     "professional FLAT-LAY e-commerce product photograph, photographed straight from directly ABOVE " +
