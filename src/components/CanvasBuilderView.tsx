@@ -1,12 +1,11 @@
 "use client";
 
-import { Rnd } from "react-rnd";
 import {
+  ArrowUp,
+  Copy,
   FlipHorizontal,
   Image as ImageIcon,
   LayoutGrid,
-  Maximize2,
-  RotateCw,
   Shirt,
   Sparkles,
   Sticker,
@@ -18,8 +17,9 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { bestLook } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
-import type { Category, WardrobeItem } from "@/lib/types";
-import { matchesSubcategory, presentSubcategories } from "@/lib/types";
+import type { CanvasItem, Category, WardrobeItem } from "@/lib/types";
+import { matchesSubcategory, presentSubcategories, slotForCategory } from "@/lib/types";
+import { CanvasPiece } from "./CanvasPiece";
 import { Chip } from "./ui";
 
 type Mode = "items" | "background" | "text" | "sticker";
@@ -88,6 +88,8 @@ export function CanvasBuilderView() {
   } = useWardrobe();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null); // long-press control cluster
+  const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
   const [mode, setMode] = useState<Mode>("items");
@@ -128,12 +130,14 @@ export function CanvasBuilderView() {
     const fit = () => {
       const el = areaRef.current;
       if (!el) return;
-      const reserveNum =
-        maxOffset === 0
-          ? Math.round(window.innerHeight * 0.44)
-          : maxOffset + PEEK - offset;
+      // Reserve the OPEN sheet height always (never the live drag `offset`) and cap the board, so it
+      // stays a comfortable fixed size — collapsing the sheet grows the margin, not the board.
+      const reserveNum = maxOffset > 0 ? maxOffset + PEEK : Math.round(window.innerHeight * 0.44);
       const availW = el.clientWidth - 32;
-      const availH = el.clientHeight - reserveNum - BOARD_GAP - 8;
+      const availH = Math.min(
+        el.clientHeight - reserveNum - BOARD_GAP - 8,
+        Math.round(window.innerHeight * 0.55),
+      );
       if (availW <= 0 || availH <= 0) return;
       const ratio = aspect === "3:4" ? 3 / 4 : 1; // w / h
       let w = availH * ratio;
@@ -147,7 +151,7 @@ export function CanvasBuilderView() {
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, [offset, aspect, maxOffset]);
+  }, [aspect, maxOffset]);
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
@@ -216,6 +220,20 @@ export function CanvasBuilderView() {
     setSelectedId(id);
     bringToFront(id);
   };
+  const deletePiece = (id: string) => {
+    removeCanvasItem(id);
+    if (selectedId === id) setSelectedId(null);
+    if (menuId === id) setMenuId(null);
+  };
+  const duplicatePiece = (id: string) => {
+    const c = canvasDraft.find((x) => x.id === id);
+    if (!c) return;
+    const top = canvasDraft.reduce((m, x) => Math.max(m, x.zIndex), 0);
+    const copy: CanvasItem = { ...c, id: `dup-${Date.now()}`, x: c.x + 22, y: c.y + 22, zIndex: top + 1 };
+    setCanvasDraft([...canvasDraft, copy]);
+    setSelectedId(copy.id);
+    setMenuId(copy.id);
+  };
   const selectLast = () => {
     window.setTimeout(() => {
       const d = useWardrobe.getState().canvasDraft;
@@ -242,32 +260,51 @@ export function CanvasBuilderView() {
       flash("Add clothes to your closet first");
       return;
     }
-    const slot: Record<string, number> = { outerwear: 0, dress: 1, top: 1, bottom: 2, shoes: 3 };
-    picks.sort((a, b) => (slot[a.category] ?? 2) - (slot[b.category] ?? 2));
+    // Styled collage (AJA-232): top + bottom on the LEFT, outerwear + accessories on the RIGHT,
+    // shoes bottom-right — bucketed by outfit slot, placed in board pixels + clamped to the board.
     const bw = board.w || 260;
     const bh = board.h || 340;
-    const sizeFor = (c: Category) =>
-      c === "shoes" ? bw * 0.42 : c === "bottom" ? bw * 0.52 : bw * 0.62;
-    let y = bh * 0.05;
-    const layout = picks.map((it, i) => {
-      const size = Math.round(sizeFor(it.category));
-      const node = {
-        id: `sp-${Date.now()}-${i}`,
-        kind: "item" as const,
+    const S = Math.round(bw * 0.42);
+    const Sh = Math.round(bw * 0.34);
+    const leftX = Math.round(bw * 0.04);
+    const rightX = Math.round(bw * 0.54);
+    const bySlot: Partial<Record<string, WardrobeItem[]>> = {};
+    for (const it of picks) (bySlot[slotForCategory(it.category)] ??= []).push(it);
+    const nodes: CanvasItem[] = [];
+    let z = 0;
+    const clampN = (v: number, hi: number) => Math.max(0, Math.min(Math.round(v), hi));
+    const put = (it: WardrobeItem, x: number, y: number, size: number) => {
+      nodes.push({
+        id: `sp-${Date.now()}-${z}`,
+        kind: "item",
         itemId: it.id,
-        x: Math.round((bw - size) / 2),
-        y: Math.round(y),
+        x: clampN(x, bw - size),
+        y: clampN(y, bh - size),
         width: size,
         height: size,
         rotation: 0,
-        zIndex: i,
+        zIndex: z++,
         flipped: false,
-      };
-      y += size * 0.72;
-      return node;
+      });
+    };
+    if (bySlot.dress?.length) {
+      put(bySlot.dress[0], leftX, bh * 0.14, S); // dress fills the left on its own
+    } else {
+      if (bySlot.top?.length) put(bySlot.top[0], leftX, bh * 0.06, S);
+      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.46, S);
+    }
+    let ry = bh * 0.05;
+    if (bySlot.outerwear?.length) {
+      put(bySlot.outerwear[0], rightX, ry, S);
+      ry = bh * 0.44;
+    }
+    (bySlot.accessories ?? []).slice(0, 2).forEach((it, i) => {
+      put(it, rightX + i * Sh * 0.3, ry + i * Sh * 0.55, Sh);
     });
-    setCanvasDraft(layout);
+    if (bySlot.shoes?.length) put(bySlot.shoes[0], rightX, bh * 0.66, Sh);
+    setCanvasDraft(nodes);
     setSelectedId(null);
+    setMenuId(null);
     flash("Here's a look — tweak it");
   };
   const addText = () => {
@@ -286,28 +323,6 @@ export function CanvasBuilderView() {
   const close = () => {
     setSelectedId(null);
     setView("outfits");
-  };
-
-  // Drag the rotate handle: angle from the item's center to the pointer. react-rnd doesn't
-  // rotate, so we compute it and write CanvasItem.rotation (applied as a transform on render).
-  const startRotate = (e: React.PointerEvent, id: string) => {
-    e.stopPropagation();
-    e.preventDefault();
-    const wrapper = (e.currentTarget as HTMLElement).closest("[data-canvas-wrapper]");
-    if (!wrapper) return;
-    const box = wrapper.getBoundingClientRect();
-    const cx = box.left + box.width / 2;
-    const cy = box.top + box.height / 2;
-    const move = (ev: PointerEvent) => {
-      const deg = Math.round((Math.atan2(ev.clientY - cy, ev.clientX - cx) * 180) / Math.PI + 90);
-      updateCanvasItem(id, { rotation: deg });
-    };
-    const up = () => {
-      window.removeEventListener("pointermove", move);
-      window.removeEventListener("pointerup", up);
-    };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up);
   };
 
   const doSave = () => {
@@ -386,15 +401,12 @@ export function CanvasBuilderView() {
         </button>
       </div>
 
-      {/* board — reserves the space above the sheet (shrinks as the sheet
-          slides down), then contain-fits the 3:4/1:1 board into it */}
+      {/* board — reserves the OPEN sheet height (fixed, so the board never resizes when the sheet
+          is dragged) and centres the board in that space; collapsing the sheet grows the margin */}
       <div
         ref={areaRef}
         className="relative min-h-0 flex-1"
-        style={{
-          paddingBottom: `calc(${reserveCss} + ${BOARD_GAP}px)`,
-          transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
-        }}
+        style={{ paddingBottom: `calc(var(--sheet-h) + ${BOARD_GAP}px)` }}
       >
         {/* aspect chip — a small, always-there formatting control on the canvas */}
         <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
@@ -412,16 +424,20 @@ export function CanvasBuilderView() {
           ))}
         </div>
 
-        <div className="flex h-full items-start justify-center px-4 pt-1">
+        <div className="flex h-full items-center justify-center px-4">
           <div
+            onPointerDown={(e) => {
+              if (e.target === e.currentTarget) {
+                setSelectedId(null);
+                setMenuId(null);
+              }
+            }}
             className="relative overflow-hidden rounded-3xl border border-line touch-none"
             style={{
               width: board.w || undefined,
               height: board.h || undefined,
               background: canvasBg || "#ffffff",
-              transition: dragging
-                ? "none"
-                : "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
+              transition: "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
             }}
           >
           {canvasDraft.length === 0 && (
@@ -442,7 +458,6 @@ export function CanvasBuilderView() {
           )}
 
           {canvasDraft.map((c) => {
-            const isSel = selectedId === c.id;
             let content: React.ReactNode;
             if (c.kind === "text") {
               content = (
@@ -489,99 +504,78 @@ export function CanvasBuilderView() {
             }
 
             return (
-              <Rnd
+              <CanvasPiece
                 key={c.id}
-                size={{ width: c.width, height: c.height }}
-                position={{ x: c.x, y: c.y }}
-                bounds="parent"
-                lockAspectRatio={c.kind !== "text"}
-                // The selected-item controls (flip/rotate/delete) carry
-                // `canvas-ctrl`. react-draggable binds touchstart as a native,
-                // non-passive listener on this node and preventDefaults it,
-                // which cancels the synthetic click on iOS — so a plain onClick
-                // never fires on the phone. `cancel` makes react-draggable bail
-                // out before that preventDefault when the touch starts on a
-                // control, letting the tap through.
-                cancel=".canvas-ctrl"
-                onDragStart={() => select(c.id)}
-                onDragStop={(_e, d) => updateCanvasItem(c.id, { x: d.x, y: d.y })}
-                onResizeStop={(_e, _dir, ref, _delta, pos) =>
-                  updateCanvasItem(c.id, {
-                    width: parseInt(ref.style.width, 10),
-                    height: parseInt(ref.style.height, 10),
-                    ...pos,
-                  })
-                }
-                enableResizing={{ bottomRight: isSel }}
-                resizeHandleComponent={{
-                  bottomRight: (
-                    <div className="flex h-9 w-9 translate-x-1 translate-y-1 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md">
-                      <Maximize2 size={15} />
-                    </div>
-                  ),
+                c={c}
+                board={board}
+                selected={selectedId === c.id}
+                onSelect={select}
+                onLongPress={(id) => {
+                  setSelectedId(id);
+                  setMenuId(id);
                 }}
-                style={{ zIndex: c.zIndex }}
-                className="touch-none"
+                onCommit={updateCanvasItem}
+                onRemove={deletePiece}
+                trashRef={trashRef}
               >
-                <div
-                  data-canvas-wrapper
-                  className={`animate-canvas-pop relative h-full w-full rounded-xl ${isSel ? "ring-2 ring-accent ring-offset-2" : ""}`}
-                  onPointerDown={() => select(c.id)}
-                >
-                  {isSel && (
-                    <div className="absolute -top-12 left-0 right-0 z-50 flex items-center justify-between">
-                      {c.kind !== "text" ? (
-                        <button
-                          type="button"
-                          aria-label="Flip"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateCanvasItem(c.id, { flipped: !c.flipped });
-                          }}
-                          className="canvas-ctrl flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white shadow-md"
-                        >
-                          <FlipHorizontal size={17} />
-                        </button>
-                      ) : (
-                        <span />
-                      )}
-                      <button
-                        type="button"
-                        aria-label="Rotate"
-                        onPointerDown={(e) => startRotate(e, c.id)}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onTouchStart={(e) => e.stopPropagation()}
-                        className="canvas-ctrl flex h-9 w-9 cursor-grab items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md active:cursor-grabbing"
-                      >
-                        <RotateCw size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label="Delete"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          removeCanvasItem(c.id);
-                          setSelectedId(null);
-                        }}
-                        className="canvas-ctrl flex h-9 w-9 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-md"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  )}
-                  <div
-                    className="h-full w-full"
-                    style={{
-                      transform: `rotate(${c.rotation}deg)`,
-                      filter: "drop-shadow(0 6px 10px rgba(0,0,0,0.18))",
-                    }}
-                  >
-                    {content}
-                  </div>
-                </div>
-              </Rnd>
+                {content}
+              </CanvasPiece>
             );
           })}
+
+          {/* long-press control cluster — floats just above the pressed piece */}
+          {menuId &&
+            (() => {
+              const c = canvasDraft.find((x) => x.id === menuId);
+              if (!c) return null;
+              const btn =
+                "flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-foreground transition-transform active:scale-90";
+              return (
+                <div
+                  className="animate-canvas-pop absolute z-[60] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white/95 p-1.5 shadow-lg backdrop-blur-sm"
+                  style={{
+                    left: Math.max(72, Math.min((board.w || 260) - 72, c.x + c.width / 2)),
+                    top: Math.max(4, c.y - 50),
+                  }}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  {c.kind !== "text" && (
+                    <button type="button" aria-label="Flip" className={btn} onClick={() => updateCanvasItem(c.id, { flipped: !c.flipped })}>
+                      <FlipHorizontal size={16} />
+                    </button>
+                  )}
+                  <button type="button" aria-label="Duplicate" className={btn} onClick={() => duplicatePiece(c.id)}>
+                    <Copy size={16} />
+                  </button>
+                  <button type="button" aria-label="Bring to front" className={btn} onClick={() => bringToFront(c.id)}>
+                    <ArrowUp size={16} />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Delete"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/12 text-red-600 transition-transform active:scale-90"
+                    onClick={() => deletePiece(c.id)}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              );
+            })()}
+
+          {/* drag-to-delete drop zone — shown/hot toggled imperatively by CanvasPiece via trashRef */}
+          <div
+            ref={trashRef}
+            className="pointer-events-none absolute bottom-3 left-1/2 z-[55] flex h-16 w-16 items-center justify-center rounded-full border"
+            style={{
+              opacity: 0,
+              transform: "translateX(-50%) translateY(20px)",
+              background: "rgba(239,68,68,0.10)",
+              borderColor: "rgba(248,113,113,0.6)",
+              transition: "opacity 0.2s, transform 0.2s, background 0.2s, border-color 0.2s",
+            }}
+          >
+            <Trash2 size={24} className="text-red-500" />
+          </div>
 
           </div>
         </div>
