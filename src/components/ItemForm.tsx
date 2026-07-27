@@ -750,9 +750,11 @@ export function ItemForm({
   };
 
   const title = initial ? "Edit item" : "Add item";
-  // On the detail screen show the garment-on-white product shot; the transparent sticker
-  // (imageUrl) is for the canvas. Fall back to imageUrl before/without Beautify.
-  const previewUrl = beautifyApplied && beautifyWhiteUrl ? beautifyWhiteUrl : imageUrl;
+  // Show the transparent, trim-centered cutout (imageUrl) — the same sticker the outfit canvas
+  // uses — so the item always sits centered in the hero. (We used to show the garment-on-white
+  // product shot here, but that white shot inherits any Gemini background scrap and reads
+  // off-center; the cutout is what the user wants to see.)
+  const previewUrl = imageUrl;
 
   // The link auto-fill only makes sense when you're saving something you found
   // online — hide it entirely when editing a piece you already own (AJA-207).

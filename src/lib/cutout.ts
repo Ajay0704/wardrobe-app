@@ -9,6 +9,7 @@
  */
 import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
+import { trimAndCenter } from "./trim-center";
 
 const IMGLY_VERSION = "1.7.0";
 
@@ -95,7 +96,12 @@ async function finalize(
   engineId: string,
   userId: string | null,
 ): Promise<CutoutResult> {
-  const file = new File([blob], "cutout.png", { type: "image/png" });
+  // Trim to the garment's bounding box and re-center on a fixed transparent square so every
+  // cutout shares the same scale + framing (matches the beautify refine geometry). Deterministic,
+  // preserves alpha — a transparent cutout stays transparent. Best-effort: keeps the raw cutout
+  // if reframing isn't possible.
+  const centered = await trimAndCenter(blob);
+  const file = new File([centered], "cutout.png", { type: "image/png" });
   const url = await resolveImageSource(file, userId);
   return { url, engine: engineId };
 }

@@ -27,6 +27,8 @@ import { profileHandle } from "@/lib/profile";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
+import { resolveImageSource } from "@/lib/supabase/storage";
+import { trimAndCenter } from "@/lib/trim-center";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ProfileAvatar } from "./ProfileAvatar";
@@ -117,9 +119,12 @@ export function YouView() {
   };
 
   /**
-   * Batch "Standardize my closet" (AJA-225): redraw every owned item not yet on the current
-   * pipeline into the new per-category product form, keeping the cutout/original for per-item
-   * revert. Two workers + cancel; each updateItem coalesces into one debounced sync push.
+   * Batch "Standardize my closet" (AJA-225): bring every owned item onto the current pipeline so
+   * the closet + canvas read as one tidy, centered set. Garments (tops/bottoms/dresses/outerwear)
+   * get the per-category beautify redraw (which trims + centers via refine); products (shoes/bags/
+   * accessories) get a deterministic trim-and-center of their existing cutout — NO generative
+   * redraw, which mangles products. Both keep the source for per-item revert and stamp the current
+   * pipeline so they're skipped next run. Two workers + cancel; updateItems coalesce into one sync.
    */
   const standardizeCloset = async () => {
     if (stdBusy || !authUser) return;
@@ -127,7 +132,6 @@ export function YouView() {
       (it) =>
         !it.wishlist &&
         it.imageUrl &&
-        AUTO_BEAUTIFY_CATEGORIES.has(it.category) &&
         !(it.beautifyModel ?? "").includes(BEAUTIFY_PIPELINE),
     );
     if (targets.length === 0) {
@@ -142,16 +146,32 @@ export function YouView() {
     const worker = async () => {
       while (idx < targets.length && !stdCancel.current) {
         const it = targets[idx++];
-        const base = it.cutoutImageUrl ?? it.originalImageUrl ?? it.imageUrl;
         try {
-          const r = await beautify(base, authUser.id, it.category);
-          updateItem(it.id, {
-            imageUrl: r.url,
-            cutoutImageUrl: base,
-            beautifiedImageUrl: r.url,
-            beautifyWhiteUrl: r.whiteUrl,
-            beautifyModel: r.model,
-          });
+          if (AUTO_BEAUTIFY_CATEGORIES.has(it.category)) {
+            // Garment → per-category beautify; refine trims + centers the sticker.
+            const base = it.cutoutImageUrl ?? it.originalImageUrl ?? it.imageUrl;
+            const r = await beautify(base, authUser.id, it.category);
+            updateItem(it.id, {
+              imageUrl: r.url,
+              cutoutImageUrl: base,
+              beautifiedImageUrl: r.url,
+              beautifyWhiteUrl: r.whiteUrl,
+              beautifyModel: r.model,
+            });
+          } else {
+            // Product → just trim + center the existing cutout (deterministic, no drift).
+            const res = await fetch(it.imageUrl);
+            const centered = await trimAndCenter(await res.blob());
+            const url = await resolveImageSource(
+              new File([centered], "cutout.png", { type: "image/png" }),
+              authUser.id,
+            );
+            updateItem(it.id, {
+              imageUrl: url,
+              cutoutImageUrl: it.cutoutImageUrl ?? it.imageUrl,
+              beautifyModel: `centered+${BEAUTIFY_PIPELINE}`,
+            });
+          }
         } catch (e) {
           if ((e as Error).message === "beautify 501") {
             stdCancel.current = true;
