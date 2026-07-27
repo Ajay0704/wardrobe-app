@@ -1,8 +1,9 @@
 "use client";
 
-import { Check, Images, Loader2, X } from "lucide-react";
+import { Camera, Check, Images, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { detectGarments } from "@/lib/detect-garments";
+import { captureNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
 import type { Category, Season } from "@/lib/types";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/types";
@@ -32,12 +33,20 @@ const fileToDataUrl = (file: File): Promise<string> =>
 const MAX_PHOTOS = 12;
 
 /**
- * Camera-roll auto-onboarding (AJA-162) — "closet builds itself". Pick several
- * photos; each is run through the whole-outfit detector (detectGarments) and the
- * garments are aggregated into one review list to bulk-add. This is the
- * buildable-now core; the on-device selfie-filter + dedup model is deferred.
+ * Multi-photo add (AJA-162 / AJA-234) — "closet builds itself". Two entry modes:
+ *   - `library` — pick several photos at once (native multi-select via the file input),
+ *   - `camera`  — snap photos one after another (repeated native capture),
+ * each photo is run through the whole-outfit detector (detectGarments) and its garments
+ * are appended to one review list to bulk-add. The single-photo split flow (with beautify)
+ * still lives in OutfitSplitImport for "add whole outfit".
  */
-export function ClosetScanImport({ onClose }: { onClose: () => void }) {
+export function ClosetScanImport({
+  source,
+  onClose,
+}: {
+  source?: "camera" | "library";
+  onClose: () => void;
+}) {
   const { addItem, authUser } = useWardrobe();
   const [rows, setRows] = useState<ScanRow[]>([]);
   const [scanning, setScanning] = useState(false);
@@ -46,13 +55,16 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
   const [busy, setBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
+  const isCamera = source === "camera";
 
   const patch = (id: string, p: Partial<ScanRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
 
-  const onFiles = async (files: FileList | null) => {
-    if (!files || !files.length) return;
-    const list = Array.from(files).slice(0, MAX_PHOTOS);
+  // Scan a batch of photos and APPEND their garments to the review list, so both
+  // multi-select (library) and repeated capture (camera) accumulate into one list.
+  const scanFiles = async (files: File[]) => {
+    const list = files.slice(0, MAX_PHOTOS);
+    if (!list.length) return;
     setScanning(true);
     setError("");
     const collected: ScanRow[] = [];
@@ -80,7 +92,7 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
         /* skip a photo that couldn't be processed */
       }
     }
-    setRows(collected);
+    setRows((rs) => [...rs, ...collected]);
     setScanning(false);
     setProgress(null);
     if (!collected.length) {
@@ -88,14 +100,30 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const pick = () => fileRef.current?.click();
+  const pickLibrary = () => fileRef.current?.click();
 
-  // Auto-open the picker once.
+  const captureMore = async () => {
+    try {
+      const file = await captureNativePhoto();
+      if (file) await scanFiles([file]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the camera.");
+    }
+  };
+
+  // Auto-open the chosen source once.
   useEffect(() => {
     if (started.current) return;
     started.current = true;
-    pick();
-  }, []);
+    if (isCamera) {
+      // Native camera plugin — no DOM gesture required; defer so its async setState
+      // isn't attributed to the effect body (react-hooks/set-state-in-effect).
+      const id = setTimeout(() => void captureMore(), 0);
+      return () => clearTimeout(id);
+    }
+    pickLibrary(); // gesture-preserving programmatic click; no setState
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [source]);
 
   const included = rows.filter((r) => r.include);
 
@@ -120,7 +148,12 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal title="Scan your photos" onClose={onClose} wide dismissOnBackdrop={false}>
+    <Modal
+      title={isCamera ? "Take photos" : "Add photos"}
+      onClose={onClose}
+      wide
+      dismissOnBackdrop={false}
+    >
       {rows.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed border-line bg-surface-2 px-6 py-12 text-center">
           {scanning ? (
@@ -132,17 +165,29 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
           ) : (
             <>
               <div>
-                <p className="font-medium">Build your closet from photos</p>
+                <p className="font-medium">
+                  {isCamera ? "Snap each piece" : "Build your closet from photos"}
+                </p>
                 <p className="mt-1 text-sm text-muted">
-                  Pick a few photos and I&apos;ll detect the clothes and add each piece.
+                  {isCamera
+                    ? "Take a photo of each item — I'll detect the clothes and you can keep adding more."
+                    : "Pick several photos and I'll detect the clothes and add each piece."}
                 </p>
               </div>
               <button
                 type="button"
-                onClick={pick}
+                onClick={isCamera ? () => void captureMore() : pickLibrary}
                 className="inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-2 text-sm font-medium text-white"
               >
-                <Images size={15} /> Choose photos
+                {isCamera ? (
+                  <>
+                    <Camera size={15} /> Take photo
+                  </>
+                ) : (
+                  <>
+                    <Images size={15} /> Choose photos
+                  </>
+                )}
               </button>
               {error && <p className="text-sm text-red-500">{error}</p>}
             </>
@@ -154,7 +199,7 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
             multiple
             className="hidden"
             onChange={(e) => {
-              void onFiles(e.target.files);
+              void scanFiles(Array.from(e.target.files ?? []));
               e.target.value = "";
             }}
           />
@@ -162,7 +207,15 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
       ) : (
         <div className="space-y-4">
           <p className="text-sm text-muted">
-            Found {rows.length} piece{rows.length === 1 ? "" : "s"} — {included.length} to add
+            {scanning ? (
+              <span className="inline-flex items-center gap-1.5">
+                <Loader2 size={14} className="animate-spin" /> {progress ?? "Scanning…"}
+              </span>
+            ) : (
+              <>
+                Found {rows.length} piece{rows.length === 1 ? "" : "s"} — {included.length} to add
+              </>
+            )}
           </p>
           <div className="grid max-h-[52vh] grid-cols-1 gap-3 overflow-y-auto pr-1 sm:grid-cols-2">
             {rows.map((r) => (
@@ -213,11 +266,27 @@ export function ClosetScanImport({ onClose }: { onClose: () => void }) {
               </div>
             ))}
           </div>
-          <div className="flex items-center justify-end gap-2 border-t border-line pt-4">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-line pt-4">
+            <Button
+              variant="outline"
+              onClick={isCamera ? () => void captureMore() : pickLibrary}
+              disabled={scanning || busy}
+              className="mr-auto"
+            >
+              {isCamera ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Camera size={15} /> Take another
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5">
+                  <Images size={15} /> Add more
+                </span>
+              )}
+            </Button>
             <Button variant="outline" onClick={onClose}>
               Cancel
             </Button>
-            <Button onClick={addAll} disabled={busy || included.length === 0}>
+            <Button onClick={addAll} disabled={busy || scanning || included.length === 0}>
               Add {included.length || ""} to closet
             </Button>
           </div>

@@ -117,6 +117,8 @@ interface WardrobeState {
   scanOpen: boolean;
   /** Which source the split flow should auto-trigger (camera vs library). */
   splitSource: "camera" | "library" | null;
+  /** Which source the multi-photo scan flow should auto-trigger (camera vs library). */
+  scanSource: "camera" | "library" | null;
   /** Global "closets selector" sheet (opened from the Closet header dropdown). */
   closetsOpen: boolean;
   /** A product URL shared into the app (iOS Share Extension / Web Share Target) to
@@ -219,7 +221,8 @@ interface WardrobeState {
   /** Open the "add whole outfit" split flow, optionally auto-triggering a source. */
   openSplit: (source?: "camera" | "library") => void;
   setSplitOpen: (open: boolean) => void;
-  openScan: () => void;
+  /** Open the multi-photo scan flow, optionally auto-triggering a source. */
+  openScan: (source?: "camera" | "library") => void;
   setScanOpen: (open: boolean) => void;
   setClosetsOpen: (open: boolean) => void;
   setFilters: (patch: Partial<Filters>) => void;
@@ -406,6 +409,7 @@ export const useWardrobe = create<WardrobeState>()(
       splitOpen: false,
       splitSource: null,
       scanOpen: false,
+      scanSource: null,
       closetsOpen: false,
       pendingClipUrl: null,
       pendingOpenItemId: null,
@@ -647,8 +651,9 @@ export const useWardrobe = create<WardrobeState>()(
       openSplit: (source) => set({ splitOpen: true, splitSource: source ?? null }),
       setSplitOpen: (splitOpen) =>
         set({ splitOpen, ...(splitOpen ? {} : { splitSource: null }) }),
-      openScan: () => set({ scanOpen: true }),
-      setScanOpen: (scanOpen) => set({ scanOpen }),
+      openScan: (source) => set({ scanOpen: true, scanSource: source ?? null }),
+      setScanOpen: (scanOpen) =>
+        set({ scanOpen, ...(scanOpen ? {} : { scanSource: null }) }),
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
       setPendingOpenItemId: (pendingOpenItemId) => set({ pendingOpenItemId }),

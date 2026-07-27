@@ -15,7 +15,6 @@ import {
   Plus,
   Settings,
   Shirt,
-  Sparkles,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -76,7 +75,7 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, openAdd, openSplit, openScan, dismissItemEditor } =
+  const { view, setView, openAdd, openScan, dismissItemEditor } =
     useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
@@ -262,9 +261,8 @@ export function NativeShell() {
         <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
           Add item
         </p>
-        <SheetRow icon={Camera} label="Take photo" onClick={() => runSheet(() => openSplit("camera"))} />
-        <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openSplit("library"))} />
-        <SheetRow icon={Sparkles} label="Build closet from photos" onClick={() => runSheet(() => openScan())} />
+        <SheetRow icon={Camera} label="Take photos" onClick={() => runSheet(() => openScan("camera"))} />
+        <SheetRow icon={ImageIcon} label="Photo library" onClick={() => runSheet(() => openScan("library"))} />
         <SheetRow icon={Globe} label="Paste a link" onClick={() => runSheet(() => openAdd("link"))} />
 
         <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">

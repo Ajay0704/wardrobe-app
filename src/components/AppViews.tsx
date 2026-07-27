@@ -49,6 +49,7 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
   const splitSource = useWardrobe((s) => s.splitSource);
   const setSplitOpen = useWardrobe((s) => s.setSplitOpen);
   const scanOpen = useWardrobe((s) => s.scanOpen);
+  const scanSource = useWardrobe((s) => s.scanSource);
   const setScanOpen = useWardrobe((s) => s.setScanOpen);
 
   return (
@@ -89,7 +90,9 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       {splitOpen && (
         <OutfitSplitImport source={splitSource ?? undefined} onClose={() => setSplitOpen(false)} />
       )}
-      {scanOpen && <ClosetScanImport onClose={() => setScanOpen(false)} />}
+      {scanOpen && (
+        <ClosetScanImport source={scanSource ?? undefined} onClose={() => setScanOpen(false)} />
+      )}
     </>
   );
 }
