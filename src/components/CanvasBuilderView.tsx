@@ -19,15 +19,21 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { bestLook } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
+import { matchesSubcategory, presentSubcategories } from "@/lib/types";
+import { Chip } from "./ui";
 
 type Mode = "items" | "background" | "text" | "sticker";
 
-/* Category tabs → which item categories each shows. */
-const TABS: { key: string; label: string; cats: Category[] | null }[] = [
-  { key: "all", label: "All", cats: null },
-  { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
-  { key: "pants", label: "Bottoms", cats: ["bottom"] },
-  { key: "shoes", label: "Shoes", cats: ["shoes"] },
+/* One tab per category (AJA-229), with a sub-category chip row underneath. */
+const TABS: { key: string; label: string; cat: Category | null }[] = [
+  { key: "all", label: "All", cat: null },
+  { key: "top", label: "Tops", cat: "top" },
+  { key: "bottom", label: "Bottoms", cat: "bottom" },
+  { key: "dress", label: "Dresses", cat: "dress" },
+  { key: "outerwear", label: "Outerwear", cat: "outerwear" },
+  { key: "shoes", label: "Shoes", cat: "shoes" },
+  { key: "bag", label: "Bags", cat: "bag" },
+  { key: "accessory", label: "Accessories", cat: "accessory" },
 ];
 
 const SHEET_TITLE: Record<Mode, string> = {
@@ -83,6 +89,7 @@ export function CanvasBuilderView() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tab, setTab] = useState("all");
+  const [subCat, setSubCat] = useState("all");
   const [mode, setMode] = useState<Mode>("items");
   const [stickerCat, setStickerCat] = useState(STICKER_CATS[0]);
   const [textInput, setTextInput] = useState("");
@@ -183,8 +190,17 @@ export function CanvasBuilderView() {
       (it) =>
         !it.wishlist &&
         it.imageUrl &&
-        (t.cats === null || t.cats.includes(it.category)),
+        (t.cat === null || it.category === t.cat) &&
+        matchesSubcategory(it, subCat),
     );
+  }, [items, tab, subCat]);
+
+  // Sub-category chips present in the active category's addable pieces (+ Others).
+  const subChips = useMemo(() => {
+    const t = TABS.find((x) => x.key === tab);
+    return t?.cat
+      ? presentSubcategories(t.cat, items.filter((it) => !it.wishlist && it.imageUrl))
+      : [];
   }, [items, tab]);
 
   const ownedCount = useMemo(
@@ -636,12 +652,15 @@ export function CanvasBuilderView() {
                   <Sparkles size={14} /> Surprise me
                 </button>
               </div>
-              <div className="flex gap-6 border-b border-line px-5">
+              <div className="flex gap-6 overflow-x-auto border-b border-line px-5">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
-                    onClick={() => setTab(t.key)}
-                    className={`relative pb-3 pt-1 text-[15px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
+                    onClick={() => {
+                      setTab(t.key);
+                      setSubCat("all");
+                    }}
+                    className={`relative shrink-0 pb-3 pt-1 text-[15px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
                   >
                     {t.label}
                     {tab === t.key && (
@@ -650,6 +669,18 @@ export function CanvasBuilderView() {
                   </button>
                 ))}
               </div>
+              {subChips.length > 1 && (
+                <div className="flex gap-2 overflow-x-auto px-5 pt-3">
+                  <Chip active={subCat === "all"} onClick={() => setSubCat("all")}>
+                    All
+                  </Chip>
+                  {subChips.map((c) => (
+                    <Chip key={c.value} active={subCat === c.value} onClick={() => setSubCat(c.value)}>
+                      {c.label}
+                    </Chip>
+                  ))}
+                </div>
+              )}
               <div className="min-h-0 flex-1 overflow-y-auto pb-[max(10px,env(safe-area-inset-bottom))]">
                 {pieces.length === 0 ? (
                   <p className="px-5 py-8 text-center text-sm text-muted">

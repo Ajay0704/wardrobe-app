@@ -6,18 +6,21 @@ import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
 import { suggestLooks } from "@/lib/matching";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import { formatDisplayDate } from "@/lib/types";
+import { formatDisplayDate, matchesSubcategory, presentSubcategories } from "@/lib/types";
 import * as Trips from "@/lib/trips";
-import { Button, EmptyState, Field, inputClass } from "./ui";
+import { Button, Chip, EmptyState, Field, inputClass } from "./ui";
 
-// Closet category grouping — mirrors WardrobeView's MAIN_TABS so packing feels
-// exactly like browsing the closet (Tops = tops/outerwear/dresses, etc.).
+// One tab per category — mirrors WardrobeView so packing feels exactly like browsing the closet,
+// with a sub-category chip row underneath (AJA-229).
 const MAIN_TABS = [
-  { key: "all", label: "All", cats: null },
-  { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
-  { key: "pants", label: "Pants", cats: ["bottom"] },
-  { key: "shoes", label: "Shoes", cats: ["shoes"] },
-  { key: "accessories", label: "Accessories", cats: ["accessory", "bag"] },
+  { key: "all", label: "All", cat: null },
+  { key: "top", label: "Tops", cat: "top" },
+  { key: "bottom", label: "Bottoms", cat: "bottom" },
+  { key: "dress", label: "Dresses", cat: "dress" },
+  { key: "outerwear", label: "Outerwear", cat: "outerwear" },
+  { key: "shoes", label: "Shoes", cat: "shoes" },
+  { key: "bag", label: "Bags", cat: "bag" },
+  { key: "accessory", label: "Accessories", cat: "accessory" },
 ] as const;
 type MainTabKey = (typeof MAIN_TABS)[number]["key"];
 
@@ -86,6 +89,7 @@ export function TravelView() {
   const [members, setMembers] = useState<Trips.TripMember[]>([]);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [mainTab, setMainTab] = useState<MainTabKey>("all");
+  const [subCat, setSubCat] = useState<string>("all");
   const [packView, setPackView] = useState<"mine" | "everyone">("mine");
   const [capsules, setCapsules] = useState<string[][]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -100,10 +104,14 @@ export function TravelView() {
   const myPacked = useMemo(() => owned.filter((it) => myRefs.has(it.id)), [owned, myRefs]);
   const shown = useMemo(() => {
     const g = MAIN_TABS.find((t) => t.key === mainTab);
-    if (!g?.cats) return owned;
-    const cats = g.cats as readonly string[];
-    return owned.filter((it) => cats.includes(it.category));
-  }, [owned, mainTab]);
+    let arr = g?.cat ? owned.filter((it) => it.category === g.cat) : owned;
+    if (subCat !== "all") arr = arr.filter((it) => matchesSubcategory(it, subCat));
+    return arr;
+  }, [owned, mainTab, subCat]);
+  const subChips = useMemo(() => {
+    const g = MAIN_TABS.find((t) => t.key === mainTab);
+    return g?.cat ? presentSubcategories(g.cat, owned) : [];
+  }, [mainTab, owned]);
   const joinedMembers = useMemo(
     () => members.filter((m) => m.status === "joined"),
     [members],
@@ -245,6 +253,7 @@ export function TravelView() {
     setSelectedId(id);
     setConfirmId(null);
     setMainTab("all");
+    setSubCat("all");
     setPackView("mine");
     setInviteOpen(false);
     setCapsules([]);
@@ -699,7 +708,10 @@ export function TravelView() {
                       <button
                         key={t.key}
                         type="button"
-                        onClick={() => setMainTab(t.key)}
+                        onClick={() => {
+                          setMainTab(t.key);
+                          setSubCat("all");
+                        }}
                         className={`-mb-px border-b-2 pb-2 text-sm transition-colors ${
                           mainTab === t.key
                             ? "border-accent font-medium text-accent"
@@ -710,6 +722,18 @@ export function TravelView() {
                       </button>
                     ))}
                   </div>
+                  {subChips.length > 1 && (
+                    <div className="mb-3 flex gap-2 overflow-x-auto">
+                      <Chip active={subCat === "all"} onClick={() => setSubCat("all")}>
+                        All
+                      </Chip>
+                      {subChips.map((c) => (
+                        <Chip key={c.value} active={subCat === c.value} onClick={() => setSubCat(c.value)}>
+                          {c.label}
+                        </Chip>
+                      ))}
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-7">
                     {shown.map((it) => {
                       const on = myRefs.has(it.id);

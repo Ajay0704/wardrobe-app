@@ -177,6 +177,37 @@ export function subcategoryLabel(category: Category, value: string | undefined):
   return (SUBCATEGORIES[category] ?? []).find((o) => o.value === value)?.label ?? value;
 }
 
+/**
+ * Sub-category chips actually present among a category's items, ordered per SUBCATEGORIES with an
+ * "Others" bucket appended when any item has no/unknown sub-category. Shared by every closet-style
+ * surface (closet, packing, canvas) so the sub-filter row stays consistent (AJA-228/229).
+ */
+export function presentSubcategories(
+  category: Category,
+  items: { category: Category; subcategory?: string }[],
+): { value: string; label: string }[] {
+  const present = new Set(
+    items.filter((it) => it.category === category).map((it) => it.subcategory || "others"),
+  );
+  const ordered = (SUBCATEGORIES[category] ?? [])
+    .filter((o) => present.has(o.value))
+    .map((o) => ({ value: o.value, label: o.label }));
+  if (present.has(SUBCATEGORY_OTHERS.value)) ordered.push({ ...SUBCATEGORY_OTHERS });
+  return ordered;
+}
+
+/** Whether an item passes the active sub-category chip ("all" = any; "others" = no/unknown sub). */
+export function matchesSubcategory(
+  item: { subcategory?: string },
+  subCat: string,
+): boolean {
+  if (subCat === "all") return true;
+  if (subCat === SUBCATEGORY_OTHERS.value) {
+    return !item.subcategory || item.subcategory === SUBCATEGORY_OTHERS.value;
+  }
+  return item.subcategory === subCat;
+}
+
 export type Season = "spring" | "summer" | "fall" | "winter";
 
 export const SEASONS: Season[] = ["spring", "summer", "fall", "winter"];

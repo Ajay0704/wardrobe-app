@@ -6,7 +6,7 @@ import { useWardrobe } from "@/lib/store";
 import { isSampleItem } from "@/lib/demo-data";
 import { shareItem } from "@/lib/share";
 import type { WardrobeItem } from "@/lib/types";
-import { SUBCATEGORIES } from "@/lib/types";
+import { matchesSubcategory, presentSubcategories } from "@/lib/types";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ClosetsSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
@@ -103,26 +103,14 @@ export function WardrobeView() {
     const g = MAIN_TABS.find((t) => t.key === mainTab);
     let arr = [...base].sort((x, y) => y.createdAt - x.createdAt);
     if (g?.cat) arr = arr.filter((it) => it.category === g.cat);
-    if (subCat !== "all") {
-      arr = arr.filter((it) =>
-        subCat === "others" ? !it.subcategory || it.subcategory === "others" : it.subcategory === subCat,
-      );
-    }
+    if (subCat !== "all") arr = arr.filter((it) => matchesSubcategory(it, subCat));
     return arr;
   }, [base, mainTab, subCat]);
 
   // Sub-category chips present in the active category, ordered per the taxonomy, + "Others".
   const subChips = useMemo(() => {
     const g = MAIN_TABS.find((t) => t.key === mainTab);
-    if (!g?.cat) return [] as { value: string; label: string }[];
-    const present = new Set(
-      base.filter((it) => it.category === g.cat).map((it) => it.subcategory || "others"),
-    );
-    const ordered = (SUBCATEGORIES[g.cat] ?? [])
-      .filter((o) => present.has(o.value))
-      .map((o) => ({ value: o.value, label: o.label }));
-    if (present.has("others")) ordered.push({ value: "others", label: "Others" });
-    return ordered;
+    return g?.cat ? presentSubcategories(g.cat, base) : [];
   }, [mainTab, base]);
 
   const openAdd = () => {
