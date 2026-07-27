@@ -276,14 +276,17 @@ export function CanvasBuilderView() {
       flash("Add clothes to your closet first");
       return;
     }
-    // Styled collage (AJA-232): top + bottom on the LEFT, outerwear + accessories on the RIGHT,
-    // shoes bottom-right — bucketed by outfit slot, placed in board pixels + clamped to the board.
+    // Styled collage (AJA-232): top + bottom on the LEFT as the HERO (biggest), outerwear +
+    // accessories on the RIGHT (smaller supports), shoes bottom-right. Bucketed by slot, placed in
+    // board pixels + clamped. Hero is capped by height too so two stack cleanly on 3:4 AND 1:1.
     const bw = board.w || 260;
     const bh = board.h || 340;
-    const S = Math.round(bw * 0.42);
-    const Sh = Math.round(bw * 0.34);
-    const leftX = Math.round(bw * 0.04);
-    const rightX = Math.round(bw * 0.54);
+    const HERO = Math.round(Math.min(bw * 0.52, bh * 0.42));
+    const OUTER = Math.round(Math.min(bw * 0.4, bh * 0.3));
+    const SHOE = Math.round(bw * 0.36);
+    const ACC = Math.round(bw * 0.28);
+    const leftX = Math.round(bw * 0.03);
+    const rCx = bw * 0.74; // right-column centre-x; right pieces are centred on it
     const bySlot: Partial<Record<string, WardrobeItem[]>> = {};
     for (const it of picks) (bySlot[slotForCategory(it.category)] ??= []).push(it);
     const nodes: CanvasItem[] = [];
@@ -303,21 +306,22 @@ export function CanvasBuilderView() {
         flipped: false,
       });
     };
+    const putR = (it: WardrobeItem, y: number, size: number) => put(it, rCx - size / 2, y, size);
+    // LEFT — hero pieces (big)
     if (bySlot.dress?.length) {
-      put(bySlot.dress[0], leftX, bh * 0.14, S); // dress fills the left on its own
+      put(bySlot.dress[0], leftX, bh * 0.14, HERO); // dress owns the left column
     } else {
-      if (bySlot.top?.length) put(bySlot.top[0], leftX, bh * 0.06, S);
-      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.46, S);
+      if (bySlot.top?.length) put(bySlot.top[0], leftX, bh * 0.06, HERO);
+      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.52, HERO);
     }
-    let ry = bh * 0.05;
+    // RIGHT — supports stacked from the top, centred on rCx; shoes pinned bottom-right
+    let ry = bh * 0.06;
     if (bySlot.outerwear?.length) {
-      put(bySlot.outerwear[0], rightX, ry, S);
-      ry = bh * 0.44;
+      putR(bySlot.outerwear[0], ry, OUTER);
+      ry += OUTER + bh * 0.04;
     }
-    (bySlot.accessories ?? []).slice(0, 2).forEach((it, i) => {
-      put(it, rightX + i * Sh * 0.3, ry + i * Sh * 0.55, Sh);
-    });
-    if (bySlot.shoes?.length) put(bySlot.shoes[0], rightX, bh * 0.66, Sh);
+    (bySlot.accessories ?? []).slice(0, 1).forEach((it) => putR(it, ry, ACC));
+    if (bySlot.shoes?.length) putR(bySlot.shoes[0], bh * 0.7, SHOE);
     setCanvasDraft(nodes);
     setSelectedId(null);
     flash("Here's a look — tweak it");
