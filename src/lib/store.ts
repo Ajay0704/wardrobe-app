@@ -129,6 +129,9 @@ interface WardrobeState {
   addIntent: "camera" | "upload" | "link" | null;
   /** Global "import from photos" (bulk) modal, opened from Create / Closet. */
   bulkOpen: boolean;
+  /** Native "add" sheet (Take photos / Photo library / Paste a link) — shared by the
+   *  tab-bar center "+" and the closet "+" so both add entry points behave identically. */
+  addSheetOpen: boolean;
   /** Global "add whole outfit" (multi-garment split) modal. */
   splitOpen: boolean;
   scanOpen: boolean;
@@ -236,6 +239,7 @@ interface WardrobeState {
   /** Open the add form pointed at a specific input (camera/upload/link). */
   openAdd: (intent?: "camera" | "upload" | "link" | null) => void;
   setBulkOpen: (open: boolean) => void;
+  setAddSheetOpen: (open: boolean) => void;
   /** Open the "add whole outfit" split flow, optionally auto-triggering a source. */
   openSplit: (source?: "camera" | "library") => void;
   setSplitOpen: (open: boolean) => void;
@@ -424,6 +428,7 @@ export const useWardrobe = create<WardrobeState>()(
       wishlistAddOpen: false,
       addIntent: null,
       bulkOpen: false,
+      addSheetOpen: false,
       splitOpen: false,
       splitSource: null,
       scanOpen: false,
@@ -668,6 +673,7 @@ export const useWardrobe = create<WardrobeState>()(
       setWishlistAddOpen: (wishlistAddOpen) => set({ wishlistAddOpen }),
       openAdd: (intent = null) => set({ addOpen: true, addIntent: intent }),
       setBulkOpen: (bulkOpen) => set({ bulkOpen }),
+      setAddSheetOpen: (addSheetOpen) => set({ addSheetOpen }),
       openSplit: (source) => set({ splitOpen: true, splitSource: source ?? null }),
       setSplitOpen: (splitOpen) =>
         set({ splitOpen, ...(splitOpen ? {} : { splitSource: null }) }),

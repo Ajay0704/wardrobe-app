@@ -39,7 +39,8 @@ export function WardrobeView() {
   const items = useWardrobe((s) => s.items);
   const closetsOpen = useWardrobe((s) => s.closetsOpen);
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
-  const openSplit = useWardrobe((s) => s.openSplit);
+  const openScan = useWardrobe((s) => s.openScan);
+  const setAddSheetOpen = useWardrobe((s) => s.setAddSheetOpen);
   const isNative = useIsNativeApp();
 
   const [tab, setTab] = useState<TabKey>("items");
@@ -114,13 +115,17 @@ export function WardrobeView() {
   }, [mainTab, base]);
 
   const openAdd = () => {
-    // Closet "+" opens the whole-outfit detector (photo → every garment). Wishlist
-    // adds stay single-item since you're saving one thing you want to buy.
+    // Closet "+" now opens the SAME add sheet as the tab-bar "+" on native (Take photos /
+    // Photo library / Paste a link → the background multi-photo import), so both add buttons
+    // behave identically and multi-select works from here too (AJA-236 follow-up). Web goes
+    // straight to the multi-photo library import. Wishlist adds stay single-item.
     if (tab === "wishlist") {
       setAddWishlist(true);
       setAdding(true);
+    } else if (isNative) {
+      setAddSheetOpen(true);
     } else {
-      openSplit();
+      openScan();
     }
   };
 

@@ -75,11 +75,10 @@ function isActive(tab: View, view: View): boolean {
  * native app; the website keeps its own chrome.
  */
 export function NativeShell() {
-  const { view, setView, openAdd, openScan, dismissItemEditor } =
+  const { view, setView, openAdd, openScan, addSheetOpen, setAddSheetOpen, dismissItemEditor } =
     useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
-  const [createOpen, setCreateOpen] = useState(false);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
@@ -144,7 +143,7 @@ export function NativeShell() {
   // Create sheet: run a real action and close.
   const runSheet = (fn: () => void) => {
     setSheetNote(null);
-    setCreateOpen(false);
+    setAddSheetOpen(false);
     fn();
   };
 
@@ -228,7 +227,7 @@ export function NativeShell() {
           onClick={() => {
             dismissItemEditor();
             if (view === "wishlist") setWishlistAddOpen(true);
-            else setCreateOpen(true);
+            else setAddSheetOpen(true);
           }}
           className="native-tab"
           aria-label="Create"
@@ -257,7 +256,7 @@ export function NativeShell() {
         </button>
       </nav>
 
-      <BottomSheet open={createOpen} onClose={() => setCreateOpen(false)} ariaLabel="Add">
+      <BottomSheet open={addSheetOpen} onClose={() => setAddSheetOpen(false)} ariaLabel="Add">
         <p className="px-1 pb-1 pt-1 text-xs font-medium uppercase tracking-wide text-muted">
           Add item
         </p>
