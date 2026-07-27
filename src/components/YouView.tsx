@@ -12,10 +12,12 @@ import {
   Ruler,
   Shield,
   SlidersHorizontal,
+  Sparkles,
   SunMoon,
   UserCog,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { beautify, BEAUTIFY_PIPELINE } from "@/lib/beautify";
 import {
   disableNativeOutfitReminders,
   enableNativeOutfitReminders,
@@ -48,10 +50,14 @@ export function YouView() {
     setView,
     setAuthUser,
     setSyncStatus,
+    updateItem,
   } = useWardrobe();
 
   const isNative = useIsNativeApp();
   const [toast, setToast] = useState<string | null>(null);
+  const [stdBusy, setStdBusy] = useState(false);
+  const [stdProg, setStdProg] = useState({ done: 0, total: 0 });
+  const stdCancel = useRef(false);
   const [notifOn, setNotifOn] = useState(
     () => typeof window !== "undefined" && nativeNotificationsEnabledLocally(),
   );
@@ -110,6 +116,58 @@ export function YouView() {
     flash("Exported your data");
   };
 
+  /**
+   * Batch "Standardize my closet" (AJA-225): redraw every owned item not yet on the current
+   * pipeline into the new per-category product form, keeping the cutout/original for per-item
+   * revert. Two workers + cancel; each updateItem coalesces into one debounced sync push.
+   */
+  const standardizeCloset = async () => {
+    if (stdBusy || !authUser) return;
+    const targets = items.filter(
+      (it) => !it.wishlist && it.imageUrl && !(it.beautifyModel ?? "").includes(BEAUTIFY_PIPELINE),
+    );
+    if (targets.length === 0) {
+      flash("Everything's already standardized");
+      return;
+    }
+    stdCancel.current = false;
+    setStdBusy(true);
+    setStdProg({ done: 0, total: targets.length });
+    let done = 0;
+    let idx = 0;
+    const worker = async () => {
+      while (idx < targets.length && !stdCancel.current) {
+        const it = targets[idx++];
+        const base = it.cutoutImageUrl ?? it.originalImageUrl ?? it.imageUrl;
+        try {
+          const r = await beautify(base, authUser.id, it.category);
+          updateItem(it.id, {
+            imageUrl: r.url,
+            cutoutImageUrl: base,
+            beautifiedImageUrl: r.url,
+            beautifyWhiteUrl: r.whiteUrl,
+            beautifyModel: r.model,
+          });
+        } catch (e) {
+          if ((e as Error).message === "beautify 501") {
+            stdCancel.current = true;
+            flash("Standardize needs GEMINI_API_KEY");
+          }
+          /* else skip this item, keep its current image */
+        }
+        done++;
+        setStdProg({ done, total: targets.length });
+      }
+    };
+    await Promise.all([worker(), worker()]);
+    setStdBusy(false);
+    flash(
+      stdCancel.current
+        ? `Stopped — standardized ${done}`
+        : `Standardized ${done} item${done === 1 ? "" : "s"}`,
+    );
+  };
+
   return (
     <div className="mx-auto max-w-2xl space-y-4 pb-4">
       {/* Profile card → profile editor */}
@@ -136,6 +194,16 @@ export function YouView() {
       <Group label="You">
         <Row icon={Ruler} label="Fit & sizes" onClick={() => setView("fitSizes")} chevron />
         <Row icon={Palette} label="Style & taste" onClick={() => setView("styleTaste")} chevron />
+      </Group>
+
+      <Group label="Closet" right="Product shots">
+        <Row
+          icon={Sparkles}
+          label="Standardize my closet"
+          value={stdBusy ? `${stdProg.done}/${stdProg.total}` : undefined}
+          onClick={() => void standardizeCloset()}
+          chevron
+        />
       </Group>
 
       <Group label="App">
@@ -184,6 +252,32 @@ export function YouView() {
       </div>
 
       {showDelete && <DeleteAccountDialog onClose={() => setShowDelete(false)} />}
+
+      {stdBusy && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/40 px-8">
+          <div className="w-full max-w-xs rounded-3xl bg-surface p-6 text-center">
+            <p className="heading text-lg">Standardizing your closet</p>
+            <p className="mt-1 text-sm text-muted">
+              {stdProg.done} of {stdProg.total} · this can take a moment
+            </p>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                style={{ width: `${stdProg.total ? (stdProg.done / stdProg.total) * 100 : 0}%` }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                stdCancel.current = true;
+              }}
+              className="mt-4 rounded-full border border-line px-5 py-2 text-sm font-medium transition-transform active:scale-95"
+            >
+              Stop
+            </button>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4">
