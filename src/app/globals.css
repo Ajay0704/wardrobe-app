@@ -118,6 +118,29 @@ body {
   animation: fade-up 260ms ease both;
 }
 
+/* Outfit-canvas piece landing on the board — a subtle spring so a tapped piece
+ * "drops in" rather than blinking into place (Emil: never appear from scale 0). */
+@keyframes canvas-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-canvas-pop {
+  animation: canvas-pop 420ms cubic-bezier(0.34, 1.5, 0.5, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-canvas-pop {
+    animation: fade-up 200ms ease both;
+  }
+}
+
 /* Origin-anchored popover entrance (apple-design §7 / Emil): a menu should emerge
  * from its trigger, not rise from nowhere. Pair with a Tailwind origin-* utility
  * (e.g. origin-top-right) set to where the trigger sits. */

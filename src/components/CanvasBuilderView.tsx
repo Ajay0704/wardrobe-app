@@ -2,14 +2,13 @@
 
 import { Rnd } from "react-rnd";
 import {
-  ChevronDown,
-  ChevronRight,
   FlipHorizontal,
   Image as ImageIcon,
   LayoutGrid,
   Maximize2,
   RotateCw,
-  SlidersHorizontal,
+  Shirt,
+  Sparkles,
   Sticker,
   Trash2,
   Type,
@@ -17,6 +16,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { bestLook } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { Category, WardrobeItem } from "@/lib/types";
 
@@ -26,13 +26,13 @@ type Mode = "items" | "background" | "text" | "sticker";
 const TABS: { key: string; label: string; cats: Category[] | null }[] = [
   { key: "all", label: "All", cats: null },
   { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
-  { key: "pants", label: "Pants", cats: ["bottom"] },
+  { key: "pants", label: "Bottoms", cats: ["bottom"] },
   { key: "shoes", label: "Shoes", cats: ["shoes"] },
 ];
 
 const SHEET_TITLE: Record<Mode, string> = {
-  items: "Select item",
-  background: "Backgrounds",
+  items: "Add pieces",
+  background: "Board",
   text: "Text",
   sticker: "Stickers",
 };
@@ -58,8 +58,6 @@ const STICKERS: Record<string, string[]> = {
 };
 const STICKER_CATS = Object.keys(STICKERS);
 
-const shortDate = (ms: number) => new Date(ms).toLocaleDateString("en-US");
-
 /**
  * Acloset-style outfit maker. Full-screen over the shell: a white board where
  * cutout pieces + text + emoji stickers are dragged / resized / flipped /
@@ -77,6 +75,7 @@ export function CanvasBuilderView() {
     updateCanvasItem,
     removeCanvasItem,
     setCanvasBg,
+    setCanvasDraft,
     clearDraft,
     saveOutfit,
     setView,
@@ -92,7 +91,6 @@ export function CanvasBuilderView() {
   const [saveName, setSaveName] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [aspect, setAspect] = useState<"3:4" | "1:1">("3:4");
-  const [toolbarOpen, setToolbarOpen] = useState(true);
   const [offset, setOffset] = useState(0); // sheet px offset: 0 = open, maxOffset = fully hidden
   const [maxOffset, setMaxOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -102,7 +100,6 @@ export function CanvasBuilderView() {
   // home-swipe strip at the very bottom (avoids fighting the system gesture).
   const PEEK = 72;
   const BOARD_GAP = 14; // gap kept between the board bottom and the sheet top
-  const expanded = maxOffset === 0 ? true : offset < maxOffset * 0.5;
 
   useEffect(() => {
     const measure = () => {
@@ -190,6 +187,11 @@ export function CanvasBuilderView() {
     );
   }, [items, tab]);
 
+  const ownedCount = useMemo(
+    () => items.filter((it) => !it.wishlist && it.imageUrl).length,
+    [items],
+  );
+
   const bringToFront = (id: string) => {
     const top = canvasDraft.reduce((m, c) => Math.max(m, c.zIndex), 0);
     updateCanvasItem(id, { zIndex: top + 1 });
@@ -210,6 +212,47 @@ export function CanvasBuilderView() {
     addCanvasItem(itemId);
     selectLast();
     flash("Added to your look");
+  };
+
+  // Surprise me — ask the matching engine for a look, then lay it out head-to-toe
+  // (top over bottom over shoes), centered and sized by slot, as a fresh board.
+  const surpriseLook = () => {
+    const owned = items.filter((it) => !it.wishlist && it.imageUrl);
+    const ids = bestLook(owned)?.itemIds ?? [];
+    const picks = ids
+      .map((id) => owned.find((it) => it.id === id))
+      .filter((it): it is WardrobeItem => !!it);
+    if (picks.length === 0) {
+      flash("Add clothes to your closet first");
+      return;
+    }
+    const slot: Record<string, number> = { outerwear: 0, dress: 1, top: 1, bottom: 2, shoes: 3 };
+    picks.sort((a, b) => (slot[a.category] ?? 2) - (slot[b.category] ?? 2));
+    const bw = board.w || 260;
+    const bh = board.h || 340;
+    const sizeFor = (c: Category) =>
+      c === "shoes" ? bw * 0.42 : c === "bottom" ? bw * 0.52 : bw * 0.62;
+    let y = bh * 0.05;
+    const layout = picks.map((it, i) => {
+      const size = Math.round(sizeFor(it.category));
+      const node = {
+        id: `sp-${Date.now()}-${i}`,
+        kind: "item" as const,
+        itemId: it.id,
+        x: Math.round((bw - size) / 2),
+        y: Math.round(y),
+        width: size,
+        height: size,
+        rotation: 0,
+        zIndex: i,
+        flipped: false,
+      };
+      y += size * 0.72;
+      return node;
+    });
+    setCanvasDraft(layout);
+    setSelectedId(null);
+    flash("Here's a look — tweak it");
   };
   const addText = () => {
     const t = textInput.trim();
@@ -265,20 +308,21 @@ export function CanvasBuilderView() {
     setView("outfits");
   };
 
-  // The toolbar shrinks while the sheet is up (small canvas) so it never
-  // overfills the board, and returns to full size when the sheet is down.
-  const compactBar = expanded;
+  // Labelled tool button; a sliding pill (below) marks the active one.
+  const TOOL_ORDER: Mode[] = ["items", "background", "text", "sticker"];
   const toolBtn = (m: Mode, Icon: LucideIcon, label: string) => {
-    const active = mode === m && expanded;
+    const active = mode === m;
     return (
       <button
+        type="button"
         onClick={() => openTool(m)}
         aria-label={label}
-        className={`flex items-center justify-center rounded-xl ${
-          compactBar ? "h-8 w-9" : "h-10 w-11"
-        } ${active ? "bg-accent-soft text-accent" : "text-muted"}`}
+        className={`relative z-[1] flex h-12 w-[68px] flex-col items-center justify-center gap-0.5 rounded-2xl transition-colors active:scale-95 ${
+          active ? "text-accent" : "text-muted"
+        }`}
       >
-        <Icon size={compactBar ? 17 : 20} />
+        <Icon size={19} strokeWidth={1.9} />
+        <span className="text-[11px] font-medium">{label}</span>
       </button>
     );
   };
@@ -300,29 +344,31 @@ export function CanvasBuilderView() {
           type="button"
           aria-label="Close"
           onClick={close}
-          className="flex h-9 w-9 items-center justify-center text-foreground"
+          className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-surface text-foreground transition-transform active:scale-95"
         >
-          <X size={26} />
+          <X size={20} />
         </button>
+        <div className="text-center">
+          <p className="text-[15px] font-semibold text-foreground">New look</p>
+          <p className="text-[11px] text-muted">
+            {canvasDraft.length === 0
+              ? "No pieces yet"
+              : `${canvasDraft.length} ${canvasDraft.length === 1 ? "piece" : "pieces"}`}
+          </p>
+        </div>
         <button
           type="button"
           onClick={() => setSaving(true)}
           disabled={canvasDraft.length === 0}
-          className="rounded-xl bg-accent px-6 py-2.5 text-sm font-medium text-accent-foreground disabled:opacity-40"
+          className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
+            canvasDraft.length === 0
+              ? "bg-surface-2 text-muted"
+              : "bg-accent text-accent-foreground"
+          }`}
         >
           Next
         </button>
       </div>
-
-      {/* aspect toggle — only while the canvas is large (sheet down). The ratio
-          choice isn't useful on the small canvas, and hiding it frees space so
-          the canvas grows a little when the sheet is up. */}
-      {!expanded && (
-        <div className="flex items-center justify-center gap-7 pb-1.5">
-          <AspectBtn active={aspect === "3:4"} label="3:4" onClick={() => setAspect("3:4")} />
-          <AspectBtn active={aspect === "1:1"} label="1:1" square onClick={() => setAspect("1:1")} />
-        </div>
-      )}
 
       {/* board — reserves the space above the sheet (shrinks as the sheet
           slides down), then contain-fits the 3:4/1:1 board into it */}
@@ -334,6 +380,22 @@ export function CanvasBuilderView() {
           transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
         }}
       >
+        {/* aspect chip — a small, always-there formatting control on the canvas */}
+        <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
+          {(["3:4", "1:1"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setAspect(r)}
+              className={`px-3 py-1 text-[12px] font-medium transition-colors active:scale-95 ${
+                aspect === r ? "bg-accent text-accent-foreground" : "text-muted"
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+
         <div className="flex h-full items-start justify-center px-4 pt-1">
           <div
             className="relative overflow-hidden rounded-3xl border border-line touch-none"
@@ -347,9 +409,19 @@ export function CanvasBuilderView() {
             }}
           >
           {canvasDraft.length === 0 && (
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center text-muted">
-              <LayoutGrid size={26} strokeWidth={1.6} />
-              <p className="mt-2 text-sm">Tap a piece below to start your look</p>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-muted">
+                <Shirt size={28} strokeWidth={1.6} />
+              </span>
+              <p className="mt-3.5 text-[15px] font-semibold text-foreground">Build your look</p>
+              <p className="mt-1 text-[13px] text-muted">Tap pieces below — they drop in here</p>
+              <button
+                type="button"
+                onClick={surpriseLook}
+                className="pointer-events-auto mt-3.5 flex items-center gap-1.5 rounded-full bg-accent-soft px-4 py-2 text-[13px] font-semibold text-accent transition-transform active:scale-95"
+              >
+                <Sparkles size={15} /> Surprise me
+              </button>
             </div>
           )}
 
@@ -437,7 +509,7 @@ export function CanvasBuilderView() {
               >
                 <div
                   data-canvas-wrapper
-                  className={`relative h-full w-full rounded-xl ${isSel ? "ring-2 ring-accent ring-offset-2" : ""}`}
+                  className={`animate-canvas-pop relative h-full w-full rounded-xl ${isSel ? "ring-2 ring-accent ring-offset-2" : ""}`}
                   onPointerDown={() => select(c.id)}
                 >
                   {isSel && (
@@ -498,48 +570,29 @@ export function CanvasBuilderView() {
           </div>
         </div>
 
-        {/* editor toolbar — anchored just above the sheet so it rides down with
-            the sheet when it's pulled down, while keeping its position at the
-            canvas bottom when the sheet is up */}
+        {/* editor toolbar — labelled tools with a sliding highlight; anchored just
+            above the sheet so it rides down when the sheet is pulled down */}
         <div
-          className={`pointer-events-none absolute inset-x-0 z-40 flex px-4 ${
-            toolbarOpen ? "justify-center" : "justify-end"
-          }`}
+          className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4"
           style={{
             bottom: `calc(${reserveCss} + 26px)`,
             transition: dragging ? "none" : "bottom 260ms cubic-bezier(0.22,1,0.36,1)",
           }}
         >
-          {toolbarOpen ? (
-            <div
-              className={`pointer-events-auto flex items-center rounded-2xl border border-line bg-white/95 shadow-lg backdrop-blur-sm ${
-                compactBar ? "gap-0.5 px-1 py-1" : "gap-1 px-1.5 py-1.5"
-              }`}
-            >
-              {toolBtn("items", LayoutGrid, "Items")}
-              {toolBtn("background", ImageIcon, "Background")}
-              {toolBtn("text", Type, "Text")}
-              {toolBtn("sticker", Sticker, "Stickers")}
-              <span className={`mx-0.5 w-px bg-line ${compactBar ? "h-5" : "h-6"}`} />
-              <button
-                onClick={() => setToolbarOpen(false)}
-                className={`flex items-center justify-center rounded-xl text-muted ${
-                  compactBar ? "h-8 w-8" : "h-10 w-9"
-                }`}
-                aria-label="Hide toolbar"
-              >
-                <ChevronRight size={compactBar ? 17 : 20} />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setToolbarOpen(true)}
-              aria-label="Show toolbar"
-              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white text-foreground shadow-lg"
-            >
-              <LayoutGrid size={22} />
-            </button>
-          )}
+          <div className="pointer-events-auto relative flex items-center gap-1 rounded-[22px] border border-line bg-white/95 p-1 shadow-lg backdrop-blur-sm">
+            <span
+              aria-hidden
+              className="absolute left-1 top-1 h-12 w-[68px] rounded-2xl bg-accent-soft transition-transform duration-300"
+              style={{
+                transform: `translateX(${TOOL_ORDER.indexOf(mode) * 72}px)`,
+                transitionTimingFunction: "cubic-bezier(0.34,1.4,0.5,1)",
+              }}
+            />
+            {toolBtn("items", LayoutGrid, "Items")}
+            {toolBtn("background", ImageIcon, "Board")}
+            {toolBtn("text", Type, "Text")}
+            {toolBtn("sticker", Sticker, "Stickers")}
+          </div>
         </div>
       </div>
 
@@ -571,15 +624,16 @@ export function CanvasBuilderView() {
           {/* ITEMS */}
           {mode === "items" && (
             <>
-              <div className="flex gap-2.5 overflow-x-auto px-4 pb-3 [scrollbar-width:none]">
-                <button className="flex h-9 w-11 shrink-0 items-center justify-center rounded-xl border border-line bg-surface text-muted">
-                  <SlidersHorizontal size={17} />
-                </button>
-                <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
-                  All clothes <ChevronDown size={14} className="text-muted" />
-                </button>
-                <button className="flex h-9 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-surface px-3.5 text-[13px]">
-                  Recently added <ChevronDown size={14} className="text-muted" />
+              <div className="flex items-center justify-between px-4 pb-3">
+                <p className="text-[13px] text-muted">
+                  Your closet · {ownedCount} {ownedCount === 1 ? "piece" : "pieces"}
+                </p>
+                <button
+                  type="button"
+                  onClick={surpriseLook}
+                  className="flex items-center gap-1.5 rounded-full bg-accent-soft px-3 py-1.5 text-[12.5px] font-semibold text-accent transition-transform active:scale-95"
+                >
+                  <Sparkles size={14} /> Surprise me
                 </button>
               </div>
               <div className="flex gap-6 border-b border-line px-5">
@@ -603,20 +657,20 @@ export function CanvasBuilderView() {
                   </p>
                 ) : (
                   <div className="grid grid-cols-3 gap-px bg-line">
-                    {pieces.map((item) => (
+                    {pieces.map((item, i) => (
                       <button
                         key={item.id}
                         onPointerDown={(e) => e.stopPropagation()}
                         onClick={() => addPiece(item.id)}
-                        className="bg-surface px-2.5 pb-3 pt-2.5 text-left"
+                        style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
+                        className="animate-fade-up bg-surface px-2.5 pb-3 pt-2.5 text-left transition-transform active:scale-[0.97]"
                       >
                         <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-surface-2">
                           <PieceThumb item={item} />
                         </div>
-                        <p className="mt-2 truncate text-[10.5px] font-semibold uppercase tracking-wide">
-                          {item.brand || "No Brand"}
+                        <p className="mt-2 truncate text-[11px] font-medium text-foreground">
+                          {item.name || item.brand || "Untitled"}
                         </p>
-                        <p className="text-[10px] text-muted">{shortDate(item.createdAt)}</p>
                       </button>
                     ))}
                   </div>
@@ -746,31 +800,6 @@ export function CanvasBuilderView() {
         </div>
       )}
     </div>
-  );
-}
-
-function AspectBtn({
-  active,
-  label,
-  square,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  square?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button type="button" onClick={onClick} className="flex flex-col items-center gap-1">
-      <span
-        className={`rounded-[3px] border-2 ${square ? "h-[22px] w-[22px]" : "h-[26px] w-[19px]"} ${
-          active ? "border-foreground bg-foreground/10" : "border-muted/50"
-        }`}
-      />
-      <span className={`text-[11px] ${active ? "font-medium text-foreground" : "text-muted"}`}>
-        {label}
-      </span>
-    </button>
   );
 }
 
