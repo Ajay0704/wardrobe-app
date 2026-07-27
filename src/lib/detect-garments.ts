@@ -11,6 +11,7 @@
 
 import { cutout } from "./cutout";
 import { authHeaders } from "./supabase/client";
+import { dataUrlToFile, resolveImageSource } from "./supabase/storage";
 import type { Category, Season } from "./types";
 
 export interface DetectedGarment {
@@ -174,7 +175,16 @@ export async function detectGarments(
       try {
         url = (await cutout(crop, userId, { category: g.category })).url;
       } catch {
-        /* keep the raw crop if cutout fails */
+        // Background removal failed — still re-host the raw crop to Storage so we never
+        // persist a multi-MB base64 data URL (AJA-233 P2): inline images freeze the UI on
+        // the synchronous localStorage write AND blow past MAX_SNAPSHOT_CHARS so the sync
+        // push is blocked → the item silently never reaches the server. Signed out → a
+        // compressed data URL as a last resort.
+        try {
+          url = await resolveImageSource(dataUrlToFile(crop, "crop.jpg"), userId);
+        } catch {
+          url = crop;
+        }
       }
       let name = g.name?.trim() || "";
       let color = g.color;
