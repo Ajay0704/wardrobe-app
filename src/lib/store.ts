@@ -280,6 +280,11 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     fit: typeof it.fit === "string" && (FIT_VALUES as readonly string[]).includes(it.fit) ? (it.fit as Fit) : undefined,
     tone: typeof it.tone === "string" ? it.tone : undefined,
     formality: typeof it.formality === "string" ? it.formality : undefined,
+    // AJA-223 attrs — must be whitelisted here too or they're stripped on reload/pull.
+    material: typeof it.material === "string" ? it.material : undefined,
+    pattern: typeof it.pattern === "string" ? it.pattern : undefined,
+    size: typeof it.size === "string" ? it.size : undefined,
+    styleCaption: typeof it.styleCaption === "string" ? it.styleCaption : undefined,
     productUrl: typeof it.productUrl === "string" ? it.productUrl : undefined,
     category,
     // Backfill a sub-category for existing items with none (AJA-228) — deterministic, from the
