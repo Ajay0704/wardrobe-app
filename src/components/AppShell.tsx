@@ -10,6 +10,7 @@ import { AuthModal, type AuthMode } from "./AuthModal";
 import { AuthProvider } from "./AuthProvider";
 import { ClipLinkLoader } from "./ClipLinkLoader";
 import { ImportProgress } from "./ImportProgress";
+import { ImportReviewSheet } from "./ImportReviewSheet";
 import { OAuthButtons } from "./OAuthButtons";
 import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
@@ -425,6 +426,7 @@ export function AppShell() {
       <PushBootstrap />
       <ClipLinkLoader />
       <ImportProgress />
+      <ImportReviewSheet />
       <AppShellInner />
     </AuthProvider>
   );

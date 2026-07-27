@@ -34,18 +34,33 @@ import { recordOutfitCreated, recordWearLogged } from "./habit";
 
 export type ThemeMode = "light" | "dark";
 
-/** Background photo-import progress (AJA-236). Transient UI state — never persisted. */
+/** Background photo-import progress (AJA-236/237). Transient UI state — never persisted. */
 export interface ImportStatus {
-  /** Photos enqueued this run. */
+  /** "extract" = detecting garments from photos; "commit" = adding reviewed picks (w/ beautify). */
+  phase: "extract" | "commit";
+  /** Units enqueued this run (photos while extracting, picks while committing). */
   total: number;
-  /** Photos finished (success or failure). */
+  /** Units finished (success or failure). */
   done: number;
   /** Photos that yielded no items / errored. */
   failed: number;
-  /** Garments added to the closet so far. */
+  /** Garments added to the closet so far (commit phase). */
   itemsAdded: number;
   /** True while the queue is still draining. */
   running: boolean;
+}
+
+/** A detected garment awaiting the user's review before it's added to the closet (AJA-237).
+ *  Its cutout is already re-hosted to Storage, so `cutoutUrl` is a valid `beautify()` input. */
+export interface PendingImport {
+  id: string;
+  cutoutUrl: string;
+  name: string;
+  category: Category;
+  color: string;
+  colorName?: string;
+  tags: string[];
+  seasons: Season[];
 }
 
 export type View =
@@ -109,6 +124,10 @@ interface WardrobeState {
   syncError: string | null;
   /** Background photo-import progress (AJA-236); null when idle. Transient — NOT persisted. */
   importStatus: ImportStatus | null;
+  /** Detected garments awaiting review before they're added to the closet (AJA-237). Transient. */
+  pendingImports: PendingImport[];
+  /** True while the import review sheet is open (AJA-237). Transient. */
+  importReviewOpen: boolean;
   /** True while a password-recovery link is active (set-new-password flow). */
   passwordRecovery: boolean;
   theme: ThemeMode;
@@ -211,6 +230,8 @@ interface WardrobeState {
   setAuthChecked: (checked: boolean) => void;
   setSyncStatus: (status: SyncStatus, error?: string | null) => void;
   setImportStatus: (status: ImportStatus | null) => void;
+  setPendingImports: (list: PendingImport[]) => void;
+  setImportReviewOpen: (open: boolean) => void;
   setPasswordRecovery: (active: boolean) => void;
 
   setTheme: (t: ThemeMode) => void;
@@ -440,6 +461,8 @@ export const useWardrobe = create<WardrobeState>()(
       pendingWardrobeTab: null,
       pendingSharedImage: null,
       importStatus: null,
+      pendingImports: [],
+      importReviewOpen: false,
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
@@ -659,6 +682,8 @@ export const useWardrobe = create<WardrobeState>()(
               : null,
         }),
       setImportStatus: (importStatus) => set({ importStatus }),
+      setPendingImports: (pendingImports) => set({ pendingImports }),
+      setImportReviewOpen: (importReviewOpen) => set({ importReviewOpen }),
       setPasswordRecovery: (passwordRecovery) => set({ passwordRecovery }),
 
       setTheme: (theme) => set({ theme }),
