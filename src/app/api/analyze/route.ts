@@ -95,7 +95,8 @@ export async function POST(request: Request) {
   const FORMALITY = ["casual", "smart-casual", "formal", "statement"];
   const TONE = ["neutral", "warm", "cool", "black", "white", "bright", "pastel", "earth"];
   const prompt =
-    `You are a fashion cataloguing assistant. The photo may show a full outfit or a mirror selfie with several garments. Pick the SINGLE most prominent garment — the one that fills the most of the frame and is clearly the main subject — and describe ONLY that item. Ignore smaller or partially-visible garments (for example trousers at the bottom of a sweater selfie), the background, and the person. Respond with JSON of this exact shape:\n` +
+    `You are a fashion cataloguing assistant. The photo shows one wardrobe item to catalogue — it may be a garment (top, bottom, dress, outerwear) OR an accessory that is worn or held: shoes, a bag, or an accessory such as a watch, sunglasses, jewellery, a belt, a hat or a scarf. First decide what the photo is actually OF — the single item that is the clear main subject or close-up — and describe ONLY that item.\n` +
+    `If the main subject is an accessory/bag/shoes being worn or held (a watch on a wrist, sunglasses on a face, a bag in a hand, shoes on feet), catalogue THAT item with the matching category — never the clothing, wrist, hand, skin or background behind it. If instead several garments are visible (e.g. a mirror selfie), pick the SINGLE most prominent garment that fills the most of the frame and ignore smaller or partially-visible ones (like trousers at the bottom of a sweater selfie). Always ignore the person and the background. Respond with JSON of this exact shape:\n` +
     `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
     ` "category": exactly one of [${CATEGORIES.join(", ")}],\n` +
     ` "color": the dominant colour as a #rrggbb hex string,\n` +
