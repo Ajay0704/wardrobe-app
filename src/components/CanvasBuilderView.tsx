@@ -2,6 +2,7 @@
 
 import {
   ArrowUp,
+  ChevronRight,
   Copy,
   FlipHorizontal,
   Image as ImageIcon,
@@ -98,6 +99,7 @@ export function CanvasBuilderView() {
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
   const [mode, setMode] = useState<Mode>("items");
+  const [toolbarOpen, setToolbarOpen] = useState(true); // collapse the tool pill into a side "ball"
   const [stickerCat, setStickerCat] = useState(STICKER_CATS[0]);
   const [textInput, setTextInput] = useState("");
   const [textColor, setTextColor] = useState(TEXT_COLORS[0]);
@@ -589,29 +591,48 @@ export function CanvasBuilderView() {
           </div>
         </div>
 
-        {/* editor toolbar — labelled tools with a sliding highlight; anchored just
-            above the sheet so it rides down when the sheet is pulled down */}
+        {/* editor toolbar — labelled tools with a sliding highlight; collapses into a side "ball"
+            (tap to reopen) so it's out of the way while arranging. Rides above the sheet. */}
         <div
-          className="pointer-events-none absolute inset-x-0 z-40 flex justify-center px-4"
+          className={`pointer-events-none absolute inset-x-0 z-40 flex px-4 ${toolbarOpen ? "justify-center" : "justify-end"}`}
           style={{
             bottom: `calc(${reserveCss} + 26px)`,
             transition: dragging ? "none" : "bottom 260ms cubic-bezier(0.22,1,0.36,1)",
           }}
         >
-          <div className="pointer-events-auto relative flex items-center gap-1 rounded-[22px] border border-line bg-white/95 p-1 shadow-lg backdrop-blur-sm">
-            <span
-              aria-hidden
-              className="absolute left-1 top-1 h-12 w-[68px] rounded-2xl bg-accent-soft transition-transform duration-300"
-              style={{
-                transform: `translateX(${TOOL_ORDER.indexOf(mode) * 72}px)`,
-                transitionTimingFunction: "cubic-bezier(0.34,1.4,0.5,1)",
-              }}
-            />
-            {toolBtn("items", LayoutGrid, "Items")}
-            {toolBtn("background", ImageIcon, "Board")}
-            {toolBtn("text", Type, "Text")}
-            {toolBtn("sticker", Sticker, "Stickers")}
-          </div>
+          {toolbarOpen ? (
+            <div className="animate-pop pointer-events-auto relative flex items-center gap-1 rounded-[22px] border border-line bg-white/95 p-1 shadow-lg backdrop-blur-sm">
+              <span
+                aria-hidden
+                className="absolute left-1 top-1 h-12 w-[68px] rounded-2xl bg-accent-soft transition-transform duration-300"
+                style={{
+                  transform: `translateX(${TOOL_ORDER.indexOf(mode) * 72}px)`,
+                  transitionTimingFunction: "cubic-bezier(0.34,1.4,0.5,1)",
+                }}
+              />
+              {toolBtn("items", LayoutGrid, "Items")}
+              {toolBtn("background", ImageIcon, "Board")}
+              {toolBtn("text", Type, "Text")}
+              {toolBtn("sticker", Sticker, "Stickers")}
+              <button
+                type="button"
+                aria-label="Hide tools"
+                onClick={() => setToolbarOpen(false)}
+                className="relative z-[1] ml-0.5 flex h-12 w-7 items-center justify-center rounded-2xl text-muted transition-transform active:scale-90"
+              >
+                <ChevronRight size={18} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              aria-label="Show tools"
+              onClick={() => setToolbarOpen(true)}
+              className="animate-pop pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-white/95 text-accent shadow-lg backdrop-blur-sm transition-transform active:scale-90"
+            >
+              <LayoutGrid size={20} />
+            </button>
+          )}
         </div>
       </div>
 
