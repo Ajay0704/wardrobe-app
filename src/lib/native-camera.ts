@@ -5,6 +5,7 @@ import {
   CameraSource,
 } from "@capacitor/camera";
 import { Capacitor } from "@capacitor/core";
+import { Filesystem } from "@capacitor/filesystem";
 
 /** Turn a `data:<mime>;base64,...` URL into a File (no network, works offline). */
 function dataUrlToFile(dataUrl: string): File {
@@ -103,4 +104,53 @@ export async function pickNativePhoto(): Promise<File | null> {
     }
     throw err instanceof Error ? err : new Error(msg);
   }
+}
+
+/** True only on a native build that actually bundles the Filesystem plugin — i.e. one
+ *  that can read the files returned by {@link pickNativePhotos}. Lets callers offer real
+ *  at-once multi-select where supported and fall back to one-at-a-time otherwise. */
+export function canPickMultiplePhotos(): boolean {
+  return Capacitor.isNativePlatform() && Capacitor.isPluginAvailable("Filesystem");
+}
+
+/**
+ * Pick SEVERAL photos at once from the library (AJA-235). Uses `Camera.pickImages`
+ * (native multi-select) and reads each result's file `path` with the Filesystem plugin
+ * into an inline data URL — `pickImages` only returns a `capacitor://` webPath, which
+ * this remotely-hosted WKWebView can't `fetch()` cross-origin, so Filesystem is the only
+ * way to get the bytes. REQUIRES the Filesystem plugin in the binary (guard with
+ * {@link canPickMultiplePhotos}); returns [] if the user cancels.
+ */
+export async function pickNativePhotos(limit = 10): Promise<File[]> {
+  if (!canPickMultiplePhotos()) return [];
+
+  let photos: { path?: string; format?: string }[];
+  try {
+    const result = await Camera.pickImages({
+      quality: 90,
+      limit,
+      correctOrientation: true,
+      presentationStyle: "fullscreen",
+    });
+    photos = result.photos ?? [];
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/cancel|dismiss|user cancelled/i.test(msg)) return [];
+    throw err instanceof Error ? err : new Error(msg);
+  }
+
+  const files: File[] = [];
+  for (const photo of photos) {
+    if (!photo.path) continue;
+    try {
+      const read = await Filesystem.readFile({ path: photo.path });
+      const b64 = typeof read.data === "string" ? read.data : "";
+      if (!b64) continue;
+      const mime = photo.format ? `image/${photo.format}` : "image/jpeg";
+      files.push(dataUrlToFile(`data:${mime};base64,${b64}`));
+    } catch {
+      /* skip a photo we couldn't read */
+    }
+  }
+  return files;
 }

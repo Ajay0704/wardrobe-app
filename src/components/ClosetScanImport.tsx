@@ -4,7 +4,12 @@ import { Capacitor } from "@capacitor/core";
 import { Camera, Check, Images, Loader2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { detectGarments } from "@/lib/detect-garments";
-import { captureNativePhoto, pickNativePhoto } from "@/lib/native-camera";
+import {
+  canPickMultiplePhotos,
+  captureNativePhoto,
+  pickNativePhoto,
+  pickNativePhotos,
+} from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
 import type { Category, Season } from "@/lib/types";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/types";
@@ -57,10 +62,12 @@ export function ClosetScanImport({
   const fileRef = useRef<HTMLInputElement>(null);
   const started = useRef(false);
   const isCamera = source === "camera";
-  // iOS WKWebView won't honour <input multiple> for the library, so on native we
-  // pick one photo at a time via the native picker and accumulate (AJA-235). Real
-  // browsers (web) keep true multi-select through the file input.
+  // iOS WKWebView won't honour <input multiple> for the library (AJA-235). On a native
+  // build WITH the Filesystem plugin we get true at-once multi-select via pickImages;
+  // on older builds without it we fall back to one-at-a-time. Web keeps the file input.
   const native = Capacitor.isNativePlatform();
+  const multiPick = canPickMultiplePhotos();
+  const libraryMultiple = !native || multiPick; // can we select several at once?
 
   const patch = (id: string, p: Partial<ScanRow>) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, ...p } : r)));
@@ -120,8 +127,14 @@ export function ClosetScanImport({
       return;
     }
     try {
-      const file = await pickNativePhoto();
-      if (file) await scanFiles([file]);
+      if (multiPick) {
+        // Native at-once multi-select (up to 10), read via Filesystem, scan all together.
+        const files = await pickNativePhotos(10);
+        if (files.length) await scanFiles(files);
+      } else {
+        const file = await pickNativePhoto();
+        if (file) await scanFiles([file]);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't open the photo library.");
     }
@@ -188,9 +201,9 @@ export function ClosetScanImport({
                 <p className="mt-1 text-sm text-muted">
                   {isCamera
                     ? "Take a photo of each item — I'll detect the clothes and you can keep adding more."
-                    : native
-                      ? "Add a photo of each item — I'll detect the clothes and you can keep adding more."
-                      : "Pick several photos and I'll detect the clothes and add each piece."}
+                    : libraryMultiple
+                      ? "Select several photos at once — I'll detect the clothes in each and add every piece."
+                      : "Add a photo of each item — I'll detect the clothes and you can keep adding more."}
                 </p>
               </div>
               <button
@@ -204,7 +217,7 @@ export function ClosetScanImport({
                   </>
                 ) : (
                   <>
-                    <Images size={15} /> {native ? "Choose photo" : "Choose photos"}
+                    <Images size={15} /> {libraryMultiple ? "Choose photos" : "Choose photo"}
                   </>
                 )}
               </button>
@@ -298,7 +311,7 @@ export function ClosetScanImport({
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1.5">
-                  <Images size={15} /> {native ? "Add another" : "Add more"}
+                  <Images size={15} /> {libraryMultiple ? "Add more" : "Add another"}
                 </span>
               )}
             </Button>
