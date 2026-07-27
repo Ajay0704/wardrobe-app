@@ -9,6 +9,7 @@
  */
 import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
+import { floodFillIfUniform } from "./flood-cutout";
 
 const IMGLY_VERSION = "1.7.0";
 
@@ -110,6 +111,15 @@ export async function cutout(
   userId: string | null,
   opts?: CutoutOptions,
 ): Promise<CutoutResult> {
+  // Uniform studio/white background (a not-worn product shot) → deterministic flood-fill: clean
+  // transparency with zero drift, where the salient-subject matte would keep the studio card.
+  // Worn selfies / busy backgrounds aren't uniform, so this bails and the engine below runs.
+  try {
+    const flooded = await floodFillIfUniform(src);
+    if (flooded) return finalize(flooded, "flood@1", userId);
+  } catch {
+    /* not floodable (SSR, decode error, non-uniform) — fall through to the engine */
+  }
   const engine = getCutoutEngine();
   try {
     return await finalize(await engine.run(src, opts), engine.id, userId);

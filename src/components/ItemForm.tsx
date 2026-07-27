@@ -417,16 +417,48 @@ export function ItemForm({
    * original immediately, then swaps in the cutout when ready; silently keeps the
    * original if removal fails so an add never gets blocked.
    */
+  /**
+   * Auto product-shot redraw on add (AJA-225, user chose "standardize automatically"): beautify the
+   * cutout into a clean, category-correct product image and apply it, keeping the cutout as the
+   * one-tap revert target. Silent on failure/501 — the cutout is already canvas-ready.
+   */
+  const autoStandardize = async (cutoutUrl: string, cat: Category) => {
+    if (!authUser || beautifyDisabled) return;
+    setBeautifying(true);
+    setAnalyzeMsg("Standardizing…");
+    try {
+      const r = await beautify(cutoutUrl, authUser.id, cat);
+      setCutoutImageUrl(cutoutUrl);
+      setBeautifiedImageUrl(r.url);
+      setBeautifyWhiteUrl(r.whiteUrl);
+      setBeautifyModel(r.model);
+      setImageUrl(r.url);
+      setAnalyzeMsg("Standardized into a product shot.");
+    } catch (e) {
+      if ((e as Error).message === "beautify 501") setBeautifyDisabled(true);
+      setAnalyzeMsg(""); // keep the cutout — it's already canvas-ready
+    } finally {
+      setBeautifying(false);
+    }
+  };
+
   const autoCutout = async (src: string, cat?: Category) => {
     setRemovingBg(true);
+    let result: { url: string; engine: string } | null = null;
     try {
-      const r = await cutout(src, authUser?.id ?? null, { category: cat });
-      setImageUrl(r.url);
-      setCutoutEngine(r.engine);
+      result = await cutout(src, authUser?.id ?? null, { category: cat });
+      setImageUrl(result.url);
+      setCutoutEngine(result.engine);
     } catch {
       /* keep original */
     } finally {
       setRemovingBg(false);
+    }
+    // Auto-standardize a worn/messy shot (matte cutout) into a product shot. A clean product photo
+    // on a uniform background is flood-cut ("flood@1") and already canvas-ready → skip the redraw
+    // (no drift, no cost). Manual Beautify still available for those if the user wants it.
+    if (result && result.engine !== "flood@1") {
+      await autoStandardize(result.url, cat ?? category);
     }
   };
 

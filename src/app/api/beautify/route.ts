@@ -8,6 +8,7 @@
  */
 import { requireUser } from "@/lib/auth-server";
 import { safeFetch } from "@/lib/net";
+import type { Category } from "@/lib/types";
 import sharp from "sharp";
 
 export const runtime = "nodejs";
@@ -16,42 +17,97 @@ export const maxDuration = 60;
 // "Nano Banana" — Gemini's image generation/editing model (same as /api/tryon).
 const MODEL = "gemini-2.5-flash-image";
 
-// Ghost-mannequin (invisible mannequin) framing enforced by the prompt; the deterministic sharp
-// pass below then pins the exact canvas size, garment scale and centring regardless of Gemini's shot.
-const GARMENT_PROMPT =
-  "You are given a single garment. Render it as a professional GHOST-MANNEQUIN (invisible " +
-  "mannequin) e-commerce product photograph: the garment shown as if worn by an invisible person, " +
-  "with a natural shoulder shape, realistic three-dimensional volume and fabric drape, and sleeves " +
-  "hanging straight down alongside the body. Front-facing, straight-on and bilaterally symmetrical, " +
-  "centred with even margins. Complete any occluded, folded or missing regions so the ENTIRE " +
-  "garment is visible and neatly presented. Output ONLY the single garment on a pure flat white " +
-  "background with NO shadow — no visible person, no body parts, no mannequin, no hanger, no props. " +
-  "Preserve the garment's EXACT colour, fabric texture, pattern/print and ALL logos or text exactly " +
-  "as shown; do not invent, move, recolour or restyle anything. Keep the garment's exact TYPE and " +
-  "silhouette — sleeve length, neckline, hem length and overall fit must match the input; a " +
-  "long-sleeve sweater must stay a long-sleeve sweater and must never become a different garment. " +
-  "If the input is not a single clear garment, reproduce it as faithfully as possible rather than " +
-  "inventing one.";
+// Per-category framing enforced by the prompt; the deterministic sharp pass below then pins the
+// exact canvas size, item scale and centring regardless of Gemini's shot. Each category prompt is a
+// LEAD (how to frame this specific kind of item) + the SHARED guardrail (anti-drift + white bg,
+// gender-neutral). This replaces the old binary garment/product split, which mis-framed bottoms
+// (3-D with belts), jacket collars (horns) and shoes (random angles).
 
-// Accessories / bags / shoes aren't worn on a body, so the ghost-mannequin framing fails on them
-// (a watch or handbag has no shoulders/sleeves). Use a flat product-shot prompt that crucially
-// removes the HAND or surface the item was photographed on — the common accessory failure.
-const PRODUCT_PROMPT =
-  "You are given a single accessory or product — for example a watch, a piece of jewellery, a " +
-  "handbag, a belt, a hat, sunglasses, or a pair of shoes. Render it as a professional e-commerce " +
-  "PRODUCT photograph: the object shown straight-on at a natural, flattering angle, complete and " +
-  "fully visible, centred with even margins. Complete any occluded or cut-off parts so the ENTIRE " +
-  "object is visible and neatly presented. Output ONLY the product on a pure flat white background " +
-  "with NO shadow — you MUST remove any hand, fingers, wrist, arm, body part, mannequin, stand, " +
-  "hanger, table, prop or background clutter, showing the product by itself. Preserve the object's " +
-  "EXACT shape, colour, material, texture, pattern/print and ALL logos or text exactly as shown; do " +
-  "not invent, move, recolour or restyle anything. If the input is not a single clear product, " +
-  "reproduce it as faithfully as possible rather than inventing one.";
+// Appended to EVERY category prompt: preserves the item exactly and pins the flat-white output.
+const SHARED =
+  "Preserve the item's EXACT colour, fabric and material texture, pattern or print, and ALL logos, " +
+  "text and hardware, exactly as shown — do not invent, add, move, recolour or restyle anything " +
+  "(aside from removing the worn-on items, props and background explicitly noted above), and never " +
+  "change its TYPE, cut or silhouette (sleeve or leg length, neckline, collar and hem must match the " +
+  "input; a long-sleeve sweater stays a long-sleeve sweater). Output ONLY this one item, centred " +
+  "with even margins, on a pure flat white (#ffffff) background with NO shadow, reflection, card, " +
+  "surface or backdrop of any kind. These instructions apply identically whether the item is men's, " +
+  "women's or unisex. If the input is not a single clear item of this kind, reproduce what is shown " +
+  "as faithfully as possible rather than inventing something new.";
 
-// Categories that are products, not body-worn garments → use the flat product prompt.
-const PRODUCT_CATEGORIES = new Set(["accessory", "bag", "shoes"]);
-const promptFor = (category?: string): string =>
-  category && PRODUCT_CATEGORIES.has(category) ? PRODUCT_PROMPT : GARMENT_PROMPT;
+const LEAD: Record<Category, string> = {
+  top:
+    "You are given a single top (t-shirt, shirt, blouse, sweater, jersey or knit). Render it as a " +
+    "professional GHOST-MANNEQUIN (invisible-mannequin) e-commerce product photograph: shown as if " +
+    "worn by an invisible person, with a natural shoulder line, realistic three-dimensional volume " +
+    "and fabric drape, and sleeves hanging straight down close alongside the body. Front-facing, " +
+    "straight-on and bilaterally SYMMETRICAL — the left and right of the neckline, collar and hem " +
+    "must mirror each other evenly, with NO lopsided, pinched or distorted neck opening. Render the " +
+    "neckline and collar naturally and faithfully as in the input (crew, V, polo or button collar), " +
+    "lying as it naturally would, neither flared open nor gaping. Complete any occluded or folded " +
+    "regions so the ENTIRE top is visible. Show no visible person, body parts, mannequin, hanger or " +
+    "props.",
+  dress:
+    "You are given a single dress. Render it as a professional GHOST-MANNEQUIN (invisible-mannequin) " +
+    "e-commerce product photograph: shown as if worn by an invisible person, with a natural shoulder " +
+    "line, realistic volume and drape through the bodice and skirt, and any sleeves hanging straight " +
+    "down alongside the body. Front-facing, straight-on and bilaterally SYMMETRICAL — neckline, " +
+    "waist and hem mirror evenly. Render the neckline, straps and hemline naturally and faithfully " +
+    "as in the input. Complete any occluded or folded regions so the ENTIRE dress is visible. Show " +
+    "no visible person, body parts, mannequin, hanger or props.",
+  outerwear:
+    "You are given a single piece of outerwear (jacket, coat, blazer or hoodie). Render it as a " +
+    "professional GHOST-MANNEQUIN (invisible-mannequin) e-commerce product photograph: shown as if " +
+    "worn by an invisible person, with a natural shoulder line, realistic volume and drape, and " +
+    "sleeves hanging straight down alongside the body. Front-facing, straight-on and bilaterally " +
+    "SYMMETRICAL. Render the collar and lapels EXACTLY as they sit in the input — lying flat and " +
+    "folded down naturally against the shoulders; do NOT stand the collar up, flare it outward, or " +
+    "add pointed 'horns', wings or peaks that are not in the input. Keep the front closure faithful: " +
+    "show the zipper, buttons or placket exactly as in the input, closed or open to match. Complete " +
+    "any occluded or folded regions so the ENTIRE garment is visible. Show no visible person, body " +
+    "parts, mannequin, hanger or props.",
+  bottom:
+    "You are given a single pair of bottoms (trousers, jeans, shorts or a skirt). Render it as a " +
+    "professional FLAT-LAY e-commerce product photograph, photographed straight from directly ABOVE " +
+    "as if laid flat on a surface — completely flat and two-dimensional, with NO body, NO legs, NO " +
+    "mannequin and NO 3D stuffing or volume. Lay it out neatly front-side up: waistband straight and " +
+    "flat across the top, both legs extended straight DOWNWARD, parallel and of equal length (for a " +
+    "skirt, hem spread evenly). REMOVE and do not render any belt, suspenders, braces, chain, hanger " +
+    "or accessory threaded through or resting on the waistband — show the bare garment only, with " +
+    "empty belt loops. Bilaterally symmetrical. Complete any occluded or folded regions so the " +
+    "ENTIRE garment is visible.",
+  shoes:
+    "You are given footwear (a single shoe or a pair). Render it as a clean, professional e-commerce " +
+    "PRODUCT photograph shot from a consistent straight-on SIDE PROFILE — the outer side facing the " +
+    "camera, toe pointing to the same side, sitting level as if on an invisible flat surface. If the " +
+    "input clearly shows a pair, present a tidy matched pair in the same side-profile orientation, " +
+    "neatly aligned; otherwise show the single shoe. Render exactly ONE clean instance of every part " +
+    "— one sole, one upper, one set of laces — with NO floating, duplicated, detached or extra " +
+    "soles, straps or parts, and no mangled or warped geometry. Complete any occluded or cut-off " +
+    "parts so the ENTIRE shoe is visible and correctly proportioned. Show no foot, leg, hand, box, " +
+    "stand or props.",
+  bag:
+    "You are given a single bag (handbag, tote, backpack, clutch or purse). Render it as a clean, " +
+    "professional e-commerce PRODUCT photograph, shown straight-on from the front at a natural, " +
+    "upright angle, standing as it naturally would. Render straps and handles faithfully and " +
+    "symmetrically as in the input, without tangling or duplicating them. Complete any occluded or " +
+    "cut-off parts so the ENTIRE bag is visible. Show no hand, arm, body part, mannequin, stand, " +
+    "hook or props.",
+  accessory:
+    "You are given a single accessory — for example a belt, watch, hat, scarf, sunglasses or " +
+    "jewellery. Render it as a clean, professional e-commerce PRODUCT photograph: the object by " +
+    "itself, straight-on at a natural, flattering angle, complete and fully visible. You MUST remove " +
+    "any hand, fingers, wrist, arm, neck, head, skin, body part, mannequin, bust, stand, hook, table " +
+    "or prop it was worn on or photographed against — show the bare product only. For a belt, lay it " +
+    "out cleanly (coiled neatly or straight), not on a body. Complete any occluded or cut-off parts " +
+    "so the ENTIRE object is visible.",
+};
+
+const PROMPTS = Object.fromEntries(
+  (Object.keys(LEAD) as Category[]).map((c) => [c, `${LEAD[c]} ${SHARED}`]),
+) as Record<Category, string>;
+
+const promptFor = (category?: string): string => PROMPTS[category as Category] ?? PROMPTS.top;
 
 // Fixed output geometry so every beautified item shares canvas size, garment scale and centring.
 const CANVAS = 1000; // square output edge (px)

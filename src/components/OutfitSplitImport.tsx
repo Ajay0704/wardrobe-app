@@ -209,6 +209,9 @@ export function OutfitSplitImport({
         addItem({
           name: r.name.trim() || CATEGORY_LABEL[r.category],
           imageUrl,
+          // Keep the pre-beautify cutout so a later "Regenerate" (after a pipeline bump) redraws
+          // from a clean base instead of re-beautifying an already-beautified sticker (AJA-225).
+          cutoutImageUrl: r.imageUrl,
           beautifiedImageUrl,
           beautifyWhiteUrl,
           beautifyModel,
