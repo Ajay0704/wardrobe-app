@@ -94,7 +94,6 @@ export function CanvasBuilderView() {
   } = useWardrobe();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [menuId, setMenuId] = useState<string | null>(null); // long-press control cluster
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
@@ -133,17 +132,16 @@ export function CanvasBuilderView() {
   // the current offset — not the transitioning padded stage — so the size is
   // correct immediately when a tool tap expands the sheet (no lag/overlap).
   const areaRef = useRef<HTMLDivElement>(null);
+  // The CANONICAL full board (sheet collapsed). Pieces live in these px coords; the board is CSS-
+  // SCALED (not resized) to fit above the sheet, so pieces scale WITH it and stay composed (AJA-232
+  // follow-up). Sized only by area + aspect — independent of the sheet offset.
   const [board, setBoard] = useState({ w: 0, h: 0 });
   useLayoutEffect(() => {
     const fit = () => {
       const el = areaRef.current;
       if (!el) return;
-      // Resize with the sheet (Pinterest): reserve the space the sheet currently occupies, floored
-      // to BOARD_RESERVE so a collapsed sheet leaves the board big/full. Full when the sheet is
-      // down, shrinks to stay above it when pulled up — and never balloons past full.
-      const reserveNum = Math.max(BOARD_RESERVE, maxOffset + PEEK - offset);
       const availW = el.clientWidth - 24;
-      const availH = el.clientHeight - reserveNum;
+      const availH = el.clientHeight - BOARD_RESERVE;
       if (availW <= 0 || availH <= 0) return;
       const ratio = aspect === "3:4" ? 3 / 4 : 1; // w / h
       let w = availH * ratio;
@@ -157,7 +155,7 @@ export function CanvasBuilderView() {
     fit();
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, [aspect, offset, maxOffset]);
+  }, [aspect]);
 
   const expand = () => setOffset(0);
   const startDrag = (e: React.PointerEvent) => {
@@ -241,7 +239,6 @@ export function CanvasBuilderView() {
   const deletePiece = (id: string) => {
     removeCanvasItem(id);
     if (selectedId === id) setSelectedId(null);
-    if (menuId === id) setMenuId(null);
   };
   const duplicatePiece = (id: string) => {
     const c = canvasDraft.find((x) => x.id === id);
@@ -250,7 +247,6 @@ export function CanvasBuilderView() {
     const copy: CanvasItem = { ...c, id: `dup-${Date.now()}`, x: c.x + 22, y: c.y + 22, zIndex: top + 1 };
     setCanvasDraft([...canvasDraft, copy]);
     setSelectedId(copy.id);
-    setMenuId(copy.id);
   };
   const selectLast = () => {
     window.setTimeout(() => {
@@ -322,7 +318,6 @@ export function CanvasBuilderView() {
     if (bySlot.shoes?.length) put(bySlot.shoes[0], rightX, bh * 0.66, Sh);
     setCanvasDraft(nodes);
     setSelectedId(null);
-    setMenuId(null);
     flash("Here's a look — tweak it");
   };
   const addText = () => {
@@ -381,9 +376,12 @@ export function CanvasBuilderView() {
   // with the sheet and stays just above it.
   const reserve = maxOffset === 0 ? null : maxOffset + PEEK - offset;
   const reserveCss = reserve === null ? "var(--sheet-h)" : `${reserve}px`;
-  // Space the board area reserves for the sheet — matches the board-sizing reserve so the board
-  // shrinks/grows in step with the sheet and stays centred above it (floored to BOARD_RESERVE).
+  // Space the sheet currently occupies (floored to BOARD_RESERVE). The full board corresponds to
+  // BOARD_RESERVE; as the sheet rises, scale the WHOLE board (pieces included) down to fit above it.
   const boardReserve = Math.max(BOARD_RESERVE, maxOffset + PEEK - offset);
+  const boardScale = board.h
+    ? Math.max(0.35, Math.min(1, (board.h + BOARD_RESERVE - boardReserve) / board.h))
+    : 1;
 
   return (
     <div
@@ -422,15 +420,12 @@ export function CanvasBuilderView() {
         </button>
       </div>
 
-      {/* board — reserves the OPEN sheet height (fixed, so the board never resizes when the sheet
-          is dragged) and centres the board in that space; collapsing the sheet grows the margin */}
+      {/* board area — the canonical full board is top-anchored and reserves a fixed strip below for
+          the collapsed sheet + toolbar; the board itself is CSS-scaled (below) to fit the sheet. */}
       <div
         ref={areaRef}
         className="relative min-h-0 flex-1"
-        style={{
-          paddingBottom: `${boardReserve}px`,
-          transition: dragging ? "none" : "padding-bottom 260ms cubic-bezier(0.22,1,0.36,1)",
-        }}
+        style={{ paddingBottom: `${BOARD_RESERVE}px` }}
       >
         {/* aspect chip — a small, always-there formatting control on the canvas */}
         <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
@@ -448,22 +443,52 @@ export function CanvasBuilderView() {
           ))}
         </div>
 
-        <div className="flex h-full items-center justify-center px-3">
+        {/* Selected-item controls — a fixed strip on the right edge (not over the item), shown while
+            a piece is selected; predictable spot instead of a popup that jumps above the piece. */}
+        {selectedId &&
+          (() => {
+            const sc = canvasDraft.find((x) => x.id === selectedId);
+            if (!sc) return null;
+            const b =
+              "flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md backdrop-blur-sm transition-transform active:scale-90";
+            return (
+              <div className="animate-pop absolute right-2.5 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
+                {sc.kind !== "text" && (
+                  <button type="button" aria-label="Flip" className={b} onClick={() => updateCanvasItem(sc.id, { flipped: !sc.flipped })}>
+                    <FlipHorizontal size={17} />
+                  </button>
+                )}
+                <button type="button" aria-label="Duplicate" className={b} onClick={() => duplicatePiece(sc.id)}>
+                  <Copy size={17} />
+                </button>
+                <button type="button" aria-label="Bring to front" className={b} onClick={() => bringToFront(sc.id)}>
+                  <ArrowUp size={17} />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Delete"
+                  className="flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-red-600 shadow-md backdrop-blur-sm transition-transform active:scale-90"
+                  onClick={() => deletePiece(sc.id)}
+                >
+                  <Trash2 size={17} />
+                </button>
+              </div>
+            );
+          })()}
+
+        <div className="flex h-full items-start justify-center px-3 pt-1">
           <div
             onPointerDown={(e) => {
-              if (e.target === e.currentTarget) {
-                setSelectedId(null);
-                setMenuId(null);
-              }
+              if (e.target === e.currentTarget) setSelectedId(null);
             }}
             className="relative overflow-hidden rounded-3xl border border-line touch-none"
             style={{
               width: board.w || undefined,
               height: board.h || undefined,
               background: canvasBg || "#ffffff",
-              transition: dragging
-                ? "none"
-                : "width 260ms cubic-bezier(0.22,1,0.36,1), height 260ms cubic-bezier(0.22,1,0.36,1)",
+              transform: `scale(${boardScale})`,
+              transformOrigin: "top center",
+              transition: dragging ? "none" : "transform 260ms cubic-bezier(0.22,1,0.36,1)",
             }}
           >
           {canvasDraft.length === 0 && (
@@ -534,12 +559,9 @@ export function CanvasBuilderView() {
                 key={c.id}
                 c={c}
                 board={board}
+                scale={boardScale}
                 selected={selectedId === c.id}
                 onSelect={select}
-                onLongPress={(id) => {
-                  setSelectedId(id);
-                  setMenuId(id);
-                }}
                 onCommit={updateCanvasItem}
                 onRemove={deletePiece}
                 trashRef={trashRef}
@@ -548,45 +570,6 @@ export function CanvasBuilderView() {
               </CanvasPiece>
             );
           })}
-
-          {/* long-press control cluster — floats just above the pressed piece */}
-          {menuId &&
-            (() => {
-              const c = canvasDraft.find((x) => x.id === menuId);
-              if (!c) return null;
-              const btn =
-                "flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-foreground transition-transform active:scale-90";
-              return (
-                <div
-                  className="animate-canvas-pop absolute z-[60] flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-white/95 p-1.5 shadow-lg backdrop-blur-sm"
-                  style={{
-                    left: Math.max(72, Math.min((board.w || 260) - 72, c.x + c.width / 2)),
-                    top: Math.max(4, c.y - 50),
-                  }}
-                  onPointerDown={(e) => e.stopPropagation()}
-                >
-                  {c.kind !== "text" && (
-                    <button type="button" aria-label="Flip" className={btn} onClick={() => updateCanvasItem(c.id, { flipped: !c.flipped })}>
-                      <FlipHorizontal size={16} />
-                    </button>
-                  )}
-                  <button type="button" aria-label="Duplicate" className={btn} onClick={() => duplicatePiece(c.id)}>
-                    <Copy size={16} />
-                  </button>
-                  <button type="button" aria-label="Bring to front" className={btn} onClick={() => bringToFront(c.id)}>
-                    <ArrowUp size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    aria-label="Delete"
-                    className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/12 text-red-600 transition-transform active:scale-90"
-                    onClick={() => deletePiece(c.id)}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              );
-            })()}
 
           {/* drag-to-delete drop zone — shown/hot toggled imperatively by CanvasPiece via trashRef */}
           <div

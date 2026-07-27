@@ -9,49 +9,44 @@ const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v
 interface Props {
   c: CanvasItem;
   board: { w: number; h: number };
+  /** The board's current CSS scale — screen deltas are divided by this to get board-local coords. */
+  scale: number;
   selected: boolean;
   children: React.ReactNode;
   onSelect: (id: string) => void;
-  onLongPress: (id: string) => void;
   onCommit: (id: string, patch: Partial<CanvasItem>) => void;
   onRemove: (id: string) => void;
   trashRef: React.RefObject<HTMLDivElement | null>;
 }
 
 /**
- * One draggable / pinchable / rotatable cutout on the outfit board (AJA-232). Pinterest-style:
- * no bounding box, one-finger drag, two-finger pinch to scale + rotate, long-press for the control
- * menu, and drag onto the trash to delete. Gestures drive a live GPU transform imperatively for
- * 60fps; committed state (x/y/width/height/rotation) is written to the store ONLY on gesture end
- * (so pinch scale bakes into width/height — no new model field, and no re-render mid-gesture).
- * The trash drop-zone is toggled imperatively via `trashRef` for the same reason.
+ * One draggable / pinchable / rotatable cutout on the outfit board (AJA-232). Pinterest-style: no
+ * bounding box, one-finger drag, two-finger pinch to scale + rotate, drag onto the trash to delete.
+ * Gestures drive a live GPU transform imperatively for 60fps; committed state (x/y/width/height/
+ * rotation) is written to the store only on gesture end (pinch scale bakes into width/height — no
+ * model field). The piece lives INSIDE the CSS-scaled board, so screen deltas are divided by
+ * `scale` to stay in board coordinates. Selection (tap) surfaces the fixed control strip in the
+ * parent (no more popup above the item); the trash zone is toggled imperatively via `trashRef`.
  */
 export function CanvasPiece({
   c,
   board,
+  scale,
   selected,
   children,
   onSelect,
-  onLongPress,
   onCommit,
   onRemove,
   trashRef,
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const live = useRef({ dx: 0, dy: 0, scale: 1, rot: c.rotation });
-  const lp = useRef<number | null>(null);
 
   const applyLive = () => {
     const el = elRef.current;
     if (!el) return;
-    const { dx, dy, scale, rot } = live.current;
-    el.style.transform = `translate3d(${c.x + dx}px,${c.y + dy}px,0) rotate(${rot}deg) scale(${scale})`;
-  };
-  const clearLp = () => {
-    if (lp.current) {
-      clearTimeout(lp.current);
-      lp.current = null;
-    }
+    const { dx, dy, scale: s, rot } = live.current;
+    el.style.transform = `translate3d(${c.x + dx}px,${c.y + dy}px,0) rotate(${rot}deg) scale(${s})`;
   };
   const overTrash = (x: number, y: number) => {
     const t = trashRef.current?.getBoundingClientRect();
@@ -65,25 +60,22 @@ export function CanvasPiece({
     t.style.background = hot ? "rgba(239,68,68,0.26)" : "rgba(239,68,68,0.10)";
     t.style.borderColor = hot ? "#ef4444" : "rgba(248,113,113,0.6)";
   };
+  const s = () => (scale > 0 ? scale : 1); // divide screen deltas by the board scale
 
   const bind = useGesture(
     {
       onDragStart: () => {
         onSelect(c.id);
         live.current = { dx: 0, dy: 0, scale: 1, rot: c.rotation };
-        clearLp();
-        lp.current = window.setTimeout(() => onLongPress(c.id), 460);
       },
       onDrag: ({ movement: [mx, my], pinching, tap, last, xy: [px, py] }) => {
         if (pinching) return; // two fingers → onPinch owns it
-        if (Math.hypot(mx, my) > 5) clearLp();
-        live.current.dx = mx;
-        live.current.dy = my;
+        live.current.dx = mx / s();
+        live.current.dy = my / s();
         applyLive();
         const hot = overTrash(px, py);
         if (!tap) trashUI(true, hot);
         if (last) {
-          clearLp();
           trashUI(false, false);
           if (!tap && hot) {
             onRemove(c.id);
@@ -92,28 +84,25 @@ export function CanvasPiece({
           live.current.dx = 0;
           live.current.dy = 0;
           if (!tap) {
-            const nx = clamp(c.x + mx, -c.width * 0.4, board.w - c.width * 0.6);
-            const ny = clamp(c.y + my, -c.height * 0.4, board.h - c.height * 0.6);
+            const nx = clamp(c.x + mx / s(), -c.width * 0.4, board.w - c.width * 0.6);
+            const ny = clamp(c.y + my / s(), -c.height * 0.4, board.h - c.height * 0.6);
             onCommit(c.id, { x: Math.round(nx), y: Math.round(ny) });
           }
         }
       },
-      onPinch: ({ offset: [s, a], first, last }) => {
-        if (first) {
-          onSelect(c.id);
-          clearLp();
-        }
-        live.current.scale = s;
+      onPinch: ({ offset: [sc, a], first }) => {
+        if (first) onSelect(c.id);
+        live.current.scale = sc;
         live.current.rot = a;
         applyLive();
-        if (last) {
-          const nw = clamp(Math.round(c.width * s), 40, Math.round(board.w * 1.6));
-          const nh = clamp(Math.round(c.height * s), 40, Math.round(board.h * 1.6));
-          const nx = Math.round(c.x + (c.width - nw) / 2); // keep centre fixed
-          const ny = Math.round(c.y + (c.height - nh) / 2);
-          live.current = { dx: 0, dy: 0, scale: 1, rot: a };
-          onCommit(c.id, { width: nw, height: nh, rotation: Math.round(a), x: nx, y: ny });
-        }
+      },
+      onPinchEnd: ({ offset: [sc, a] }) => {
+        const nw = clamp(Math.round(c.width * sc), 40, Math.round(board.w * 1.6));
+        const nh = clamp(Math.round(c.height * sc), 40, Math.round(board.h * 1.6));
+        const nx = Math.round(c.x + (c.width - nw) / 2); // keep centre fixed
+        const ny = Math.round(c.y + (c.height - nh) / 2);
+        live.current = { dx: 0, dy: 0, scale: 1, rot: a };
+        onCommit(c.id, { width: nw, height: nh, rotation: Math.round(a), x: nx, y: ny });
       },
     },
     {
