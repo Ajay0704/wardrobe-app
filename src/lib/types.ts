@@ -113,6 +113,8 @@ export interface WardrobeItem {
   material?: string;
   /** Pattern hint from analyze (e.g. "stripe", "solid"). */
   pattern?: string;
+  /** Optional user-entered size (e.g. "M", "32", "10"). Free-text, not analyzed. */
+  size?: string;
   /** Short style caption used to build / refresh styleEmbedding. */
   styleCaption?: string;
   /** Dense style vector (see style-embed.ts); optional, recomputed from attrs if absent. */

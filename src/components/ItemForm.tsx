@@ -50,10 +50,16 @@ type SheetKey =
   | "category"
   | "color"
   | "fit"
+  | "formality"
+  | "material"
+  | "pattern"
+  | "tone"
+  | "size"
   | "brand"
   | "price"
   | "season"
   | "tags"
+  | "link"
   | "notes";
 
 const SHEET_TITLES: Record<SheetKey, string> = {
@@ -61,12 +67,26 @@ const SHEET_TITLES: Record<SheetKey, string> = {
   category: "Category",
   color: "Color",
   fit: "Fit",
+  formality: "Formality",
+  material: "Material",
+  pattern: "Pattern",
+  tone: "Tone",
+  size: "Size",
   brand: "Brand",
   price: "Price",
   season: "Season",
   tags: "Tags",
+  link: "Product link",
   notes: "Notes",
 };
+
+/** Single-select vocab for the AI-fillable attribute pickers (mirrors /api/analyze). */
+const FORMALITY_OPTIONS = ["casual", "smart-casual", "formal", "statement"];
+const PATTERN_OPTIONS = ["solid", "stripe", "check", "print"];
+const TONE_OPTIONS = ["neutral", "warm", "cool", "black", "white", "bright", "pastel", "earth"];
+const MATERIAL_OPTIONS = [
+  "cotton", "linen", "wool", "denim", "leather", "silk", "knit", "cashmere", "synthetic",
+];
 
 /** Phone / Capacitor: keep the stacked editor — never jump to desktop modal chrome. */
 function usePhoneEditorLayout(nativeHook: boolean): boolean {
@@ -147,6 +167,8 @@ export function ItemForm({
   const [formality, setFormality] = useState<string | undefined>(initial?.formality);
   const [material, setMaterial] = useState<string | undefined>(initial?.material);
   const [pattern, setPattern] = useState<string | undefined>(initial?.pattern);
+  const [tone, setTone] = useState<string | undefined>(initial?.tone);
+  const [size, setSize] = useState(initial?.size ?? "");
   const [styleCaption, setStyleCaption] = useState<string | undefined>(
     initial?.styleCaption,
   );
@@ -373,6 +395,9 @@ export function ItemForm({
       }
       if (typeof data.pattern === "string" && data.pattern) {
         setPattern((prev) => prev || data.pattern);
+      }
+      if (typeof data.tone === "string" && data.tone) {
+        setTone((prev) => prev || data.tone);
       }
       if (typeof data.styleCaption === "string" && data.styleCaption) {
         setStyleCaption((prev) => prev || data.styleCaption);
@@ -660,6 +685,8 @@ export function ItemForm({
       formality: formality || undefined,
       material: material || undefined,
       pattern: pattern || undefined,
+      tone: tone || undefined,
+      size: size.trim() || undefined,
       styleCaption: styleCaption || undefined,
       color,
       colorName,
@@ -1070,6 +1097,36 @@ export function ItemForm({
         onClick={() => setOpenSheet("fit")}
       />
       <EditRow
+        label="Formality"
+        ai
+        value={formality ? cap(formality) : undefined}
+        onClick={() => setOpenSheet("formality")}
+      />
+      <EditRow
+        label="Material"
+        ai
+        value={material ? cap(material) : undefined}
+        onClick={() => setOpenSheet("material")}
+      />
+      <EditRow
+        label="Pattern"
+        ai
+        value={pattern ? cap(pattern) : undefined}
+        onClick={() => setOpenSheet("pattern")}
+      />
+      <EditRow
+        label="Tone"
+        ai
+        value={tone ? cap(tone) : undefined}
+        onClick={() => setOpenSheet("tone")}
+      />
+      <EditRow
+        label="Size"
+        ai
+        value={size.trim() || undefined}
+        onClick={() => setOpenSheet("size")}
+      />
+      <EditRow
         label="Brand"
         value={brand.trim() || undefined}
         onClick={() => setOpenSheet("brand")}
@@ -1090,11 +1147,52 @@ export function ItemForm({
         onClick={() => setOpenSheet("tags")}
       />
       <EditRow
+        label="Product link"
+        ai
+        value={productUrl.trim() ? productUrl.trim().replace(/^https?:\/\/(www\.)?/, "") : undefined}
+        onClick={() => setOpenSheet("link")}
+      />
+      <EditRow
         label="Notes"
         value={notes.trim() || undefined}
         onClick={() => setOpenSheet("notes")}
         last
       />
+    </div>
+  );
+
+  // Single-select picker body shared by the formality / pattern / tone sheets.
+  const renderChoice = (
+    current: string | undefined,
+    options: string[],
+    set: (v: string | undefined) => void,
+  ) => (
+    <div className="pb-1">
+      <button
+        type="button"
+        onClick={() => {
+          set(undefined);
+          setOpenSheet(null);
+        }}
+        className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px]"
+      >
+        <span className="text-muted">None</span>
+        {!current && <Check size={18} className="ml-auto text-accent" />}
+      </button>
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          onClick={() => {
+            set(o);
+            setOpenSheet(null);
+          }}
+          className="flex w-full items-center border-b border-line/60 px-2 py-3 text-left text-[15px] last:border-0"
+        >
+          <span>{cap(o)}</span>
+          {current === o && <Check size={18} className="ml-auto text-accent" />}
+        </button>
+      ))}
     </div>
   );
 
@@ -1171,6 +1269,108 @@ export function ItemForm({
                 {fit === f && <Check size={18} className="ml-auto text-accent" />}
               </button>
             ))}
+          </div>
+        );
+      case "formality":
+        return renderChoice(formality, FORMALITY_OPTIONS, setFormality);
+      case "pattern":
+        return renderChoice(pattern, PATTERN_OPTIONS, setPattern);
+      case "tone":
+        return renderChoice(tone, TONE_OPTIONS, setTone);
+      case "material":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <div className="flex flex-wrap gap-1.5">
+              {MATERIAL_OPTIONS.map((m) => (
+                <Chip
+                  key={m}
+                  active={material === m}
+                  onClick={() => setMaterial(material === m ? undefined : m)}
+                >
+                  {cap(m)}
+                </Chip>
+              ))}
+            </div>
+            <input
+              className={inputClass}
+              value={material ?? ""}
+              onChange={(e) => setMaterial(e.target.value || undefined)}
+              placeholder="Or type a fabric…"
+            />
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      case "size":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <input
+              className={inputClass}
+              value={size}
+              onChange={(e) => setSize(e.target.value)}
+              placeholder="e.g. M, 32, 10"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setOpenSheet(null);
+                }
+              }}
+            />
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
+          </div>
+        );
+      case "link":
+        return (
+          <div className="space-y-3 px-1 pb-1">
+            <input
+              className={inputClass}
+              type="text"
+              inputMode="url"
+              autoCapitalize="off"
+              autoCorrect="off"
+              value={productUrl}
+              onChange={(e) => setProductUrl(e.target.value)}
+              placeholder="Paste a shop link…"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  setOpenSheet(null);
+                }
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setOpenSheet(null);
+                void handleFindProduct();
+              }}
+              disabled={findingProduct || uploading || fetching}
+              className="flex items-center gap-1.5 text-[13px] font-semibold text-accent disabled:opacity-50"
+            >
+              <Sparkles size={13} />
+              {findingProduct ? "Searching…" : "Search the web for this item"}
+            </button>
+            {productUrl.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  const url = affiliateUrl(productUrl.trim());
+                  if (url) void openExternalUrl(url);
+                }}
+                className="flex items-center gap-1.5 text-[11px] font-medium text-accent"
+              >
+                <ExternalLink size={11} />
+                {isNative ? "Open product page in Safari" : "Open product page"}
+              </button>
+            )}
+            <Button onClick={() => setOpenSheet(null)} className="w-full">
+              Done
+            </Button>
           </div>
         );
       case "color":
@@ -1450,12 +1650,15 @@ function EditRow({
   label,
   value,
   swatch,
+  ai,
   onClick,
   last,
 }: {
   label: string;
   value?: string;
   swatch?: string;
+  /** Show a small "AI" pill next to the label — this field can be auto-filled from the photo. */
+  ai?: boolean;
   onClick: () => void;
   last?: boolean;
 }) {
@@ -1467,7 +1670,14 @@ function EditRow({
         last ? "" : "border-b border-line/70"
       }`}
     >
-      <span className="shrink-0 text-sm text-foreground">{label}</span>
+      <span className="flex shrink-0 items-center gap-1.5 text-sm text-foreground">
+        {label}
+        {ai && (
+          <span className="rounded bg-accent-soft px-1 py-0.5 text-[10px] font-semibold uppercase leading-none tracking-wide text-accent">
+            AI
+          </span>
+        )}
+      </span>
       <span className="ml-auto flex min-w-0 items-center gap-2 text-sm">
         {swatch && (
           <span

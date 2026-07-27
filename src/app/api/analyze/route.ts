@@ -93,6 +93,7 @@ export async function POST(request: Request) {
   }
 
   const FORMALITY = ["casual", "smart-casual", "formal", "statement"];
+  const TONE = ["neutral", "warm", "cool", "black", "white", "bright", "pastel", "earth"];
   const prompt =
     `You are a fashion cataloguing assistant. The photo may show a full outfit or a mirror selfie with several garments. Pick the SINGLE most prominent garment — the one that fills the most of the frame and is clearly the main subject — and describe ONLY that item. Ignore smaller or partially-visible garments (for example trousers at the bottom of a sweater selfie), the background, and the person. Respond with JSON of this exact shape:\n` +
     `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
@@ -105,6 +106,7 @@ export async function POST(request: Request) {
     ` "formality": exactly one of [${FORMALITY.join(", ")}],\n` +
     ` "material": a short fabric guess like "cotton", "linen", "wool", "denim", "leather", or null,\n` +
     ` "pattern": "solid", "stripe", "check", "print", or null,\n` +
+    ` "tone": the colour family, exactly one of [${TONE.join(", ")}],\n` +
     ` "styleCaption": one short phrase for styling, e.g. "smart-casual navy knit for cool weather"}\n` +
     `Output only the JSON object.`;
 
@@ -167,6 +169,8 @@ export async function POST(request: Request) {
     formalityRaw && FORMALITY.includes(formalityRaw) ? formalityRaw : undefined;
   const material = str(parsed.material)?.toLowerCase();
   const pattern = str(parsed.pattern)?.toLowerCase();
+  const toneRaw = str(parsed.tone)?.toLowerCase();
+  const tone = toneRaw && TONE.includes(toneRaw) ? toneRaw : undefined;
   const styleCaption = str(parsed.styleCaption);
 
   return Response.json({
@@ -180,6 +184,7 @@ export async function POST(request: Request) {
     formality,
     material,
     pattern,
+    tone,
     styleCaption,
   });
 }
