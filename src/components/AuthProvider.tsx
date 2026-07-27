@@ -1,5 +1,6 @@
 "use client";
 
+import { App } from "@capacitor/app";
 import { useCallback, useEffect, useRef } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
@@ -7,6 +8,7 @@ import { ensureProfile } from "@/lib/chat";
 import {
   absorbWishlistClips,
   fetchSnapshot,
+  mergeItemsById,
   pullSnapshot,
   pushSnapshot,
 } from "@/lib/supabase/sync";
@@ -61,14 +63,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (res.status === "found") {
           // fetchSnapshot already scrubs poisoned inline images
           const remote = res.snapshot;
+          // Merge, don't replace (AJA-233): keep local items the server hasn't
+          // stored yet — added offline, or before the 600ms debounced push landed —
+          // so a cold-start pull can't erase un-synced work. Same id → local wins
+          // (preserves local edits); server-only items (other device) are kept too.
+          const local = useWardrobe.getState();
+          const mergedItems = mergeItemsById(local.items, remote.items);
           hydrateFromRemote({
-            items: remote.items,
+            items: mergedItems,
             outfits: remote.outfits,
             calendar: remote.calendar,
             profile: remote.profile,
             theme: remote.theme,
             draft: remote.draft,
           });
+          // If we recovered local-only items, persist the merge so the server catches up.
+          const remoteIds = new Set(remote.items.map((it) => it.id));
+          if (local.items.some((it) => !remoteIds.has(it.id))) {
+            const s = useWardrobe.getState();
+            void pushSnapshot(uid, {
+              items: s.items,
+              outfits: s.outfits,
+              calendar: s.calendar,
+              profile: s.profile,
+              theme: s.theme,
+              draft: s.draft,
+            });
+          }
           return;
         }
 
@@ -152,6 +173,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     },
     [setSyncStatus],
   );
+
+  /**
+   * Push the pending snapshot to Supabase now (AJA-233). Shared by the 600ms
+   * debounce AND the background/hide handler, so quitting the app right after a
+   * change can't lose it. No-op while a pull is in flight or a merge is applying.
+   */
+  const flushPush = useCallback(async () => {
+    if (skipPush.current || merging.current) return;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    const uid = userId.current ?? (await getSessionUser())?.id;
+    if (!uid) {
+      setSyncStatus("offline");
+      return;
+    }
+    userId.current = uid;
+    scrubBloatedInlineImages();
+    const { items, outfits, calendar, profile, theme, draft } =
+      useWardrobe.getState();
+    const result = await pushSnapshot(uid, {
+      items,
+      outfits,
+      calendar,
+      profile,
+      theme,
+      draft,
+    });
+    if (result.ok) setSyncStatus("synced");
+    else setSyncStatus("error", result.error);
+    if (profileDirty.current) {
+      profileDirty.current = false;
+      void ensureProfile(profile, uid);
+    }
+  }, [setSyncStatus]);
 
   useEffect(() => {
     if (!isSupabaseConfigured()) return;
@@ -310,30 +367,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (timer.current) clearTimeout(timer.current);
       setSyncStatus("syncing");
 
-      timer.current = setTimeout(async () => {
-        const uid = userId.current ?? (await getSessionUser())?.id;
-        if (!uid) {
-          setSyncStatus("offline");
-          return;
-        }
-        userId.current = uid;
-        scrubBloatedInlineImages();
-        const { items, outfits, calendar, profile, theme, draft } =
-          useWardrobe.getState();
-        const result = await pushSnapshot(uid, {
-          items,
-          outfits,
-          calendar,
-          profile,
-          theme,
-          draft,
-        });
-        if (result.ok) setSyncStatus("synced");
-        else setSyncStatus("error", result.error);
-        if (profileDirty.current) {
-          profileDirty.current = false;
-          void ensureProfile(profile, uid);
-        }
+      timer.current = setTimeout(() => {
+        void flushPush();
       }, 600);
     });
 
@@ -341,7 +376,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       unsub();
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [setSyncStatus]);
+  }, [setSyncStatus, flushPush]);
+
+  // Flush the pending push when the app backgrounds or the tab hides, so quitting
+  // the app right after a change can't drop it (AJA-233). Native uses Capacitor's
+  // appStateChange; web falls back to visibility/pagehide.
+  useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") void flushPush();
+    };
+    const onPageHide = () => void flushPush();
+    document.addEventListener("visibilitychange", onHidden);
+    window.addEventListener("pagehide", onPageHide);
+
+    let handle: { remove: () => void } | undefined;
+    void App.addListener("appStateChange", ({ isActive }) => {
+      if (!isActive) void flushPush();
+    }).then((h) => {
+      handle = h;
+    });
+
+    return () => {
+      document.removeEventListener("visibilitychange", onHidden);
+      window.removeEventListener("pagehide", onPageHide);
+      handle?.remove();
+    };
+  }, [flushPush]);
 
   return <>{children}</>;
 }
