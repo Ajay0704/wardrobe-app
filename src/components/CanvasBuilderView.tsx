@@ -286,6 +286,7 @@ export function CanvasBuilderView() {
     const SHOE = Math.round(bw * 0.36);
     const ACC = Math.round(bw * 0.28);
     const leftX = Math.round(bw * 0.03);
+    const leftCx = leftX + HERO / 2; // left-column centre-x; hero pieces are centred on it
     const rCx = bw * 0.74; // right-column centre-x; right pieces are centred on it
     const bySlot: Partial<Record<string, WardrobeItem[]>> = {};
     for (const it of picks) (bySlot[slotForCategory(it.category)] ??= []).push(it);
@@ -307,13 +308,14 @@ export function CanvasBuilderView() {
       });
     };
     const putR = (it: WardrobeItem, y: number, size: number) => put(it, rCx - size / 2, y, size);
-    // LEFT — hero pieces (big)
+    const putL = (it: WardrobeItem, y: number, size: number) => put(it, leftCx - size / 2, y, size);
+    // LEFT — hero pieces (big), all centred on leftCx so top + bottom line up vertically
     if (bySlot.dress?.length) {
-      put(bySlot.dress[0], leftX, bh * 0.14, HERO); // dress owns the left column
+      putL(bySlot.dress[0], bh * 0.14, HERO); // dress owns the left column
     } else {
-      if (bySlot.top?.length) put(bySlot.top[0], leftX, bh * 0.06, HERO);
+      if (bySlot.top?.length) putL(bySlot.top[0], bh * 0.06, HERO);
       // Pants read narrow, so give them a slightly bigger box to feel proportionate to the top.
-      if (bySlot.bottom?.length) put(bySlot.bottom[0], leftX, bh * 0.5, Math.round(HERO * 1.12));
+      if (bySlot.bottom?.length) putL(bySlot.bottom[0], bh * 0.5, Math.round(HERO * 1.12));
     }
     // RIGHT — supports stacked from the top, centred on rCx; shoes pinned bottom-right
     let ry = bh * 0.06;
