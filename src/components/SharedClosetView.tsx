@@ -132,15 +132,24 @@ export function SharedClosetView() {
     return g?.cat ? presentSubcategories(g.cat, owned) : [];
   }, [addTab, owned]);
 
+  // Who added an item → their display name + avatar (self = my own identity), for the card badge.
+  const ownerOf = useCallback(
+    (id: string): { name: string; avatar: string | null } => {
+      if (id === meId) return { name: myIdentity.name, avatar: myIdentity.avatar ?? null };
+      const m = members.find((mm) => mm.userId === id);
+      return { name: m?.name ?? m?.handle ?? "A member", avatar: m?.avatar ?? null };
+    },
+    [meId, myIdentity, members],
+  );
   // Shared-items grid filtering. Shared snapshots don't store a sub-category, so derive it from
   // name+category with the same deterministic inferrer (works for every member's items, no DB change).
   const sharedWithSub = useMemo(
     () =>
       closetItems.map((it) => {
         const cat = (it.category ?? "top") as Category;
-        return { it, cat, subcategory: inferSubcategory(cat, it.name ?? "") };
+        return { it, cat, subcategory: inferSubcategory(cat, it.name ?? ""), owner: ownerOf(it.addedBy) };
       }),
-    [closetItems],
+    [closetItems, ownerOf],
   );
   // Category tabs shown only when the shared items span more than one category.
   const itemCatTabs = useMemo(() => {
@@ -688,11 +697,17 @@ export function SharedClosetView() {
                 </div>
               )}
               <div className="-mx-4 grid grid-cols-3 border-t border-line">
-                {shownSharedItems.map(({ it }, i) => (
+                {shownSharedItems.map(({ it, owner }, i) => (
                 <div
                   key={it.id}
                   className={`relative border-b border-line ${i % 3 !== 2 ? "border-r" : ""}`}
                 >
+                  <span
+                    className="pointer-events-none absolute left-1.5 top-1.5 z-10 rounded-full shadow-sm ring-2 ring-white/90"
+                    title={`Added by ${owner.name}`}
+                  >
+                    <Avatar name={owner.name} avatar={owner.avatar} size={22} />
+                  </span>
                   <button
                     type="button"
                     onClick={() => setEditItem(it)}
