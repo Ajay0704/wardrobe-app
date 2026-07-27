@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import { CATEGORIES } from "@/lib/types";
+import { CATEGORIES, matchesSubcategory, presentSubcategories } from "@/lib/types";
 import * as SC from "@/lib/shared-closet";
 import { BottomSheet } from "./BottomSheet";
 import { Button, Chip, EmptyState, inputClass } from "./ui";
@@ -20,11 +20,14 @@ import { Button, Chip, EmptyState, inputClass } from "./ui";
 // Closet category grouping for the "add from my closet" picker — mirrors
 // WardrobeView's MAIN_TABS so it feels like browsing your closet.
 const MAIN_TABS = [
-  { key: "all", label: "All", cats: null },
-  { key: "tops", label: "Tops", cats: ["top", "outerwear", "dress"] },
-  { key: "pants", label: "Pants", cats: ["bottom"] },
-  { key: "shoes", label: "Shoes", cats: ["shoes"] },
-  { key: "accessories", label: "Accessories", cats: ["accessory", "bag"] },
+  { key: "all", label: "All", cat: null },
+  { key: "top", label: "Tops", cat: "top" },
+  { key: "bottom", label: "Bottoms", cat: "bottom" },
+  { key: "dress", label: "Dresses", cat: "dress" },
+  { key: "outerwear", label: "Outerwear", cat: "outerwear" },
+  { key: "shoes", label: "Shoes", cat: "shoes" },
+  { key: "bag", label: "Bags", cat: "bag" },
+  { key: "accessory", label: "Accessories", cat: "accessory" },
 ] as const;
 type MainTabKey = (typeof MAIN_TABS)[number]["key"];
 
@@ -97,6 +100,7 @@ export function SharedClosetView() {
   const [addOpen, setAddOpen] = useState(false);
   const [addSel, setAddSel] = useState<Set<string>>(new Set());
   const [addTab, setAddTab] = useState<MainTabKey>("all");
+  const [subCat, setSubCat] = useState<string>("all");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const [editItem, setEditItem] = useState<SC.SharedClosetItem | null>(null);
@@ -114,10 +118,14 @@ export function SharedClosetView() {
   );
   const pickerItems = useMemo(() => {
     const g = MAIN_TABS.find((t) => t.key === addTab);
-    if (!g?.cats) return owned;
-    const cats = g.cats as readonly string[];
-    return owned.filter((it) => cats.includes(it.category));
-  }, [owned, addTab]);
+    let arr = g?.cat ? owned.filter((it) => it.category === g.cat) : owned;
+    if (subCat !== "all") arr = arr.filter((it) => matchesSubcategory(it, subCat));
+    return arr;
+  }, [owned, addTab, subCat]);
+  const subChips = useMemo(() => {
+    const g = MAIN_TABS.find((t) => t.key === addTab);
+    return g?.cat ? presentSubcategories(g.cat, owned) : [];
+  }, [addTab, owned]);
   const memberName = useCallback(
     (id: string) =>
       id === meId ? "You" : members.find((m) => m.userId === id)?.name ?? "A member",
@@ -520,7 +528,10 @@ export function SharedClosetView() {
                   <button
                     key={t.key}
                     type="button"
-                    onClick={() => setAddTab(t.key)}
+                    onClick={() => {
+                      setAddTab(t.key);
+                      setSubCat("all");
+                    }}
                     className={`-mb-px border-b-2 pb-2 text-sm transition-colors ${
                       addTab === t.key
                         ? "border-accent font-medium text-accent"
@@ -531,6 +542,18 @@ export function SharedClosetView() {
                   </button>
                 ))}
               </div>
+              {subChips.length > 1 && (
+                <div className="mb-3 flex gap-2 overflow-x-auto">
+                  <Chip active={subCat === "all"} onClick={() => setSubCat("all")}>
+                    All
+                  </Chip>
+                  {subChips.map((c) => (
+                    <Chip key={c.value} active={subCat === c.value} onClick={() => setSubCat(c.value)}>
+                      {c.label}
+                    </Chip>
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                 {pickerItems.map((it) => {
                   const added = myRefs.has(it.id);
