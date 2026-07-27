@@ -7,13 +7,27 @@
 import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
 import { cutout } from "./cutout";
+import type { Category } from "./types";
+
+/**
+ * Categories we auto-beautify (worn garments → ghost-mannequin / flat-lay product shots).
+ * Products (shoes, bag, accessory) are NOT here: the generative redraw mangles them (a shoe
+ * becomes a weird front view), so they keep their cutout — a clean product photo cut out on
+ * transparency reads better on the canvas than a hallucinated one (AJA-225 follow-up).
+ */
+export const AUTO_BEAUTIFY_CATEGORIES = new Set<Category>([
+  "top",
+  "bottom",
+  "dress",
+  "outerwear",
+]);
 
 /**
  * Beautify pipeline version. Bump when the prompt, normalization or removal changes so the editor
  * can offer a one-time regenerate for images made by an older pipeline. It's appended to the model
  * stamp; a cached beautify whose stamp lacks the current marker is treated as stale.
  */
-export const BEAUTIFY_PIPELINE = "pipe8";
+export const BEAUTIFY_PIPELINE = "pipe9";
 
 /** Fixed square output edge — MUST match CANVAS in /api/beautify's normalization. */
 const CANVAS = 1000;

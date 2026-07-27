@@ -17,7 +17,7 @@ import {
   UserCog,
 } from "lucide-react";
 import { useRef, useState } from "react";
-import { beautify, BEAUTIFY_PIPELINE } from "@/lib/beautify";
+import { AUTO_BEAUTIFY_CATEGORIES, beautify, BEAUTIFY_PIPELINE } from "@/lib/beautify";
 import {
   disableNativeOutfitReminders,
   enableNativeOutfitReminders,
@@ -124,7 +124,11 @@ export function YouView() {
   const standardizeCloset = async () => {
     if (stdBusy || !authUser) return;
     const targets = items.filter(
-      (it) => !it.wishlist && it.imageUrl && !(it.beautifyModel ?? "").includes(BEAUTIFY_PIPELINE),
+      (it) =>
+        !it.wishlist &&
+        it.imageUrl &&
+        AUTO_BEAUTIFY_CATEGORIES.has(it.category) &&
+        !(it.beautifyModel ?? "").includes(BEAUTIFY_PIPELINE),
     );
     if (targets.length === 0) {
       flash("Everything's already standardized");

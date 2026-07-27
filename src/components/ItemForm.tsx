@@ -30,7 +30,7 @@ import { isNativeApp, openExternalUrl } from "@/lib/platform";
 import { embedItem } from "@/lib/style-embed";
 import { useWardrobe } from "@/lib/store";
 import { cutout } from "@/lib/cutout";
-import { BEAUTIFY_PIPELINE, beautify } from "@/lib/beautify";
+import { AUTO_BEAUTIFY_CATEGORIES, BEAUTIFY_PIPELINE, beautify } from "@/lib/beautify";
 import { authHeaders } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Fit, Season, WardrobeItem } from "@/lib/types";
@@ -454,10 +454,11 @@ export function ItemForm({
     } finally {
       setRemovingBg(false);
     }
-    // Auto-standardize a worn/messy shot (matte cutout) into a product shot. A clean product photo
-    // on a uniform background is flood-cut ("flood@1") and already canvas-ready → skip the redraw
-    // (no drift, no cost). Manual Beautify still available for those if the user wants it.
-    if (result && result.engine !== "flood@1") {
+    // Auto-standardize garments (worn selfies → clean ghost-mannequin / flat-lay product shots).
+    // Shoes/bags/accessories are NOT auto-beautified — the generative redraw mangles them; their
+    // cutout (a clean product photo on transparency) reads better on the canvas. Manual Beautify
+    // stays available for any item.
+    if (result && AUTO_BEAUTIFY_CATEGORIES.has((cat ?? category) as Category)) {
       await autoStandardize(result.url, cat ?? category);
     }
   };
