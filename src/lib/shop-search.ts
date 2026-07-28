@@ -5,6 +5,7 @@
  * degradation of community.ts — returns empty/null instead of throwing.
  */
 import { authHeaders } from "./supabase/client";
+import { drainWishlistInbox } from "./wishlist-inbox";
 
 export type OwnStatus = "exact" | "similar" | "type" | "none";
 
@@ -95,6 +96,8 @@ export async function wishlistProduct(productId: string): Promise<boolean> {
       headers: { "Content-Type": "application/json", ...(await authHeaders()) },
       body: JSON.stringify({ productId }),
     });
+    // Absorb immediately: the heart is tapped inside the app (AJA-241).
+    if (res.ok) await drainWishlistInbox();
     return res.ok;
   } catch {
     return false;

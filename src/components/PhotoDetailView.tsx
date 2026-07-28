@@ -16,6 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders } from "@/lib/supabase/client";
 import { useWardrobe } from "@/lib/store";
 import type { Category } from "@/lib/types";
+import { drainWishlistInbox } from "@/lib/wishlist-inbox";
 
 interface Detection {
   detectionId: string;
@@ -193,6 +194,9 @@ export function PhotoDetailView() {
     if (!detection) return;
     try {
       await api("/api/wishlist", { detectionId: detection.detectionId });
+      // Pull it straight into the closet — the app never backgrounds here, so the
+      // visibilitychange drain wouldn't run (AJA-241).
+      await drainWishlistInbox();
       flash("Saved to wishlist");
     } catch (e) {
       flash((e as Error).message || "Couldn't save");
@@ -409,7 +413,9 @@ function ShopFeed({ detectionId, postId }: { detectionId: string; postId: string
 
   const onSave = (it: ShopItem) => {
     setSavedSet((prev) => new Set(prev).add(it.productId));
-    void api("/api/wishlist", { productId: it.productId }).catch(() => {});
+    void api("/api/wishlist", { productId: it.productId })
+      .then(() => drainWishlistInbox())
+      .catch(() => {});
   };
   const onOpen = (it: ShopItem) => {
     logEvent("shop_click", { postId, productId: it.productId, payload: { tag: it.tag } });

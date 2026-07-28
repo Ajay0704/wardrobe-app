@@ -7,6 +7,9 @@ import { getSessionUser } from "@/lib/supabase/auth";
 import { ensureProfile } from "@/lib/chat";
 import {
   absorbWishlistClips,
+  fetchWishlistInbox,
+  inboxToItems,
+  markWishlistInboxConsumed,
   fetchSnapshot,
   mergeItemsById,
   pullSnapshot,
@@ -315,11 +318,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       absorbInFlight.current = true;
       lastAbsorbAt.current = now;
       try {
-        const remote = await pullSnapshot(uid);
+        // Two sources of not-yet-local wishlist saves: extension clips already in
+        // the remote snapshot, and the wishlist_items INBOX that /api/wishlist writes
+        // (hearts on shop results and detected photos). The inbox had no reader at all
+        // before AJA-241, so those saves silently disappeared.
+        const [remote, inbox] = await Promise.all([
+          pullSnapshot(uid),
+          fetchWishlistInbox(),
+        ]);
         if (!remote) return;
         const local = useWardrobe.getState();
-        const mergedItems = absorbWishlistClips(local.items, remote.items);
-        if (mergedItems.length === local.items.length) return;
+        const withClips = absorbWishlistClips(local.items, remote.items);
+        const fromInbox = inboxToItems(inbox, withClips);
+        const mergedItems = fromInbox.length ? [...fromInbox, ...withClips] : withClips;
+        if (mergedItems.length === local.items.length) {
+          // Nothing new to show, but rows we've already got must still be marked or
+          // they'd be re-examined on every single foreground.
+          if (inbox.length) void markWishlistInboxConsumed(inbox.map((r) => r.id));
+          return;
+        }
 
         merging.current = true;
         hydrateFromRemote({
@@ -331,9 +348,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           draft: local.draft,
         });
         merging.current = false;
+        // Marked only AFTER the items are in the store, so a failure mid-way leaves the
+        // rows unconsumed and they get another go. Re-absorbing is harmless because
+        // inboxToItems dedupes on id.
+        if (inbox.length) void markWishlistInboxConsumed(inbox.map((r) => r.id));
       } catch (err) {
         merging.current = false;
-        console.warn("[sync] absorb clips failed:", err);
+        console.warn("[sync] absorb wishlist failed:", err);
       } finally {
         absorbInFlight.current = false;
       }

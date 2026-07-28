@@ -260,6 +260,115 @@ export function absorbWishlistClips(
   return [...extras, ...local];
 }
 
+/* ------------------------------------------------ wishlist inbox (AJA-241) */
+
+/**
+ * A saved-but-not-yet-absorbed row from `wishlist_items`.
+ *
+ * That table was written by /api/wishlist and read by nothing, so every heart tapped
+ * on a shop result or a detected garment vanished. It's now an inbox the client
+ * drains into its own snapshot.
+ */
+export interface WishlistInboxRow {
+  id: string;
+  kind: string;
+  name: string | null;
+  category: string | null;
+  image_url: string | null;
+  product_url: string | null;
+  price_cents: number | null;
+  currency: string | null;
+  source_ref: string | null;
+  created_at: string;
+}
+
+const INBOX_COLS =
+  "id,kind,name,category,image_url,product_url,price_cents,currency,source_ref,created_at";
+
+/** Un-absorbed saves for the signed-in user, oldest first. RLS scopes this. */
+export async function fetchWishlistInbox(limit = 50): Promise<WishlistInboxRow[]> {
+  const supabase = getSupabase();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("wishlist_items")
+    .select(INBOX_COLS)
+    .is("consumed_at", null)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) return [];
+  return (data ?? []) as unknown as WishlistInboxRow[];
+}
+
+/**
+ * Mark rows absorbed. This is what stops a save the user has since DELETED from
+ * reappearing on the next sync — the hazard absorbWishlistClips still has, which it
+ * only works around by matching normalized product URLs.
+ */
+export async function markWishlistInboxConsumed(ids: string[]): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase || !ids.length) return;
+  await supabase
+    .from("wishlist_items")
+    .update({ consumed_at: new Date().toISOString() })
+    .in("id", ids);
+}
+
+/**
+ * Inbox rows -> wishlist items, skipping anything already present locally.
+ *
+ * Dedupes on the row id (which becomes the item id) AND on normalized product URL, so
+ * re-running this after a failed consume marking can't create a duplicate. Rows with
+ * no usable image are dropped: the wishlist is a visual grid and a blank card is worse
+ * than a missing one.
+ */
+export function inboxToItems(
+  rows: WishlistInboxRow[],
+  local: WardrobeItem[],
+): WardrobeItem[] {
+  const localIds = new Set(local.map((it) => it.id));
+  const localUrls = new Set(
+    local.map((it) => normalizeProductUrl(it.productUrl)).filter(Boolean),
+  );
+  const out: WardrobeItem[] = [];
+  for (const r of rows) {
+    if (!r.id || localIds.has(r.id)) continue;
+    if (!r.image_url) continue;
+    const url = normalizeProductUrl(r.product_url ?? undefined);
+    if (url && localUrls.has(url)) continue;
+    const category = (WISHLIST_CATEGORIES as readonly string[]).includes(r.category ?? "")
+      ? (r.category as WardrobeItem["category"])
+      : "top";
+    out.push({
+      id: r.id,
+      name: r.name?.trim() || "Saved item",
+      imageUrl: r.image_url,
+      category,
+      color: "#a8a29e",
+      tags: [],
+      seasons: [],
+      wishlist: true,
+      favorite: false,
+      price: typeof r.price_cents === "number" ? r.price_cents / 100 : undefined,
+      productUrl: r.product_url ?? undefined,
+      createdAt: new Date(r.created_at).getTime() || Date.now(),
+    });
+    localIds.add(r.id);
+    if (url) localUrls.add(url);
+  }
+  return out;
+}
+
+/** The shop taxonomy and WardrobeItem["category"] happen to match exactly. */
+const WISHLIST_CATEGORIES = [
+  "top",
+  "bottom",
+  "dress",
+  "outerwear",
+  "shoes",
+  "bag",
+  "accessory",
+] as const;
+
 /** Push local state to Supabase (upsert). Returns a structured result with the real error. */
 export async function pushSnapshot(
   userId: string,

@@ -195,6 +195,12 @@ interface WardrobeState {
   canvasBg: string | null;
 
   addItem: (item: Omit<WardrobeItem, "id" | "createdAt">) => void;
+  /**
+   * Prepend items that already HAVE ids — the wishlist inbox drain (AJA-241). addItem
+   * mints a fresh id, which would defeat the id-based dedupe and re-add the same save
+   * on every drain.
+   */
+  absorbItems: (items: WardrobeItem[]) => void;
   updateItem: (id: string, patch: Partial<WardrobeItem>) => void;
   deleteItem: (id: string) => void;
   /** Remove the seeded sample/starter pieces (the "clear samples" affordance). */
@@ -498,6 +504,13 @@ export const useWardrobe = create<WardrobeState>()(
         set((s) => ({
           items: [{ ...item, id: uid(), createdAt: Date.now() }, ...s.items],
         })),
+
+      absorbItems: (incoming) =>
+        set((s) => {
+          const have = new Set(s.items.map((it) => it.id));
+          const fresh = incoming.filter((it) => it?.id && !have.has(it.id));
+          return fresh.length ? { items: [...fresh, ...s.items] } : {};
+        }),
 
       updateItem: (id, patch) =>
         set((s) => ({

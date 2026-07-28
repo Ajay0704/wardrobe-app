@@ -17,6 +17,9 @@ export async function POST(request: Request) {
   const admin = adminClient();
   if (!admin) return Response.json({ error: "Not configured." }, { status: 500 });
 
+  // price/currency/product_url are carried through so an absorbed save keeps the
+  // fields the wishlist actually renders (AJA-241) — a save that loses its price and
+  // its buy link is only half a save.
   let row: {
     kind: string;
     product_id: string | null;
@@ -24,12 +27,15 @@ export async function POST(request: Request) {
     category: string | null;
     image_url: string | null;
     source_ref: string | null;
+    price_cents: number | null;
+    currency: string | null;
+    product_url: string | null;
   };
 
   if (productId) {
     const { data: p, error } = await admin
       .from("shop_products")
-      .select("brand,title,category,image_url")
+      .select("brand,title,category,image_url,price_cents,currency,buy_url")
       .eq("id", productId)
       .single();
     if (error || !p) return Response.json({ error: "product not found" }, { status: 404 });
@@ -40,6 +46,9 @@ export async function POST(request: Request) {
       category: p.category,
       image_url: p.image_url,
       source_ref: null,
+      price_cents: p.price_cents ?? null,
+      currency: p.currency ?? null,
+      product_url: p.buy_url ?? null,
     };
   } else {
     const { data: det, error } = await admin
@@ -55,6 +64,10 @@ export async function POST(request: Request) {
       category: det.category,
       image_url: det.crop_path,
       source_ref: det.source_ref,
+      // A garment spotted in a photo has no price or retailer to carry.
+      price_cents: null,
+      currency: null,
+      product_url: null,
     };
   }
 
