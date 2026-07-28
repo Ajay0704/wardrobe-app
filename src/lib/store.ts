@@ -378,6 +378,9 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     favorite: Boolean(it.favorite),
     wearCount: typeof it.wearCount === "number" ? it.wearCount : undefined,
     lastWornAt: typeof it.lastWornAt === "string" ? it.lastWornAt : undefined,
+    // AJA-244 — same whitelist trap as above: without this line "I bought it" would
+    // stamp a purchase date that vanished on the next reload or pull.
+    purchasedAt: typeof it.purchasedAt === "string" ? it.purchasedAt : undefined,
     createdAt: typeof it.createdAt === "number" ? it.createdAt : Date.now(),
   };
 }

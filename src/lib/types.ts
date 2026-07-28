@@ -289,6 +289,9 @@ export interface WardrobeItem {
   wearCount?: number;
   /** ISO date YYYY-MM-DD of the most recent wear. */
   lastWornAt?: string;
+  /** ISO date YYYY-MM-DD the piece moved from wishlist to owned via "I bought it"
+   *  (AJA-244). Absent on pieces added straight to the closet. */
+  purchasedAt?: string;
   createdAt: number;
 }
 

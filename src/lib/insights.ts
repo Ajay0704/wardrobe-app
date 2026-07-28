@@ -52,6 +52,27 @@ export function computeInsights(items: WardrobeItem[]): ClosetInsights {
   };
 }
 
+/**
+ * What the closet actually costs per wear so far, averaged over owned pieces that
+ * have both a price and at least one logged wear. Null when there aren't enough of
+ * those to mean anything — a comparison drawn from one item is not a benchmark, and
+ * the "Should I?" sheet hides the line rather than quoting a number it can't stand
+ * behind (AJA-244).
+ */
+export function closetAvgCostPerWear(items: WardrobeItem[]): number | null {
+  const cpw = items
+    .filter(
+      (it) =>
+        !it.wishlist &&
+        typeof it.price === "number" &&
+        it.price > 0 &&
+        (it.wearCount ?? 0) > 0,
+    )
+    .map((it) => (it.price as number) / (it.wearCount as number));
+  if (cpw.length < 3) return null;
+  return Math.round((cpw.reduce((s, v) => s + v, 0) / cpw.length) * 100) / 100;
+}
+
 export interface CategorySlice {
   category: Category;
   label: string;

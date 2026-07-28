@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ExternalLink, Heart, Plus, Sparkles, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Heart, Plus, Scale, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
@@ -25,6 +25,7 @@ export function ItemCard({
   matchScore,
   compact,
   verdict,
+  onDecide,
 }: {
   item: WardrobeItem;
   onEdit?: (item: WardrobeItem) => void;
@@ -32,6 +33,9 @@ export function ItemCard({
   compact?: boolean;
   /** Wishlist only (AJA-242): "goes with N you own" / "you already own one". */
   verdict?: { tone: "good" | "warn"; text: string };
+  /** Wishlist only (AJA-244): opens "Should I?". Absent elsewhere, so the closet
+   *  grid never grows a wishlist-shaped button. */
+  onDecide?: (item: WardrobeItem) => void;
 }) {
   const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
@@ -214,6 +218,18 @@ export function ItemCard({
           >
             {verdict.text}
           </p>
+        )}
+        {onDecide && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDecide(item);
+            }}
+            className="mt-1.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2 text-xs font-semibold transition-transform active:scale-[0.97]"
+          >
+            <Scale size={13} /> Should I?
+          </button>
         )}
         {/* Shop link only on website cards — native opens it from the editor
             to avoid accidental Safari / layout jumps from the grid. */}

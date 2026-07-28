@@ -1,7 +1,9 @@
 "use client";
 
 import { Heart, Plus } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
+import type { DecisionOutcome } from "@/lib/decisions";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import {
@@ -17,6 +19,7 @@ import { ItemForm } from "./ItemForm";
 import { useIsNativeApp } from "./NativeAppClass";
 import { Button, EmptyState } from "./ui";
 import { PlanHeader } from "./wishlist/PlanHeader";
+import { ShouldIBuySheet } from "./wishlist/ShouldIBuySheet";
 
 /**
  * The wishlist (AJA-242). It used to be a grid plus an "Estimated total" banner —
@@ -29,10 +32,33 @@ export function WishlistView() {
   const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const plan = useWardrobe((s) => s.profile.shoppingPlan);
   const styleVibes = useWardrobe((s) => s.profile.styleVibes);
+  const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
 
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [filter, setFilter] = useState<WishFilter>("all");
+  const [deciding, setDeciding] = useState<WardrobeItem | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 2600);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  // The sheet has already committed the change; this only closes it and says what
+  // happened, because a piece leaving the grid is otherwise silent.
+  const onDecided = (item: WardrobeItem, decision: DecisionOutcome) => {
+    setDeciding(null);
+    if (decision === "bought") setToast(`${item.name} moved into your closet`);
+    else if (decision === "skipped") {
+      setToast(
+        item.price !== undefined
+          ? `Skipped — ${formatMoney(item.price, currency, 0)} back in the plan`
+          : "Skipped",
+      );
+    } else setToast("Kept on your list");
+  };
 
   const wishlist = useMemo(() => items.filter((it) => it.wishlist), [items]);
 
@@ -125,8 +151,24 @@ export function WishlistView() {
               item={item}
               onEdit={setEditing}
               verdict={verdicts.get(item.id)}
+              onDecide={setDeciding}
             />
           ))}
+        </div>
+      )}
+
+      <ShouldIBuySheet
+        item={deciding}
+        onDecided={onDecided}
+        onClose={() => setDeciding(null)}
+      />
+
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-24 left-1/2 z-50 max-w-sm -translate-x-1/2 animate-fade-up rounded-full border border-line bg-surface px-4 py-2 text-center text-sm shadow-lg sm:bottom-8"
+        >
+          {toast}
         </div>
       )}
 

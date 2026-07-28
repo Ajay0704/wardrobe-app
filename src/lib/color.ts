@@ -83,6 +83,22 @@ export function nameColor(hex: string): string {
   if (hsl.l >= 95) return "white";
   if (hsl.l <= 8) return "black";
   if (hsl.s <= 10) return hsl.l > 60 ? "light grey" : "grey";
+  // Warm hues with little actual colour in them are earth words in English, not
+  // "orange": before this, a beige coat was named "light orange" and a brown one
+  // "orange" (there is no brown on the hue wheel below). Measured as RGB spread
+  // rather than HSL saturation, because saturation inflates at high lightness —
+  // cream reads s=47 while being barely coloured at all.
+  //
+  // Deliberately NOT fixed by widening `isNeutral`: that feeds outfit harmony
+  // scoring app-wide, and this is only a question of what to call the colour.
+  const { r, g, b } = hexToRgb(hex);
+  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
+  if (hsl.h >= 18 && hsl.h <= 48 && chroma <= 84) {
+    if (hsl.l >= 80) return "cream";
+    if (hsl.l >= 70) return "beige";
+    if (hsl.l >= 42) return "tan";
+    return "brown";
+  }
   if (isNeutral(hsl)) return hsl.l > 70 ? "cream" : "beige";
   let best = COLOR_NAMES[0];
   for (const c of COLOR_NAMES) {
