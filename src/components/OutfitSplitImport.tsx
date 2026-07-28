@@ -9,12 +9,13 @@ import { captureNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
 import { authHeaders } from "@/lib/supabase/client";
 import type { Category, Season } from "@/lib/types";
+import { readAnalyzedAttrs, type AnalyzedAttrs } from "@/lib/analyze-attrs";
 import { CATEGORIES, CATEGORY_LABEL } from "@/lib/types";
 import { Button, Modal, inputClass } from "./ui";
 
 type SplitSource = "camera" | "library";
 
-interface SplitRow {
+interface SplitRow extends AnalyzedAttrs {
   id: string;
   imageUrl: string; // re-hosted garment cutout (transparent PNG)
   status: "analyzing" | "ready";
@@ -25,7 +26,6 @@ interface SplitRow {
   colorName?: string;
   tags: string[];
   seasons: Season[];
-  brand?: string;
 }
 
 const fileToDataUrl = (file: File): Promise<string> =>
@@ -74,9 +74,9 @@ export function OutfitSplitImport({
         status: "ready",
         ...(res.ok
           ? {
+              ...readAnalyzedAttrs(data),
               color: data.color ?? row.color,
               colorName: data.colorName ?? row.colorName,
-              brand: data.brand?.trim() || undefined,
               tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
               seasons: Array.isArray(data.seasons) ? (data.seasons as Season[]) : [],
               name: data.name?.trim() ? (data.name as string) : row.name,
@@ -207,6 +207,7 @@ export function OutfitSplitImport({
           }
         }
         addItem({
+          ...readAnalyzedAttrs(r as unknown as Record<string, unknown>),
           name: r.name.trim() || CATEGORY_LABEL[r.category],
           imageUrl,
           // Keep the pre-beautify cutout so a later "Regenerate" (after a pipeline bump) redraws
@@ -220,7 +221,6 @@ export function OutfitSplitImport({
           colorName: r.colorName,
           tags: r.tags,
           seasons: r.seasons,
-          brand: r.brand,
           wishlist: false,
         });
       }

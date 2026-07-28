@@ -13,8 +13,9 @@ import { cutout } from "./cutout";
 import { authHeaders } from "./supabase/client";
 import { dataUrlToFile, resolveImageSource } from "./supabase/storage";
 import type { Category, Season } from "./types";
+import { mergeAttrs, readAnalyzedAttrs, type AnalyzedAttrs } from "./analyze-attrs";
 
-export interface DetectedGarment {
+export interface DetectedGarment extends AnalyzedAttrs {
   category: Category;
   name: string;
   color: string;
@@ -25,7 +26,7 @@ export interface DetectedGarment {
   url: string;
 }
 
-interface ApiGarment {
+interface ApiGarment extends AnalyzedAttrs {
   category: Category;
   box: { x: number; y: number; w: number; h: number };
   name?: string;
@@ -119,7 +120,12 @@ async function detectViaGemini(detectUrl: string): Promise<ApiGarment[]> {
   }
 }
 
-/** Tag a single cutout (name/colour/seasons/tags) when the detector gave boxes only. */
+/**
+ * Tag a single cutout. This runs on a tight crop of one garment, which is the only place
+ * a chest logo or woven label is legible — the detector sees the whole photo downscaled.
+ * It must keep every attribute the endpoint returns: keeping five of thirteen is what
+ * silently dropped brand on every scan (AJA-246).
+ */
 async function analyzeCutout(url: string): Promise<Partial<ApiGarment>> {
   try {
     const res = await fetch("/api/analyze", {
@@ -130,6 +136,7 @@ async function analyzeCutout(url: string): Promise<Partial<ApiGarment>> {
     if (!res.ok) return {};
     const d = (await res.json()) as Record<string, unknown>;
     return {
+      ...readAnalyzedAttrs(d),
       name: typeof d.name === "string" ? d.name : undefined,
       color: typeof d.color === "string" ? d.color : undefined,
       colorName: typeof d.colorName === "string" ? d.colorName : undefined,
@@ -195,6 +202,7 @@ export async function detectGarments(
       let colorName = g.colorName;
       let seasons = g.seasons ?? [];
       let tags = g.tags ?? [];
+      let attrs = readAnalyzedAttrs(g as unknown as Record<string, unknown>);
       // Boxes-only detector (Replicate) → tag the cutout now.
       if (!name) {
         const a = await analyzeCutout(url);
@@ -203,8 +211,11 @@ export async function detectGarments(
         colorName = a.colorName ?? colorName;
         seasons = a.seasons ?? seasons;
         tags = a.tags ?? tags;
+        // Detector values win where it had them; the crop fills the rest.
+        attrs = mergeAttrs(attrs, readAnalyzedAttrs(a as unknown as Record<string, unknown>));
       }
       out.push({
+        ...attrs,
         category: g.category,
         name,
         color: color || "#a8a29e",

@@ -7,12 +7,13 @@ import { cutout } from "@/lib/cutout";
 import { authHeaders } from "@/lib/supabase/client";
 import { resolveImageSource } from "@/lib/supabase/storage";
 import type { Category, Season } from "@/lib/types";
+import { readAnalyzedAttrs, type AnalyzedAttrs } from "@/lib/analyze-attrs";
 import { CATEGORIES } from "@/lib/types";
 import { Button, Modal, inputClass } from "./ui";
 
 type RowStatus = "analyzing" | "ready" | "error";
 
-interface BulkRow {
+interface BulkRow extends AnalyzedAttrs {
   id: string;
   fileName: string;
   /** Local object URL for instant preview. */
@@ -32,7 +33,6 @@ interface BulkRow {
   colorName?: string;
   tags: string[];
   seasons: Season[];
-  brand?: string;
 }
 
 /** Filename → a reasonable default item name ("blue-linen-shirt.jpg" → "Blue Linen Shirt"). */
@@ -72,11 +72,11 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
         if (res.ok) {
           cat = (data.category as Category) ?? row.category;
           patch(row.id, {
+            ...readAnalyzedAttrs(data),
             status: "ready",
             category: cat,
             color: data.color ?? row.color,
             colorName: data.colorName ?? row.colorName,
-            brand: data.brand?.trim() || undefined,
             tags: Array.isArray(data.tags) ? (data.tags as string[]) : [],
             seasons: Array.isArray(data.seasons) ? (data.seasons as Season[]) : [],
             // Prefer the model's name only if the user hasn't retyped it.
@@ -143,6 +143,7 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
   const addAll = () => {
     for (const r of included) {
       addItem({
+        ...readAnalyzedAttrs(r as unknown as Record<string, unknown>),
         name: r.name.trim() || nameFromFile(r.fileName),
         imageUrl: r.imageUrl,
         originalImageUrl:
@@ -155,7 +156,6 @@ export function BulkImport({ onClose }: { onClose: () => void }) {
         colorName: r.colorName,
         tags: r.tags,
         seasons: r.seasons,
-        brand: r.brand,
         wishlist: false,
       });
     }

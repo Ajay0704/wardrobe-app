@@ -17,6 +17,7 @@ import { App } from "@capacitor/app";
 import { AUTO_BEAUTIFY_CATEGORIES, beautify } from "./beautify";
 import { detectGarments } from "./detect-garments";
 import { useWardrobe, type ImportStatus, type PendingImport } from "./store";
+import { readAnalyzedAttrs } from "./analyze-attrs";
 import { CATEGORY_LABEL } from "./types";
 
 interface ImportJob {
@@ -150,6 +151,9 @@ async function processJob(job: ImportJob) {
     if (cancelled) return; // don't buffer items for a job that finished after cancel
     for (const g of detected) {
       addPending({
+        // Spread first so the explicit fields below always win. `g` carries the attribute
+        // set (brand, material, pattern, ...) that used to stop here (AJA-246).
+        ...readAnalyzedAttrs(g as unknown as Record<string, unknown>),
         id: uid(),
         cutoutUrl: g.url,
         name: g.name || CATEGORY_LABEL[g.category],
@@ -219,6 +223,7 @@ export async function commitPending(picks: { id: string; beautify: boolean }[]) 
 async function commitOne(p: PendingImport, wantBeautify: boolean) {
   const { authUser, addItem } = useWardrobe.getState();
   const base = {
+    ...readAnalyzedAttrs(p as unknown as Record<string, unknown>),
     name: p.name || CATEGORY_LABEL[p.category],
     category: p.category,
     color: p.color,

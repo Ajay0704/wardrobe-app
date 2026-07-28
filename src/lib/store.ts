@@ -20,6 +20,7 @@ import type {
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
 import { inferSubcategory } from "./subcategory";
+import type { AnalyzedAttrs } from "./analyze-attrs";
 import { isSampleItem, sampleCloset } from "./demo-data";
 import {
   DEFAULT_PROFILE,
@@ -52,7 +53,7 @@ export interface ImportStatus {
 
 /** A detected garment awaiting the user's review before it's added to the closet (AJA-237).
  *  Its cutout is already re-hosted to Storage, so `cutoutUrl` is a valid `beautify()` input. */
-export interface PendingImport {
+export interface PendingImport extends AnalyzedAttrs {
   id: string;
   cutoutUrl: string;
   name: string;

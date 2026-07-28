@@ -8,19 +8,21 @@
  * Mirrors /api/analyze (raw Gemini REST, x-goog-api-key, thought-part filtering).
  */
 import { requireUser } from "@/lib/auth-server";
+import { inferSubcategory } from "@/lib/subcategory";
+import type { Category } from "@/lib/types";
 import { safeFetch } from "@/lib/net";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 
 const MODEL = "gemini-3.5-flash";
-const CATEGORIES = ["top", "bottom", "dress", "outerwear", "shoes", "bag", "accessory"];
+const CATEGORIES: Category[] = ["top", "bottom", "dress", "outerwear", "shoes", "bag", "accessory"];
 const SEASONS = ["spring", "summer", "fall", "winter"];
 
-function normalizeCategory(raw: unknown): string | undefined {
+function normalizeCategory(raw: unknown): Category | undefined {
   if (typeof raw !== "string") return undefined;
   const v = raw.toLowerCase().trim();
-  if (CATEGORIES.includes(v)) return v;
+  if ((CATEGORIES as string[]).includes(v)) return v as Category;
   if (/(t-?shirt|shirt|blouse|sweater|top|tee|tank|hoodie|cardigan|polo|knit)/.test(v)) return "top";
   if (/(jean|pant|trouser|short|skirt|legging|chino|bottom|slacks)/.test(v)) return "bottom";
   if (/(dress|gown|jumpsuit|romper)/.test(v)) return "dress";
@@ -115,7 +117,15 @@ export async function POST(request: Request) {
     ` "color": dominant colour as #rrggbb,\n` +
     ` "colorName": a common colour name,\n` +
     ` "seasons": any of [${SEASONS.join(", ")}],\n` +
-    ` "tags": 2-5 lowercase style tags\n` +
+    ` "tags": 2-5 lowercase style tags,\n` +
+    // Asked for here so the Gemini detector path isn't blank: it sets `name`, which makes
+    // the client skip the per-cutout analyze pass, so anything missing here is missing for
+    // good (AJA-246). A whole-photo pass reads a large wordmark but not a woven tag.
+    ` "brand": the visible brand name, or null if none is legible,\n` +
+    ` "type": the specific garment type like "polo", "bomber", "chelsea boot",\n` +
+    ` "formality": exactly one of [casual, smart-casual, formal, statement],\n` +
+    ` "material": a short fabric guess like "cotton", "linen", "wool", "denim", or null,\n` +
+    ` "pattern": "solid", "stripe", "check", "print", or null\n` +
     `}]}\nList each item once. Output only the JSON object.`;
 
   const payload = {
@@ -173,7 +183,21 @@ export async function POST(request: Request) {
         : [];
       const color =
         typeof it.color === "string" && /^#[0-9a-fA-F]{6}$/.test(it.color) ? it.color : undefined;
-      return { category, box, name: str(it.name), color, colorName: str(it.colorName), seasons, tags };
+      return {
+        category,
+        box,
+        name: str(it.name),
+        color,
+        colorName: str(it.colorName),
+        seasons,
+        tags,
+        brand: str(it.brand),
+        // Same deterministic mapping /api/analyze uses, so only valid slugs ever reach the client.
+        subcategory: inferSubcategory(category, `${str(it.type) ?? ""} ${str(it.name) ?? ""}`, tags),
+        formality: str(it.formality)?.toLowerCase(),
+        material: str(it.material)?.toLowerCase(),
+        pattern: str(it.pattern)?.toLowerCase(),
+      };
     })
     .filter((g): g is NonNullable<typeof g> => Boolean(g))
     .slice(0, 12);
