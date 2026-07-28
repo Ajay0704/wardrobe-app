@@ -1,0 +1,675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Friend styles you — prototype (AJA-240)</title>
+<style>
+  :root{
+    --bg:#f6f6f3; --surface:#fff; --surface-2:#f1f1ec; --line:#e4e4dd;
+    --fg:#1c1c1a; --muted:#8a8a80; --accent:#4f6b3f; --accent-soft:#eaf0e6;
+    --amber:#b4801f; --amber-soft:#fbf3e2; --danger:#b4432f;
+    --radius:18px;
+    --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#e2e2dc;font-family:var(--sans);color:var(--fg)}
+
+  /* ---------- stage chrome (prototype only, not part of the app) ---------- */
+  .stagebar{position:sticky;top:0;z-index:100;background:#1c1c1a;color:#fff;
+    padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .stagebar b{font-family:var(--serif);font-size:15px;font-weight:500;letter-spacing:.2px}
+  .steps{display:flex;gap:6px;flex-wrap:wrap}
+  .steps button{border:0;border-radius:14px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);
+    background:#33332f;color:#cfcfc6;cursor:pointer;transition:all .18s var(--ease)}
+  .steps button[aria-current="true"]{background:#fff;color:#1c1c1a;font-weight:600}
+  .stagebar .hint{font-size:12px;color:#9a9a91;margin-left:auto}
+
+  .stage{padding:22px 16px 60px;display:flex;gap:26px;justify-content:center;
+    align-items:flex-start;flex-wrap:wrap}
+  .device{width:392px;flex:0 0 auto}
+  .devlabel{display:flex;align-items:center;gap:7px;margin:0 0 9px 4px;font-size:12.5px;color:#5d5d56}
+  .devlabel .dot{width:7px;height:7px;border-radius:50%;background:var(--accent)}
+  .devlabel .who{font-weight:600;color:#2c2c28}
+  .devlabel .role{color:#7d7d74}
+
+  .phone{width:100%;height:748px;background:var(--bg);border-radius:34px;overflow:hidden;
+    position:relative;display:flex;flex-direction:column;
+    box-shadow:0 1px 2px rgba(0,0,0,.10),0 14px 40px rgba(0,0,0,.13)}
+
+  /* ---------- app header ---------- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 18px 10px;flex:0 0 auto}
+  .topbar h1{font-family:var(--serif);font-size:26px;margin:0;letter-spacing:-.3px}
+  .topbar .back{display:flex;align-items:center;gap:2px;background:0;border:0;padding:0;
+    color:var(--accent);font-size:15px;font-family:var(--sans);cursor:pointer}
+  .icons{display:flex;gap:15px;color:#3a3a36}
+  .icons svg,.back svg{width:21px;height:21px}
+  .screen{flex:1;overflow-y:auto;padding:0 16px 24px;scrollbar-width:thin}
+
+  /* ---------- generic bits ---------- */
+  .btn{width:100%;height:48px;border:0;border-radius:14px;background:var(--accent);color:#fff;
+    font-size:15.5px;font-weight:600;font-family:var(--sans);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .15s var(--ease),opacity .15s var(--ease)}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+  .btn.quiet{background:var(--surface-2);color:#55554e}
+  .btn.danger{background:var(--surface);color:var(--danger);border:1px solid #e8cfc9}
+  .btn[disabled]{opacity:.45;cursor:not-allowed}
+  .btn svg{width:17px;height:17px}
+  .row{display:flex;gap:9px}
+  .sect{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);margin:22px 0 9px}
+
+  /* ---------- profile (step 1) ---------- */
+  .phead{display:flex;gap:16px;align-items:center;padding:6px 2px 2px}
+  .avatar{border-radius:50%;object-fit:cover;flex:0 0 auto;background:var(--surface-2)}
+  .stats{display:flex;gap:22px;flex:1}
+  .stat{text-align:center}
+  .stat b{display:block;font-size:17px}
+  .stat span{font-size:12px;color:var(--muted)}
+  .pname{margin:12px 2px 2px;font-size:15px;font-weight:600}
+  .phandle{margin:0 2px;font-size:13.5px;color:var(--muted)}
+  .pbio{margin:7px 2px 0;font-size:13.5px;line-height:1.45;color:#4a4a44}
+  .pacts{display:flex;gap:8px;margin-top:14px}
+  .pacts .btn{height:38px;font-size:14px;border-radius:11px}
+  .tilegrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px;margin-top:18px}
+  .tilegrid div{aspect-ratio:1;background:var(--surface-2);border-radius:3px;
+    display:flex;align-items:center;justify-content:center}
+  .tilegrid img{max-width:74%;max-height:74%;object-fit:contain}
+
+  /* ---------- outfits card (step 2) ---------- */
+  .reqcard{border:1px solid #ecdfc4;background:var(--amber-soft);border-radius:var(--radius);
+    padding:15px;margin-bottom:14px;animation:fadeUp .34s var(--ease) both}
+  .reqcard.live{border-color:#cadcc0;background:var(--accent-soft)}
+  .reqtop{display:flex;gap:11px;align-items:center}
+  .reqtop .txt{flex:1;min-width:0}
+  .reqtop .t{font-size:14.5px;font-weight:600;line-height:1.3}
+  .reqtop .s{font-size:12.5px;color:#6f6f66;margin-top:2px}
+  .reqnote{margin:11px 0 0;padding:10px 12px;background:rgba(255,255,255,.72);
+    border-radius:11px;font-size:13.5px;line-height:1.45;color:#3f3f39}
+  .reqacts{display:flex;gap:8px;margin-top:12px}
+  .reqacts .btn{height:40px;font-size:14px;border-radius:11px}
+  .pulse{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:0 0 auto;
+    animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+  .lookgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .lookcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);
+    overflow:hidden}
+  .lookcard .mini{position:relative;width:100%;aspect-ratio:4/5;background:#faf9f6}
+  .lookcard .mini img{position:absolute;object-fit:contain;max-height:88%}
+  .lookcard .cap{padding:8px 10px 10px;font-size:13.5px;font-weight:600}
+  .lookcard .cap span{display:block;font-size:11.5px;font-weight:400;color:var(--muted);margin-top:2px}
+
+  /* ---------- live board (step 3) ---------- */
+  .livebar{display:flex;align-items:center;gap:8px;padding:9px 12px;margin:0 0 10px;
+    background:var(--accent-soft);border:1px solid #cadcc0;border-radius:13px}
+  .livebar .faces{display:flex}
+  .livebar .faces img{width:24px;height:24px;border-radius:50%;border:2px solid var(--accent-soft);
+    object-fit:cover}
+  .livebar .faces img+img{margin-left:-9px}
+  .livebar .t{flex:1;min-width:0;font-size:12.5px;color:#3f4f37;line-height:1.3}
+  .livebar .t b{font-weight:600}
+  .livebar .end{background:0;border:0;color:var(--danger);font-size:12.5px;font-weight:600;
+    font-family:var(--sans);cursor:pointer;padding:2px 0}
+
+  .board{position:relative;width:100%;aspect-ratio:3/4;background:#fff;
+    border:1px solid var(--line);border-radius:16px;overflow:hidden;touch-action:none}
+  .piece{position:absolute;left:0;top:0;transform-origin:center center;touch-action:none;
+    cursor:grab;will-change:transform}
+  .piece img{width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none;
+    -webkit-user-drag:none}
+  .piece.glide{transition:transform .38s var(--ease)}
+  .piece.sel::after{content:"";position:absolute;inset:-7px;border:1.5px dashed var(--accent);
+    border-radius:11px;pointer-events:none}
+  .piece.remote::after{content:"";position:absolute;inset:-7px;border:1.5px solid var(--amber);
+    border-radius:11px;pointer-events:none}
+  .piece.remote::before{content:attr(data-who);position:absolute;left:-7px;top:-26px;
+    background:var(--amber);color:#fff;font-size:10.5px;font-weight:600;padding:2px 7px;
+    border-radius:7px;white-space:nowrap;pointer-events:none}
+
+  .boardfoot{display:flex;align-items:center;gap:8px;margin-top:10px}
+  .boardfoot .st{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.35}
+  .aspect{display:flex;gap:4px;background:var(--surface-2);border-radius:10px;padding:3px}
+  .aspect button{border:0;background:0;font-size:12px;font-family:var(--sans);color:#66665e;
+    padding:4px 9px;border-radius:8px;cursor:pointer}
+  .aspect button[aria-pressed="true"]{background:#fff;color:var(--fg);font-weight:600;
+    box-shadow:0 1px 2px rgba(0,0,0,.07)}
+
+  /* tray */
+  .tray{margin-top:14px;background:var(--surface);border:1px solid var(--line);
+    border-radius:16px;padding:11px 11px 12px}
+  .trayhead{display:flex;align-items:baseline;gap:6px;margin-bottom:9px;padding:0 2px}
+  .trayhead b{font-size:13px;font-weight:600}
+  .trayhead span{font-size:11.5px;color:var(--muted)}
+  .traystrip{display:flex;gap:8px;overflow-x:auto;padding-bottom:3px;scrollbar-width:none}
+  .traystrip::-webkit-scrollbar{display:none}
+  .traystrip button{flex:0 0 auto;width:64px;height:76px;border:1px solid var(--line);
+    background:var(--surface-2);border-radius:11px;display:flex;align-items:center;
+    justify-content:center;padding:5px;cursor:pointer;transition:transform .15s var(--ease)}
+  .traystrip button:active{transform:scale(.93)}
+  .traystrip img{max-width:100%;max-height:100%;object-fit:contain}
+
+  /* ---------- ended state (step 4) ---------- */
+  .ended{margin-top:16px;border:1px solid var(--line);background:var(--surface);
+    border-radius:var(--radius);padding:22px 18px;text-align:center}
+  .ended h3{font-family:var(--serif);font-size:19px;margin:0 0 6px;font-weight:500}
+  .ended p{margin:0;font-size:13.5px;color:var(--muted);line-height:1.5}
+  .ended .lock{width:38px;height:38px;border-radius:50%;background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;margin:0 auto 12px;color:#87877d}
+  .ended .lock svg{width:19px;height:19px}
+
+  /* ---------- sheet ---------- */
+  .scrim{position:absolute;inset:0;background:rgba(28,28,26,.34);backdrop-filter:blur(2px);
+    opacity:0;pointer-events:none;transition:opacity .28s var(--ease);z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:22px 22px 0 0;padding:8px 18px 24px;z-index:50;
+    transform:translateY(102%);transition:transform .36s var(--ease)}
+  .sheet.on{transform:none}
+  .grab{width:36px;height:4px;border-radius:2px;background:#dcdcd4;margin:0 auto 14px}
+  .sheet h3{font-family:var(--serif);font-size:20px;margin:0 0 5px;font-weight:500}
+  .sheet p.sub{margin:0 0 15px;font-size:13.5px;color:var(--muted);line-height:1.45}
+  .sheet textarea{width:100%;min-height:78px;border:1px solid var(--line);border-radius:13px;
+    padding:11px 13px;font-size:14px;font-family:var(--sans);color:var(--fg);resize:none;
+    outline:none;background:var(--surface-2)}
+  .sheet textarea:focus{border-color:var(--accent);background:var(--surface)}
+  /* .fine is used on the request card too, so size the icon globally — scoping it
+     to .sheet let the card's SVG fall back to its intrinsic size. */
+  .fine{margin:11px 0 15px;font-size:12px;color:var(--muted);line-height:1.5;
+    display:flex;gap:7px;align-items:flex-start}
+  .fine svg{width:14px;height:14px;min-width:14px;flex:0 0 auto;margin-top:1px;color:#9a9a91}
+
+  /* ---------- toast ---------- */
+  .toast{position:absolute;left:16px;right:16px;bottom:20px;z-index:60;
+    background:#1c1c1a;color:#fff;border-radius:14px;padding:12px 15px;font-size:13.5px;
+    display:flex;align-items:center;gap:9px;
+    transform:translateY(140%);opacity:0;transition:all .34s var(--ease)}
+  .toast.on{transform:none;opacity:1}
+  .toast svg{width:17px;height:17px;flex:0 0 auto}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  .fade{animation:fadeUp .3s var(--ease) both}
+  .note{max-width:820px;margin:0 auto;padding:0 18px 50px;color:#4e4e47;font-size:13.5px;
+    line-height:1.65}
+  .note h4{font-family:var(--serif);font-size:17px;margin:26px 0 8px;color:#2c2c28;font-weight:500}
+  .note li{margin-bottom:5px}
+  .note code{background:#d8d8d1;padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="stagebar">
+  <b>Friend styles you</b>
+  <div class="steps" id="steps"></div>
+  <span class="hint">Prototype shows both phones side by side. On device each person sees only their own.</span>
+</div>
+
+<div class="stage" id="stage"></div>
+
+<div class="note" id="note"></div>
+
+<script>
+/* ============================================================================
+   Prototype for AJA-240. Two simulated users on one shared board.
+   Sync is COMMIT-LEVEL: the piece follows your finger locally, and lands on the
+   other phone when you let go — which is exactly what the real implementation
+   does (one row write per gesture end). The amber outline + name label is the
+   grab/release presence signal, which is what makes commit-level sync read as
+   "live" without streaming coordinates.
+   ========================================================================== */
+
+const S = "/samples/men/";
+const OWNER   = { key:"owner",   name:"Ajay",  handle:"@ajay",  face:"#6b7f5a" };
+const STYLIST = { key:"stylist", name:"Maya",  handle:"@maya",  face:"#8a6f9a" };
+
+const sv = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+  stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  back:  sv('<path d="M15 18l-6-6 6-6"/>'),
+  bell:  sv('<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
+  cal:   sv('<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>'),
+  gear:  sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 11.5 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9 2 2 0 1 1 0 4z"/>'),
+  wand:  sv('<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5"/>'),
+  check: sv('<path d="M20 6 9 17l-5-5"/>'),
+  x:     sv('<path d="M18 6 6 18M6 6l12 12"/>'),
+  plus:  sv('<path d="M12 5v14M5 12h14"/>'),
+  save:  sv('<path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/>'),
+  lock:  sv('<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+  info:  sv('<circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/>'),
+  msg:   sv('<path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/>'),
+  uplus: sv('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M19 8v6M22 11h-6"/>'),
+};
+const face = u => `data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" fill="${u.face}"/>`+
+  `<circle cx="32" cy="25" r="11" fill="rgba(255,255,255,.85)"/>`+
+  `<path d="M10 62c2-14 11-21 22-21s20 7 22 21z" fill="rgba(255,255,255,.85)"/></svg>`)}`;
+
+/* --- Ajay's closet (what gets snapshotted into the session on approval) --- */
+const CLOSET = [
+  { ref:"a1", n:"White oxford",  src:"white-oxford-sticker.png"   },
+  { ref:"a2", n:"Grey tee",      src:"grey-tee-sticker.png"       },
+  { ref:"a3", n:"Navy sweater",  src:"navy-sweater-sticker.png"   },
+  { ref:"a4", n:"Field jacket",  src:"field-jacket-sticker.png"   },
+  { ref:"a5", n:"Chinos",        src:"chinos-sticker.png"         },
+  { ref:"a6", n:"Dark jeans",    src:"dark-jeans-sticker.png"     },
+  { ref:"a7", n:"Loafers",       src:"loafers-sticker.png"        },
+  { ref:"a8", n:"White sneakers",src:"white-sneakers-sticker.png" },
+];
+const byRef = r => CLOSET.find(c => c.ref === r);
+
+/* --- shared session state (stands in for the styling_session_* rows) ------ */
+let step = 1;
+const session = {
+  status: "requested",              // requested | active | ended
+  note: "Dinner Friday, somewhere smart but not stuffy. Can I have a go?",
+  aspect: "3:4",
+  saved: false,
+  pieces: [                         // nx/ny/nw are 0..1 fractions — device independent
+    { id:"p1", ref:"a1", nx:.10, ny:.06, nw:.60, rot:-4, z:1 },
+    { id:"p2", ref:"a5", nx:.24, ny:.42, nw:.56, rot: 3, z:2 },
+    { id:"p3", ref:"a7", nx:.30, ny:.72, nw:.32, rot: 0, z:3 },
+  ],
+  grabbed: null,                    // { id, by } — the presence signal
+};
+let zTop = 3;
+
+/* ============================ tiny view helpers =========================== */
+const el = (html) => { const d = document.createElement("div"); d.innerHTML = html.trim(); return d.firstElementChild; };
+const stage = document.getElementById("stage");
+
+function device(user, role, inner){
+  return `<div class="device">
+    <p class="devlabel"><span class="dot" style="background:${user.face}"></span>
+      <span class="who">${user.name}</span><span class="role">· ${role}</span></p>
+    <div class="phone" data-user="${user.key}">${inner}</div>
+  </div>`;
+}
+function topbar(title,{back,icons}={}){
+  return `<div class="topbar">
+    ${back ? `<button class="back">${I.back} ${back}</button>` : `<h1>${title}</h1>`}
+    ${icons === false ? "" : `<div class="icons">${I.bell}${I.cal}${I.gear}</div>`}
+  </div>`;
+}
+function toast(phone, msg){
+  const t = phone.querySelector(".toast");
+  if(!t) return;
+  t.innerHTML = `${I.check}<span>${msg}</span>`;
+  t.classList.add("on");
+  clearTimeout(t._t); t._t = setTimeout(()=>t.classList.remove("on"), 2600);
+}
+
+/* ================================ STEP 1 ================================== */
+/* Maya is looking at Ajay's profile and asks to style him.                   */
+function step1(){
+  stage.innerHTML = device(STYLIST, "viewing Ajay's profile", `
+    ${topbar("Profile",{back:"Back", icons:false})}
+    <div class="screen">
+      <div class="phead">
+        <img class="avatar" src="${face(OWNER)}" width="76" height="76" alt="">
+        <div class="stats">
+          <div class="stat"><b>34</b><span>Looks</span></div>
+          <div class="stat"><b>218</b><span>Followers</span></div>
+          <div class="stat"><b>190</b><span>Following</span></div>
+        </div>
+      </div>
+      <p class="pname">Ajay Karthick</p>
+      <p class="phandle">@ajay</p>
+      <p class="pbio">Boston. Building a closet that actually gets worn.</p>
+      <div class="pacts">
+        <button class="btn ghost" style="flex:1">Following</button>
+        <button class="btn ghost" style="flex:1">${I.msg} Message</button>
+        <button class="btn" id="ask" style="flex:1">${I.wand} Style them</button>
+      </div>
+      <div class="tilegrid">
+        ${["a1","a4","a3","a5","a6","a7"].map(r=>`<div><img src="${S}${byRef(r).src}" alt=""></div>`).join("")}
+      </div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <h3>Ask to style Ajay</h3>
+      <p class="sub">Ajay approves each session. You'll get their closet for as long as the session is open — nothing after that.</p>
+      <textarea id="note" placeholder="What's the occasion?">${session.note}</textarea>
+      <p class="fine">${I.info}<span>Ajay can end the session at any time, and your access to their closet ends with it.</span></p>
+      <div class="row">
+        <button class="btn quiet" id="cancel" style="flex:0 0 108px">Cancel</button>
+        <button class="btn" id="send" style="flex:1">Send request</button>
+      </div>
+    </div>
+    <div class="toast"></div>
+  `);
+
+  const phone = stage.querySelector(".phone");
+  const open = on => {
+    phone.querySelector(".scrim").classList.toggle("on", on);
+    phone.querySelector(".sheet").classList.toggle("on", on);
+  };
+  phone.querySelector("#ask").onclick = () => open(true);
+  phone.querySelector("#cancel").onclick = () => open(false);
+  phone.querySelector(".scrim").onclick = () => open(false);
+  phone.querySelector("#send").onclick = () => {
+    session.note = phone.querySelector("#note").value.trim() || session.note;
+    session.status = "requested";
+    open(false);
+    toast(phone, "Request sent — waiting for Ajay");
+    setTimeout(()=>go(2), 1100);
+  };
+}
+
+/* ================================ STEP 2 ================================== */
+/* Ajay sees the request on the Outfits page and approves.                    */
+function step2(){
+  const looks = [
+    { n:"Office Monday", w:"Worn 6× · last week",  p:[["a1",8,4,60],["a5",32,40,56],["a7",20,70,30]] },
+    { n:"Weekend coffee",w:"Worn 12× · 3 days ago",p:[["a2",10,8,58],["a6",30,42,56],["a8",22,72,30]] },
+  ];
+  stage.innerHTML = device(OWNER, "Outfits tab", `
+    ${topbar("Outfits")}
+    <div class="screen">
+      <div class="reqcard" id="req">
+        <div class="reqtop">
+          <img class="avatar" src="${face(STYLIST)}" width="40" height="40" alt="">
+          <div class="txt">
+            <p class="t" style="margin:0">Maya wants to style you</p>
+            <p class="s" style="margin:0">@maya · just now</p>
+          </div>
+        </div>
+        <p class="reqnote">“${session.note}”</p>
+        <p class="fine" style="margin:10px 0 0;font-size:12px;color:#6f6f66;display:flex;gap:7px">
+          ${I.info}<span>Approving lets Maya see your closet and edit one board with you. It ends when either of you closes it.</span></p>
+        <div class="reqacts">
+          <button class="btn quiet" id="decline" style="flex:0 0 100px">Decline</button>
+          <button class="btn" id="approve" style="flex:1">${I.check} Approve</button>
+        </div>
+      </div>
+
+      <button class="btn ghost" style="margin-bottom:14px">${I.plus} New look</button>
+      <div class="lookgrid">
+        ${looks.map(l=>`<div class="lookcard"><div class="mini">
+          ${l.p.map(([r,x,y,w])=>`<img src="${S}${byRef(r).src}" style="left:${x}%;top:${y}%;width:${w}%">`).join("")}
+        </div><div class="cap">${l.n}<span>${l.w}</span></div></div>`).join("")}
+      </div>
+    </div>
+    <div class="toast"></div>
+  `);
+
+  const phone = stage.querySelector(".phone");
+  phone.querySelector("#approve").onclick = () => {
+    session.status = "active";
+    const card = phone.querySelector("#req");
+    card.classList.add("live");
+    card.innerHTML = `<div class="reqtop"><span class="pulse"></span>
+      <div class="txt"><p class="t" style="margin:0">Styling with Maya</p>
+      <p class="s" style="margin:0">Your closet is shared until this ends</p></div>
+      <button class="btn" style="flex:0 0 92px;height:36px;font-size:13.5px;border-radius:10px">Open</button></div>`;
+    toast(phone, "Maya can now see your closet");
+    setTimeout(()=>go(3), 1300);
+  };
+  phone.querySelector("#decline").onclick = () => {
+    phone.querySelector("#req").remove();
+    toast(phone, "Declined — nothing was shared");
+  };
+}
+
+/* ================================ STEP 3 ================================== */
+/* The live board, on both phones at once.                                    */
+function step3(){
+  stage.innerHTML =
+    device(OWNER,   "owns the closet", boardScreen("owner")) +
+    device(STYLIST, "styling",         boardScreen("stylist"));
+  wireBoards();
+  renderAll();
+}
+
+function boardScreen(who){
+  const isOwner = who === "owner";
+  const peer = isOwner ? STYLIST : OWNER;
+  return `
+    ${topbar("Styling", { icons:false })}
+    <div class="screen">
+      <div class="livebar">
+        <div class="faces"><img src="${face(OWNER)}" alt=""><img src="${face(STYLIST)}" alt=""></div>
+        <p class="t" style="margin:0"><b>${isOwner ? "Maya is styling you" : "Styling Ajay"}</b> · live</p>
+        <button class="end">End</button>
+      </div>
+
+      <div class="board" data-board="${who}"></div>
+
+      <div class="boardfoot">
+        <p class="st" style="margin:0" data-status>Both of you see every change.</p>
+        <div class="aspect">
+          <button data-aspect="3:4">3:4</button>
+          <button data-aspect="1:1">1:1</button>
+        </div>
+      </div>
+
+      <div class="tray">
+        <div class="trayhead"><b>${isOwner ? "Your closet" : "Ajay's closet"}</b>
+          <span>· ${CLOSET.length} pieces${isOwner ? "" : " · shared for this session"}</span></div>
+        <div class="traystrip">
+          ${CLOSET.map(c=>`<button data-add="${c.ref}" title="${c.n}"><img src="${S}${c.src}" alt="${c.n}"></button>`).join("")}
+        </div>
+      </div>
+
+      <div style="margin-top:14px">
+        ${isOwner
+          ? `<button class="btn" data-save>${I.save} Save to my outfits</button>`
+          : `<button class="btn quiet" disabled>${I.lock} Only Ajay can save this look</button>`}
+      </div>
+      <p style="margin:9px 2px 0;font-size:12px;color:var(--muted);line-height:1.5">
+        ${isOwner
+          ? "Maya can build and rearrange, but the look only lands in your closet when you save it."
+          : "Ajay saves the look. You'll see it land."}
+      </p>
+    </div>
+    <div class="toast"></div>
+  `;
+}
+
+function boards(){ return [...document.querySelectorAll("[data-board]")]; }
+
+function renderAll(){
+  boards().forEach(b => renderBoard(b));
+  document.querySelectorAll("[data-aspect]").forEach(btn =>
+    btn.setAttribute("aria-pressed", String(btn.dataset.aspect === session.aspect)));
+  boards().forEach(b => b.style.aspectRatio = session.aspect.replace(":", "/"));
+}
+
+function renderBoard(board){
+  const who = board.dataset.board;
+  const W = board.clientWidth || 340;
+  const H = W * (session.aspect === "1:1" ? 1 : 4/3);
+  board.innerHTML = "";
+  [...session.pieces].sort((a,b)=>a.z-b.z).forEach(p => {
+    const c = byRef(p.ref); if(!c) return;
+    const w = p.nw * W, h = w * 1.12;
+    const node = el(`<div class="piece glide" data-id="${p.id}"><img src="${S}${c.src}" alt="${c.n}"></div>`);
+    node.style.width = w + "px";
+    node.style.height = h + "px";
+    node.style.zIndex = p.z;
+    node.style.transform = `translate3d(${p.nx*W}px,${p.ny*H}px,0) rotate(${p.rot}deg)`;
+    // Presence: the OTHER phone shows who is holding the piece right now.
+    if(session.grabbed && session.grabbed.id === p.id && session.grabbed.by !== who){
+      node.classList.add("remote");
+      node.dataset.who = session.grabbed.by === "owner" ? "Ajay" : "Maya";
+    }
+    board.appendChild(node);
+  });
+}
+
+function wireBoards(){
+  boards().forEach(board => {
+    const who = board.dataset.board;
+    const phone = board.closest(".phone");
+
+    board.addEventListener("pointerdown", e => {
+      const node = e.target.closest(".piece");
+      if(!node || session.status !== "active") return;
+      const p = session.pieces.find(x => x.id === node.dataset.id);
+      if(!p) return;
+
+      const W = board.clientWidth, H = W * (session.aspect === "1:1" ? 1 : 4/3);
+      // Freeze the piece's committed position at gesture start — the real fix for
+      // hazard #2 (applyLive closing over live x/y and jumping on a remote patch).
+      const from = { nx:p.nx, ny:p.ny };
+      const start = { x:e.clientX, y:e.clientY };
+      node.classList.remove("glide");
+      node.setPointerCapture(e.pointerId);
+      node.style.cursor = "grabbing";
+
+      session.grabbed = { id:p.id, by:who };
+      boards().filter(b => b !== board).forEach(renderBoard);   // peer sees the grab
+      status(`You picked up ${byRef(p.ref).n}`, who);
+
+      const move = ev => {
+        const nx = from.nx + (ev.clientX - start.x) / W;
+        const ny = from.ny + (ev.clientY - start.y) / H;
+        node.style.transform = `translate3d(${nx*W}px,${ny*H}px,0) rotate(${p.rot}deg)`;
+      };
+      const up = ev => {
+        node.releasePointerCapture(ev.pointerId);
+        node.removeEventListener("pointermove", move);
+        node.removeEventListener("pointerup", up);
+        // COMMIT — one write, on gesture end. Clamped so a piece can't be lost.
+        p.nx = Math.max(-.25, Math.min(.95, from.nx + (ev.clientX - start.x) / W));
+        p.ny = Math.max(-.20, Math.min(.92, from.ny + (ev.clientY - start.y) / H));
+        session.grabbed = null;
+        renderAll();
+        status(`${who === "owner" ? "You" : "Maya"} moved ${byRef(p.ref).n}`, "owner");
+        status(`${who === "stylist" ? "You" : "Ajay"} moved ${byRef(p.ref).n}`, "stylist");
+      };
+      node.addEventListener("pointermove", move);
+      node.addEventListener("pointerup", up);
+    });
+
+    // Add a piece from the tray. Explicit z on top — never bumped by selection,
+    // which is hazard #3 (concurrent drags z-fighting).
+    phone.querySelectorAll("[data-add]").forEach(btn => btn.onclick = () => {
+      if(session.status !== "active") return;
+      session.pieces.push({ id:"p"+Math.random().toString(36).slice(2,8), ref:btn.dataset.add,
+        nx:.30, ny:.24, nw:.46, rot:0, z:++zTop });
+      renderAll();
+      const n = byRef(btn.dataset.add).n;
+      status(`${who === "owner" ? "You" : "Maya"} added ${n}`, "owner");
+      status(`${who === "stylist" ? "You" : "Ajay"} added ${n}`, "stylist");
+    });
+
+    phone.querySelectorAll("[data-aspect]").forEach(btn => btn.onclick = () => {
+      session.aspect = btn.dataset.aspect;      // shared, not local — hazard #1
+      renderAll();
+      status("Board shape changed for both of you", "owner");
+      status("Board shape changed for both of you", "stylist");
+    });
+
+    const save = phone.querySelector("[data-save]");
+    if(save) save.onclick = () => {
+      session.saved = true;
+      toast(phone, "Saved to your outfits");
+      const other = boards().find(b => b.dataset.board !== who);
+      if(other) toast(other.closest(".phone"), "Ajay saved the look");
+      status("Saved to your outfits", "owner");
+      status("Ajay saved the look", "stylist");
+    };
+
+    phone.querySelector(".end").onclick = () => { session.status = "ended"; go(4); };
+  });
+}
+
+function status(text, who){
+  const b = boards().find(x => x.dataset.board === who);
+  if(b) b.closest(".phone").querySelector("[data-status]").textContent = text;
+}
+
+/* ================================ STEP 4 ================================== */
+/* Session over: the look is Ajay's, Maya's access is gone.                   */
+function step4(){
+  stage.innerHTML =
+    device(OWNER, "Outfits tab", `
+      ${topbar("Outfits")}
+      <div class="screen">
+        <div class="lookgrid" style="margin-top:2px">
+          <div class="lookcard fade"><div class="mini">
+            ${session.pieces.slice(0,4).map(p=>`<img src="${S}${byRef(p.ref).src}"
+              style="left:${p.nx*100}%;top:${p.ny*100}%;width:${p.nw*100}%">`).join("")}
+          </div><div class="cap">Styled by Maya<span>Never worn · just saved</span></div></div>
+          <div class="lookcard"><div class="mini">
+            <img src="${S}${byRef("a1").src}" style="left:8%;top:4%;width:60%">
+            <img src="${S}${byRef("a5").src}" style="left:32%;top:40%;width:56%">
+          </div><div class="cap">Office Monday<span>Worn 6× · last week</span></div></div>
+        </div>
+        <p class="sect">Session</p>
+        <div class="ended">
+          <div class="lock">${I.lock}</div>
+          <h3>Session ended</h3>
+          <p>Maya no longer has access to your closet. The look she built is yours to keep.</p>
+        </div>
+      </div>
+      <div class="toast"></div>
+    `) +
+    device(STYLIST, "after the session", `
+      ${topbar("Styling", { icons:false })}
+      <div class="screen">
+        <div class="ended" style="margin-top:2px">
+          <div class="lock">${I.lock}</div>
+          <h3>Session ended</h3>
+          <p>You can't see Ajay's closet any more. Ask again any time — they approve each session.</p>
+        </div>
+        <button class="btn ghost" style="margin-top:14px" onclick="go(1)">${I.wand} Ask to style Ajay again</button>
+      </div>
+      <div class="toast"></div>
+    `);
+}
+
+/* ================================= router ================================= */
+const STEPS = [
+  { n:1, label:"1 · Ask",      fn:step1 },
+  { n:2, label:"2 · Approve",  fn:step2 },
+  { n:3, label:"3 · Live board", fn:step3 },
+  { n:4, label:"4 · End",      fn:step4 },
+];
+function go(n){
+  step = n;
+  // Jumping straight to a step from the bar has to put the session in the state
+  // that step assumes, or the board is inert.
+  if(n <= 2){ session.status = "requested"; session.saved = false; }
+  if(n === 3){ session.status = "active"; }
+  if(n === 4){ session.status = "ended"; }
+  STEPS.find(s => s.n === n).fn();
+  document.querySelectorAll("#steps button").forEach(b =>
+    b.setAttribute("aria-current", String(+b.dataset.n === n)));
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+document.getElementById("steps").innerHTML =
+  STEPS.map(s => `<button data-n="${s.n}">${s.label}</button>`).join("");
+document.querySelectorAll("#steps button").forEach(b => b.onclick = () => go(+b.dataset.n));
+
+document.getElementById("note").innerHTML = `
+  <h4>What to look at</h4>
+  <ul>
+    <li><b>Step 3 is the real question.</b> Drag a piece on either phone — it follows your finger locally and <b>lands on the other phone when you let go</b>. That's commit-level sync: one write per gesture, not a stream.</li>
+    <li>While you hold a piece, the other phone outlines it in amber with your name. That grab/release signal is what makes it read as live without streaming coordinates.</li>
+    <li>Tap tray pieces on either side, and switch <code>3:4</code>/<code>1:1</code> — the board shape is shared, so you can't end up looking at different boards.</li>
+    <li>Only Ajay can save. Maya's button is locked, and says why.</li>
+  </ul>
+  <h4>Decisions baked in</h4>
+  <ul>
+    <li>Maya requests, Ajay approves, <b>every time</b>. Ending the session revokes access — that's enforced in RLS, not just hidden in the UI.</li>
+    <li>Whole closet minus wishlist, snapshotted at approval.</li>
+    <li>Pending and live sessions surface as a card at the top of Outfits.</li>
+  </ul>
+  <h4>Not in this prototype</h4>
+  <ul>
+    <li>Pinch to resize/rotate, text and stickers, backgrounds — all inherited unchanged from the real canvas.</li>
+    <li>Live cursors, in-session chat, more than two people. Out of scope on purpose.</li>
+  </ul>`;
+
+go(1);
+window.addEventListener("resize", () => { if(step === 3) renderAll(); });
+</script>
+</body>
+</html>
