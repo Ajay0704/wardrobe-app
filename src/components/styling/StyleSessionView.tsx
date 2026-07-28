@@ -47,6 +47,15 @@ import { ProfileAvatar } from "../ProfileAvatar";
  * release. Combined with CanvasPiece freezing its geometry at gesture start, that
  * removes the whole class of mid-drag rebasing bugs.
  */
+/**
+ * Collapsed tray peek, and the strip the board keeps clear beneath itself for the
+ * trash zone. Mirrors the solo builder (PEEK / BOARD_RESERVE) so the two canvases
+ * feel like the same tool.
+ */
+const TRAY_PEEK = 78;
+const TRAY_OPEN = 244;
+const BOARD_RESERVE = TRAY_PEEK + 76;
+
 export function StyleSessionView() {
   const sessionId = useWardrobe((s) => s.styleSessionId);
   const setView = useWardrobe((s) => s.setView);
@@ -65,6 +74,7 @@ export function StyleSessionView() {
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
+  const [trayOpen, setTrayOpen] = useState(true);
 
   const trashRef = useRef<HTMLDivElement>(null);
   const heldRef = useRef<string | null>(null);
@@ -105,16 +115,30 @@ export function StyleSessionView() {
   }, []);
 
   // The board shape comes from the SESSION, not local state, so both phones agree.
+  // Contain-fit the CANONICAL board (tray collapsed) into the stage: fill the height
+  // first, fall back to width. This is what makes the canvas big — it now claims the
+  // whole screen instead of whatever a vertical stack of controls left over.
   const board = useMemo(() => {
     const ratio = session?.aspect === "1:1" ? 1 : 3 / 4; // w / h
-    let w = boxW;
-    let h = w / ratio;
-    if (boxH > 0 && h > boxH) {
-      h = boxH;
-      w = h * ratio;
+    const availW = Math.max(0, boxW - 20);
+    const availH = Math.max(0, boxH - BOARD_RESERVE);
+    if (availW <= 0 || availH <= 0) return { w: 0, h: 0 };
+    let h = availH;
+    let w = h * ratio;
+    if (w > availW) {
+      w = availW;
+      h = w / ratio;
     }
     return { w: Math.round(w), h: Math.round(h) };
   }, [boxW, boxH, session?.aspect]);
+
+  // Opening the tray doesn't resize the board, it SCALES it — pieces scale with it, so
+  // the composition never reflows under you (the AJA-232 lesson from the solo builder).
+  const boardScale = useMemo(() => {
+    if (!board.h || !trayOpen) return 1;
+    const extra = TRAY_OPEN - TRAY_PEEK;
+    return Math.max(0.45, Math.min(1, (board.h - extra) / board.h));
+  }, [board.h, trayOpen]);
 
   const canvas = useMemo(
     () => (board.w > 0 ? wire.map((p) => pieceToCanvas(p, board)) : []),
@@ -315,39 +339,95 @@ export function StyleSessionView() {
   const selected = canvas.find((c) => c.id === selectedId) ?? null;
 
   return (
-    <div className="flex h-full flex-col pb-4">
-      <div className="-mx-4 mb-2 flex items-center gap-1 px-2">
+    // Full-screen, like the solo builder. Living inside the padded, scrolling shell
+    // (with the tab bar below) is what made the board tiny.
+    <div className="fixed inset-0 z-[70] flex flex-col bg-background">
+      <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-[max(12px,env(safe-area-inset-top))]">
         <button
           type="button"
           onClick={() => setView("outfits")}
-          className="flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-sm text-accent active:scale-95"
+          className="flex h-9 items-center gap-0.5 rounded-full px-2 text-sm text-accent active:scale-95"
         >
-          <ChevronLeft size={19} /> Outfits
+          <ChevronLeft size={20} /> Outfits
         </button>
+        {iAmOwner ? (
+          <button
+            type="button"
+            onClick={save}
+            disabled={canvas.length === 0}
+            className={`flex h-9 items-center gap-1.5 rounded-full px-4 text-sm font-semibold transition-colors active:scale-95 ${
+              canvas.length === 0
+                ? "bg-surface-2 text-muted"
+                : "bg-accent text-accent-foreground"
+            }`}
+          >
+            <Save size={15} /> {savedAlready ? "Save again" : "Save"}
+          </button>
+        ) : (
+          <span className="flex h-9 items-center gap-1.5 rounded-full bg-surface-2 px-3.5 text-xs text-muted">
+            <Lock size={13} /> {session.owner.name || "They"} saves
+          </span>
+        )}
       </div>
 
-      <div className="mb-2.5 flex items-center gap-2.5 rounded-2xl border border-accent/35 bg-accent-soft px-3 py-2.5">
-        <ProfileAvatar profile={{ displayName: them?.name ?? "", avatarUrl: them?.avatar }} size={26} />
-        <p className="min-w-0 flex-1 truncate text-xs">
-          <span className="font-semibold">
-            {iAmOwner ? `${them?.name || "Your friend"} is styling you` : `Styling ${them?.name || "them"}`}
-          </span>{" "}
-          · live
-        </p>
-        <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-accent" />
-        <button type="button" onClick={finish} className="text-xs font-semibold text-red-600">
-          End
-        </button>
-      </div>
+      {/* board stage — reserves a strip for the collapsed tray + trash */}
+      <div
+        ref={attachArea}
+        className="relative min-h-0 flex-1"
+        style={{ paddingBottom: `${BOARD_RESERVE}px` }}
+      >
+        {/* Live pill — translucent chrome floating over the canvas rather than a
+            solid bar eating a row of height. */}
+        <div className="pointer-events-none absolute left-3 right-3 top-1 z-30 flex items-center gap-2">
+          <div className="pointer-events-auto flex max-w-[68%] items-center gap-2 rounded-full border border-accent/30 bg-accent-soft/85 py-1 pl-1 pr-3 backdrop-blur-md">
+            <ProfileAvatar
+              profile={{ displayName: them?.name ?? "", avatarUrl: them?.avatar }}
+              size={22}
+            />
+            <span className="truncate text-[11.5px] font-medium">
+              {iAmOwner
+                ? `${them?.name || "Your friend"} is styling you`
+                : `Styling ${them?.name || "them"}`}
+            </span>
+            <span className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-accent" />
+          </div>
+          <div className="flex-1" />
+          <div className="pointer-events-auto flex overflow-hidden rounded-full border border-line bg-surface/90 backdrop-blur-md">
+            {(["3:4", "1:1"] as const).map((a) => (
+              <button
+                key={a}
+                type="button"
+                aria-pressed={session.aspect === a}
+                onClick={() => setAspect(a)}
+                className={`px-2.5 py-1 text-[11.5px] font-medium transition-colors active:scale-95 ${
+                  session.aspect === a ? "bg-accent text-accent-foreground" : "text-muted"
+                }`}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={finish}
+            className="pointer-events-auto rounded-full border border-red-200 bg-surface/90 px-3 py-1 text-[11.5px] font-semibold text-red-600 backdrop-blur-md active:scale-95"
+          >
+            End
+          </button>
+        </div>
 
-      <div ref={attachArea} className="relative min-h-0 flex-1">
+        {/* the board itself */}
         <div
-          className="relative mx-auto overflow-hidden rounded-2xl border border-line"
+          className="mx-auto overflow-hidden rounded-2xl border border-line shadow-sm"
           style={{
             width: board.w || undefined,
             height: board.h || undefined,
             background: session.canvasBg || "#ffffff",
             touchAction: "none",
+            position: "relative",
+            transform: `scale(${boardScale})`,
+            transformOrigin: "top center",
+            transition: "transform 0.32s cubic-bezier(0.22,1,0.36,1)",
           }}
           onPointerDown={(e) => {
             if (e.target === e.currentTarget) setSelectedId(null);
@@ -369,10 +449,10 @@ export function StyleSessionView() {
                 key={c.id}
                 c={c}
                 board={board}
-                scale={1}
+                scale={boardScale}
                 selected={c.id === selectedId}
                 trashRef={trashRef}
-                onSelect={setSelectedId} // NB: no z-bump here — concurrent drags would z-fight
+                onSelect={setSelectedId} // NB: no z-bump — concurrent drags would z-fight
                 onCommit={commit}
                 onRemove={drop}
                 onGrab={onGrab}
@@ -406,10 +486,30 @@ export function StyleSessionView() {
           })}
         </div>
 
+        {/* Selected-piece controls — a fixed strip on the right edge, same place every
+            time, rather than a popup that jumps around with the piece. */}
+        {selected && (
+          <div className="animate-pop absolute right-2.5 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
+            <IconBtn
+              label="Bring to front"
+              icon={ArrowUp}
+              onClick={() => commit(selected.id, { zIndex: topZ() + 1 })}
+            />
+            <IconBtn
+              label="Flip"
+              icon={FlipHorizontal}
+              onClick={() => commit(selected.id, { flipped: !selected.flipped })}
+            />
+            <IconBtn label="Remove" icon={Trash2} danger onClick={() => drop(selected.id)} />
+          </div>
+        )}
+
+        {/* drag-to-delete target */}
         <div
           ref={trashRef}
-          className="pointer-events-none absolute bottom-3 left-1/2 flex h-12 w-12 items-center justify-center rounded-full border-2 text-red-500"
+          className="pointer-events-none absolute left-1/2 z-40 flex h-12 w-12 items-center justify-center rounded-full border-2 text-red-500"
           style={{
+            bottom: `${TRAY_PEEK + 12}px`,
             opacity: 0,
             transform: "translateX(-50%) translateY(20px)",
             background: "rgba(239,68,68,0.10)",
@@ -419,106 +519,80 @@ export function StyleSessionView() {
         >
           <Trash2 size={20} />
         </div>
+
+        {toast && (
+          <p className="absolute bottom-2 left-1/2 z-40 -translate-x-1/2 rounded-full bg-foreground/90 px-4 py-2 text-xs text-background backdrop-blur-sm">
+            {toast}
+          </p>
+        )}
       </div>
 
-      {toast && (
-        <p className="mt-2 rounded-xl border border-line bg-surface px-3 py-2 text-center text-sm">
-          {toast}
-        </p>
-      )}
-
-      <div className="mt-2.5 flex items-center gap-2">
-        <p className="min-w-0 flex-1 truncate text-xs text-muted">
-          {grab?.pieceId && grab.by !== myId
-            ? `${grab.name} is moving a piece`
-            : "Both of you see every change."}
-        </p>
-        <div className="flex gap-1 rounded-xl bg-surface-2 p-1">
-          {(["3:4", "1:1"] as const).map((a) => (
-            <button
-              key={a}
-              type="button"
-              aria-pressed={session.aspect === a}
-              onClick={() => setAspect(a)}
-              className={`rounded-lg px-2.5 py-1 text-xs ${
-                session.aspect === a ? "bg-surface font-semibold shadow-sm" : "text-muted"
-              }`}
-            >
-              {a}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {selected && (
-        <div className="mt-2 flex gap-2">
-          <Tool icon={ArrowUp} label="Front" onClick={() => commit(selected.id, { zIndex: topZ() + 1 })} />
-          <Tool icon={FlipHorizontal} label="Flip" onClick={() => commit(selected.id, { flipped: !selected.flipped })} />
-          <Tool icon={Trash2} label="Remove" danger onClick={() => drop(selected.id)} />
-        </div>
-      )}
-
-      <div className="mt-3 rounded-2xl border border-line bg-surface p-2.5">
-        <p className="mb-2 px-1 text-xs">
-          <span className="font-semibold">{iAmOwner ? "Your closet" : `${them?.name || "Their"} closet`}</span>
-          <span className="text-muted">
-            {" "}· {closet.length} pieces{iAmOwner ? "" : " · shared for this session"}
+      {/* tray — collapses to a peek so the board can own the screen */}
+      <div
+        className="absolute inset-x-0 bottom-0 z-50 rounded-t-3xl border-t border-line bg-surface shadow-[0_-10px_40px_rgba(0,0,0,0.12)]"
+        style={{
+          height: TRAY_OPEN,
+          transform: `translateY(${trayOpen ? 0 : TRAY_OPEN - TRAY_PEEK}px)`,
+          transition: "transform 0.32s cubic-bezier(0.22,1,0.36,1)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setTrayOpen((v) => !v)}
+          aria-expanded={trayOpen}
+          className="flex w-full flex-col items-center gap-1.5 pb-1 pt-2.5"
+        >
+          <span className="h-1 w-9 rounded-full bg-line" />
+          <span className="flex w-full items-baseline gap-1.5 px-4 text-left">
+            <span className="text-[13px] font-semibold">
+              {iAmOwner ? "Your closet" : `${them?.name || "Their"} closet`}
+            </span>
+            <span className="text-[11.5px] text-muted">· {closet.length} pieces</span>
+            <span className="flex-1" />
+            <span className="text-[11.5px] font-medium text-accent">
+              {trayOpen ? "Hide" : "Show"}
+            </span>
           </span>
-        </p>
-        {closet.length === 0 ? (
-          <p className="px-1 pb-1 text-xs text-muted">Nothing shared yet.</p>
-        ) : (
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {closet.map((it) => (
-              <button
-                key={it.id}
-                type="button"
-                onClick={() => addPiece(it.itemRef)}
-                title={it.name ?? ""}
-                className="flex h-[76px] w-16 shrink-0 items-center justify-center rounded-xl border border-line bg-surface-2 p-1.5 active:scale-95"
-              >
-                {it.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.imageUrl} alt={it.name ?? ""} className="max-h-full max-w-full object-contain" />
-                ) : (
-                  <span className="h-8 w-8 rounded-lg" style={{ background: it.color ?? "#d6d3d1" }} />
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+        </button>
 
-      <div className="mt-3">
-        {iAmOwner ? (
-          <button
-            type="button"
-            onClick={save}
-            disabled={canvas.length === 0}
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-medium text-accent-foreground active:scale-[0.98] disabled:opacity-45"
-          >
-            <Save size={16} /> {savedAlready ? "Save again" : "Save to my outfits"}
-          </button>
-        ) : (
-          <button
-            type="button"
-            disabled
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-surface-2 text-sm text-muted"
-          >
-            <Lock size={16} /> Only {session.owner.name || "they"} can save this look
-          </button>
-        )}
-        <p className="mt-2 px-1 text-xs leading-relaxed text-muted">
-          {iAmOwner
-            ? `${them?.name || "They"} can build and rearrange, but the look only lands in your closet when you save it.`
-            : `${session.owner.name || "They"} saves the look. You'll see it land.`}
-        </p>
+        <div className="h-[calc(100%-56px)] overflow-y-auto px-3 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {closet.length === 0 ? (
+            <p className="px-1 pt-2 text-xs text-muted">Nothing shared yet.</p>
+          ) : (
+            <div className="grid grid-cols-4 gap-2">
+              {closet.map((it) => (
+                <button
+                  key={it.id}
+                  type="button"
+                  onClick={() => addPiece(it.itemRef)}
+                  title={it.name ?? ""}
+                  className="flex aspect-square items-center justify-center rounded-xl border border-line bg-surface-2 p-1.5 transition-transform active:scale-90"
+                >
+                  {it.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={it.imageUrl}
+                      alt={it.name ?? ""}
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <span
+                      className="h-8 w-8 rounded-lg"
+                      style={{ background: it.color ?? "#d6d3d1" }}
+                    />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function Tool({
+function IconBtn({
   icon: Icon,
   label,
   onClick,
@@ -532,12 +606,13 @@ function Tool({
   return (
     <button
       type="button"
+      aria-label={label}
       onClick={onClick}
-      className={`flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl border text-xs active:scale-95 ${
-        danger ? "border-red-200 bg-surface text-red-600" : "border-line bg-surface"
+      className={`flex h-10 w-10 items-center justify-center rounded-full bg-white/95 shadow-md backdrop-blur-sm transition-transform active:scale-90 ${
+        danger ? "text-red-600" : "text-foreground"
       }`}
     >
-      <Icon size={15} /> {label}
+      <Icon size={17} />
     </button>
   );
 }
