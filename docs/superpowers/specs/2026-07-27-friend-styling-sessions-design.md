@@ -1,23 +1,26 @@
 # Friend styles you — live styling sessions (AJA-240)
 
-A friend styles you on a shared canvas, using your closet, for one approved session at a time.
+A friend helps you get dressed on a shared canvas, using your closet, for one session at a time.
+
+**You ask; they accept.** Nobody opens the app volunteering to style someone else — the request has to come from the person who is stuck.
 
 ## Flow
 
-1. Maya opens Ajay's profile and taps **Style them**, optionally with a note about the occasion.
-2. Ajay gets a notification and a card at the top of Outfits: **Approve** or **Decline**.
-3. On approve, Ajay's closet is snapshotted into the session and the board goes live. Both see every edit.
-4. Ajay saves the look into his own Outfits. Either side can end the session; ending revokes Maya's access.
+1. Ajay taps **Ask a friend to style me** on Outfits, picks someone he follows, and adds a note about the occasion.
+2. That friend gets a notification and a card at the top of their Outfits: **Help them** or **Not now**.
+3. Accepting drops them both straight into the canvas. Ajay's closet is snapshotted into the session and the board goes live; both see every edit.
+4. Ajay saves the look into his own Outfits. Either side can end the session; ending revokes the friend's access.
 
-Access is per-session and re-requested every time. Nothing persists to Maya after the session closes.
+Access is per-session and re-asked every time. Nothing persists to the friend after the session closes.
 
 ## Decisions
 
 | Question | Decision |
 |---|---|
-| What the stylist sees | The whole closet minus wishlist items, snapshotted at approval |
+| Who initiates | The **owner**. You ask for help; the friend accepts |
+| What the friend sees | The whole closet minus wishlist items, snapshotted on accept |
 | Where sessions surface | A card at the top of Outfits, plus the notification deep link |
-| Who can save | The owner only — the stylist physically cannot write to the owner's snapshot |
+| Who can save | The owner only — the friend physically cannot write to the owner's snapshot |
 | Session shape | Exactly two people, one board |
 | Sync granularity | Commit-level: one row write per gesture end |
 
@@ -29,7 +32,7 @@ Clones the shared-closet spine: `SECURITY DEFINER` membership helpers so RLS can
 
 **`styling_sessions`** — owner, stylist, `status` (`requested | active | ended | declined`), the note, shared `aspect` and `canvas_bg`, timestamps, `expires_at`, and denormalized identities for both sides (matching the `member_*` / `inviter_*` convention, so cards render without a join). A partial unique index keeps one live session per pair.
 
-**`styling_session_items`** — the owner's closet at approval time: `item_ref`, name, image URL, category, brand, colour. Item images are already public Storage URLs (`getPublicUrl` in `import-item.ts`), so the stylist renders them without any bucket change.
+**`styling_session_items`** — the owner's closet at accept time: `item_ref`, name, image URL, category, brand, colour. Item images are already public Storage URLs (`getPublicUrl` in `import-item.ts`), so the stylist renders them without any bucket change.
 
 **`styling_session_pieces`** — the live board, **one row per canvas element**. `kind`, `item_ref`/`text`/`emoji`, `nx/ny/nw/nh` as 0–1 fractions, `rotation`, `z_index`, `flipped`, `updated_by`, `updated_at`.
 
@@ -42,13 +45,15 @@ Per-element rows rather than a single board blob: two people moving different pi
 
 Because the item and piece policies test `is_styling_active`, ending a session revokes access in the database, not just in the UI. That is the security property worth protecting in review.
 
-Insert on `styling_sessions` requires `stylist_id = auth.uid()` and `status = 'requested'` — you can ask to style someone, you cannot grant yourself access.
+Insert on `styling_sessions` requires **`owner_id = auth.uid()`** and `status = 'requested'`. Because the person sharing the closet is the one creating the row, a row that grants you access to *someone else's* closet is impossible to construct. This is strictly safer than a stylist-initiated flow, where the insert policy has to allow writing a row that names another user as owner.
+
+The friend's accept is an `UPDATE` flipping `status` to `active`, permitted only when `stylist_id = auth.uid()` — mirroring `respondInvite` in `trips.ts`, which needs no extra policy beyond "you may update your own membership".
 
 ### Realtime and notifications
 
 `styling_session_pieces` and `styling_sessions` join the `supabase_realtime` publication behind the usual `pg_publication_tables` guard. A `notify_style_request` trigger writes the notification; `notifications` gains a `styling_session_id` column, and unlike `shared_closet_id` it is **mapped through `notifications.ts`** so the deep link opens the specific session.
 
-New notification kinds: `style_request` and `style_accepted`. `KIND_ICON` in `NotificationsView.tsx` is an exhaustive `Record`, so both must be registered there or the build fails — which is the desired behaviour.
+New notification kinds: `style_request` (owner → friend, "Ajay needs help getting dressed") and `style_accepted` (friend → owner, "Priya is ready to style you"). Both trigger off `styling_sessions`: insert for the ask, and the `requested → active` transition for the accept. `KIND_ICON` in `NotificationsView.tsx` is an exhaustive `Record`, so both must be registered there or the build fails — which is the desired behaviour.
 
 ## Canvas changes
 
@@ -74,10 +79,10 @@ Live cursors. In-session chat — Messages already exists. More than two people.
 ## Phases
 
 1. Migration + `src/lib/styling.ts`
-2. Request → approve: profile button, notification kinds, Outfits card
+2. Ask → accept: the Outfits "Ask a friend to style me" sheet with a friend picker (`fetchFollowingUsers`), notification kinds, and the incoming-request card
 3. `StyleSessionView` — the live board, plus the six canvas fixes
 4. Save into Outfits + end session
 
 ## Prototype
 
-`public/style-session-proto.html`, four steps, two simulated phones. Verified in-browser: grab marks the peer's piece, the peer holds position during the drag, both boards land identical on release, aspect is shared, and the stylist's save button is locked with a reason. **Delete this file when the feature ships.**
+`public/style-session-proto.html`, four steps, two simulated phones. Verified in-browser: the friend you pick carries through every screen (tested with Priya, not the default), grab marks the peer's piece, the peer holds position during the drag, both boards land identical on release, aspect is shared, and the friend's save button is locked with a reason. **Delete this file when the feature ships.**

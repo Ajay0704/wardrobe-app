@@ -174,6 +174,28 @@
   .grab{width:36px;height:4px;border-radius:2px;background:#dcdcd4;margin:0 auto 14px}
   .sheet h3{font-family:var(--serif);font-size:20px;margin:0 0 5px;font-weight:500}
   .sheet p.sub{margin:0 0 15px;font-size:13.5px;color:var(--muted);line-height:1.45}
+  /* friend picker — who you're asking for help */
+  .friends{display:flex;gap:9px;overflow-x:auto;padding:2px 2px 15px;scrollbar-width:none}
+  .friends::-webkit-scrollbar{display:none}
+  .fr{flex:0 0 auto;width:66px;background:0;border:0;padding:5px 0;cursor:pointer;
+    font-family:var(--sans);display:flex;flex-direction:column;align-items:center;gap:6px;
+    border-radius:13px;transition:background .18s var(--ease)}
+  .fr img{width:48px;height:48px;border-radius:50%;object-fit:cover;
+    border:2px solid transparent;transition:border-color .18s var(--ease)}
+  .fr span{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;
+    text-overflow:ellipsis;max-width:100%}
+  .fr[aria-pressed="true"]{background:var(--accent-soft)}
+  .fr[aria-pressed="true"] img{border-color:var(--accent)}
+  .fr[aria-pressed="true"] span{color:var(--accent);font-weight:600}
+  .fr:active{transform:scale(.94)}
+
+  .waiting{display:flex;align-items:center;gap:11px;border:1px solid var(--line);
+    background:var(--surface);border-radius:var(--radius);padding:14px 15px;margin-bottom:14px;
+    animation:fadeUp .3s var(--ease) both}
+  .waiting .txt{flex:1;min-width:0}
+  .waiting .t{font-size:14.5px;font-weight:600;margin:0}
+  .waiting .s{font-size:12.5px;color:var(--muted);margin:2px 0 0}
+
   .sheet textarea{width:100%;min-height:78px;border:1px solid var(--line);border-radius:13px;
     padding:11px 13px;font-size:14px;font-family:var(--sans);color:var(--fg);resize:none;
     outline:none;background:var(--surface-2)}
@@ -224,8 +246,17 @@
    ========================================================================== */
 
 const S = "/samples/men/";
+const W = "/samples/women/";
 const OWNER   = { key:"owner",   name:"Ajay",  handle:"@ajay",  face:"#6b7f5a" };
 const STYLIST = { key:"stylist", name:"Maya",  handle:"@maya",  face:"#8a6f9a" };
+// Who Ajay could ask. Comes from the people you follow, same source the trip and
+// shared-closet invite pickers already use (fetchFollowingUsers).
+const FRIENDS = [
+  STYLIST,
+  { key:"dev",   name:"Dev",   handle:"@dev",   face:"#7a6a55" },
+  { key:"priya", name:"Priya", handle:"@priya", face:"#9a6a6a" },
+  { key:"sam",   name:"Sam",   handle:"@sam",   face:"#5a7a86" },
+];
 
 const sv = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
   stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -262,11 +293,37 @@ const CLOSET = [
 ];
 const byRef = r => CLOSET.find(c => c.ref === r);
 
+/* --- saved looks, just to make the Outfits screens real ------------------- */
+const OWN_LOOKS = [
+  { n:"Office Monday",  w:"Worn 6× · last week",
+    p:[["white-oxford-sticker.png",8,4,60],["chinos-sticker.png",32,40,56],["loafers-sticker.png",20,70,30]] },
+  { n:"Weekend coffee", w:"Worn 12× · 3 days ago",
+    p:[["grey-tee-sticker.png",10,8,58],["dark-jeans-sticker.png",30,42,56],["white-sneakers-sticker.png",22,72,30]] },
+];
+const FRIEND_LOOKS = [
+  { n:"Gallery Saturday", w:"Worn 4× · last month",
+    p:[["trench-coat-sticker.png",6,4,62],["trousers-sticker.png",32,42,54],["loafers-sticker.png",22,72,30]] },
+  { n:"Dinner out", w:"Worn 9× · last week",
+    p:[["black-dress-sticker.png",14,6,60],["white-sneakers-sticker.png",26,72,30]] },
+];
+function looksGrid(looks, base){
+  return `<div class="lookgrid">${looks.map(l=>`<div class="lookcard"><div class="mini">
+    ${l.p.map(([src,x,y,w])=>`<img src="${base}${src}" style="left:${x}%;top:${y}%;width:${w}%">`).join("")}
+  </div><div class="cap">${l.n}<span>${l.w}</span></div></div>`).join("")}</div>`;
+}
+/* Whoever Ajay actually asked. Defaults to Maya when a step is opened cold. */
+const stylist = () => session.friend || STYLIST;
+
 /* --- shared session state (stands in for the styling_session_* rows) ------ */
 let step = 1;
+// One pending auto-advance at a time, cancelled by any navigation — otherwise
+// tapping the step bar mid-transition gets yanked back by a stale timer.
+let pending = null;
+const advance = (n, ms) => { clearTimeout(pending); pending = setTimeout(() => go(n), ms); };
 const session = {
   status: "requested",              // requested | active | ended
-  note: "Dinner Friday, somewhere smart but not stuffy. Can I have a go?",
+  friend: null,                     // who the owner asked for help
+  note: "Dinner Friday, somewhere smart but not stuffy. No idea what to wear — help?",
   aspect: "3:4",
   saved: false,
   pieces: [                         // nx/ny/nw are 0..1 fractions — device independent
@@ -304,41 +361,30 @@ function toast(phone, msg){
 }
 
 /* ================================ STEP 1 ================================== */
-/* Maya is looking at Ajay's profile and asks to style him.                   */
+/* Ajay can't work out what to wear and asks a friend for help.               */
 function step1(){
-  stage.innerHTML = device(STYLIST, "viewing Ajay's profile", `
-    ${topbar("Profile",{back:"Back", icons:false})}
+  stage.innerHTML = device(OWNER, "Outfits tab", `
+    ${topbar("Outfits")}
     <div class="screen">
-      <div class="phead">
-        <img class="avatar" src="${face(OWNER)}" width="76" height="76" alt="">
-        <div class="stats">
-          <div class="stat"><b>34</b><span>Looks</span></div>
-          <div class="stat"><b>218</b><span>Followers</span></div>
-          <div class="stat"><b>190</b><span>Following</span></div>
-        </div>
-      </div>
-      <p class="pname">Ajay Karthick</p>
-      <p class="phandle">@ajay</p>
-      <p class="pbio">Boston. Building a closet that actually gets worn.</p>
-      <div class="pacts">
-        <button class="btn ghost" style="flex:1">Following</button>
-        <button class="btn ghost" style="flex:1">${I.msg} Message</button>
-        <button class="btn" id="ask" style="flex:1">${I.wand} Style them</button>
-      </div>
-      <div class="tilegrid">
-        ${["a1","a4","a3","a5","a6","a7"].map(r=>`<div><img src="${S}${byRef(r).src}" alt=""></div>`).join("")}
-      </div>
+      <div id="slot"></div>
+      <button class="btn" id="ask">${I.wand} Ask a friend to style me</button>
+      <button class="btn ghost" style="margin-top:9px">${I.plus} New look</button>
+      <div style="margin-top:14px">${looksGrid(OWN_LOOKS, S)}</div>
     </div>
     <div class="scrim"></div>
     <div class="sheet">
       <div class="grab"></div>
-      <h3>Ask to style Ajay</h3>
-      <p class="sub">Ajay approves each session. You'll get their closet for as long as the session is open — nothing after that.</p>
+      <h3>Who should style you?</h3>
+      <p class="sub">They'll see your closet while the session is open — and only while it's open.</p>
+      <div class="friends">
+        ${FRIENDS.map(f=>`<button class="fr" data-friend="${f.key}" aria-pressed="false">
+          <img src="${face(f)}" alt=""><span>${f.name}</span></button>`).join("")}
+      </div>
       <textarea id="note" placeholder="What's the occasion?">${session.note}</textarea>
-      <p class="fine">${I.info}<span>Ajay can end the session at any time, and your access to their closet ends with it.</span></p>
+      <p class="fine">${I.info}<span>You can end the session at any time, and their access to your closet ends with it.</span></p>
       <div class="row">
-        <button class="btn quiet" id="cancel" style="flex:0 0 108px">Cancel</button>
-        <button class="btn" id="send" style="flex:1">Send request</button>
+        <button class="btn quiet" id="cancel" style="flex:0 0 100px">Cancel</button>
+        <button class="btn" id="send" style="flex:1" disabled>Send request</button>
       </div>
     </div>
     <div class="toast"></div>
@@ -352,67 +398,75 @@ function step1(){
   phone.querySelector("#ask").onclick = () => open(true);
   phone.querySelector("#cancel").onclick = () => open(false);
   phone.querySelector(".scrim").onclick = () => open(false);
+
+  // You have to say who — there's no "ask everyone".
+  phone.querySelectorAll("[data-friend]").forEach(btn => btn.onclick = () => {
+    session.friend = FRIENDS.find(f => f.key === btn.dataset.friend);
+    phone.querySelectorAll("[data-friend]").forEach(b =>
+      b.setAttribute("aria-pressed", String(b === btn)));
+    phone.querySelector("#send").disabled = false;
+  });
+
   phone.querySelector("#send").onclick = () => {
+    if(!session.friend) return;
     session.note = phone.querySelector("#note").value.trim() || session.note;
     session.status = "requested";
     open(false);
-    toast(phone, "Request sent — waiting for Ajay");
-    setTimeout(()=>go(2), 1100);
+    // The ask turns into a waiting card in the same spot the live session will use.
+    phone.querySelector("#slot").innerHTML = `
+      <div class="waiting">
+        <img class="avatar" src="${face(session.friend)}" width="38" height="38" alt="">
+        <div class="txt">
+          <p class="t">Waiting for ${session.friend.name}</p>
+          <p class="s">Nothing is shared until they accept</p>
+        </div>
+        <span class="pulse"></span>
+      </div>`;
+    phone.querySelector("#ask").remove();
+    toast(phone, `Asked ${session.friend.name} for help`);
+    advance(2, 1400);
   };
 }
 
 /* ================================ STEP 2 ================================== */
-/* Ajay sees the request on the Outfits page and approves.                    */
+/* Maya gets the ask and accepts — which drops them both into the canvas.     */
 function step2(){
-  const looks = [
-    { n:"Office Monday", w:"Worn 6× · last week",  p:[["a1",8,4,60],["a5",32,40,56],["a7",20,70,30]] },
-    { n:"Weekend coffee",w:"Worn 12× · 3 days ago",p:[["a2",10,8,58],["a6",30,42,56],["a8",22,72,30]] },
-  ];
-  stage.innerHTML = device(OWNER, "Outfits tab", `
+  const f = session.friend || STYLIST;
+  stage.innerHTML = device(f, "Outfits tab", `
     ${topbar("Outfits")}
     <div class="screen">
       <div class="reqcard" id="req">
         <div class="reqtop">
-          <img class="avatar" src="${face(STYLIST)}" width="40" height="40" alt="">
+          <img class="avatar" src="${face(OWNER)}" width="40" height="40" alt="">
           <div class="txt">
-            <p class="t" style="margin:0">Maya wants to style you</p>
-            <p class="s" style="margin:0">@maya · just now</p>
+            <p class="t" style="margin:0">Ajay needs help getting dressed</p>
+            <p class="s" style="margin:0">@ajay · just now</p>
           </div>
         </div>
         <p class="reqnote">“${session.note}”</p>
-        <p class="fine" style="margin:10px 0 0;font-size:12px;color:#6f6f66;display:flex;gap:7px">
-          ${I.info}<span>Approving lets Maya see your closet and edit one board with you. It ends when either of you closes it.</span></p>
+        <p class="fine" style="margin:10px 0 0;font-size:12px;color:#6f6f66">
+          ${I.info}<span>Ajay is opening their closet to you for this session. You'll build one board together, and it closes when either of you ends it.</span></p>
         <div class="reqacts">
-          <button class="btn quiet" id="decline" style="flex:0 0 100px">Decline</button>
-          <button class="btn" id="approve" style="flex:1">${I.check} Approve</button>
+          <button class="btn quiet" id="decline" style="flex:0 0 96px">Not now</button>
+          <button class="btn" id="accept" style="flex:1">${I.wand} Help them</button>
         </div>
       </div>
 
-      <button class="btn ghost" style="margin-bottom:14px">${I.plus} New look</button>
-      <div class="lookgrid">
-        ${looks.map(l=>`<div class="lookcard"><div class="mini">
-          ${l.p.map(([r,x,y,w])=>`<img src="${S}${byRef(r).src}" style="left:${x}%;top:${y}%;width:${w}%">`).join("")}
-        </div><div class="cap">${l.n}<span>${l.w}</span></div></div>`).join("")}
-      </div>
+      <p class="sect" style="margin-top:4px">Your looks</p>
+      ${looksGrid(FRIEND_LOOKS, W)}
     </div>
     <div class="toast"></div>
   `);
 
   const phone = stage.querySelector(".phone");
-  phone.querySelector("#approve").onclick = () => {
+  phone.querySelector("#accept").onclick = () => {
     session.status = "active";
-    const card = phone.querySelector("#req");
-    card.classList.add("live");
-    card.innerHTML = `<div class="reqtop"><span class="pulse"></span>
-      <div class="txt"><p class="t" style="margin:0">Styling with Maya</p>
-      <p class="s" style="margin:0">Your closet is shared until this ends</p></div>
-      <button class="btn" style="flex:0 0 92px;height:36px;font-size:13.5px;border-radius:10px">Open</button></div>`;
-    toast(phone, "Maya can now see your closet");
-    setTimeout(()=>go(3), 1300);
+    toast(phone, "Opening Ajay's closet");
+    advance(3, 1000);
   };
   phone.querySelector("#decline").onclick = () => {
     phone.querySelector("#req").remove();
-    toast(phone, "Declined — nothing was shared");
+    toast(phone, "Declined — Ajay's closet stayed private");
   };
 }
 
@@ -420,21 +474,21 @@ function step2(){
 /* The live board, on both phones at once.                                    */
 function step3(){
   stage.innerHTML =
-    device(OWNER,   "owns the closet", boardScreen("owner")) +
-    device(STYLIST, "styling",         boardScreen("stylist"));
+    device(OWNER,     "asked for help", boardScreen("owner")) +
+    device(stylist(), "helping out",    boardScreen("stylist"));
   wireBoards();
   renderAll();
 }
 
 function boardScreen(who){
   const isOwner = who === "owner";
-  const peer = isOwner ? STYLIST : OWNER;
+  const f = stylist();
   return `
     ${topbar("Styling", { icons:false })}
     <div class="screen">
       <div class="livebar">
-        <div class="faces"><img src="${face(OWNER)}" alt=""><img src="${face(STYLIST)}" alt=""></div>
-        <p class="t" style="margin:0"><b>${isOwner ? "Maya is styling you" : "Styling Ajay"}</b> · live</p>
+        <div class="faces"><img src="${face(OWNER)}" alt=""><img src="${face(f)}" alt=""></div>
+        <p class="t" style="margin:0"><b>${isOwner ? `${f.name} is helping you` : "Helping Ajay"}</b> · live</p>
         <button class="end">End</button>
       </div>
 
@@ -463,7 +517,7 @@ function boardScreen(who){
       </div>
       <p style="margin:9px 2px 0;font-size:12px;color:var(--muted);line-height:1.5">
         ${isOwner
-          ? "Maya can build and rearrange, but the look only lands in your closet when you save it."
+          ? `${f.name} can build and rearrange, but the look only lands in your closet when you save it.`
           : "Ajay saves the look. You'll see it land."}
       </p>
     </div>
@@ -496,7 +550,7 @@ function renderBoard(board){
     // Presence: the OTHER phone shows who is holding the piece right now.
     if(session.grabbed && session.grabbed.id === p.id && session.grabbed.by !== who){
       node.classList.add("remote");
-      node.dataset.who = session.grabbed.by === "owner" ? "Ajay" : "Maya";
+      node.dataset.who = session.grabbed.by === "owner" ? "Ajay" : stylist().name;
     }
     board.appendChild(node);
   });
@@ -540,7 +594,7 @@ function wireBoards(){
         p.ny = Math.max(-.20, Math.min(.92, from.ny + (ev.clientY - start.y) / H));
         session.grabbed = null;
         renderAll();
-        status(`${who === "owner" ? "You" : "Maya"} moved ${byRef(p.ref).n}`, "owner");
+        status(`${who === "owner" ? "You" : stylist().name} moved ${byRef(p.ref).n}`, "owner");
         status(`${who === "stylist" ? "You" : "Ajay"} moved ${byRef(p.ref).n}`, "stylist");
       };
       node.addEventListener("pointermove", move);
@@ -555,7 +609,7 @@ function wireBoards(){
         nx:.30, ny:.24, nw:.46, rot:0, z:++zTop });
       renderAll();
       const n = byRef(btn.dataset.add).n;
-      status(`${who === "owner" ? "You" : "Maya"} added ${n}`, "owner");
+      status(`${who === "owner" ? "You" : stylist().name} added ${n}`, "owner");
       status(`${who === "stylist" ? "You" : "Ajay"} added ${n}`, "stylist");
     });
 
@@ -586,7 +640,7 @@ function status(text, who){
 }
 
 /* ================================ STEP 4 ================================== */
-/* Session over: the look is Ajay's, Maya's access is gone.                   */
+/* Session over: the look is Ajay's, the helper's access is gone.             */
 function step4(){
   stage.innerHTML =
     device(OWNER, "Outfits tab", `
@@ -596,7 +650,7 @@ function step4(){
           <div class="lookcard fade"><div class="mini">
             ${session.pieces.slice(0,4).map(p=>`<img src="${S}${byRef(p.ref).src}"
               style="left:${p.nx*100}%;top:${p.ny*100}%;width:${p.nw*100}%">`).join("")}
-          </div><div class="cap">Styled by Maya<span>Never worn · just saved</span></div></div>
+          </div><div class="cap">Styled by ${stylist().name}<span>Never worn · just saved</span></div></div>
           <div class="lookcard"><div class="mini">
             <img src="${S}${byRef("a1").src}" style="left:8%;top:4%;width:60%">
             <img src="${S}${byRef("a5").src}" style="left:32%;top:40%;width:56%">
@@ -606,7 +660,7 @@ function step4(){
         <div class="ended">
           <div class="lock">${I.lock}</div>
           <h3>Session ended</h3>
-          <p>Maya no longer has access to your closet. The look she built is yours to keep.</p>
+          <p>${stylist().name} no longer has access to your closet. The look they built is yours to keep.</p>
         </div>
       </div>
       <div class="toast"></div>
@@ -617,9 +671,9 @@ function step4(){
         <div class="ended" style="margin-top:2px">
           <div class="lock">${I.lock}</div>
           <h3>Session ended</h3>
-          <p>You can't see Ajay's closet any more. Ask again any time — they approve each session.</p>
+          <p>You can't see Ajay's closet any more. If they need help again, they'll ask and you'll get a notification.</p>
         </div>
-        <button class="btn ghost" style="margin-top:14px" onclick="go(1)">${I.wand} Ask to style Ajay again</button>
+        <button class="btn ghost" style="margin-top:14px" onclick="go(1)">${I.msg} Message Ajay</button>
       </div>
       <div class="toast"></div>
     `);
@@ -627,12 +681,13 @@ function step4(){
 
 /* ================================= router ================================= */
 const STEPS = [
-  { n:1, label:"1 · Ask",      fn:step1 },
-  { n:2, label:"2 · Approve",  fn:step2 },
+  { n:1, label:"1 · Ajay asks",   fn:step1 },
+  { n:2, label:"2 · Friend accepts", fn:step2 },
   { n:3, label:"3 · Live board", fn:step3 },
   { n:4, label:"4 · End",      fn:step4 },
 ];
 function go(n){
+  clearTimeout(pending);
   step = n;
   // Jumping straight to a step from the bar has to put the session in the state
   // that step assumes, or the board is inert.
@@ -654,11 +709,12 @@ document.getElementById("note").innerHTML = `
     <li><b>Step 3 is the real question.</b> Drag a piece on either phone — it follows your finger locally and <b>lands on the other phone when you let go</b>. That's commit-level sync: one write per gesture, not a stream.</li>
     <li>While you hold a piece, the other phone outlines it in amber with your name. That grab/release signal is what makes it read as live without streaming coordinates.</li>
     <li>Tap tray pieces on either side, and switch <code>3:4</code>/<code>1:1</code> — the board shape is shared, so you can't end up looking at different boards.</li>
-    <li>Only Ajay can save. Maya's button is locked, and says why.</li>
+    <li>Only Ajay can save. The helper's button is locked, and says why.</li>
   </ul>
   <h4>Decisions baked in</h4>
   <ul>
-    <li>Maya requests, Ajay approves, <b>every time</b>. Ending the session revokes access — that's enforced in RLS, not just hidden in the UI.</li>
+    <li><b>Ajay asks, the friend accepts</b>, every time — nobody volunteers to style you. Accepting drops them both straight into the canvas, and ending the session revokes access in RLS, not just in the UI.</li>
+    <li>Because the owner is the one who asks, the insert rule is <code>owner_id = auth.uid()</code>: a row that grants you access to <i>someone else's</i> closet is impossible to create.</li>
     <li>Whole closet minus wishlist, snapshotted at approval.</li>
     <li>Pending and live sessions surface as a card at the top of Outfits.</li>
   </ul>
