@@ -24,8 +24,9 @@ interface ImportJob {
   dataUrl: string;
 }
 
-/** How many units to process at once (mirrors the app's existing 2-worker patterns). */
-const CONCURRENCY = 2;
+/** Process ONE photo at a time in the background so the on-device cutout (imgly WASM) doesn't
+ *  starve the phone's cores and jank the UI while the user keeps using the app (AJA-237). */
+const CONCURRENCY = 1;
 /** Safety cap per enqueue call (the pickers already limit selection). */
 const MAX_PER_BATCH = 30;
 
@@ -145,7 +146,7 @@ async function processJob(job: ImportJob) {
   const userId = useWardrobe.getState().authUser?.id ?? null;
   let found = 0;
   try {
-    const detected = await detectGarments(job.dataUrl, userId);
+    const detected = await detectGarments(job.dataUrl, userId, 1); // 1 cutout at a time → smoother UI
     if (cancelled) return; // don't buffer items for a job that finished after cancel
     for (const g of detected) {
       addPending({

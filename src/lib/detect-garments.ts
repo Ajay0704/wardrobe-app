@@ -148,6 +148,10 @@ async function analyzeCutout(url: string): Promise<Partial<ApiGarment>> {
 export async function detectGarments(
   dataUrl: string,
   userId: string | null,
+  /** How many garment cutouts to run at once. The on-device background removal (imgly WASM)
+   *  is CPU-heavy, so the background import passes 1 to keep the app responsive; the foreground
+   *  "add whole outfit" flow keeps the default 2 for speed. */
+  maxWorkers = 2,
 ): Promise<DetectedGarment[]> {
   // Load once; detect on a downscaled copy, but crop from the full-res original.
   let img: HTMLImageElement;
@@ -209,8 +213,10 @@ export async function detectGarments(
         tags,
         url,
       });
+      // Yield to the event loop so the UI can paint between CPU-heavy cutouts.
+      await new Promise((r) => setTimeout(r, 0));
     }
   };
-  await Promise.all([worker(), worker()]);
+  await Promise.all(Array.from({ length: Math.max(1, maxWorkers) }, () => worker()));
   return out;
 }
