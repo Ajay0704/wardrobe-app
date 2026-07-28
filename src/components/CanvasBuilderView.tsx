@@ -14,6 +14,7 @@ import {
   Type,
   X,
   type LucideIcon,
+  Lock,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { bestLook } from "@/lib/matching";
@@ -72,12 +73,45 @@ const STICKERS: Record<string, string[]> = {
 const STICKER_CATS = Object.keys(STICKERS);
 
 /**
+ * A shared styling session driving this same canvas (AJA-240). When present it
+ * replaces the local draft as the data source, so the collaborative board IS the
+ * builder rather than a lookalike that drifts from it.
+ */
+export interface CollabCanvas {
+  nodes: CanvasItem[];
+  bg: string | null;
+  /** The other person's closet, already mapped to wardrobe items for the tray. */
+  items: WardrobeItem[];
+  aspect: "3:4" | "1:1";
+  setAspect: (a: "3:4" | "1:1") => void;
+  /** Mutations return the new piece id where one is created, so it can be selected. */
+  add: (itemId: string) => string;
+  addText: (text: string, color: string) => string;
+  addSticker: (emoji: string) => string;
+  update: (id: string, patch: Partial<CanvasItem>) => void;
+  remove: (id: string) => void;
+  replace: (nodes: CanvasItem[]) => void;
+  setBg: (bg: string | null) => void;
+  title: string;
+  subtitle: string;
+  saveLabel: string;
+  canSave: boolean;
+  onSave: (name: string) => void;
+  onClose: () => void;
+  onEnd: () => void;
+  /** Piece currently held by the OTHER person, for the presence outline. */
+  heldByThem: { pieceId: string; name: string } | null;
+  onGrab: (id: string) => void;
+  onRelease: (id: string) => void;
+}
+
+/**
  * Acloset-style outfit maker. Full-screen over the shell: a white board where
  * cutout pieces + text + emoji stickers are dragged / resized / flipped /
  * layered, an on-board editor toolbar, a board-background picker, and a
  * collapsible "Select item" sheet whose contents switch with the active tool.
  */
-export function CanvasBuilderView() {
+export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   const {
     items,
     canvasDraft,
@@ -94,6 +128,16 @@ export function CanvasBuilderView() {
     setView,
   } = useWardrobe();
 
+  // The single switch between "my draft" and "our session". Everything below reads
+  // and writes through these, so the two modes can't drift apart.
+  const nodes = collab ? collab.nodes : canvasDraft;
+  const bg = collab ? collab.bg : canvasBg;
+  const trayItems = collab ? collab.items : items;
+  const updateNode = collab ? collab.update : updateCanvasItem;
+  const removeNode = collab ? collab.remove : removeCanvasItem;
+  const replaceNodes = collab ? collab.replace : setCanvasDraft;
+  const setBgFn = collab ? collab.setBg : setCanvasBg;
+
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
@@ -106,7 +150,11 @@ export function CanvasBuilderView() {
   const [saving, setSaving] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [toast, setToast] = useState<string | null>(null);
-  const [aspect, setAspect] = useState<"3:4" | "1:1">("3:4");
+  const [localAspect, setLocalAspect] = useState<"3:4" | "1:1">("3:4");
+  // Shared, not local, in a session — otherwise the two phones compose on differently
+  // shaped boards.
+  const aspect = collab ? collab.aspect : localAspect;
+  const setAspect = collab ? collab.setAspect : setLocalAspect;
   const [offset, setOffset] = useState(0); // sheet px offset: 0 = open, maxOffset = fully hidden
   const [maxOffset, setMaxOffset] = useState(0);
   const [dragging, setDragging] = useState(false);
@@ -208,48 +256,50 @@ export function CanvasBuilderView() {
 
   const pieces = useMemo(() => {
     const t = TABS.find((x) => x.key === tab)!;
-    return items.filter(
+    return trayItems.filter(
       (it) =>
         !it.wishlist &&
         it.imageUrl &&
         (t.cat === null || it.category === t.cat) &&
         matchesSubcategory(it, subCat),
     );
-  }, [items, tab, subCat]);
+  }, [trayItems, tab, subCat]);
 
   // Sub-category chips present in the active category's addable pieces (+ Others).
   const subChips = useMemo(() => {
     const t = TABS.find((x) => x.key === tab);
     return t?.cat
-      ? presentSubcategories(t.cat, items.filter((it) => !it.wishlist && it.imageUrl))
+      ? presentSubcategories(t.cat, trayItems.filter((it) => !it.wishlist && it.imageUrl))
       : [];
-  }, [items, tab]);
+  }, [trayItems, tab]);
 
   const ownedCount = useMemo(
-    () => items.filter((it) => !it.wishlist && it.imageUrl).length,
-    [items],
+    () => trayItems.filter((it) => !it.wishlist && it.imageUrl).length,
+    [trayItems],
   );
 
   const bringToFront = (id: string) => {
-    const top = canvasDraft.reduce((m, c) => Math.max(m, c.zIndex), 0);
-    updateCanvasItem(id, { zIndex: top + 1 });
+    const top = nodes.reduce((m, c) => Math.max(m, c.zIndex), 0);
+    updateNode(id, { zIndex: top + 1 });
   };
   const select = (id: string) => {
     setSelectedId(id);
-    bringToFront(id);
+    // In a session selecting must NOT bump z: both people select constantly and the
+    // boards would z-fight. Bring-to-front stays as the explicit button.
+    if (!collab) bringToFront(id);
   };
   const deletePiece = (id: string) => {
-    removeCanvasItem(id);
+    removeNode(id);
     if (selectedId === id) setSelectedId(null);
   };
   const duplicatePiece = (id: string) => {
-    const c = canvasDraft.find((x) => x.id === id);
+    const c = nodes.find((x) => x.id === id);
     if (!c) return;
-    const top = canvasDraft.reduce((m, x) => Math.max(m, x.zIndex), 0);
+    const top = nodes.reduce((m, x) => Math.max(m, x.zIndex), 0);
     // uid(), not Date.now(): two clients on a shared board can duplicate in the same
     // millisecond and collide on the piece id (AJA-240).
     const copy: CanvasItem = { ...c, id: uid(), x: c.x + 22, y: c.y + 22, zIndex: top + 1 };
-    setCanvasDraft([...canvasDraft, copy]);
+    replaceNodes([...nodes, copy]);
     setSelectedId(copy.id);
   };
   const selectLast = () => {
@@ -261,15 +311,18 @@ export function CanvasBuilderView() {
   };
 
   const addPiece = (itemId: string) => {
-    addCanvasItem(itemId);
-    selectLast();
+    if (collab) setSelectedId(collab.add(itemId));
+    else {
+      addCanvasItem(itemId);
+      selectLast();
+    }
     flash("Added to your look");
   };
 
   // Surprise me — ask the matching engine for a look, then lay it out head-to-toe
   // (top over bottom over shoes), centered and sized by slot, as a fresh board.
   const surpriseLook = () => {
-    const owned = items.filter((it) => !it.wishlist && it.imageUrl);
+    const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
     const ids = bestLook(owned)?.itemIds ?? [];
     const picks = ids
       .map((id) => owned.find((it) => it.id === id))
@@ -292,11 +345,11 @@ export function CanvasBuilderView() {
     const rCx = bw * 0.74; // right-column centre-x; right pieces are centred on it
     const bySlot: Partial<Record<string, WardrobeItem[]>> = {};
     for (const it of picks) (bySlot[slotForCategory(it.category)] ??= []).push(it);
-    const nodes: CanvasItem[] = [];
+    const next: CanvasItem[] = [];
     let z = 0;
     const clampN = (v: number, hi: number) => Math.max(0, Math.min(Math.round(v), hi));
     const put = (it: WardrobeItem, x: number, y: number, size: number) => {
-      nodes.push({
+      next.push({
         id: uid(),
         kind: "item",
         itemId: it.id,
@@ -327,35 +380,48 @@ export function CanvasBuilderView() {
     }
     (bySlot.accessories ?? []).slice(0, 1).forEach((it) => putR(it, ry, ACC));
     if (bySlot.shoes?.length) putR(bySlot.shoes[0], bh * 0.7, SHOE);
-    setCanvasDraft(nodes);
+    replaceNodes(next);
     setSelectedId(null);
     flash("Here's a look — tweak it");
   };
   const addText = () => {
     const t = textInput.trim();
     if (!t) return;
-    addCanvasText(t, textColor);
+    if (collab) setSelectedId(collab.addText(t, textColor));
+    else {
+      addCanvasText(t, textColor);
+      selectLast();
+    }
     setTextInput("");
-    selectLast();
     flash("Text added");
   };
   const addSticker = (emoji: string) => {
-    addCanvasSticker(emoji);
-    selectLast();
+    if (collab) setSelectedId(collab.addSticker(emoji));
+    else {
+      addCanvasSticker(emoji);
+      selectLast();
+    }
   };
 
   const close = () => {
     setSelectedId(null);
-    setView("outfits");
+    if (collab) collab.onClose();
+    else setView("outfits");
   };
 
   const doSave = () => {
-    const ids = [...new Set(canvasDraft.filter((c) => c.itemId).map((c) => c.itemId as string))];
-    if (canvasDraft.length === 0) return;
+    const ids = [...new Set(nodes.filter((c) => c.itemId).map((c) => c.itemId as string))];
+    if (nodes.length === 0) return;
     const name = saveName.trim() || `Look · ${new Date().toLocaleDateString("en-US")}`;
+    if (collab) {
+      collab.onSave(name);
+      setSaving(false);
+      setSaveName("");
+      return;
+    }
     // Persist the full board layout (positions/sizes/rotation/z + text/stickers + bg),
     // not just the item ids, so the board restores exactly on reopen.
-    saveOutfit(name, "", ids, canvasDraft, canvasBg);
+    saveOutfit(name, "", ids, nodes, canvasBg);
     clearDraft();
     setSaving(false);
     setSaveName("");
@@ -409,26 +475,38 @@ export function CanvasBuilderView() {
         >
           <X size={20} />
         </button>
-        <div className="text-center">
-          <p className="text-[15px] font-semibold text-foreground">New look</p>
-          <p className="text-[11px] text-muted">
-            {canvasDraft.length === 0
-              ? "No pieces yet"
-              : `${canvasDraft.length} ${canvasDraft.length === 1 ? "piece" : "pieces"}`}
+        <div className="min-w-0 px-2 text-center">
+          <p className="truncate text-[15px] font-semibold text-foreground">
+            {collab ? collab.title : "New look"}
+          </p>
+          <p className="truncate text-[11px] text-muted">
+            {collab
+              ? collab.subtitle
+              : nodes.length === 0
+                ? "No pieces yet"
+                : `${nodes.length} ${nodes.length === 1 ? "piece" : "pieces"}`}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setSaving(true)}
-          disabled={canvasDraft.length === 0}
-          className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
-            canvasDraft.length === 0
-              ? "bg-surface-2 text-muted"
-              : "bg-accent text-accent-foreground"
-          }`}
-        >
-          Next
-        </button>
+        {collab && !collab.canSave ? (
+          // The friend can't write to someone else's closet, and saying so beats a
+          // button that silently does nothing.
+          <span className="flex items-center gap-1.5 rounded-xl bg-surface-2 px-3 py-2.5 text-[11px] text-muted">
+            <Lock size={12} /> They save
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSaving(true)}
+            disabled={nodes.length === 0}
+            className={`rounded-xl px-5 py-2.5 text-sm font-semibold transition-colors active:scale-95 ${
+              nodes.length === 0
+                ? "bg-surface-2 text-muted"
+                : "bg-accent text-accent-foreground"
+            }`}
+          >
+            {collab ? collab.saveLabel : "Next"}
+          </button>
+        )}
       </div>
 
       {/* board area — the canonical full board is top-anchored and reserves a fixed strip below for
@@ -438,6 +516,16 @@ export function CanvasBuilderView() {
         className="relative min-h-0 flex-1"
         style={{ paddingBottom: `${BOARD_RESERVE}px` }}
       >
+        {collab && (
+          <button
+            type="button"
+            onClick={collab.onEnd}
+            className="absolute left-5 top-2 z-30 rounded-full border border-red-200 bg-surface/95 px-3 py-1 text-[12px] font-semibold text-red-600 backdrop-blur-sm active:scale-95"
+          >
+            End session
+          </button>
+        )}
+
         {/* aspect chip — a small, always-there formatting control on the canvas */}
         <div className="absolute right-5 top-2 z-30 flex overflow-hidden rounded-full border border-line bg-surface/95 backdrop-blur-sm">
           {(["3:4", "1:1"] as const).map((r) => (
@@ -458,14 +546,14 @@ export function CanvasBuilderView() {
             a piece is selected; predictable spot instead of a popup that jumps above the piece. */}
         {selectedId &&
           (() => {
-            const sc = canvasDraft.find((x) => x.id === selectedId);
+            const sc = nodes.find((x) => x.id === selectedId);
             if (!sc) return null;
             const b =
               "flex h-10 w-10 items-center justify-center rounded-full bg-white/95 text-foreground shadow-md backdrop-blur-sm transition-transform active:scale-90";
             return (
               <div className="animate-pop absolute right-2.5 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2">
                 {sc.kind !== "text" && (
-                  <button type="button" aria-label="Flip" className={b} onClick={() => updateCanvasItem(sc.id, { flipped: !sc.flipped })}>
+                  <button type="button" aria-label="Flip" className={b} onClick={() => updateNode(sc.id, { flipped: !sc.flipped })}>
                     <FlipHorizontal size={17} />
                   </button>
                 )}
@@ -496,13 +584,13 @@ export function CanvasBuilderView() {
             style={{
               width: board.w || undefined,
               height: board.h || undefined,
-              background: canvasBg || "#ffffff",
+              background: bg || "#ffffff",
               transform: `scale(${boardScale})`,
               transformOrigin: "top center",
               transition: dragging ? "none" : "transform 260ms cubic-bezier(0.22,1,0.36,1)",
             }}
           >
-          {canvasDraft.length === 0 && (
+          {nodes.length === 0 && (
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-8 text-center">
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-surface-2 text-muted">
                 <Shirt size={28} strokeWidth={1.6} />
@@ -519,7 +607,7 @@ export function CanvasBuilderView() {
             </div>
           )}
 
-          {canvasDraft.map((c) => {
+          {nodes.map((c) => {
             let content: React.ReactNode;
             if (c.kind === "text") {
               content = (
@@ -551,7 +639,7 @@ export function CanvasBuilderView() {
                 </div>
               );
             } else {
-              const item = items.find((i) => i.id === c.itemId);
+              const item = trayItems.find((i) => i.id === c.itemId);
               if (!item) return null;
               content = (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -565,6 +653,7 @@ export function CanvasBuilderView() {
               );
             }
 
+            const held = collab?.heldByThem?.pieceId === c.id ? collab.heldByThem : null;
             return (
               <CanvasPiece
                 key={c.id}
@@ -573,11 +662,24 @@ export function CanvasBuilderView() {
                 scale={boardScale}
                 selected={selectedId === c.id}
                 onSelect={select}
-                onCommit={updateCanvasItem}
+                onCommit={updateNode}
                 onRemove={deletePiece}
                 trashRef={trashRef}
+                onGrab={collab?.onGrab}
+                onRelease={collab?.onRelease}
               >
-                {content}
+                <div className="relative h-full w-full">
+                  {content}
+                  {held && (
+                    // Two broadcast events per gesture is what makes commit-level sync
+                    // read as live instead of pieces teleporting with no explanation.
+                    <span className="pointer-events-none absolute -inset-2 rounded-xl border-[1.5px] border-amber-500">
+                      <span className="absolute -top-6 left-0 whitespace-nowrap rounded-md bg-amber-500 px-1.5 py-0.5 text-[10px] font-semibold text-white">
+                        {held.name}
+                      </span>
+                    </span>
+                  )}
+                </div>
               </CanvasPiece>
             );
           })}
@@ -751,17 +853,17 @@ export function CanvasBuilderView() {
             >
               <div className="grid grid-cols-4 gap-3">
                 <button
-                  onClick={() => setCanvasBg(null)}
-                  className={`flex aspect-square items-center justify-center rounded-xl border bg-white text-xs text-muted ${!canvasBg ? "border-accent ring-1 ring-accent" : "border-line"}`}
+                  onClick={() => setBgFn(null)}
+                  className={`flex aspect-square items-center justify-center rounded-xl border bg-white text-xs text-muted ${!bg ? "border-accent ring-1 ring-accent" : "border-line"}`}
                 >
                   None
                 </button>
-                {[...BG_SOLIDS, ...BG_GRADIENTS].map((bg) => (
+                {[...BG_SOLIDS, ...BG_GRADIENTS].map((swatch) => (
                   <button
-                    key={bg}
-                    onClick={() => setCanvasBg(bg)}
-                    style={{ background: bg }}
-                    className={`aspect-square rounded-xl border ${canvasBg === bg ? "border-accent ring-1 ring-accent" : "border-line"}`}
+                    key={swatch}
+                    onClick={() => setBgFn(swatch)}
+                    style={{ background: swatch }}
+                    className={`aspect-square rounded-xl border ${bg === swatch ? "border-accent ring-1 ring-accent" : "border-line"}`}
                   />
                 ))}
               </div>
