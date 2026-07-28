@@ -11,7 +11,7 @@ Last refreshed: 2026-07-12 · **product alignment note: 2026-07-25**
 
 Positioning locked as **closet-grounded shopping copilot** (“Before you buy it, run it through your closet”). Shipped toward that wedge since Jul 12:
 
-- Decision outcome capture + Decision bank (AJA-190)
+- Decision outcome capture + Decision bank (AJA-190 — **Done**)
 - Share-to-app capture — iOS Share Extension + Web Share Target (AJA-201)
 - Sample closet first-run (AJA-198/199)
 - Pack with friends; Shop gender filters; Stylist buy_advice

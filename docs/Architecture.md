@@ -1,6 +1,6 @@
 # Architecture
 
-Last updated: 2026-07-25 (nav/chrome: Profile tab replaces Home; see [[Features]] for full inventory)
+Last updated: 2026-07-26 (Shared Closets + BottomSheet + skill router; see [[Features]])
 
 Canonical org map of surfaces, APIs, services, and data. For product status see [[Wardrobe App]]. **Required apps + costs** are listed in a dedicated section below (and in the Cursor canvas `required-apps-costs`).
 
@@ -32,7 +32,7 @@ Canonical org map of surfaces, APIs, services, and data. For product status see 
   FASHN      SearchApi               (cron)        (+ affiliates)
 ```
 
-Design: **Figma**. Distribution still required: **App Store / TestFlight / APNs** (AJA-8), **Chrome Web Store** (AJA-78). Commerce later: **Amazon / ShopStyle / CJ / Rakuten**, **resale** (AJA-42). Try-on upgrade: **FASHN VTON** (AJA-21, budget-blocked).
+Design: **Figma**. Distribution still required: **App Store / TestFlight / APNs** (AJA-8), **Chrome Web Store** listing (clipper code Done — AJA-78). Commerce later: **Amazon / ShopStyle / CJ / Rakuten**, **resale** (AJA-42). Try-on upgrade: **FASHN VTON** (AJA-21, budget-blocked).
 ## Stack
 
 - **Next.js 16** — App Router
@@ -54,8 +54,8 @@ Design: **Figma**. Distribution still required: **App Store / TestFlight / APNs*
 | Surface | Entry | Chrome | Host |
 |---------|-------|--------|------|
 | Website | `/` | Top nav + footer (`AppShell` web) | Vercel · PWA |
-| iOS app | `/n?native=1` | Bottom tabs: Home · Closet · ＋ · Outfits · Explore | Capacitor → live Vercel URL |
-| Wishlist clipper | `extensions/wishlist-clipper` | MV3 Chrome/Edge | Calls `/api/clip` + `/api/extract` |
+| iOS app | `/n?native=1` | Bottom tabs: Explore · Closet · ＋ · Outfits · Profile | Capacitor → live Vercel URL |
+| Wishlist clipper | `extensions/wishlist-clipper` | MV3 Chrome/Edge (AJA-78 Done) | Calls `/api/clip` + `/api/extract` |
 
 Detection (any true → lock native): Capacitor bridge, UA `WardrobeApp`, `?native=1`, path `/n`, `html.native-app` + localStorage latch. Product URLs open via Capacitor **Browser** (never replace the WebView). Shared screens render through `AppViews.tsx` inside either shell.
 
@@ -76,7 +76,7 @@ Status: **Live** = in production · **Wired** = code ready, needs account/keys �
 | **TestFlight** | Beta iOS distribution | Required | After paid Apple account |
 | **Apple App Store** | Public iOS + Rate the app | Required | Needs `NEXT_PUBLIC_IOS_APP_ID` |
 | **APNs** | Remote push on native | Required | Local notifications only today |
-| **Chrome Web Store** | Publish wishlist clipper | Required | Unpacked today · [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) |
+| **Chrome Web Store** | Publish wishlist clipper | Required | Extension code Done (AJA-78); store listing still open |
 | **Edge Add-ons** | Same MV3 clipper | Required | After Chrome listing |
 
 ### AI / search / weather
@@ -201,8 +201,8 @@ Cron schedules live in `vercel.json`.
 
 | Layer | What |
 |-------|------|
-| **Client** | items · outfits · trips · calendar · profile · theme · draft |
-| **Supabase tables** | `wardrobe_snapshots`, `push_subscriptions` |
+| **Client** | items · outfits · trips · calendar · profile · theme · draft · decisions |
+| **Supabase tables** | `wardrobe_snapshots`, `push_subscriptions`, `shared_closets*` · `closet_shares*` |
 | **Storage** | `wardrobe-images` bucket |
 | **Capacitor plugins** | Camera, Geolocation, Share, Local Notifications, Browser, Splash, Status Bar |
 
@@ -244,7 +244,9 @@ Hybrid **context-scored** pipeline in `src/lib/matching.ts` (not freeform LLM pi
 4. Why-reasons on every look
 5. Stylist: `/api/stylist/assemble` may choose among ranked candidate IDs only; `/api/stylist/chat` narrates
 
-Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/taste.ts` (like/dislike), Open-Meteo via `weather.ts`. Analyze (`/api/analyze`) also returns formality / material / pattern / styleCaption for richer scoring.
+Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/taste.ts` (like/dislike), Open-Meteo via `weather.ts` (city auto-load + GPS timeout + cache — AJA-208). Analyze (`/api/analyze`) also returns formality / material / pattern / styleCaption for richer scoring.
+
+Sheets: shared Vaul `BottomSheet` (AJA-222) — drag-to-dismiss, slide-down exit, reduced-motion.
 
 ## Key files
 
@@ -253,6 +255,7 @@ Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/tas
 | App shell / dual UI | `src/components/AppShell.tsx` |
 | Native chrome | `src/components/native/NativeShell.tsx` |
 | Shared views | `src/components/AppViews.tsx` |
+| Bottom sheets | `src/components/BottomSheet.tsx` (Vaul) |
 | Native platform | `src/lib/platform.ts` |
 | Capacitor config | `capacitor.config.ts` |
 | Zustand store | `src/lib/store.ts` |
@@ -260,7 +263,10 @@ Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/tas
 | Outfit matching | `src/lib/matching.ts` |
 | Style embeddings | `src/lib/style-embed.ts` |
 | Taste feedback | `src/lib/taste.ts` |
+| Shared closets | `src/lib/shared-closet.ts` · `SharedClosetView.tsx` |
+| Decisions | `src/lib/decisions.ts` |
 | Supabase sync | `src/lib/supabase/sync.ts` |
+| Agent skills | `.claude/skills/` · router in `AGENTS.md` |
 | Env template | `.env.example` |
 
 ## Related
@@ -271,5 +277,7 @@ Supporting: `src/lib/style-embed.ts` (local mood/occasion vectors), `src/lib/tas
 - [[Supabase sync]]
 - [[iOS Capacitor]]
 - [[Browser extension]]
+- [[Shared Closets]]
+- [[Share Closet]]
 - [[Deploy]]
 - [[Linear]]

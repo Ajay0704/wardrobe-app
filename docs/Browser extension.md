@@ -2,7 +2,7 @@
 
 Chrome / Edge Manifest V3 clipper that saves clothing product pages to the Wardrobe **wishlist**.
 
-Issue: [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78)
+Issue: [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) — **Done** (code). Chrome Web Store listing still open.
 
 ## Package
 

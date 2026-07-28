@@ -13,6 +13,7 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 
 - Linear MCP authenticated in Cursor
 - Shared protocol in `AGENTS.md` — Linear is source of truth for both agents
+- Emil + Superpowers skills in `.claude/skills/` — **skill router** in `AGENTS.md` (default no skill; pick only when it improves outcome)
 - `scripts/linear-commit-notify.mjs` + `.git/hooks/post-commit` comments commits onto `AJA-xx` (or AJA-24 if no id)
 - Hook is **comment-only** — agents must still move issues to Done
 
@@ -20,41 +21,52 @@ Issue tracking for **Your Personal Wardrobe** lives in Linear (team **Ajay Karth
 
 Closet-grounded **shopping copilot**: capture → Smart Buy → decision outcome → Decision bank. Social = private councils (not feed gravity). See [[Wardrobe App]] and [[Research synthesis — next moves]].
 
-## Board snapshot (checked 2026-07-25)
+## Board snapshot (checked 2026-07-26)
 
 ### In Progress
 
 | ID | Title |
 |----|-------|
+| [AJA-223](https://linear.app/ajay-karthick/issue/AJA-223) | Edit page: formality/material/pattern/tone/size + product link |
 | [AJA-194](https://linear.app/ajay-karthick/issue/AJA-194) | Google + Apple sign-in (native OAuth) — v1.1.0 |
+| [AJA-213](https://linear.app/ajay-karthick/issue/AJA-213) | Shared Closets Phase 0 schema — migrations in repo; confirm prod apply |
+| [AJA-195](https://linear.app/ajay-karthick/issue/AJA-195) | Username handle — UI shipped; leftover cleanup may remain |
+| [AJA-193](https://linear.app/ajay-karthick/issue/AJA-193) | Ship logo build — prep done; ASC release status unclear |
+| [AJA-87](https://linear.app/ajay-karthick/issue/AJA-87) | Explore social feed — MVP shipped; full scope open |
+| [AJA-82](https://linear.app/ajay-karthick/issue/AJA-82) | Core ML on-device scan — not done |
+| [AJA-8](https://linear.app/ajay-karthick/issue/AJA-8) | App Store later — **should be Backlog**; do not start unless asked |
 
-### Recently Done (verify Linear status matches git)
+### Closed 2026-07-26 (stale-status cleanup)
 
 | ID | Title |
 |----|-------|
-| [AJA-201](https://linear.app/ajay-karthick/issue/AJA-201) | Share to Wardrobe: iOS Share Extension + Web Share Target |
-| [AJA-198](https://linear.app/ajay-karthick/issue/AJA-198) | Frictionless first-run: labeled sample closet + activation |
-| [AJA-199](https://linear.app/ajay-karthick/issue/AJA-199) | Gender-matched beautified sample capsules |
-| [AJA-195](https://linear.app/ajay-karthick/issue/AJA-195) | Username / @handle picker |
-| [AJA-196](https://linear.app/ajay-karthick/issue/AJA-196) | Find-friends / follow-back / profile counts |
-| [AJA-197](https://linear.app/ajay-karthick/issue/AJA-197) | In-app account deletion |
-| [AJA-200](https://linear.app/ajay-karthick/issue/AJA-200) | Declutter Edit item |
-| [AJA-153](https://linear.app/ajay-karthick/issue/AJA-153) | Monogram W icon + splash (1.0.1) |
+| [AJA-212](https://linear.app/ajay-karthick/issue/AJA-212) / 214–216 | Shared Closets collaborative |
+| [AJA-221](https://linear.app/ajay-karthick/issue/AJA-221) | Emil Shared Closets polish |
+| [AJA-209](https://linear.app/ajay-karthick/issue/AJA-209) | Multi-item analyze + Beautify fidelity |
+| [AJA-208](https://linear.app/ajay-karthick/issue/AJA-208) | Weather robustness |
+| [AJA-117](https://linear.app/ajay-karthick/issue/AJA-117) | Garment extraction harden |
+| [AJA-78](https://linear.app/ajay-karthick/issue/AJA-78) | Browser extension |
+| [AJA-35](https://linear.app/ajay-karthick/issue/AJA-35) | Onboarding + style quiz |
+| [AJA-18](https://linear.app/ajay-karthick/issue/AJA-18) | Flat-lay packshot / beautify |
+| [AJA-190](https://linear.app/ajay-karthick/issue/AJA-190) | Decision loop + savings bank |
+| [AJA-217](https://linear.app/ajay-karthick/issue/AJA-217) | Category-aware Beautify |
+| [AJA-222](https://linear.app/ajay-karthick/issue/AJA-222) | Vaul BottomSheet + apple-design sheets |
 
 ### Copilot wedge
 
 | ID | Title | Status |
 |----|-------|--------|
-| [AJA-190](https://linear.app/ajay-karthick/issue/AJA-190) | Decision loop + savings bank | **Code shipped** — Linear may still say Backlog; mark Done when confirmed |
+| [AJA-190](https://linear.app/ajay-karthick/issue/AJA-190) | Decision loop + savings bank | **Done** |
 | [AJA-191](https://linear.app/ajay-karthick/issue/AJA-191) | Capture → Smart Buy verdict | Backlog |
 | [AJA-192](https://linear.app/ajay-karthick/issue/AJA-192) | Share Closet → decision councils | Backlog |
 
-### Open QA / wiring (from Jul 18 QA)
+### Open QA / wiring
 
 | ID | Title |
 |----|-------|
-| [AJA-179](https://linear.app/ajay-karthick/issue/AJA-179) | Wire Share Closet into redesigned Closet |
-| [AJA-178](https://linear.app/ajay-karthick/issue/AJA-178)–[AJA-189](https://linear.app/ajay-karthick/issue/AJA-189) | QA cluster (extract 403, Safari copy, a11y, public Follow, etc.) — extract UA fallback improved via AJA-201 |
+| [AJA-179](https://linear.app/ajay-karthick/issue/AJA-179) / [AJA-133](https://linear.app/ajay-karthick/issue/AJA-133) | Wire ask-friends Share Closet into Closet |
+| [AJA-180](https://linear.app/ajay-karthick/issue/AJA-180) | Public `/u/[handle]` Follow while signed in |
+| [AJA-178](https://linear.app/ajay-karthick/issue/AJA-178)–[AJA-189](https://linear.app/ajay-karthick/issue/AJA-189) | Remaining QA cluster |
 
 ### Gated / later
 

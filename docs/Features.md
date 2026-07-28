@@ -1,10 +1,10 @@
 # Features
 
-Last updated: 2026-07-25
+Last updated: 2026-07-26
 
 ## Product wedge
 
-**Shopping copilot** — capture a temptation → closet-aware Smart Buy verdict → log bought / skipped / wait → **Decision bank** (savings) on Insights. See [[Research synthesis — next moves]] and Linear AJA-190–192.
+**Shopping copilot** — capture a temptation → closet-aware Smart Buy verdict → log bought / skipped / wait → **Decision bank** (savings) on Insights. See [[Research synthesis — next moves]] and Linear AJA-190–192 (AJA-190 **Done**).
 
 ## Explore (native default after onboarding)
 
@@ -14,11 +14,11 @@ For-you feed: daily looks, Rediscover, shop picks, challenges, sample-closet / a
 
 ## Closet & items
 
-Add clothing with name, image (upload / camera / share-in), category, color, tags, seasons, brand, price, fit, notes.
+Add clothing with name, image (upload / camera / share-in), category, color, tags, seasons, brand, price, fit, notes. Edit rows also surface formality / material / pattern / tone / size + product link for owned items (**AJA-223** In Progress).
 
-- **AI auto-tag** (`/api/analyze` + Gemini)
-- **Background removal** — `@imgly/background-removal` or `/api/cutout`
-- **Beautify** — Gemini packshot / sticker (`/api/beautify`)
+- **AI auto-tag** (`/api/analyze` + Gemini) — picks the single most prominent garment in multi-item photos (AJA-209)
+- **Background removal** — `@imgly/background-removal` or `/api/cutout` (hardened AJA-117)
+- **Beautify** — Gemini packshot / sticker (`/api/beautify`); category-aware prompts + before/after confirm (AJA-209 / AJA-217 / AJA-18)
 - **Fetch details** from product URL (`/api/extract`) — social-preview bot UA fallback for bot-walled retailers (AJA-201)
 - **Find product online** — photo → shop links (AJA-79); see [[Photo to product]]
 - **Whole-outfit detect** / multi-garment split
@@ -27,9 +27,9 @@ Add clothing with name, image (upload / camera / share-in), category, color, tag
 - **Brand picker** + **currency** + **fit picker** (AJA-176)
 - **Native:** Take photo via Capacitor Camera; Share Extension image → add form ([[Share Extension]])
 
-**Tabs:** Items / Wishlist / Shared (Shared still “Coming soon” placeholder — Share Closet UI entry gap, AJA-179 / AJA-192)
+**Tabs:** Items / Wishlist / **Shared** — Shared = collaborative [[Shared Closets]] (AJA-212 Done). Separate ask-friends [[Share Closet]] sheet still unwired (AJA-179 / AJA-192).
 
-**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `BrandPicker.tsx`, `FindProductSheet.tsx`
+**Components:** `ItemForm.tsx`, `ItemCard.tsx`, `WardrobeView.tsx`, `SharedClosetView.tsx`, `BrandPicker.tsx`, `FindProductSheet.tsx`
 
 ## Capture (temptation → app)
 
@@ -70,12 +70,13 @@ Category mix, value, usage %, CPW, most/never worn, **Decision bank**.
 
 ## Travel / Pack with friends
 
-Server-backed trips: members, invites, Your bag / Everyone, realtime sync, `trip_invite` notifications (`TravelView.tsx`, `src/lib/trips.ts`).
+Server-backed trips: members, invites, Your bag / Everyone, realtime sync, `trip_invite` notifications (`TravelView.tsx`, `src/lib/trips.ts`). Weather robustness on Today: city auto-load, longer GPS timeout, cached last forecast (AJA-208).
 
 ## Export & share
 
 - Outfit PNG / share link
-- **Share Closet** — backend + guest page exist; Closet redesign entry currently unwired — see [[Share Closet]]
+- **Shared Closets** — collaborative co-owned closets — see [[Shared Closets]]
+- **Share Closet** (ask friends) — backend + guest page exist; Closet chrome entry still unwired — see [[Share Closet]]
 
 ## Social
 
@@ -110,6 +111,7 @@ Bottom tabs: **Explore · Closet · ＋ Create · Outfits · Profile**. Create s
 - [[Browser extension]]
 - [[Photo to product]]
 - [[Share Closet]]
+- [[Shared Closets]]
 - [[Architecture]]
 - [[Data model]]
 - [[Linear]]
