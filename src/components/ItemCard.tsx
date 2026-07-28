@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ExternalLink, Heart, Plus, Scale, Sparkles, Trash2, Wand2 } from "lucide-react";
+import { Check, ExternalLink, Heart, Plus, Sparkles, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
@@ -228,9 +228,9 @@ export function ItemCard({
                 e.stopPropagation();
                 onDecide(item);
               }}
-              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2 text-xs font-semibold transition-transform active:scale-[0.97]"
+              className="h-9 flex-1 whitespace-nowrap rounded-xl border border-line bg-surface-2 text-xs font-semibold transition-transform active:scale-[0.97]"
             >
-              <Scale size={13} /> Should I?
+              Should I?
             </button>
             <button
               type="button"
@@ -238,9 +238,9 @@ export function ItemCard({
                 e.stopPropagation();
                 styleAroundItem(item.id);
               }}
-              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent-soft text-xs font-semibold text-accent transition-transform active:scale-[0.97]"
+              className="h-9 flex-1 whitespace-nowrap rounded-xl bg-accent-soft text-xs font-semibold text-accent transition-transform active:scale-[0.97]"
             >
-              <Wand2 size={13} /> Style it
+              Style it
             </button>
           </div>
         )}

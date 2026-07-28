@@ -179,6 +179,9 @@ interface WardrobeState {
    *  its "Shared" tab. WardrobeView consumes + clears it (survives a cold mount on
    *  web where the closet tab isn't kept alive). */
   pendingWardrobeTab: "shared" | null;
+  /** Which closet tab is showing. In the store, not local state, so the native "+" knows
+   *  whether it's adding to the closet or the wishlist (AJA-245 follow-up). */
+  wardrobeTab: "items" | "wishlist" | "shared";
   /** A styling session to surface/open (AJA-240). Not persisted — it's navigation. */
   pendingStyleSessionId: string | null;
   /** The session whose live board is on screen. */
@@ -281,6 +284,7 @@ interface WardrobeState {
   /** Open the live shared board for a session. */
   openStyleSession: (sessionId: string) => void;
   setPendingWardrobeTab: (t: "shared" | null) => void;
+  setWardrobeTab: (t: "items" | "wishlist" | "shared") => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
   setPendingSharedImage: (dataUrl: string | null) => void;
   /** Open the add form pre-loaded with a shared image (iOS Share Extension). */
@@ -508,6 +512,7 @@ export const useWardrobe = create<WardrobeState>()(
       selectedOutfitId: null,
       editorCloseNonce: 0,
       pendingWardrobeTab: null,
+      wardrobeTab: "items" as "items" | "wishlist" | "shared",
       pendingStyleSessionId: null,
       styleSessionId: null,
       pendingSharedImage: null,
@@ -832,6 +837,7 @@ export const useWardrobe = create<WardrobeState>()(
       setPendingStyleSessionId: (pendingStyleSessionId) => set({ pendingStyleSessionId }),
       openStyleSession: (styleSessionId) => set({ styleSessionId, view: "styleSession" }),
       setPendingWardrobeTab: (pendingWardrobeTab) => set({ pendingWardrobeTab }),
+      setWardrobeTab: (wardrobeTab) => set({ wardrobeTab }),
       setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
       openAddWithImage: (dataUrl) =>
         set({ addOpen: true, addIntent: null, pendingSharedImage: dataUrl }),

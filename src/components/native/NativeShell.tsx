@@ -83,6 +83,7 @@ export function NativeShell() {
     useWardrobe();
   const profile = useWardrobe((s) => s.profile);
   const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
+  const wardrobeTab = useWardrobe((s) => s.wardrobeTab);
   const [sheetNote, setSheetNote] = useState<string | null>(null);
   const [unread, setUnread] = useState(0);
   const [chatUnread, setChatUnread] = useState(0);
@@ -230,7 +231,10 @@ export function NativeShell() {
           type="button"
           onClick={() => {
             dismissItemEditor();
-            if (view === "wishlist") setWishlistAddOpen(true);
+            // The wishlist is reachable two ways — its own view, and the Closet's
+            // Wishlist tab — and "+" has to mean "add a wish" on both.
+            if (view === "wishlist" || (view === "wardrobe" && wardrobeTab === "wishlist"))
+              setWishlistAddOpen(true);
             else setAddSheetOpen(true);
           }}
           className="native-tab"

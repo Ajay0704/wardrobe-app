@@ -12,6 +12,7 @@ import { ClosetsSheet } from "./ClosetSheets";
 import { ItemCard } from "./ItemCard";
 import { ItemForm } from "./ItemForm";
 import { SharedClosetView } from "./SharedClosetView";
+import { WishlistView } from "./WishlistView";
 import { Button, Chip, EmptyState } from "./ui";
 
 // Top-level closet tabs. Outfits lives on its own page/tab, so it's intentionally not here.
@@ -41,14 +42,15 @@ export function WardrobeView() {
   const setClosetsOpen = useWardrobe((s) => s.setClosetsOpen);
   const openScan = useWardrobe((s) => s.openScan);
   const setAddSheetOpen = useWardrobe((s) => s.setAddSheetOpen);
+  const setWishlistAddOpen = useWardrobe((s) => s.setWishlistAddOpen);
   const isNative = useIsNativeApp();
 
-  const [tab, setTab] = useState<TabKey>("items");
+  const tab = useWardrobe((s) => s.wardrobeTab);
+  const setTab = useWardrobe((s) => s.setWardrobeTab);
   const [mainTab, setMainTab] = useState<MainTabKey>("all");
   const [subCat, setSubCat] = useState<string>("all");
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [adding, setAdding] = useState(false);
-  const [addWishlist, setAddWishlist] = useState(false);
 
   // A shared link's "Open in Wardrobe" deep link queues an item id in the store.
   // Consume it from a store subscription (not a synchronous effect body) and open
@@ -60,7 +62,7 @@ export function WardrobeView() {
       const target = s.items.find((it) => it.id === id);
       s.setPendingOpenItemId(null);
       if (target) {
-        setTab(target.wishlist ? "wishlist" : "items");
+        s.setWardrobeTab(target.wishlist ? "wishlist" : "items");
         setEditing(target);
       }
     };
@@ -68,7 +70,7 @@ export function WardrobeView() {
       useWardrobe.getState().setPendingWardrobeTab(null);
       setEditing(null);
       setAdding(false);
-      setTab(t);
+      useWardrobe.getState().setWardrobeTab(t);
     };
     const unsub = useWardrobe.subscribe((s, prev) => {
       if (s.pendingOpenItemId && s.pendingOpenItemId !== prev.pendingOpenItemId) {
@@ -95,8 +97,7 @@ export function WardrobeView() {
   }, []);
 
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
-  const wish = useMemo(() => items.filter((it) => it.wishlist), [items]);
-  const base = tab === "wishlist" ? wish : owned;
+  const base = owned;
 
   // Category tab + sub-category chip filter (recent-first). "Others" collects items with no
   // (or unknown) sub-category. No search/sort/season filter in the redesigned closet.
@@ -120,8 +121,7 @@ export function WardrobeView() {
     // behave identically and multi-select works from here too (AJA-236 follow-up). Web goes
     // straight to the multi-photo library import. Wishlist adds stay single-item.
     if (tab === "wishlist") {
-      setAddWishlist(true);
-      setAdding(true);
+      setWishlistAddOpen(true);
     } else if (isNative) {
       setAddSheetOpen(true);
     } else {
@@ -169,6 +169,11 @@ export function WardrobeView() {
 
       {tab === "shared" ? (
         <SharedClosetView />
+      ) : tab === "wishlist" ? (
+        // The one wishlist (AJA-245 follow-up). This tab used to render its own plain
+        // grid, so everything built on the wishlist — the shopping plan, per-card
+        // verdicts, "Should I?", "Style it" — was only reachable from the "more" sheet.
+        <WishlistView />
       ) : (
         <>
           {/* Category tabs */}
@@ -201,25 +206,16 @@ export function WardrobeView() {
 
           {shown.length === 0 ? (
             <EmptyState
-              title={
-                base.length === 0
-                  ? tab === "wishlist"
-                    ? "No wishlist items yet"
-                    : "Your wardrobe is empty"
-                  : "No matches"
-              }
+              title={base.length === 0 ? "Your wardrobe is empty" : "No matches"}
               subtitle={
                 base.length === 0
-                  ? tab === "wishlist"
-                    ? "Save pieces you want to buy."
-                    : "Add your first piece — take a photo or paste a link."
+                  ? "Add your first piece — take a photo or paste a link."
                   : "Nothing in this category."
               }
               action={
                 base.length === 0 && (
                   <Button onClick={openAdd}>
-                    <Plus size={15} />{" "}
-                    {tab === "wishlist" ? "Add wishlist item" : "Add item"}
+                    <Plus size={15} /> Add item
                   </Button>
                 )
               }
@@ -235,7 +231,6 @@ export function WardrobeView() {
       {(adding || editing) && (
         <ItemForm
           initial={editing ?? undefined}
-          defaultWishlist={adding ? addWishlist : undefined}
           onClose={() => {
             setAdding(false);
             setEditing(null);
