@@ -1,7 +1,8 @@
 "use client";
 
 import { Drawer } from "vaul";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { acquireKeyboardInset } from "@/lib/keyboard-inset";
 
 /**
  * The one bottom sheet for the whole app (AJA-222 follow-up). Wraps Vaul so every
@@ -31,6 +32,34 @@ export function BottomSheet({
   ariaLabel?: string;
   children: ReactNode;
 }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Track the keyboard only while a sheet is open (see lib/keyboard-inset).
+  useEffect(() => {
+    if (!open) return;
+    return acquireKeyboardInset();
+  }, [open]);
+
+  // Anchoring the sheet above the keyboard isn't enough on its own — the field can
+  // still be below the fold inside a tall sheet. Bring the focused control into view
+  // once the inset has settled.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!open || !el) return;
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t || !("scrollIntoView" in t)) return;
+      const smooth = !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      // Two frames plus a beat: the keyboard animation has to finish resizing the
+      // visual viewport before "centre it" means anything.
+      window.setTimeout(() => {
+        t.scrollIntoView({ block: "center", behavior: smooth ? "smooth" : "auto" });
+      }, 300);
+    };
+    el.addEventListener("focusin", onFocusIn);
+    return () => el.removeEventListener("focusin", onFocusIn);
+  }, [open]);
+
   const [held, setHeld] = useState<{ title?: string; node: ReactNode }>({
     title,
     node: children,
@@ -43,6 +72,10 @@ export function BottomSheet({
 
   return (
     <Drawer.Root
+      // Vaul's own keyboard handling badly overshoots inside a Capacitor WKWebView —
+      // it shoved the sheet far above the keyboard, leaving the field off-screen. We
+      // anchor to the visual viewport ourselves instead (--kb).
+      repositionInputs={false}
       open={open}
       onOpenChange={(next) => {
         if (!next) onClose();
@@ -55,7 +88,9 @@ export function BottomSheet({
           <Drawer.Title className={shown.title ? "native-sheet-title" : "sr-only"}>
             {shown.title || ariaLabel || "Options"}
           </Drawer.Title>
-          <div className="native-sheet-scroll">{shown.node}</div>
+          <div ref={scrollRef} className="native-sheet-scroll">
+            {shown.node}
+          </div>
         </Drawer.Content>
       </Drawer.Portal>
     </Drawer.Root>

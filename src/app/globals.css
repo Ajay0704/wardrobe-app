@@ -292,11 +292,13 @@ body {
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  /* Sit on top of the keyboard rather than behind it (--kb, see lib/keyboard-inset).
+     Uses `bottom`, not `transform`, because Vaul owns the transform for drag. */
+  bottom: var(--kb, 0px);
   z-index: 50;
   display: flex;
   flex-direction: column;
-  max-height: 88vh;
+  max-height: min(88vh, calc(100dvh - var(--kb, 0px) - 1.5rem));
   background: var(--surface);
   border-radius: 1.25rem 1.25rem 0 0;
   box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
