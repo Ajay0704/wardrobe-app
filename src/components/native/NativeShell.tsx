@@ -53,6 +53,8 @@ const TITLES: Partial<Record<View, string>> = {
   userProfile: "Profile",
   settings: "Settings",
   notifications: "Notifications",
+  // Detail screens render their own back control + title, so the shell header stays empty.
+  outfitDetail: "",
   photoDetail: "",
 };
 

@@ -86,6 +86,7 @@ export type View =
   | "messages"
   | "chat"
   | "stylist"
+  | "outfitDetail"
   | "photoDetail";
 
 /** An Explore tile the user tapped through to the photo-detail screen. */
@@ -166,6 +167,8 @@ interface WardrobeState {
   /** Item id to open in the closet editor — set by the `://item?id=` deep link
    *  from a shared link's "Open in Wardrobe". WardrobeView consumes + clears it. */
   pendingOpenItemId: string | null;
+  /** Which look the outfit detail screen is showing (AJA-239). Transient. */
+  selectedOutfitId: string | null;
   /** Bumped by the native dock on any tab tap so an open (portaled) item editor
    *  dismisses itself — otherwise it stays over the newly-selected view. */
   editorCloseNonce: number;
@@ -203,6 +206,13 @@ interface WardrobeState {
     canvasBg?: string | null,
   ) => void;
   deleteOutfit: (id: string) => void;
+  /** Star/unstar a look in the library (AJA-239). */
+  toggleOutfitFavorite: (id: string) => void;
+  renameOutfit: (id: string, name: string) => void;
+  /** Deep-copy a look (new ids, wear history reset). Returns the new id. */
+  duplicateOutfit: (id: string) => string | null;
+  /** Open the outfit detail screen for a look. */
+  openOutfitDetail: (id: string) => void;
   loadOutfitIntoDraft: (id: string) => void;
   /** Restore a saved outfit's board layout into the freeform canvas + open the builder. */
   loadOutfitBoardIntoCanvas: (id: string) => void;
@@ -387,6 +397,8 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
       : [],
     layout: Array.isArray(o.layout) ? o.layout.map(normalizeCanvasItem) : undefined,
     canvasBg: typeof o.canvasBg === "string" ? o.canvasBg : undefined,
+    // AJA-239 — whitelist or it's stripped on every reload/pull (cf. AJA-223).
+    favorite: o.favorite === true ? true : undefined,
     wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
     lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
@@ -457,6 +469,7 @@ export const useWardrobe = create<WardrobeState>()(
       closetsOpen: false,
       pendingClipUrl: null,
       pendingOpenItemId: null,
+      selectedOutfitId: null,
       editorCloseNonce: 0,
       pendingWardrobeTab: null,
       pendingSharedImage: null,
@@ -555,6 +568,38 @@ export const useWardrobe = create<WardrobeState>()(
             e.outfitId === id ? { ...e, outfitId: undefined } : e,
           ),
         })),
+
+      toggleOutfitFavorite: (id) =>
+        set((s) => ({
+          outfits: s.outfits.map((o) =>
+            o.id === id ? { ...o, favorite: !o.favorite } : o,
+          ),
+        })),
+
+      renameOutfit: (id, name) =>
+        set((s) => ({
+          outfits: s.outfits.map((o) => (o.id === id ? { ...o, name } : o)),
+        })),
+
+      duplicateOutfit: (id) => {
+        const src = get().outfits.find((o) => o.id === id);
+        if (!src) return null;
+        const copy: Outfit = {
+          ...src,
+          id: uid(),
+          name: `${src.name} copy`,
+          // Deep-copy the board so editing the duplicate can't mutate the original.
+          layout: src.layout?.map((c) => ({ ...c, id: uid() })),
+          favorite: undefined,
+          wearCount: undefined,
+          lastWornAt: undefined,
+          createdAt: Date.now(),
+        };
+        set((s) => ({ outfits: [copy, ...s.outfits] }));
+        return copy.id;
+      },
+
+      openOutfitDetail: (id) => set({ selectedOutfitId: id, view: "outfitDetail" }),
 
       logWear: ({ outfitId, itemIds, date, note }) => {
         const day = date ?? todayISO();

@@ -306,6 +306,9 @@ export interface Outfit {
   layout?: CanvasItem[];
   /** Board background (solid/gradient) saved with the layout. */
   canvasBg?: string | null;
+  /** Starred in the looks library (AJA-239). Collections are derived, this is the one
+   *  manual signal — must stay whitelisted in `normalizeOutfit` or it's stripped on reload. */
+  favorite?: boolean;
   wearCount?: number;
   lastWornAt?: string;
   createdAt: number;

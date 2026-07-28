@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { useWardrobe } from "@/lib/store";
 import { WardrobeView } from "./WardrobeView";
 import { CanvasBuilderView } from "./CanvasBuilderView";
+import { OutfitDetailView } from "./OutfitDetailView";
 import { OutfitsView } from "./OutfitsView";
 import { WishlistView } from "./WishlistView";
 import { TravelView } from "./TravelView";
@@ -65,6 +66,7 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       <TabPane show={view === "outfits"} keepAlive={keepAliveTabs}><OutfitsView /></TabPane>
       <TabPane show={view === "social"} keepAlive={keepAliveTabs}><NativeProfileView /></TabPane>
 
+      {view === "outfitDetail" && <OutfitDetailView />}
       {view === "builder" && <CanvasBuilderView />}
       {view === "calendar" && <CalendarView />}
       {view === "wishlist" && <WishlistView />}
