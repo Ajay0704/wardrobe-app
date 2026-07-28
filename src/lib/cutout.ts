@@ -9,6 +9,7 @@
  */
 import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
+import { trimAndCenter } from "./trim-center";
 
 const IMGLY_VERSION = "1.7.0";
 
@@ -95,7 +96,14 @@ async function finalize(
   engineId: string,
   userId: string | null,
 ): Promise<CutoutResult> {
-  const file = new File([blob], "cutout.png", { type: "image/png" });
+  // Reframe every cutout to the fixed centered square before hosting it (AJA-225's trimAndCenter,
+  // AJA-238). Background removal leaves the garment wherever it sat in the source crop, so an
+  // un-beautified cutout would keep those lopsided margins and sit off-centre in the closet grid /
+  // edit hero, while beautified items are centred server-side. Doing it here — the one place every
+  // cutout passes through, and while we still hold the Blob — keeps all items on identical
+  // geometry with no extra round-trip. Best-effort: returns the blob unchanged if it can't reframe.
+  const framed = await trimAndCenter(blob);
+  const file = new File([framed], "cutout.png", { type: "image/png" });
   const url = await resolveImageSource(file, userId);
   return { url, engine: engineId };
 }
