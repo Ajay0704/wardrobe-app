@@ -17,6 +17,8 @@ import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import { useWardrobe } from "@/lib/store";
 import { BottomSheet } from "../BottomSheet";
 import { Button, Field, inputClass } from "../ui";
+import { extractDominantColor, nameColor, toneToHex } from "@/lib/color";
+import { parseColor } from "@/lib/shop-category";
 
 type Panel = "choose" | "link" | "fetching" | "confirm";
 
@@ -154,12 +156,24 @@ function AddToWishlistBody({ onClose }: { onClose: () => void }) {
           /* keep the preview src as a fallback */
         }
       }
+      // A real colour, so the duplicate check can actually fire (AJA-243). Read from
+      // the LOCAL preview rather than the hosted URL — a blob/data URL is same-origin,
+      // so the canvas isn't tainted and this can't fail on CORS.
+      let color: string | null = toneToHex(parseColor(`${brand} ${name}`));
+      if (!color && imageSrc) {
+        try {
+          color = await extractDominantColor(imageSrc);
+        } catch {
+          /* unreadable image — leave it unknown rather than guess */
+        }
+      }
       addItem({
         name: name.trim() || "Wishlist item",
         imageUrl: hosted || "",
         productUrl: productUrl.trim() || undefined,
         category: guessCategory(name),
-        color: "#a8a29e",
+        color: color || "#a8a29e",
+        colorName: color ? nameColor(color) : undefined,
         tags: [],
         seasons: [],
         brand: brand.trim() || undefined,

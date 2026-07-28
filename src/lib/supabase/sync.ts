@@ -13,6 +13,7 @@ import type {
   WardrobeItem,
 } from "../types";
 import { getSupabase, isSupabaseConfigured } from "./client";
+import { nameColor } from "../color";
 
 export type SyncStatus =
   | "offline"
@@ -278,12 +279,13 @@ export interface WishlistInboxRow {
   product_url: string | null;
   price_cents: number | null;
   currency: string | null;
+  color: string | null;
   source_ref: string | null;
   created_at: string;
 }
 
 const INBOX_COLS =
-  "id,kind,name,category,image_url,product_url,price_cents,currency,source_ref,created_at";
+  "id,kind,name,category,image_url,product_url,price_cents,currency,color,source_ref,created_at";
 
 /** Un-absorbed saves for the signed-in user, oldest first. RLS scopes this. */
 export async function fetchWishlistInbox(limit = 50): Promise<WishlistInboxRow[]> {
@@ -343,7 +345,11 @@ export function inboxToItems(
       name: r.name?.trim() || "Saved item",
       imageUrl: r.image_url,
       category,
-      color: "#a8a29e",
+      // A real colour when the server managed to resolve one (AJA-243). The
+      // placeholder means "unknown" and is deliberately inert for duplicate
+      // detection — see similarColor in smart-buy.ts.
+      color: r.color || "#a8a29e",
+      colorName: r.color ? nameColor(r.color) : undefined,
       tags: [],
       seasons: [],
       wishlist: true,

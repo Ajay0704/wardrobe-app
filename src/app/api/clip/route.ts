@@ -1,6 +1,9 @@
 import { requireUser } from "@/lib/auth-server";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Category, WardrobeItem } from "@/lib/types";
+import { nameColor, toneToHex } from "@/lib/color";
+import { dominantColorFromUrl } from "@/lib/color-server";
+import { parseColor } from "@/lib/shop-category";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -184,13 +187,20 @@ export async function POST(request: Request) {
 
   const imageUrl = await durableImageUrl(admin, user.id, extracted);
 
+  // Title first (free), then the image we just stored (AJA-243). Without a real colour
+  // the duplicate check can't fire, which is the whole point of the wishlist verdict.
+  const clipColor =
+    toneToHex(parseColor(`${extracted.brand ?? ""} ${name}`)) ??
+    (imageUrl ? await dominantColorFromUrl(imageUrl) : null);
+
   const item: WardrobeItem = {
     id: crypto.randomUUID(),
     name,
     imageUrl,
     productUrl: url,
     category: guessCategory(name),
-    color: "#a8a29e",
+    color: clipColor || "#a8a29e",
+    colorName: clipColor ? nameColor(clipColor) : undefined,
     tags: [],
     seasons: [],
     brand: extracted.brand,

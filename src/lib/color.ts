@@ -179,9 +179,66 @@ export function harmonyHues(hex: string): { label: string; h: number }[] {
 }
 
 /**
- * Extract a representative dominant color from an image URL by downsampling
- * onto a canvas and averaging the most common quantized bucket. Requires the
- * image host to allow cross-origin reads; callers should catch failures.
+ * The dominant colour of an RGBA byte run: quantize into 32-step buckets, ignore
+ * transparent and near-white pixels, and average the fullest bucket.
+ *
+ * Split out from the canvas version (AJA-243) so the server can share it. The server
+ * needs the same answer from `sharp` raw bytes, and two implementations of "what
+ * colour is this garment" would drift — which matters because duplicate detection
+ * compares a wishlist item's colour against the closet's.
+ */
+export function dominantFromRgba(
+  data: Uint8Array | Uint8ClampedArray | number[],
+): string | null {
+  const buckets = new Map<string, { count: number; r: number; g: number; b: number }>();
+  for (let i = 0; i + 3 < data.length; i += 4) {
+    if (data[i + 3] < 128) continue; // transparent — cutouts are mostly this
+    const r = data[i];
+    const g = data[i + 1];
+    const b = data[i + 2];
+    // Product photos are overwhelmingly white backgrounds; counting them would make
+    // every garment "white".
+    if (r > 240 && g > 240 && b > 240) continue;
+    const key = `${r >> 5},${g >> 5},${b >> 5}`;
+    const bucket = buckets.get(key) ?? { count: 0, r: 0, g: 0, b: 0 };
+    bucket.count++;
+    bucket.r += r;
+    bucket.g += g;
+    bucket.b += b;
+    buckets.set(key, bucket);
+  }
+  let best: { count: number; r: number; g: number; b: number } | null = null;
+  for (const bucket of buckets.values()) {
+    if (!best || bucket.count > best.count) best = bucket;
+  }
+  if (!best || best.count === 0) return null;
+  return rgbToHex(best.r / best.count, best.g / best.count, best.b / best.count);
+}
+
+/**
+ * Representative hex per tone word. `parseColor` and `shop_products.tone` both speak
+ * this vocabulary, so a shop save can get a real colour with no image work at all.
+ */
+const TONE_HEX: Record<string, string> = {
+  black: "#141414", charcoal: "#3f3f46", grey: "#8a8a80", silver: "#c0c0c4",
+  white: "#f6f6f3", ivory: "#f2ede1", cream: "#efe6d3", beige: "#ddd0b8",
+  tan: "#c8a678", khaki: "#b7a475", brown: "#6f4a2c", burgundy: "#6d2836",
+  red: "#b4342c", coral: "#e2705c", orange: "#d2782f", peach: "#f0b79a",
+  yellow: "#d8b234", gold: "#c2a14a", olive: "#5f7a3a", green: "#2f8f4a",
+  teal: "#2f6f6b", blue: "#3a5f9a", navy: "#22314f", indigo: "#33417a",
+  denim: "#6d8bb5", purple: "#5f4785", pink: "#dd8fa6",
+};
+
+/** Tone word -> a usable hex, or null when it isn't a colour word. */
+export function toneToHex(tone: string | null | undefined): string | null {
+  if (!tone) return null;
+  return TONE_HEX[tone.trim().toLowerCase()] ?? null;
+}
+
+/**
+ * Extract a representative dominant color from an image URL by downsampling onto a
+ * canvas. Requires the image host to allow cross-origin reads; callers should catch
+ * failures.
  */
 export async function extractDominantColor(src: string): Promise<string> {
   const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -199,30 +256,7 @@ export async function extractDominantColor(src: string): Promise<string> {
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas unavailable");
   ctx.drawImage(img, 0, 0, size, size);
-  const { data } = ctx.getImageData(0, 0, size, size);
-
-  // Quantize to 32-step buckets and pick the most frequent non-background one.
-  const buckets = new Map<string, { count: number; r: number; g: number; b: number }>();
-  for (let i = 0; i < data.length; i += 4) {
-    const alpha = data[i + 3];
-    if (alpha < 128) continue;
-    const r = data[i];
-    const g = data[i + 1];
-    const b = data[i + 2];
-    // Skip near-white pixels — most product photos have white backgrounds.
-    if (r > 240 && g > 240 && b > 240) continue;
-    const key = `${r >> 5},${g >> 5},${b >> 5}`;
-    const bucket = buckets.get(key) ?? { count: 0, r: 0, g: 0, b: 0 };
-    bucket.count++;
-    bucket.r += r;
-    bucket.g += g;
-    bucket.b += b;
-    buckets.set(key, bucket);
-  }
-  let best: { count: number; r: number; g: number; b: number } | null = null;
-  for (const bucket of buckets.values()) {
-    if (!best || bucket.count > best.count) best = bucket;
-  }
-  if (!best || best.count === 0) throw new Error("No color found");
-  return rgbToHex(best.r / best.count, best.g / best.count, best.b / best.count);
+  const hex = dominantFromRgba(ctx.getImageData(0, 0, size, size).data);
+  if (!hex) throw new Error("No color found");
+  return hex;
 }

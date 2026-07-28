@@ -2,6 +2,7 @@ import { requireUser } from "@/lib/auth-server";
 import { adminClient } from "@/lib/supabase/admin";
 import { embedImageBytes, toVectorLiteral } from "@/lib/embed";
 import sharp from "sharp";
+import { dominantColorFromBytes } from "@/lib/color-server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -83,7 +84,11 @@ export async function POST(request: Request) {
 
   const embedding = await embedImageBytes(cropBuf);
   const { category, name } = classify(box);
+  // Colour is computed HERE because this is where the cropped garment bytes exist
+  // (AJA-243). /api/wishlist only reads the stored row, so it can't do this itself.
   const attributes: Record<string, unknown> = {};
+  const cropColor = await dominantColorFromBytes(cropBuf);
+  if (cropColor) attributes.color = cropColor;
   const detectionId = crypto.randomUUID();
   const uid = user.id === "local-dev" ? null : user.id;
 

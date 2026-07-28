@@ -1,5 +1,8 @@
 import { requireUser } from "@/lib/auth-server";
 import { adminClient } from "@/lib/supabase/admin";
+import { toneToHex } from "@/lib/color";
+import { dominantColorFromUrl } from "@/lib/color-server";
+import { parseColor } from "@/lib/shop-category";
 
 export const runtime = "nodejs";
 
@@ -30,12 +33,13 @@ export async function POST(request: Request) {
     price_cents: number | null;
     currency: string | null;
     product_url: string | null;
+    color: string | null;
   };
 
   if (productId) {
     const { data: p, error } = await admin
       .from("shop_products")
-      .select("brand,title,category,image_url,price_cents,currency,buy_url")
+      .select("brand,title,category,image_url,price_cents,currency,buy_url,tone")
       .eq("id", productId)
       .single();
     if (error || !p) return Response.json({ error: "product not found" }, { status: 404 });
@@ -49,11 +53,17 @@ export async function POST(request: Request) {
       price_cents: p.price_cents ?? null,
       currency: p.currency ?? null,
       product_url: p.buy_url ?? null,
+      // Cheapest first: the catalog's own tone, then the title, then the image bytes.
+      // Most shop rows carry a tone already (AJA-175), so this usually costs nothing.
+      color:
+        toneToHex(p.tone) ??
+        toneToHex(parseColor(`${p.brand ?? ""} ${p.title}`)) ??
+        (await dominantColorFromUrl(p.image_url)),
     };
   } else {
     const { data: det, error } = await admin
       .from("detections")
-      .select("name,category,crop_path,source_ref")
+      .select("name,category,crop_path,source_ref,attributes")
       .eq("id", detectionId)
       .single();
     if (error || !det) return Response.json({ error: "detection not found" }, { status: 404 });
@@ -68,6 +78,10 @@ export async function POST(request: Request) {
       price_cents: null,
       currency: null,
       product_url: null,
+      // Stamped at detection time from the crop bytes; older rows fall back to the crop.
+      color:
+        (det.attributes as { color?: string } | null)?.color ??
+        (await dominantColorFromUrl(det.crop_path)),
     };
   }
 
