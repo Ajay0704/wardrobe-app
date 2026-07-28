@@ -48,8 +48,12 @@ export function ImportProgress() {
         <div className={`${chip} gap-2.5 py-2 pl-4 pr-2`}>
           <Loader2 size={15} className="animate-spin" />
           <span>
-            {phase === "commit" ? "Adding to closet" : "Extracting"}…{" "}
-            {Math.min(done + 1, total)}/{total}
+            {phase === "commit"
+              ? "Adding to closet"
+              : phase === "backfill"
+                ? "Filling in details"
+                : "Extracting"}
+            … {Math.min(done + 1, total)}/{total}
           </span>
           <button
             type="button"
@@ -94,6 +98,7 @@ export function ImportProgress() {
 
   // committedDone
   const itemsAdded = importStatus?.itemsAdded ?? 0;
+  const wasBackfill = importStatus?.phase === "backfill";
   const goToCloset = () => {
     if (itemsAdded > 0) setView("wardrobe");
     setImportStatus(null);
@@ -111,9 +116,13 @@ export function ImportProgress() {
           </span>
         )}
         <span>
-          {itemsAdded > 0
-            ? `${itemsAdded} item${itemsAdded === 1 ? "" : "s"} added`
-            : "No items found in those photos"}
+          {wasBackfill
+            ? itemsAdded > 0
+              ? `${itemsAdded} item${itemsAdded === 1 ? "" : "s"} filled in`
+              : "Nothing new to fill in"
+            : itemsAdded > 0
+              ? `${itemsAdded} item${itemsAdded === 1 ? "" : "s"} added`
+              : "No items found in those photos"}
         </span>
       </button>
     </div>

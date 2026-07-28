@@ -37,15 +37,16 @@ export type ThemeMode = "light" | "dark";
 
 /** Background photo-import progress (AJA-236/237). Transient UI state — never persisted. */
 export interface ImportStatus {
-  /** "extract" = detecting garments from photos; "commit" = adding reviewed picks (w/ beautify). */
-  phase: "extract" | "commit";
+  /** "extract" = detecting garments from photos; "commit" = adding reviewed picks (w/ beautify);
+   *  "backfill" = re-reading existing items' photos to fill missing attributes (AJA-247). */
+  phase: "extract" | "commit" | "backfill";
   /** Units enqueued this run (photos while extracting, picks while committing). */
   total: number;
   /** Units finished (success or failure). */
   done: number;
   /** Photos that yielded no items / errored. */
   failed: number;
-  /** Garments added to the closet so far (commit phase). */
+  /** Garments added to the closet so far (commit phase), or items updated (backfill phase). */
   itemsAdded: number;
   /** True while the queue is still draining. */
   running: boolean;

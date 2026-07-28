@@ -17,7 +17,9 @@ import { App } from "@capacitor/app";
 import { AUTO_BEAUTIFY_CATEGORIES, beautify } from "./beautify";
 import { detectGarments } from "./detect-garments";
 import { useWardrobe, type ImportStatus, type PendingImport } from "./store";
-import { readAnalyzedAttrs } from "./analyze-attrs";
+import { readAnalyzedAttrs, type AnalyzedAttrs } from "./analyze-attrs";
+import { backfillPatch, bestAnalyzeSource, needsBackfill } from "./backfill-attrs";
+import { authHeaders } from "./supabase/client";
 import { CATEGORY_LABEL } from "./types";
 
 interface ImportJob {
@@ -113,9 +115,78 @@ export async function enqueueImport(files: File[]) {
 /** Stop the queue: clear anything not yet started (in-flight detections can't be aborted). */
 export function cancelImports() {
   cancelled = true;
+  backfillCancelled = true;
   queue.length = 0;
   const s = useWardrobe.getState().importStatus;
   if (s) useWardrobe.getState().setImportStatus({ ...s, running: false });
+}
+
+/**
+ * Re-read the photos of items that predate auto-fill and write the attributes they're
+ * missing (AJA-247). Gap-fill only, and the gaps are recomputed at WRITE time rather than
+ * when the run starts, so a value typed while the pass is in flight is never clobbered.
+ *
+ * Reads the item list fresh each iteration for the same reason. Network-bound rather than
+ * CPU-bound (no cutout, no WASM), so it can run wider than the photo import's CONCURRENCY 1.
+ */
+const BACKFILL_CONCURRENCY = 3;
+let backfillCancelled = false;
+
+async function analyzeAttrs(url: string): Promise<AnalyzedAttrs | null> {
+  try {
+    const res = await fetch("/api/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      body: JSON.stringify({ image: url }),
+    });
+    if (!res.ok) return null;
+    return readAnalyzedAttrs((await res.json()) as Record<string, unknown>);
+  } catch {
+    return null;
+  }
+}
+
+export async function runAttributeBackfill(): Promise<void> {
+  if (useWardrobe.getState().importStatus?.running) return; // one background job at a time
+  backfillCancelled = false;
+  const ids = useWardrobe.getState().items.filter(needsBackfill).map((it) => it.id);
+  if (!ids.length) return;
+
+  useWardrobe.getState().setImportStatus({ ...emptyStatus("backfill"), total: ids.length });
+
+  let i = 0;
+  const worker = async () => {
+    while (!backfillCancelled && i < ids.length) {
+      const id = ids[i++];
+      // Fresh read: the item may have been edited or deleted since the run began.
+      const item = useWardrobe.getState().items.find((x) => x.id === id);
+      const source = item ? bestAnalyzeSource(item) : null;
+      let filled = false;
+      if (item && source) {
+        const attrs = await analyzeAttrs(source.url);
+        if (attrs && !backfillCancelled) {
+          const live = useWardrobe.getState().items.find((x) => x.id === id);
+          if (live) {
+            const patch = backfillPatch(live, attrs, source.trustBrand);
+            if (Object.keys(patch).length) {
+              useWardrobe.getState().updateItem(id, patch);
+              filled = true;
+            }
+          }
+        }
+      }
+      patchStatus((s) => ({
+        ...s,
+        done: s.done + 1,
+        failed: filled ? s.failed : s.failed + 1,
+        itemsAdded: filled ? s.itemsAdded + 1 : s.itemsAdded,
+      }));
+    }
+  };
+  await Promise.all(Array.from({ length: BACKFILL_CONCURRENCY }, () => worker()));
+
+  const s = useWardrobe.getState().importStatus;
+  if (s && s.running) useWardrobe.getState().setImportStatus({ ...s, running: false });
 }
 
 /** Drop the whole review buffer without adding anything (Discard / dismiss). */

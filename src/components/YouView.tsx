@@ -13,10 +13,11 @@ import {
   Shield,
   SlidersHorizontal,
   Sparkles,
+  Wand2,
   SunMoon,
   UserCog,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { AUTO_BEAUTIFY_CATEGORIES, beautify, BEAUTIFY_PIPELINE } from "@/lib/beautify";
 import {
   disableNativeOutfitReminders,
@@ -31,6 +32,8 @@ import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { Toggle } from "./ui";
+import { countNeedingBackfill } from "@/lib/backfill-attrs";
+import { runAttributeBackfill } from "@/lib/import-queue";
 import { Group, Row } from "./you/settings-ui";
 
 /**
@@ -52,6 +55,11 @@ export function YouView() {
     setSyncStatus,
     updateItem,
   } = useWardrobe();
+
+  const importStatus = useWardrobe((s) => s.importStatus);
+  const jobRunning = !!importStatus?.running;
+  const backfillRunning = jobRunning && importStatus?.phase === "backfill";
+  const needBackfill = useMemo(() => countNeedingBackfill(items), [items]);
 
   const isNative = useIsNativeApp();
   const [toast, setToast] = useState<string | null>(null);
@@ -222,6 +230,23 @@ export function YouView() {
           value={stdBusy ? `${stdProg.done}/${stdProg.total}` : undefined}
           onClick={() => void standardizeCloset()}
           chevron
+        />
+        {/* AJA-247. The count is shown rather than a bare label so the row never implies
+            work it isn't going to do, and it reads "All filled in" once there's none. */}
+        <Row
+          icon={Wand2}
+          label="Fill in missing details"
+          value={
+            backfillRunning
+              ? `${importStatus?.done ?? 0}/${importStatus?.total ?? 0}`
+              : needBackfill > 0
+                ? `${needBackfill} item${needBackfill === 1 ? "" : "s"}`
+                : "All filled in"
+          }
+          onClick={
+            needBackfill > 0 && !jobRunning ? () => void runAttributeBackfill() : undefined
+          }
+          chevron={needBackfill > 0 && !jobRunning}
         />
       </Group>
 
