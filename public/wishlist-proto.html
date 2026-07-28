@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Wishlist → fitting room (prototype)</title>
+<style>
+  :root{
+    --bg:#f6f6f3; --surface:#fff; --surface-2:#f1f1ec; --line:#e4e4dd;
+    --fg:#1c1c1a; --muted:#8a8a80; --accent:#4f6b3f; --accent-soft:#eaf0e6;
+    --amber:#b4801f; --amber-soft:#fbf3e2; --danger:#b4432f;
+    --serif:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+    --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+    --ease:cubic-bezier(.22,1,.36,1);
+    --spring:cubic-bezier(.34,1.36,.5,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{margin:0;background:#e2e2dc;font-family:var(--sans);color:var(--fg)}
+
+  /* ---------- prototype stage chrome ---------- */
+  .stagebar{position:sticky;top:0;z-index:100;background:#1c1c1a;color:#fff;
+    padding:10px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .stagebar b{font-family:var(--serif);font-size:15px;font-weight:500}
+  .steps{display:flex;gap:6px;flex-wrap:wrap}
+  .steps button{border:0;border-radius:14px;padding:6px 12px;font-size:12.5px;font-family:var(--sans);
+    background:#33332f;color:#cfcfc6;cursor:pointer;transition:all .18s var(--ease)}
+  .steps button[aria-current="true"]{background:#fff;color:#1c1c1a;font-weight:600}
+  .stagebar .hint{font-size:12px;color:#9a9a91;margin-left:auto}
+
+  .stage{padding:22px 16px 40px;display:flex;justify-content:center}
+  .phone{width:394px;height:812px;background:var(--bg);border-radius:34px;overflow:hidden;
+    position:relative;display:flex;flex-direction:column;
+    box-shadow:0 1px 2px rgba(0,0,0,.10),0 14px 40px rgba(0,0,0,.13)}
+
+  .topbar{display:flex;align-items:center;justify-content:space-between;
+    padding:16px 18px 8px;flex:0 0 auto}
+  .topbar h1{font-family:var(--serif);font-size:27px;margin:0;letter-spacing:-.3px}
+  .topbar .back{display:flex;align-items:center;gap:2px;background:0;border:0;padding:0;
+    color:var(--accent);font-size:15px;font-family:var(--sans);cursor:pointer}
+  .icons{display:flex;gap:15px;color:#3a3a36}
+  .icons svg,.back svg{width:21px;height:21px}
+  .screen{flex:1;overflow-y:auto;padding:0 16px 24px;scrollbar-width:thin}
+
+  .btn{width:100%;height:46px;border:0;border-radius:13px;background:var(--accent);color:#fff;
+    font-size:15px;font-weight:600;font-family:var(--sans);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    transition:transform .14s var(--ease)}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:var(--surface);color:var(--fg);border:1px solid var(--line)}
+  .btn.quiet{background:var(--surface-2);color:#55554e}
+  .btn.warn{background:var(--surface);color:var(--amber);border:1px solid #ecdfc4}
+  .btn svg{width:16px;height:16px}
+
+  /* ---------- the plan / budget header ---------- */
+  .plan{background:var(--surface);border:1px solid var(--line);border-radius:18px;
+    padding:14px 15px 15px;margin-bottom:12px}
+  .plan .row1{display:flex;align-items:baseline;gap:8px}
+  .plan .name{font-family:var(--serif);font-size:19px;font-weight:500}
+  .plan .edit{margin-left:auto;background:0;border:0;color:var(--accent);font-size:12.5px;
+    font-weight:600;font-family:var(--sans);cursor:pointer}
+  .plan .nums{display:flex;align-items:baseline;gap:6px;margin-top:9px}
+  .plan .big{font-size:26px;font-weight:600;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+  .plan .of{font-size:13px;color:var(--muted)}
+  .track{height:9px;border-radius:5px;background:var(--surface-2);margin-top:10px;overflow:hidden;
+    position:relative}
+  .fill{height:100%;border-radius:5px;background:var(--accent);width:0;
+    transition:width .55s var(--ease),background .3s var(--ease)}
+  .fill.over{background:var(--amber)}
+  .plan .note{margin:9px 0 0;font-size:12.5px;line-height:1.45;color:var(--muted)}
+  .plan .note b{color:var(--amber)}
+  .plan.overbudget{border-color:#ecdfc4;background:var(--amber-soft)}
+
+  /* ---------- filter chips ---------- */
+  .chips{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;height:34px;padding:0 13px;border-radius:17px;border:1px solid var(--line);
+    background:var(--surface);color:var(--fg);font-size:13px;font-family:var(--sans);cursor:pointer;
+    display:flex;align-items:center;gap:5px;transition:all .18s var(--ease)}
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .chip:active{transform:scale(.95)}
+  .chip .n{opacity:.6;font-size:11.5px}
+
+  /* ---------- wish cards ---------- */
+  .cards{display:flex;flex-direction:column;gap:11px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    display:flex;gap:12px;padding:11px;animation:fadeUp .34s var(--ease) both;
+    transition:transform .42s var(--spring),opacity .32s var(--ease)}
+  .card.bought{transform:translate(60px,-220px) scale(.5) rotate(9deg);opacity:0}
+  .card .thumb{width:92px;height:112px;flex:0 0 auto;border-radius:12px;background:var(--surface-2);
+    display:flex;align-items:center;justify-content:center;padding:6px;position:relative}
+  .card .thumb img{max-width:100%;max-height:100%;object-fit:contain}
+  .card .body{flex:1;min-width:0;display:flex;flex-direction:column}
+  .card .nm{font-size:14.5px;font-weight:600;line-height:1.25}
+  .card .br{font-size:12px;color:var(--muted);margin-top:1px}
+  .card .pr{font-size:15px;font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums}
+  .verdict{display:flex;align-items:center;gap:5px;margin-top:7px;font-size:12px;line-height:1.35;
+    padding:5px 8px;border-radius:9px}
+  .verdict.good{background:var(--accent-soft);color:#3f4f37}
+  .verdict.warn{background:var(--amber-soft);color:#7d5a13}
+  .verdict svg{width:13px;height:13px;flex:0 0 auto}
+  .card .acts{display:flex;gap:6px;margin-top:auto;padding-top:9px}
+  .card .acts button{flex:1;height:34px;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;gap:5px;transition:transform .14s var(--ease)}
+  .card .acts button:active{transform:scale(.94)}
+  .card .acts button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .card .acts svg{width:14px;height:14px}
+
+  /* ---------- decide sheet ---------- */
+  .scrim{position:absolute;inset:0;background:rgba(28,28,26,.36);backdrop-filter:blur(2px);
+    opacity:0;pointer-events:none;transition:opacity .3s var(--ease);z-index:40}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:var(--surface);
+    border-radius:22px 22px 0 0;padding:8px 18px 22px;z-index:50;max-height:88%;overflow-y:auto;
+    transform:translateY(102%);transition:transform .4s var(--ease)}
+  .sheet.on{transform:none}
+  .grab{width:36px;height:4px;border-radius:2px;background:#dcdcd4;margin:0 auto 12px}
+  .sheet h3{font-family:var(--serif);font-size:21px;margin:0 0 3px;font-weight:500}
+  .sheet .sub{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .facts{display:flex;flex-direction:column;gap:9px}
+  .fact{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);
+    background:var(--surface-2);border-radius:13px;padding:11px 12px}
+  .fact.warn{background:var(--amber-soft);border-color:#ecdfc4}
+  .fact .ico{width:26px;height:26px;border-radius:8px;background:#fff;display:flex;
+    align-items:center;justify-content:center;flex:0 0 auto;color:#66665e}
+  .fact .ico svg{width:15px;height:15px}
+  .fact .t{font-size:13px;font-weight:600;line-height:1.3}
+  .fact .d{font-size:12px;color:#6f6f66;margin-top:2px;line-height:1.45}
+  .dupes{display:flex;gap:6px;margin-top:7px}
+  .dupes span{width:38px;height:46px;border-radius:8px;background:#fff;border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;padding:3px}
+  .dupes img{max-width:100%;max-height:100%;object-fit:contain}
+  .decide-acts{display:flex;gap:7px;margin-top:15px}
+
+  /* ---------- canvas (Style it) ---------- */
+  .board{position:relative;margin:0 auto;background:#fff;border:1px solid var(--line);
+    border-radius:18px;overflow:hidden;touch-action:none}
+  .pc{position:absolute;left:0;top:0;transform-origin:center center;touch-action:none;cursor:grab;
+    will-change:transform}
+  .pc img{width:100%;height:100%;object-fit:contain;pointer-events:none;user-select:none}
+  .pc.glide{transition:transform .4s var(--ease)}
+  .pc.wish img{filter:
+    drop-shadow(1.5px 0 0 var(--amber)) drop-shadow(-1.5px 0 0 var(--amber))
+    drop-shadow(0 1.5px 0 var(--amber)) drop-shadow(0 -1.5px 0 var(--amber))}
+  .pc.wish::before{content:"WISH";position:absolute;left:50%;top:-19px;translate:-50% 0;
+    background:var(--amber);color:#fff;font-size:9.5px;font-weight:700;letter-spacing:.06em;
+    padding:2px 7px;border-radius:6px;pointer-events:none;white-space:nowrap}
+  .boardbar{display:flex;align-items:center;gap:7px;margin-top:11px}
+  .boardbar .st{flex:1;min-width:0;font-size:12px;color:var(--muted);line-height:1.35}
+  .pill{height:32px;padding:0 12px;border-radius:16px;border:1px solid var(--line);
+    background:var(--surface);font-size:12.5px;font-weight:600;font-family:var(--sans);cursor:pointer;
+    display:flex;align-items:center;gap:5px;color:var(--accent);transition:transform .14s var(--ease)}
+  .pill:active{transform:scale(.94)}
+  .pill svg{width:14px;height:14px}
+
+  .lookcard{margin-top:14px;background:var(--surface);border:1px solid var(--line);
+    border-radius:18px;overflow:hidden;animation:fadeUp .34s var(--ease) both}
+  .lookcard .mini{position:relative;width:100%;aspect-ratio:4/5;background:#faf9f6}
+  .lookcard .mini img{position:absolute;object-fit:contain;max-height:86%}
+  .lookcard .cap{padding:9px 11px 11px}
+  .lookcard .cap .n{font-size:14px;font-weight:600}
+  .wishbadge{display:inline-flex;align-items:center;gap:4px;margin-top:4px;font-size:11.5px;
+    color:#7d5a13;background:var(--amber-soft);border-radius:7px;padding:2px 7px}
+  .wishbadge svg{width:11px;height:11px}
+
+  .toast{position:absolute;left:16px;right:16px;bottom:18px;z-index:60;background:#1c1c1a;color:#fff;
+    border-radius:14px;padding:12px 15px;font-size:13.5px;display:flex;align-items:center;gap:9px;
+    transform:translateY(140%);opacity:0;transition:all .36s var(--ease)}
+  .toast.on{transform:none;opacity:1}
+  .toast svg{width:17px;height:17px;flex:0 0 auto}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .empty{padding:36px 20px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.6}
+
+  .note{max-width:860px;margin:0 auto;padding:0 18px 60px;color:#4e4e47;font-size:13.5px;line-height:1.65}
+  .note h4{font-family:var(--serif);font-size:17px;margin:26px 0 8px;color:#2c2c28;font-weight:500}
+  .note li{margin-bottom:5px}
+  .note code{background:#d8d8d1;padding:1px 5px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+
+<div class="stagebar">
+  <b>Wishlist → fitting room</b>
+  <div class="steps" id="steps"></div>
+  <span class="hint">Everything is interactive — drag pieces, run the numbers, buy something.</span>
+</div>
+
+<div class="stage" id="stage"></div>
+<div class="note" id="note"></div>
+
+<script>
+/* ============================================================================
+   Prototype only. Nothing here touches the app.
+   The one question the screen exists to answer: should I actually buy this?
+   ========================================================================== */
+
+const W = "/samples/women/";
+const money = n => "$" + n.toLocaleString("en-US");
+
+/* --- what she already owns ------------------------------------------------ */
+const CLOSET = [
+  { id:"o1", n:"White poplin shirt", src:"white-shirt-sticker.png",    cat:"top"    },
+  { id:"o2", n:"Camel wool sweater", src:"camel-sweater-sticker.png",  cat:"top"    },
+  { id:"o3", n:"Slim blue jeans",    src:"blue-jeans-sticker.png",     cat:"bottom" },
+  { id:"o4", n:"Pleated trousers",   src:"trousers-sticker.png",       cat:"bottom" },
+  { id:"o5", n:"Brown loafers",      src:"loafers-sticker.png",        cat:"shoes"  },
+  { id:"o6", n:"White sneakers",     src:"white-sneakers-sticker.png", cat:"shoes"  },
+];
+const owned = id => CLOSET.find(o => o.id === id);
+
+/* --- what she wants ------------------------------------------------------- *
+ * goesWith = how many owned pieces the matcher can pair it with.
+ * similar  = owned ids it duplicates. That's the honest reason to say no.    */
+const WISHES = [
+  { id:"w1", n:"Belted trench coat", brand:"Everlane", price:245,
+    src:"trench-coat-sticker.png", cat:"outerwear", goesWith:9, similar:[] },
+  { id:"w2", n:"Black midi dress", brand:"& Other Stories", price:160,
+    src:"black-dress-sticker.png", cat:"dress", goesWith:4, similar:[] },
+  { id:"w3", n:"Cream knit sweater", brand:"Uniqlo", price:128,
+    src:"camel-sweater-sticker.png", cat:"top", goesWith:6, similar:["o2"] },
+  { id:"w4", n:"Wide-leg jeans", brand:"Levi's", price:88,
+    src:"blue-jeans-sticker.png", cat:"bottom", goesWith:5, similar:["o3","o4"] },
+];
+
+const PLAN = { name:"Summer refresh", budget:450 };
+
+const sv = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
+  stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
+const I = {
+  back:  sv('<path d="M15 18l-6-6 6-6"/>'),
+  bell:  sv('<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>'),
+  gear:  sv('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2 2 2 0 1 1-4 0 1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1A1.7 1.7 0 0 0 4.6 15a2 2 0 1 1 0-4 1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.7 1.7 0 0 0 11.5 4a2 2 0 1 1 4 0 1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9 2 2 0 1 1 0 4z"/>'),
+  check: sv('<path d="M20 6 9 17l-5-5"/>'),
+  wand:  sv('<path d="M15 4V2M15 16v-2M8 9h2M20 9h2M17.8 11.8 19 13M17.8 6.2 19 5M3 21l9-9M12.2 6.2 11 5"/>'),
+  scale: sv('<path d="M12 3v18M5 7l7-4 7 4M3 11h6l-3 6zM15 11h6l-3 6z"/>'),
+  copy:  sv('<rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>'),
+  link:  sv('<path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/>'),
+  wallet:sv('<rect x="2" y="6" width="20" height="14" rx="3"/><path d="M2 10h20M17 15h.01"/>'),
+  clock: sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  spark: sv('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>'),
+  bag:   sv('<path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>'),
+  shirt: sv('<path d="M16 3l4 2-1 5-2-1v12H7V9L5 10 4 5l4-2 4 3z"/>'),
+};
+
+/* --------------------------- mutable prototype state --------------------- */
+let step = 1;
+let wishes = WISHES.map(w => ({ ...w }));
+let filter = "all";
+let boughtNames = [];
+let savedLook = null;   // { pieces:[{src,x,y,w,wish}] }
+let styling = null;     // the wish being styled
+
+const stage = document.getElementById("stage");
+const el = h => { const d = document.createElement("div"); d.innerHTML = h.trim(); return d.firstElementChild; };
+const committed = () => wishes.reduce((s, w) => s + w.price, 0);
+
+function toast(msg){
+  const t = stage.querySelector(".toast");
+  if(!t) return;
+  t.innerHTML = `${I.check}<span>${msg}</span>`;
+  t.classList.add("on");
+  clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("on"), 2800);
+}
+
+/* ================================ STEP 1 ================================= *
+ * The wishlist, reframed. A plan with a budget, a verdict per item, and two
+ * actions that both answer "should I buy this?" rather than just storing it.  */
+function screenList(){
+  stage.innerHTML = `
+  <div class="phone">
+    ${topbar("Wishlist")}
+    <div class="screen">
+      <div id="planbox"></div>
+      <div class="chips" id="chips"></div>
+      <div class="cards" id="cards"></div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet" id="sheet"></div>
+    <div class="toast"></div>
+  </div>`;
+  renderPlan(); renderChips(); renderCards();
+}
+
+function topbar(title, back){
+  return `<div class="topbar">
+    ${back ? `<button class="back" onclick="go(1)">${I.back} Wishlist</button>`
+           : `<h1>${title}</h1>`}
+    <div class="icons">${I.bell}${I.gear}</div>
+  </div>`;
+}
+
+/**
+ * The over-budget line has to be computed, not written. An earlier hardcoded version
+ * claimed "you're $-5 under", which is both the wrong sign and a false claim.
+ */
+function planNote(spent, over){
+  const dupes = wishes.filter(w => w.similar.length);
+  const dupeTotal = dupes.reduce((s, w) => s + w.price, 0);
+  if(!over){
+    return `${money(PLAN.budget - spent)} left. ${wishes.length} ${wishes.length === 1 ? "piece" : "pieces"} on the list.`;
+  }
+  const head = `<b>${money(spent - PLAN.budget)} over.</b>`;
+  if(!dupes.length) return `${head} Nothing here duplicates what you own — it's just more than you planned.`;
+  const after = spent - dupeTotal;
+  const label = dupes.length === 1 ? "the duplicate" : `the ${dupes.length} duplicates`;
+  return after <= PLAN.budget
+    ? `${head} Drop ${label} of things you already own and you're ${money(PLAN.budget - after)} under.`
+    : `${head} Even without ${label} you'd still be ${money(after - PLAN.budget)} over.`;
+}
+
+function renderPlan(){
+  const spent = committed();
+  const over = spent > PLAN.budget;
+  const pct = Math.min(100, (spent / PLAN.budget) * 100);
+  const box = stage.querySelector("#planbox");
+  box.innerHTML = `
+    <div class="plan ${over ? "overbudget" : ""}">
+      <div class="row1">
+        <span class="name">${PLAN.name}</span>
+        <button class="edit">Edit plan</button>
+      </div>
+      <div class="nums">
+        <span class="big" id="spentnum">${money(spent)}</span>
+        <span class="of">of ${money(PLAN.budget)} planned</span>
+      </div>
+      <div class="track"><div class="fill ${over ? "over" : ""}" id="fill"></div></div>
+      <p class="note">${planNote(spent, over)}</p>
+    </div>`;
+  // Fill animates from 0 so the bar reads as a value arriving, not a static block.
+  requestAnimationFrame(() => { const f = box.querySelector("#fill"); if(f) f.style.width = pct + "%"; });
+}
+
+function renderChips(){
+  const dupes = wishes.filter(w => w.similar.length).length;
+  const goes  = wishes.filter(w => w.goesWith >= 6).length;
+  const CH = [
+    { k:"all",   label:"Everything",       n:wishes.length },
+    { k:"goes",  label:"Goes with a lot",  n:goes },
+    { k:"dupe",  label:"Already own similar", n:dupes },
+    { k:"fits",  label:"Under $150",       n:wishes.filter(w => w.price < 150).length },
+  ];
+  stage.querySelector("#chips").innerHTML = CH.map(c => `
+    <button class="chip" aria-pressed="${filter === c.k}" data-f="${c.k}">
+      ${c.label} <span class="n">${c.n}</span>
+    </button>`).join("");
+  stage.querySelectorAll("[data-f]").forEach(b => b.onclick = () => {
+    filter = b.dataset.f; renderChips(); renderCards();
+  });
+}
+
+function visible(){
+  if(filter === "goes") return wishes.filter(w => w.goesWith >= 6);
+  if(filter === "dupe") return wishes.filter(w => w.similar.length);
+  if(filter === "fits") return wishes.filter(w => w.price < 150);
+  return wishes;
+}
+
+function renderCards(){
+  const list = visible();
+  const host = stage.querySelector("#cards");
+  if(!list.length){
+    host.innerHTML = `<p class="empty">Nothing here.${
+      wishes.length ? "" : " Everything on your list has been decided — that's the point."}</p>`;
+    return;
+  }
+  host.innerHTML = list.map(w => {
+    const dupe = w.similar.length;
+    return `
+    <article class="card" data-id="${w.id}">
+      <div class="thumb"><img src="${W}${w.src}" alt="${w.n}"></div>
+      <div class="body">
+        <p class="nm">${w.n}</p>
+        <p class="br">${w.brand}</p>
+        <p class="pr">${money(w.price)}</p>
+        <div class="verdict ${dupe ? "warn" : "good"}">
+          ${dupe ? I.copy : I.spark}
+          <span>${dupe
+            ? `You already own ${dupe === 1 ? "one of these" : `${dupe} like this`}`
+            : `Goes with ${w.goesWith} things you own`}</span>
+        </div>
+        <div class="acts">
+          <button data-decide="${w.id}">${I.scale} Should I?</button>
+          <button class="primary" data-style="${w.id}">${I.wand} Style it</button>
+        </div>
+      </div>
+    </article>`;
+  }).join("");
+  host.querySelectorAll("[data-decide]").forEach(b => b.onclick = () => openDecide(b.dataset.decide));
+  host.querySelectorAll("[data-style]").forEach(b => b.onclick = () => {
+    styling = wishes.find(w => w.id === b.dataset.style);
+    go(3);
+  });
+}
+
+/* ================================ STEP 2 ================================= *
+ * The decision. Every number here is already computable from the closet —
+ * this screen exists because that maths is currently buried in the editor.    */
+function openDecide(id){
+  const w = wishes.find(x => x.id === id);
+  if(!w) return;
+  const spent = committed();
+  const over = spent > PLAN.budget;
+  const dupe = w.similar.length;
+  const perWear = (w.price / 30).toFixed(2);
+  const sheet = stage.querySelector("#sheet");
+  sheet.innerHTML = `
+    <div class="grab"></div>
+    <h3>${w.n}</h3>
+    <p class="sub">${w.brand} · ${money(w.price)}</p>
+    <div class="facts">
+      ${dupe ? `
+      <div class="fact warn">
+        <span class="ico">${I.copy}</span>
+        <div>
+          <p class="t" style="margin:0">You own ${dupe === 1 ? "something very similar" : `${dupe} similar pieces`}</p>
+          <p class="d" style="margin:0">This is the one reason to think twice.</p>
+          <div class="dupes">${w.similar.map(o =>
+            `<span><img src="${W}${owned(o).src}" alt=""></span>`).join("")}</div>
+        </div>
+      </div>` : `
+      <div class="fact">
+        <span class="ico">${I.spark}</span>
+        <div>
+          <p class="t" style="margin:0">Works with ${w.goesWith} pieces you own</p>
+          <p class="d" style="margin:0">Nothing in your closet does this job yet.</p>
+        </div>
+      </div>`}
+      <div class="fact ${over ? "warn" : ""}">
+        <span class="ico">${I.wallet}</span>
+        <div>
+          <p class="t" style="margin:0">${money(w.price)} of your ${money(PLAN.budget)} ${PLAN.name.toLowerCase()}</p>
+          <p class="d" style="margin:0">${over
+            ? `Your list is already ${money(spent - PLAN.budget)} over budget.`
+            : `${money(PLAN.budget - spent)} still unspent.`}</p>
+        </div>
+      </div>
+      <div class="fact">
+        <span class="ico">${I.clock}</span>
+        <div>
+          <p class="t" style="margin:0">$${perWear} per wear if you wear it 30 times</p>
+          <p class="d" style="margin:0">Your closet averages $4.10 per wear.</p>
+        </div>
+      </div>
+    </div>
+    <div class="decide-acts">
+      <button class="btn quiet" data-skip="${w.id}">Skip it</button>
+      <button class="btn warn" data-wait="${w.id}">I'll wait</button>
+      <button class="btn" data-bought="${w.id}">${I.bag} I bought it</button>
+    </div>`;
+  openSheet(true);
+  sheet.querySelector("[data-bought]").onclick = () => decide(w.id, "bought");
+  sheet.querySelector("[data-skip]").onclick   = () => decide(w.id, "skip");
+  sheet.querySelector("[data-wait]").onclick   = () => { openSheet(false); toast("Kept on your list"); };
+}
+
+function openSheet(on){
+  stage.querySelector(".scrim").classList.toggle("on", on);
+  stage.querySelector("#sheet").classList.toggle("on", on);
+  if(on) stage.querySelector(".scrim").onclick = () => openSheet(false);
+}
+
+/* Bought -> the card physically leaves for the closet, and the budget follows.
+   Skip   -> it just goes, and the budget recovers. Both re-run the plan maths. */
+function decide(id, kind){
+  openSheet(false);
+  const w = wishes.find(x => x.id === id);
+  const card = stage.querySelector(`.card[data-id="${id}"]`);
+  if(kind === "bought"){
+    boughtNames.push(w.n);
+    if(card) card.classList.add("bought");   // flies up toward the closet tab
+  } else if(card){
+    card.style.transition = "opacity .28s var(--ease), transform .28s var(--ease)";
+    card.style.opacity = "0";
+    card.style.transform = "translateX(-40px)";
+  }
+  setTimeout(() => {
+    wishes = wishes.filter(x => x.id !== id);
+    renderPlan(); renderChips(); renderCards();
+    toast(kind === "bought" ? `${w.n} moved into your closet` : `Skipped — ${money(w.price)} back in the plan`);
+  }, kind === "bought" ? 430 : 300);
+}
+
+/* ================================ STEP 3 ================================= *
+ * Try it on. The wish piece is dashed + tagged so it never gets confused with
+ * something she owns, and everything else on the board is hers.               */
+function screenStyle(){
+  const w = styling || wishes[0] || WISHES[0];
+  stage.innerHTML = `
+  <div class="phone">
+    ${topbar("", true)}
+    <div class="screen">
+      <p style="margin:0 2px 10px;font-size:13px;color:var(--muted);line-height:1.45">
+        <b style="color:var(--fg)">${w.n}</b> with things you already own.
+      </p>
+      <div class="board" id="board"></div>
+      <div class="boardbar">
+        <p class="st" id="st" style="margin:0">Drag anything. The outlined piece is the one you don't own.</p>
+        <button class="pill" id="surprise">${I.wand} Surprise me</button>
+      </div>
+      <button class="btn" id="save" style="margin-top:12px">${I.check} Save this look</button>
+      <div id="saved"></div>
+    </div>
+    <div class="toast"></div>
+  </div>`;
+  layout(w);
+  stage.querySelector("#surprise").onclick = () => { layout(w, true); toast("Reshuffled from your closet"); };
+  stage.querySelector("#save").onclick = () => saveLook(w);
+}
+
+let placed = [];
+function layout(wish, shuffle){
+  const board = stage.querySelector("#board");
+  const BW = 346, BH = Math.round(BW * 4 / 3);
+  board.style.width = BW + "px";
+  board.style.height = BH + "px";
+
+  const tops    = CLOSET.filter(o => o.cat === "top");
+  const bottoms = CLOSET.filter(o => o.cat === "bottom");
+  const shoes   = CLOSET.filter(o => o.cat === "shoes");
+  const pick = a => a[shuffle ? Math.floor(Math.random() * a.length) : 0];
+
+  // The wish piece is the hero on the left; her own pieces support it.
+  placed = [];
+  const push = (src, x, y, w, isWish) => placed.push({ src, x, y, w, wish: !!isWish });
+  if(wish.cat === "outerwear" || wish.cat === "dress"){
+    push(wish.src, BW * 0.04, BH * 0.06, BW * 0.50, true);
+    if(wish.cat === "outerwear") push(pick(tops).src, BW * 0.55, BH * 0.05, BW * 0.36);
+    push(pick(bottoms).src, BW * 0.55, BH * 0.38, BW * 0.36);
+    push(pick(shoes).src, BW * 0.58, BH * 0.72, BW * 0.30);
+  } else if(wish.cat === "top"){
+    push(wish.src, BW * 0.06, BH * 0.05, BW * 0.48, true);
+    push(pick(bottoms).src, BW * 0.10, BH * 0.44, BW * 0.44);
+    push(pick(shoes).src, BW * 0.58, BH * 0.70, BW * 0.30);
+    push(pick(tops).src, BW * 0.58, BH * 0.08, BW * 0.34);
+  } else {
+    push(pick(tops).src, BW * 0.08, BH * 0.05, BW * 0.44);
+    push(wish.src, BW * 0.10, BH * 0.42, BW * 0.46, true);
+    push(pick(shoes).src, BW * 0.58, BH * 0.70, BW * 0.30);
+  }
+  paint();
+}
+
+function paint(){
+  const board = stage.querySelector("#board");
+  board.innerHTML = "";
+  placed.forEach((p, i) => {
+    const node = el(`<div class="pc glide ${p.wish ? "wish" : ""}"><img src="${W}${p.src}" alt=""></div>`);
+    node.style.width = p.w + "px";
+    node.style.height = (p.w * 1.16) + "px";
+    node.style.zIndex = p.wish ? 5 : i;
+    node.style.transform = `translate3d(${p.x}px,${p.y}px,0)`;
+    // 1:1 drag: the piece stays under the finger, and commits where you let go.
+    node.addEventListener("pointerdown", e => {
+      const from = { x:p.x, y:p.y }, s = { x:e.clientX, y:e.clientY };
+      node.classList.remove("glide");
+      node.setPointerCapture(e.pointerId);
+      node.style.cursor = "grabbing";
+      node.style.zIndex = 9;
+      const move = ev => {
+        p.x = from.x + (ev.clientX - s.x);
+        p.y = from.y + (ev.clientY - s.y);
+        node.style.transform = `translate3d(${p.x}px,${p.y}px,0)`;
+      };
+      const up = ev => {
+        node.releasePointerCapture(ev.pointerId);
+        node.removeEventListener("pointermove", move);
+        node.removeEventListener("pointerup", up);
+        node.classList.add("glide");
+        node.style.cursor = "grab";
+        if(p.wish) stage.querySelector("#st").textContent =
+          "That's the piece you don't own — everything else is yours.";
+      };
+      node.addEventListener("pointermove", move);
+      node.addEventListener("pointerup", up);
+    });
+    board.appendChild(node);
+  });
+}
+
+function saveLook(wish){
+  savedLook = { name:`${wish.n} + your closet`, pieces:placed.map(p => ({ ...p })) };
+  const host = stage.querySelector("#saved");
+  const bw = 346, bh = bw * 4 / 3;
+  host.innerHTML = `
+    <div class="lookcard">
+      <div class="mini">
+        ${savedLook.pieces.map(p => `<img src="${W}${p.src}"
+           style="left:${(p.x / bw) * 100}%;top:${(p.y / bh) * 100}%;width:${(p.w / bw) * 100}%">`).join("")}
+      </div>
+      <div class="cap">
+        <p class="n" style="margin:0">${savedLook.name}</p>
+        <span class="wishbadge">${I.bag} 1 piece you don't own yet</span>
+      </div>
+    </div>`;
+  toast("Saved to Outfits — marked as a plan");
+  setTimeout(() => go(4), 1500);
+}
+
+/* ================================ STEP 4 ================================= *
+ * Where the loop closes: the look is in Outfits, flagged until she owns the
+ * missing piece, and excluded from wear stats so the numbers stay honest.     */
+function screenOutfits(){
+  const bw = 346, bh = bw * 4 / 3;
+  const look = savedLook || { name:"Your look", pieces:[] };
+  // Name the actual piece that's missing — a hardcoded "the trench" was wrong as soon
+  // as you styled anything else.
+  const missing = styling ? styling.n.toLowerCase() : "the missing piece";
+  stage.innerHTML = `
+  <div class="phone">
+    ${topbar("Outfits")}
+    <div class="screen">
+      <div class="lookcard" style="margin-top:2px">
+        <div class="mini">
+          ${look.pieces.map(p => `<img src="${W}${p.src}"
+             style="left:${(p.x / bw) * 100}%;top:${(p.y / bh) * 100}%;width:${(p.w / bw) * 100}%">`).join("")}
+        </div>
+        <div class="cap">
+          <p class="n" style="margin:0">${look.name}</p>
+          <span class="wishbadge">${I.bag} 1 piece you don't own yet</span>
+        </div>
+      </div>
+      <div class="plan" style="margin-top:14px">
+        <div class="row1"><span class="name">Waiting on one piece</span></div>
+        <p class="note" style="margin-top:8px">
+          This look doesn't count toward your wear stats until you own everything in it.
+          Buy ${missing === "the missing piece" ? "it" : `the ${missing}`} and it becomes a normal outfit on its own.
+        </p>
+        <button class="btn" style="margin-top:11px" onclick="go(1)">${I.back} Back to the wishlist</button>
+      </div>
+      ${boughtNames.length ? `
+      <div class="plan" style="margin-top:12px">
+        <div class="row1"><span class="name">Bought this season</span></div>
+        <p class="note" style="margin-top:8px">${boughtNames.join(", ")} — now in your closet and counting toward cost per wear.</p>
+      </div>` : ""}
+    </div>
+    <div class="toast"></div>
+  </div>`;
+}
+
+/* ================================= router ================================ */
+const STEPS = [
+  { n:1, label:"1 · The wishlist", fn:screenList },
+  // If every item has already been decided, restore the list — otherwise this step
+  // silently opens nothing.
+  { n:2, label:"2 · Should I?", fn:() => {
+      if(!wishes.length){ wishes = WISHES.map(w => ({ ...w })); boughtNames = []; }
+      screenList();
+      setTimeout(() => openDecide(wishes[0].id), 220);
+    } },
+  { n:3, label:"3 · Try it on",    fn:screenStyle },
+  { n:4, label:"4 · The look",     fn:screenOutfits },
+];
+function go(n){
+  step = n;
+  if(n === 1 || n === 2){ /* keep whatever decisions were made */ }
+  STEPS.find(s => s.n === n).fn();
+  document.querySelectorAll("#steps button").forEach(b =>
+    b.setAttribute("aria-current", String(+b.dataset.n === n)));
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+window.go = go;
+document.getElementById("steps").innerHTML =
+  STEPS.map(s => `<button data-n="${s.n}">${s.label}</button>`).join("");
+document.querySelectorAll("#steps button").forEach(b => b.onclick = () => go(+b.dataset.n));
+
+document.getElementById("note").innerHTML = `
+  <h4>What to look at</h4>
+  <ul>
+    <li><b>Step 1 — the reframe.</b> A wishlist with a <i>plan</i> and a budget on top, and a verdict on every card:
+      "goes with 9 things you own" or "you already own one of these". The list currently sits
+      ${money(621 - 400)} over the ${money(400)} plan, entirely because of two duplicates.</li>
+    <li><b>Step 2 — Should I?</b> Every number shown is already computable from your closet today.
+      This is the <code>smart-buy.ts</code> maths that exists but is buried inside the full item editor.</li>
+    <li><b>Buy or skip something</b> and watch the budget bar and the "over by" line recalculate.
+      "I bought it" moves the piece into the closet — the action that's impossible in the app today.</li>
+    <li><b>Step 3 — try it on.</b> Drag the pieces. The amber-outlined, WISH-tagged piece is the one you don't own;
+      everything else is yours. <i>Surprise me</i> re-picks from your closet.</li>
+    <li><b>Step 4 —</b> the look saves with "1 piece you don't own yet" and stays out of wear stats
+      until you buy it, so cost-per-wear doesn't get polluted by clothes you don't have.</li>
+  </ul>
+  <h4>Decisions baked in</h4>
+  <ul>
+    <li>One budget per shopping plan ("Summer refresh · ${money(PLAN.budget)}") rather than per-category caps.</li>
+    <li>Looks containing a wish piece <b>do</b> save, clearly badged, excluded from stats.</li>
+    <li>Wishlist pieces become placeable on the canvas — four <code>!it.wishlist</code> filters relax.</li>
+  </ul>
+  <h4>Deliberately not here</h4>
+  <ul>
+    <li><b>Price comparison and trends.</b> Both need a data source we don't have — price tracking means
+      re-fetching every saved URL on a schedule, and trend needs a feed. They'd be guesses presented as facts.</li>
+    <li><b>New ML.</b> "Goes with N" uses the matcher that already exists. The closet-aware ranker is blocked
+      on capturing fit for your own items, and stacking more models on missing inputs looks smarter without being smarter.</li>
+    <li><b>Friend ranking.</b> A real idea, but a different job from deciding alone — it comes after.</li>
+  </ul>
+  <h4>Also found, worth fixing either way</h4>
+  <p>The heart on shop results and detected photos writes to a <code>wishlist_items</code> table that
+  <b>nothing in the app reads</b>. Those saves never appear on this screen. One insert, zero readers.</p>`;
+
+go(1);
+</script>
+</body>
+</html>
