@@ -70,6 +70,31 @@
   .plan .note b{color:var(--amber)}
   .plan.overbudget{border-color:#ecdfc4;background:var(--amber-soft)}
 
+  /* ---------- shop (step 1) ---------- */
+  .searchpill{display:flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:20px;
+    border:1px solid var(--line);background:var(--surface);font-size:14px;color:var(--fg);
+    margin-bottom:13px}
+  .searchpill svg{width:16px;height:16px;color:var(--muted)}
+  .shopgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  .shopcard{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    overflow:hidden;animation:fadeUp .3s var(--ease) both}
+  .shopimg{position:relative;aspect-ratio:3/4;background:var(--surface-2);display:flex;
+    align-items:center;justify-content:center;padding:10px}
+  .shopimg img{max-width:100%;max-height:100%;object-fit:contain}
+  .heart{position:absolute;right:7px;top:7px;width:30px;height:30px;border-radius:50%;
+    border:1px solid var(--line);background:rgba(255,255,255,.92);backdrop-filter:blur(4px);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;color:#8a8a80;
+    transition:transform .18s var(--spring),color .18s var(--ease)}
+  .heart svg{width:15px;height:15px}
+  .heart:active{transform:scale(.86)}
+  .heart.on{color:var(--danger);border-color:#e8cfc9}
+  .heart.on svg{fill:currentColor;animation:pop .34s var(--spring)}
+  @keyframes pop{0%{transform:scale(.6)}60%{transform:scale(1.22)}100%{transform:scale(1)}}
+  .shopcard .sn{margin:8px 10px 0;font-size:13px;font-weight:600;line-height:1.25}
+  .shopcard .sb{margin:2px 10px 10px;font-size:11.5px;color:var(--muted)}
+  .footnote{margin:14px 2px 0;font-size:12px;line-height:1.5;color:var(--muted)}
+  .card .br .src{color:var(--accent);font-weight:600}
+
   /* ---------- filter chips ---------- */
   .chips{display:flex;gap:7px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
   .chips::-webkit-scrollbar{display:none}
@@ -216,14 +241,14 @@ const WISHES = [
   { id:"w1", n:"Belted trench coat", brand:"Everlane", price:245,
     src:"trench-coat-sticker.png", cat:"outerwear", goesWith:9, similar:[] },
   { id:"w2", n:"Black midi dress", brand:"& Other Stories", price:160,
-    src:"black-dress-sticker.png", cat:"dress", goesWith:4, similar:[] },
+    src:"black-dress-sticker.png", cat:"dress", goesWith:4, similar:[], fromShop:true },
   { id:"w3", n:"Cream knit sweater", brand:"Uniqlo", price:128,
     src:"camel-sweater-sticker.png", cat:"top", goesWith:6, similar:["o2"] },
   { id:"w4", n:"Wide-leg jeans", brand:"Levi's", price:88,
     src:"blue-jeans-sticker.png", cat:"bottom", goesWith:5, similar:["o3","o4"] },
 ];
 
-const PLAN = { name:"Summer refresh", budget:450 };
+const PLAN = { name:"Summer refresh", budget:450 };  // 3 saved + the Shop save = $621
 
 const sv = d => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"
   stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
@@ -240,12 +265,16 @@ const I = {
   clock: sv('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   spark: sv('<path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/>'),
   bag:   sv('<path d="M6 7h12l1 14H5z"/><path d="M9 7a3 3 0 0 1 6 0"/>'),
+  heart: sv('<path d="M12 20s-7-4.6-7-9.6A4.4 4.4 0 0 1 12 7a4.4 4.4 0 0 1 7 3.4c0 5-7 9.6-7 9.6z"/>'),
   shirt: sv('<path d="M16 3l4 2-1 5-2-1v12H7V9L5 10 4 5l4-2 4 3z"/>'),
 };
 
 /* --------------------------- mutable prototype state --------------------- */
 let step = 1;
-let wishes = WISHES.map(w => ({ ...w }));
+// The Shop-saved item starts OUTSIDE the list: today that save lands in a table
+// nothing reads, so the wishlist never shows it. Step 1 is that save working.
+let wishes = WISHES.filter(w => !w.fromShop).map(w => ({ ...w }));
+let shopSaved = false;
 let filter = "all";
 let boughtNames = [];
 let savedLook = null;   // { pieces:[{src,x,y,w,wish}] }
@@ -264,6 +293,53 @@ function toast(msg){
 }
 
 /* ================================ STEP 1 ================================= *
+ * The bug, fixed. Tapping the heart on a shop result currently POSTs to
+ * /api/wishlist, which inserts into a `wishlist_items` table that nothing in the
+ * app reads — so the save silently disappears. Here it lands where you'd expect.  */
+function screenShop(){
+  const results = [
+    WISHES.find(w => w.fromShop),
+    { n:"Belted trench coat", brand:"Everlane",   price:245, src:"trench-coat-sticker.png"   },
+    { n:"Pleated trousers",   brand:"Arket",      price:110, src:"trousers-sticker.png"      },
+    { n:"Merino crewneck",    brand:"Uniqlo",     price:128, src:"camel-sweater-sticker.png" },
+  ];
+  stage.innerHTML = `
+  <div class="phone">
+    ${topbar("Shop")}
+    <div class="screen">
+      <div class="searchpill">${I.bag} <span>black midi dress</span></div>
+      <div class="shopgrid">
+        ${results.map((r, i) => `
+          <div class="shopcard">
+            <div class="shopimg">
+              <img src="${W}${r.src}" alt="${r.n}">
+              <button class="heart" data-save="${i}" aria-label="Save to wishlist">${I.heart}</button>
+            </div>
+            <p class="sn">${r.n}</p>
+            <p class="sb">${r.brand} · ${money(r.price)}</p>
+          </div>`).join("")}
+      </div>
+      <p class="footnote">Tap the heart on the dress. Today that save writes to a table
+        nothing reads, so it never reaches your wishlist.</p>
+    </div>
+    <div class="toast"></div>
+  </div>`;
+  stage.querySelectorAll("[data-save]").forEach(b => b.onclick = () => {
+    const i = +b.dataset.save;
+    b.classList.add("on");
+    if(i === 0 && !shopSaved){
+      shopSaved = true;
+      const d = WISHES.find(w => w.fromShop);
+      if(!wishes.some(w => w.id === d.id)) wishes = [{ ...d }, ...wishes];
+      toast("Saved to your wishlist");
+      setTimeout(() => go(2), 1150);
+    } else {
+      toast("Saved to your wishlist");
+    }
+  });
+}
+
+/* ================================ STEP 2 ================================= *
  * The wishlist, reframed. A plan with a budget, a verdict per item, and two
  * actions that both answer "should I buy this?" rather than just storing it.  */
 function screenList(){
@@ -284,7 +360,7 @@ function screenList(){
 
 function topbar(title, back){
   return `<div class="topbar">
-    ${back ? `<button class="back" onclick="go(1)">${I.back} Wishlist</button>`
+    ${back ? `<button class="back" onclick="go(2)">${I.back} Wishlist</button>`
            : `<h1>${title}</h1>`}
     <div class="icons">${I.bell}${I.gear}</div>
   </div>`;
@@ -371,7 +447,7 @@ function renderCards(){
       <div class="thumb"><img src="${W}${w.src}" alt="${w.n}"></div>
       <div class="body">
         <p class="nm">${w.n}</p>
-        <p class="br">${w.brand}</p>
+        <p class="br">${w.brand}${w.fromShop ? ` · <span class="src">saved from Shop</span>` : ""}</p>
         <p class="pr">${money(w.price)}</p>
         <div class="verdict ${dupe ? "warn" : "good"}">
           ${dupe ? I.copy : I.spark}
@@ -626,7 +702,7 @@ function screenOutfits(){
           This look doesn't count toward your wear stats until you own everything in it.
           Buy ${missing === "the missing piece" ? "it" : `the ${missing}`} and it becomes a normal outfit on its own.
         </p>
-        <button class="btn" style="margin-top:11px" onclick="go(1)">${I.back} Back to the wishlist</button>
+        <button class="btn" style="margin-top:11px" onclick="go(2)">${I.back} Back to the wishlist</button>
       </div>
       ${boughtNames.length ? `
       <div class="plan" style="margin-top:12px">
@@ -640,20 +716,23 @@ function screenOutfits(){
 
 /* ================================= router ================================ */
 const STEPS = [
-  { n:1, label:"1 · The wishlist", fn:screenList },
+  { n:1, label:"1 · Saved from Shop", fn:screenShop },
+  { n:2, label:"2 · The wishlist",    fn:screenList },
   // If every item has already been decided, restore the list — otherwise this step
   // silently opens nothing.
-  { n:2, label:"2 · Should I?", fn:() => {
-      if(!wishes.length){ wishes = WISHES.map(w => ({ ...w })); boughtNames = []; }
+  { n:3, label:"3 · Should I?", fn:() => {
+      if(!wishes.length){
+        wishes = WISHES.filter(w => !w.fromShop || shopSaved).map(w => ({ ...w }));
+        boughtNames = [];
+      }
       screenList();
       setTimeout(() => openDecide(wishes[0].id), 220);
     } },
-  { n:3, label:"3 · Try it on",    fn:screenStyle },
-  { n:4, label:"4 · The look",     fn:screenOutfits },
+  { n:4, label:"4 · Try it on",    fn:screenStyle },
+  { n:5, label:"5 · The look",     fn:screenOutfits },
 ];
 function go(n){
   step = n;
-  if(n === 1 || n === 2){ /* keep whatever decisions were made */ }
   STEPS.find(s => s.n === n).fn();
   document.querySelectorAll("#steps button").forEach(b =>
     b.setAttribute("aria-current", String(+b.dataset.n === n)));
@@ -667,16 +746,20 @@ document.querySelectorAll("#steps button").forEach(b => b.onclick = () => go(+b.
 document.getElementById("note").innerHTML = `
   <h4>What to look at</h4>
   <ul>
-    <li><b>Step 1 — the reframe.</b> A wishlist with a <i>plan</i> and a budget on top, and a verdict on every card:
+    <li><b>Step 1 — the bug, fixed.</b> Tap the heart on the dress. Today that POSTs to
+      <code>/api/wishlist</code>, which inserts into a <code>wishlist_items</code> table with
+      <b>zero readers</b> — so the save vanishes. Here it arrives at the top of your wishlist,
+      tagged with where it came from.</li>
+    <li><b>Step 2 — the reframe.</b> A wishlist with a <i>plan</i> and a budget on top, and a verdict on every card:
       "goes with 9 things you own" or "you already own one of these". The list currently sits
       ${money(621 - 400)} over the ${money(400)} plan, entirely because of two duplicates.</li>
-    <li><b>Step 2 — Should I?</b> Every number shown is already computable from your closet today.
+    <li><b>Step 3 — Should I?</b> Every number shown is already computable from your closet today.
       This is the <code>smart-buy.ts</code> maths that exists but is buried inside the full item editor.</li>
     <li><b>Buy or skip something</b> and watch the budget bar and the "over by" line recalculate.
       "I bought it" moves the piece into the closet — the action that's impossible in the app today.</li>
-    <li><b>Step 3 — try it on.</b> Drag the pieces. The amber-outlined, WISH-tagged piece is the one you don't own;
+    <li><b>Step 4 — try it on.</b> Drag the pieces. The amber-outlined, WISH-tagged piece is the one you don't own;
       everything else is yours. <i>Surprise me</i> re-picks from your closet.</li>
-    <li><b>Step 4 —</b> the look saves with "1 piece you don't own yet" and stays out of wear stats
+    <li><b>Step 5 —</b> the look saves with "1 piece you don't own yet" and stays out of wear stats
       until you buy it, so cost-per-wear doesn't get polluted by clothes you don't have.</li>
   </ul>
   <h4>Decisions baked in</h4>
@@ -693,9 +776,11 @@ document.getElementById("note").innerHTML = `
       on capturing fit for your own items, and stacking more models on missing inputs looks smarter without being smarter.</li>
     <li><b>Friend ranking.</b> A real idea, but a different job from deciding alone — it comes after.</li>
   </ul>
-  <h4>Also found, worth fixing either way</h4>
-  <p>The heart on shop results and detected photos writes to a <code>wishlist_items</code> table that
-  <b>nothing in the app reads</b>. Those saves never appear on this screen. One insert, zero readers.</p>`;
+  <h4>The dead-save fix</h4>
+  <p>Three places write to <code>wishlist_items</code> — the heart on a shop card, the heart on a
+  detected photo, and <code>wishlistProduct()</code> — and nothing reads the table. The fix reuses the
+  pattern already in <code>sync.ts</code>: the client drains those rows into the wishlist on sync and
+  stamps them consumed, so a save can't be resurrected after you delete it.</p>`;
 
 go(1);
 </script>
