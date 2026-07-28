@@ -40,8 +40,9 @@ Per-element rows rather than a single board blob: two people moving different pi
 
 ### Access
 
-- `is_styling_participant(session, user)` — owner or stylist, any status. Gates reading the session row itself, so an invitee can see the request.
-- `is_styling_active(session, user)` — participant **and** `status = 'active'`. Gates items and pieces.
+- `styling_sessions` SELECT/UPDATE compare `owner_id` / `stylist_id` **directly**, with no helper function. This is deliberate: a `STABLE SECURITY DEFINER` helper reads from the statement's snapshot and cannot see the row the current statement is inserting, so `insert ... returning` — which is what `.insert().select().single()` compiles to, and how the client creates a session — fails its own SELECT check with a 42501. Shared closets only avoids this because its policy has a direct `owner_id = auth.uid()` disjunct that short-circuits first.
+- `is_styling_owner(session, user)` — gates writes to the closet snapshot.
+- `is_styling_active(session, user)` — participant **and** `status = 'active'` **and** not expired. Gates items and pieces. Safe as a helper because it checks the *parent* session row, which is already committed by the time a child row is written.
 
 Because the item and piece policies test `is_styling_active`, ending a session revokes access in the database, not just in the UI. That is the security property worth protecting in review.
 
@@ -82,6 +83,26 @@ Live cursors. In-session chat — Messages already exists. More than two people.
 2. Ask → accept: the Outfits "Ask a friend to style me" sheet with a friend picker (`fetchFollowingUsers`), notification kinds, and the incoming-request card
 3. `StyleSessionView` — the live board, plus the six canvas fixes
 4. Save into Outfits + end session
+
+## Phase 1 verification
+
+The migration was applied to the linked project and the access rules were exercised as two real users inside a rolled-back transaction. All eleven checks pass:
+
+| # | Check | Result |
+|---|---|---|
+| 1 | Owner creates their own session | OK |
+| 2 | Creating a session naming *someone else* as owner | BLOCKED |
+| 3 | Owner seeds the closet snapshot | OK |
+| 4 | Owner accepts on the friend's behalf | BLOCKED |
+| 5 | Friend reads the closet *before* accepting | 0 items |
+| 6 | Friend accepts | OK |
+| 7 | Friend reads the closet *while live* | 1 item |
+| 8 | Friend edits the board | OK |
+| 9 | Friend reads the closet *after end* | 0 items |
+| 10 | Friend reads the board *after end* | 0 pieces |
+| 11 | Reopening an ended session | BLOCKED |
+
+Checks 9 and 10 are the ones worth re-running if the policies are ever touched — they are the difference between "access is revoked" and "the screen is hidden".
 
 ## Prototype
 
