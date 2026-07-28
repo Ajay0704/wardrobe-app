@@ -26,7 +26,7 @@ Do not create duplicate projects/issues. Extend what's there.
 
 Default: **no skill**. Pick at most 1–2 skills, only if a match below is clear. Announce: "Using X because Y." If unsure, ask once — don't pile on skills.
 
-Skills live in `.agents/skills/` — the single source of truth for the Emil + Superpowers set, pinned by `skills-lock.json`. `.claude/skills/` and `.cursor/skills/` are per-skill symlinks into it, so both editors always see the same content; edit the file under `.agents/skills/`, never a symlink. Read the matching `SKILL.md` before following it.
+Skills live in `.agents/skills/` — the source of truth for the Emil + Superpowers set, pinned by `skills-lock.json`. `.cursor/skills/` is per-skill symlinks into it. **`.claude/skills/` must stay a real copy — Claude Code does NOT discover skills through symlinks** (they silently vanish from the skill list), so don't "de-duplicate" it. Edit under `.agents/skills/`, then re-copy to `.claude/skills/`. Read the matching `SKILL.md` before following it.
 
 ### Skip skills when
 - One-file / obvious fix, rename, copy, config tweak
