@@ -69,11 +69,22 @@ export interface SmartBuyResult {
   reasons: { tone: "good" | "warn" | "info"; text: string }[];
 }
 
+/**
+ * The colour every wishlist add-path stamps when it doesn't know one
+ * (AddToWishlistSheet, /api/clip, the inbox drain). It means "unknown", not "grey".
+ */
+const UNKNOWN_COLOR = "#a8a29e";
+
 /** Two colors close enough that owning both is likely redundant. */
 function similarColor(a: string, b: string): boolean {
+  // An unknown colour must not imply redundancy. It's a mid-tone neutral, so the
+  // neutral branch below matched it against half of a typical closet and produced
+  // confident "you already own one of these" claims from a colour the user never set
+  // (AJA-242). Absent a real colour we don't know, and saying so beats guessing.
+  if (!a || !b || a === UNKNOWN_COLOR || b === UNKNOWN_COLOR) return false;
   try {
-    const ha = hexToHsl(a || "#a8a29e");
-    const hb = hexToHsl(b || "#a8a29e");
+    const ha = hexToHsl(a);
+    const hb = hexToHsl(b);
     if (isNeutral(ha) && isNeutral(hb)) return Math.abs(ha.l - hb.l) < 22;
     return hueDistance(ha.h, hb.h) < 18 && Math.abs(ha.l - hb.l) < 26;
   } catch {

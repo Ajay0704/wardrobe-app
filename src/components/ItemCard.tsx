@@ -24,11 +24,14 @@ export function ItemCard({
   onEdit,
   matchScore,
   compact,
+  verdict,
 }: {
   item: WardrobeItem;
   onEdit?: (item: WardrobeItem) => void;
   matchScore?: number;
   compact?: boolean;
+  /** Wishlist only (AJA-242): "goes with N you own" / "you already own one". */
+  verdict?: { tone: "good" | "warn"; text: string };
 }) {
   const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
@@ -201,6 +204,17 @@ export function ItemCard({
             ? ` · ${item.wearCount}× worn`
             : ""}
         </p>
+        {verdict && (
+          <p
+            className={`mt-1.5 rounded-lg px-2 py-1 text-[11px] leading-snug ${
+              verdict.tone === "warn"
+                ? "bg-amber-50 text-amber-800"
+                : "bg-accent-soft text-accent"
+            }`}
+          >
+            {verdict.text}
+          </p>
+        )}
         {/* Shop link only on website cards — native opens it from the editor
             to avoid accidental Safari / layout jumps from the grid. */}
         {!compact && !isNative && item.productUrl && (

@@ -69,6 +69,20 @@ export interface UserProfile {
   colorsAvoid?: string[];
   /** Rough max spend per category, in the profile currency. */
   budgets?: Partial<Record<BudgetCategory, number>>;
+  /**
+   * The current shopping plan the wishlist is measured against (AJA-242) — e.g.
+   * "Summer refresh", $450. One plan, not a list: a list of plans is a project
+   * manager, not a wardrobe app. Separate from `budgets`, which is per-category and
+   * has no readers.
+   */
+  shoppingPlan?: ShoppingPlan;
+}
+
+/** A named budget the wishlist totals are compared against. */
+export interface ShoppingPlan {
+  name: string;
+  /** In the profile currency. */
+  budget: number;
 }
 
 /** Views allowed as the default launch screen. */
