@@ -104,6 +104,31 @@ The migration was applied to the linked project and the access rules were exerci
 
 Checks 9 and 10 are the ones worth re-running if the policies are ever touched — they are the difference between "access is revoked" and "the screen is hidden".
 
+## Phase 3 verification
+
+The board can't be exercised end to end without two signed-in accounts, so the two
+things that *can* be proven in isolation were:
+
+**Coordinate normalization (hazard 1)** — 7/7 unit checks against the real converters,
+including that a drag committed on a 360px board lands at the identical relative
+position on a 720px one, that aspect changes don't move anything, and that a
+zero-size board can't emit `NaN`.
+
+**Gesture freeze (hazard 2)** — driven in a real browser against the solo builder,
+which shares `CanvasPiece`. The same drag was run twice, once with a simulated
+collaborator patch (+500px) landing mid-gesture:
+
+```
+cleanDrag                      { dx: 96, dy: 62 }
+dragWithRemotePatchMidGesture  { dx: 96, dy: 62 }   identical: true
+```
+
+Byte-identical, and nowhere near the +500 offset the old code would have produced.
+This also confirms the solo builder is unaffected by the change.
+
+Still unverified until an on-device run with two accounts: realtime propagation, the
+grab/release presence broadcast, and the session cards with live rows.
+
 ## Prototype
 
 `public/style-session-proto.html`, four steps, two simulated phones. Verified in-browser: the friend you pick carries through every screen (tested with Priya, not the default), grab marks the peer's piece, the peer holds position during the drag, both boards land identical on release, aspect is shared, and the friend's save button is locked with a reason. **Delete this file when the feature ships.**

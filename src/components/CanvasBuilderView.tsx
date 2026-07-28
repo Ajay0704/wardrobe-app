@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { bestLook } from "@/lib/matching";
-import { useWardrobe } from "@/lib/store";
+import { useWardrobe, uid } from "@/lib/store";
 import type { CanvasItem, Category, WardrobeItem } from "@/lib/types";
 import { matchesSubcategory, presentSubcategories, slotForCategory } from "@/lib/types";
 import { CanvasPiece } from "./CanvasPiece";
@@ -246,7 +246,9 @@ export function CanvasBuilderView() {
     const c = canvasDraft.find((x) => x.id === id);
     if (!c) return;
     const top = canvasDraft.reduce((m, x) => Math.max(m, x.zIndex), 0);
-    const copy: CanvasItem = { ...c, id: `dup-${Date.now()}`, x: c.x + 22, y: c.y + 22, zIndex: top + 1 };
+    // uid(), not Date.now(): two clients on a shared board can duplicate in the same
+    // millisecond and collide on the piece id (AJA-240).
+    const copy: CanvasItem = { ...c, id: uid(), x: c.x + 22, y: c.y + 22, zIndex: top + 1 };
     setCanvasDraft([...canvasDraft, copy]);
     setSelectedId(copy.id);
   };
@@ -295,7 +297,7 @@ export function CanvasBuilderView() {
     const clampN = (v: number, hi: number) => Math.max(0, Math.min(Math.round(v), hi));
     const put = (it: WardrobeItem, x: number, y: number, size: number) => {
       nodes.push({
-        id: `sp-${Date.now()}-${z}`,
+        id: uid(),
         kind: "item",
         itemId: it.id,
         x: clampN(x, bw - size),

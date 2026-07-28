@@ -508,6 +508,40 @@ export function canvasToPiece(
 
 /* ------------------------------------------------------------------- realtime */
 
+/** Who is holding which piece right now. Ephemeral — never stored. */
+export interface Grab {
+  pieceId: string | null;
+  by: string;
+  name: string;
+}
+
+/**
+ * Grab/release presence over Realtime *broadcast* (AJA-240). Deliberately not a
+ * database column: it changes twice per gesture and is worthless a second later, so
+ * it has no business being written down. This is what makes commit-level sync read as
+ * live — while you hold a piece the other phone outlines it with your name, instead
+ * of the piece simply teleporting on release with no explanation.
+ */
+export function subscribeGrabs(
+  sessionId: string,
+  onGrab: (g: Grab) => void,
+): { send: (g: Grab) => void; leave: () => void } {
+  const sb = getSupabase();
+  if (!sb) return { send: () => {}, leave: () => {} };
+  const channel = sb
+    .channel(`styling-grab:${sessionId}`, { config: { broadcast: { self: false } } })
+    .on("broadcast", { event: "grab" }, ({ payload }) => onGrab(payload as Grab))
+    .subscribe();
+  return {
+    send: (g) => {
+      void channel.send({ type: "broadcast", event: "grab", payload: g });
+    },
+    leave: () => {
+      sb.removeChannel(channel);
+    },
+  };
+}
+
 /**
  * Live board. Same idiom as subscribeSharedCloset: coarse "something changed →
  * refetch", never payload diffing. Subscribes to the session row too, so an accept or

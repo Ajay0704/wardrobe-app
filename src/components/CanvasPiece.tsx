@@ -17,6 +17,9 @@ interface Props {
   onCommit: (id: string, patch: Partial<CanvasItem>) => void;
   onRemove: (id: string) => void;
   trashRef: React.RefObject<HTMLDivElement | null>;
+  /** Shared sessions use these to broadcast who is holding what (AJA-240). */
+  onGrab?: (id: string) => void;
+  onRelease?: (id: string) => void;
 }
 
 /**
@@ -38,15 +41,27 @@ export function CanvasPiece({
   onCommit,
   onRemove,
   trashRef,
+  onGrab,
+  onRelease,
 }: Props) {
   const elRef = useRef<HTMLDivElement>(null);
   const live = useRef({ dx: 0, dy: 0, scale: 1, rot: c.rotation });
+  // The piece's committed geometry, frozen when the gesture starts (AJA-240). This
+  // used to read `c` live, which is fine solo but breaks in a shared session: a
+  // collaborator's patch landing mid-drag rebased the transform, and the end-of-
+  // gesture commit then added the full finger movement to the NEW origin, so the
+  // piece jumped. Freezing means a remote change is simply ignored until you let go.
+  const base = useRef({ x: c.x, y: c.y, width: c.width, height: c.height });
+  const freeze = () => {
+    base.current = { x: c.x, y: c.y, width: c.width, height: c.height };
+  };
 
   const applyLive = () => {
     const el = elRef.current;
     if (!el) return;
     const { dx, dy, scale: s, rot } = live.current;
-    el.style.transform = `translate3d(${c.x + dx}px,${c.y + dy}px,0) rotate(${rot}deg) scale(${s})`;
+    const { x, y } = base.current;
+    el.style.transform = `translate3d(${x + dx}px,${y + dy}px,0) rotate(${rot}deg) scale(${s})`;
   };
   const overTrash = (x: number, y: number) => {
     const t = trashRef.current?.getBoundingClientRect();
@@ -66,6 +81,8 @@ export function CanvasPiece({
     {
       onDragStart: () => {
         onSelect(c.id);
+        freeze();
+        onGrab?.(c.id);
         live.current = { dx: 0, dy: 0, scale: 1, rot: c.rotation };
       },
       onDrag: ({ movement: [mx, my], pinching, tap, last, xy: [px, py] }) => {
@@ -77,6 +94,7 @@ export function CanvasPiece({
         if (!tap) trashUI(true, hot);
         if (last) {
           trashUI(false, false);
+          onRelease?.(c.id);
           if (!tap && hot) {
             onRemove(c.id);
             return;
@@ -84,24 +102,31 @@ export function CanvasPiece({
           live.current.dx = 0;
           live.current.dy = 0;
           if (!tap) {
-            const nx = clamp(c.x + mx / s(), -c.width * 0.4, board.w - c.width * 0.6);
-            const ny = clamp(c.y + my / s(), -c.height * 0.4, board.h - c.height * 0.6);
+            const b = base.current;
+            const nx = clamp(b.x + mx / s(), -b.width * 0.4, board.w - b.width * 0.6);
+            const ny = clamp(b.y + my / s(), -b.height * 0.4, board.h - b.height * 0.6);
             onCommit(c.id, { x: Math.round(nx), y: Math.round(ny) });
           }
         }
       },
       onPinch: ({ offset: [sc, a], first }) => {
-        if (first) onSelect(c.id);
+        if (first) {
+          onSelect(c.id);
+          freeze();
+          onGrab?.(c.id);
+        }
         live.current.scale = sc;
         live.current.rot = a;
         applyLive();
       },
       onPinchEnd: ({ offset: [sc, a] }) => {
-        const nw = clamp(Math.round(c.width * sc), 40, Math.round(board.w * 1.6));
-        const nh = clamp(Math.round(c.height * sc), 40, Math.round(board.h * 1.6));
-        const nx = Math.round(c.x + (c.width - nw) / 2); // keep centre fixed
-        const ny = Math.round(c.y + (c.height - nh) / 2);
+        const b = base.current;
+        const nw = clamp(Math.round(b.width * sc), 40, Math.round(board.w * 1.6));
+        const nh = clamp(Math.round(b.height * sc), 40, Math.round(board.h * 1.6));
+        const nx = Math.round(b.x + (b.width - nw) / 2); // keep centre fixed
+        const ny = Math.round(b.y + (b.height - nh) / 2);
         live.current = { dx: 0, dy: 0, scale: 1, rot: a };
+        onRelease?.(c.id);
         onCommit(c.id, { width: nw, height: nh, rotation: Math.round(a), x: nx, y: ny });
       },
     },

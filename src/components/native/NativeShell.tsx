@@ -55,6 +55,8 @@ const TITLES: Partial<Record<View, string>> = {
   notifications: "Notifications",
   // Detail screens render their own back control + title, so the shell header stays empty.
   outfitDetail: "",
+  // The board renders its own back control + live bar.
+  styleSession: "",
   photoDetail: "",
 };
 

@@ -31,6 +31,7 @@ import { AddToWishlistSheet } from "./wishlist/AddToWishlistSheet";
 import { BulkImport } from "./BulkImport";
 import { OutfitSplitImport } from "./OutfitSplitImport";
 import { ClosetScanImport } from "./ClosetScanImport";
+import { StyleSessionView } from "./styling/StyleSessionView";
 
 /**
  * Renders the current view's content. Shared by the web shell (AppShell) and the
@@ -67,6 +68,7 @@ export function AppViews({ keepAliveTabs = false }: { keepAliveTabs?: boolean })
       <TabPane show={view === "social"} keepAlive={keepAliveTabs}><NativeProfileView /></TabPane>
 
       {view === "outfitDetail" && <OutfitDetailView />}
+      {view === "styleSession" && <StyleSessionView />}
       {view === "builder" && <CanvasBuilderView />}
       {view === "calendar" && <CalendarView />}
       {view === "wishlist" && <WishlistView />}
