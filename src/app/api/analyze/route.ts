@@ -2,6 +2,13 @@ import { requireUser } from "@/lib/auth-server";
 import { safeFetch } from "@/lib/net";
 import { inferSubcategory } from "@/lib/subcategory";
 import type { Category } from "@/lib/types";
+import { normalizeFit } from "@/lib/analyze-attrs";
+import {
+  ANALYZE_FORMALITY,
+  ANALYZE_GENERATION_CONFIG,
+  ANALYZE_TONE,
+  buildAnalyzePrompt,
+} from "@/lib/analyze-prompt";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -94,35 +101,11 @@ export async function POST(request: Request) {
     return Response.json({ error: "Couldn't read that image." }, { status: 400 });
   }
 
-  const FORMALITY = ["casual", "smart-casual", "formal", "statement"];
-  const TONE = ["neutral", "warm", "cool", "black", "white", "bright", "pastel", "earth"];
-  const prompt =
-    `You are a fashion cataloguing assistant. The photo shows one wardrobe item to catalogue — it may be a garment (top, bottom, dress, outerwear) OR an accessory that is worn or held: shoes, a bag, or an accessory such as a watch, sunglasses, jewellery, a belt, a hat or a scarf. First decide what the photo is actually OF — the single item that is the clear main subject or close-up — and describe ONLY that item.\n` +
-    `If the main subject is an accessory/bag/shoes being worn or held (a watch on a wrist, sunglasses on a face, a bag in a hand, shoes on feet), catalogue THAT item with the matching category — never the clothing, wrist, hand, skin or background behind it. If instead several garments are visible (e.g. a mirror selfie), pick the SINGLE most prominent garment that fills the most of the frame and ignore smaller or partially-visible ones (like trousers at the bottom of a sweater selfie). Always ignore the person and the background. Respond with JSON of this exact shape:\n` +
-    `{"name": a short descriptive name like "Cream Cable-Knit Sweater",\n` +
-    ` "category": exactly one of [${CATEGORIES.join(", ")}],\n` +
-    ` "type": the specific garment type in 1-3 words, e.g. "polo shirt", "bomber jacket", "chelsea boots", "tote bag", "quarter-zip",\n` +
-    ` "color": the dominant colour as a #rrggbb hex string,\n` +
-    ` "colorName": a common colour name like "navy" or "cream",\n` +
-    ` "seasons": an array with any of [${SEASONS.join(", ")}] when it is typically worn,\n` +
-    ` "brand": the visible brand name, or null if none is visible,\n` +
-    ` "tags": 2-5 lowercase style tags like "casual", "work", "minimal",\n` +
-    ` "formality": exactly one of [${FORMALITY.join(", ")}],\n` +
-    ` "material": a short fabric guess like "cotton", "linen", "wool", "denim", "leather", or null,\n` +
-    ` "pattern": "solid", "stripe", "check", "print", or null,\n` +
-    ` "tone": the colour family, exactly one of [${TONE.join(", ")}],\n` +
-    ` "styleCaption": one short phrase for styling, e.g. "smart-casual navy knit for cool weather"}\n` +
-    `Output only the JSON object.`;
+  const prompt = buildAnalyzePrompt();
 
   const payload = {
     contents: [{ parts: [{ text: prompt }, { inline_data: inline }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      temperature: 0.2,
-      // Cataloguing is a simple vision→JSON task; keep thinking minimal for
-      // speed, cost, and to avoid empty/thought-only responses.
-      thinkingConfig: { thinkingLevel: "minimal" },
-    },
+    generationConfig: ANALYZE_GENERATION_CONFIG,
   };
 
   let resp: Response;
@@ -170,11 +153,14 @@ export async function POST(request: Request) {
 
   const formalityRaw = str(parsed.formality)?.toLowerCase();
   const formality =
-    formalityRaw && FORMALITY.includes(formalityRaw) ? formalityRaw : undefined;
+    formalityRaw && ANALYZE_FORMALITY.includes(formalityRaw) ? formalityRaw : undefined;
+  // Normalized here as well as on the client so the endpoint's own contract is canonical:
+  // the model happily answers "oversized" or "straight", neither of which is a FIT_VALUE.
+  const fit = normalizeFit(parsed.fit);
   const material = str(parsed.material)?.toLowerCase();
   const pattern = str(parsed.pattern)?.toLowerCase();
   const toneRaw = str(parsed.tone)?.toLowerCase();
-  const tone = toneRaw && TONE.includes(toneRaw) ? toneRaw : undefined;
+  const tone = toneRaw && ANALYZE_TONE.includes(toneRaw) ? toneRaw : undefined;
   const styleCaption = str(parsed.styleCaption);
   // Map the model's free-text garment "type" (+ name/tags) to a canonical sub-category slug for
   // the detected category, reusing the deterministic inferrer so only valid values ever return.
@@ -191,6 +177,7 @@ export async function POST(request: Request) {
     seasons,
     tags,
     brand: str(parsed.brand),
+    fit,
     formality,
     material,
     pattern,

@@ -9,7 +9,8 @@
  */
 import { requireUser } from "@/lib/auth-server";
 import { inferSubcategory } from "@/lib/subcategory";
-import type { Category } from "@/lib/types";
+import { FIT_VALUES, type Category } from "@/lib/types";
+import { normalizeFit } from "@/lib/analyze-attrs";
 import { safeFetch } from "@/lib/net";
 
 export const runtime = "nodejs";
@@ -124,6 +125,7 @@ export async function POST(request: Request) {
     ` "brand": the visible brand name, or null if none is legible,\n` +
     ` "type": the specific garment type like "polo", "bomber", "chelsea boot",\n` +
     ` "formality": exactly one of [casual, smart-casual, formal, statement],\n` +
+    ` "fit": how it sits on the body, exactly one of [${FIT_VALUES.join(", ")}], or null for bags and accessories,\n` +
     ` "material": a short fabric guess like "cotton", "linen", "wool", "denim", or null,\n` +
     ` "pattern": "solid", "stripe", "check", "print", or null\n` +
     `}]}\nList each item once. Output only the JSON object.`;
@@ -194,6 +196,7 @@ export async function POST(request: Request) {
         brand: str(it.brand),
         // Same deterministic mapping /api/analyze uses, so only valid slugs ever reach the client.
         subcategory: inferSubcategory(category, `${str(it.type) ?? ""} ${str(it.name) ?? ""}`, tags),
+        fit: normalizeFit(it.fit),
         formality: str(it.formality)?.toLowerCase(),
         material: str(it.material)?.toLowerCase(),
         pattern: str(it.pattern)?.toLowerCase(),

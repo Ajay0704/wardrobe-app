@@ -24,6 +24,7 @@ import { createPortal } from "react-dom";
 import type { ProductCandidate } from "@/app/api/find-product/route";
 import { affiliateUrl } from "@/lib/affiliate";
 import { extractDominantColor, nameColor } from "@/lib/color";
+import { normalizeFit } from "@/lib/analyze-attrs";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { captureNativePhoto } from "@/lib/native-camera";
 import { isNativeApp, openExternalUrl } from "@/lib/platform";
@@ -405,6 +406,13 @@ export function ItemForm({
       }
       if (typeof data.formality === "string" && data.formality) {
         setFormality((prev) => prev || data.formality);
+      }
+      // AJA-246 phase 2. Re-normalized rather than trusted: the route already maps the
+      // model's word onto FIT_VALUES, but this setter is typed and a stale deploy could
+      // still answer "oversized".
+      const detectedFit = normalizeFit(data.fit);
+      if (detectedFit) {
+        setFit((prev) => prev || detectedFit);
       }
       if (typeof data.material === "string" && data.material) {
         setMaterial((prev) => prev || data.material);
