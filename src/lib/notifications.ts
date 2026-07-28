@@ -13,7 +13,9 @@ export type NotificationKind =
   | "follow"
   | "vote"
   | "trip_invite"
-  | "closet_invite";
+  | "closet_invite"
+  | "style_request"
+  | "style_accepted";
 
 export interface AppNotification {
   id: string;
@@ -24,6 +26,8 @@ export interface AppNotification {
   actorAvatar?: string;
   postId: string | null;
   tripId: string | null;
+  /** Which styling session this points at (AJA-240) — drives the deep link. */
+  stylingSessionId: string | null;
   preview?: string;
   read: boolean;
   createdAt: string;
@@ -38,6 +42,7 @@ interface NotificationRow {
   actor_avatar: string | null;
   post_id: string | null;
   trip_id: string | null;
+  styling_session_id: string | null;
   preview: string | null;
   read: boolean;
   created_at: string;
@@ -53,6 +58,7 @@ function toNotification(r: NotificationRow): AppNotification {
     actorAvatar: r.actor_avatar ?? undefined,
     postId: r.post_id,
     tripId: r.trip_id ?? null,
+    stylingSessionId: r.styling_session_id ?? null,
     preview: r.preview ?? undefined,
     read: r.read,
     createdAt: r.created_at,

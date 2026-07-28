@@ -87,6 +87,7 @@ export type View =
   | "chat"
   | "stylist"
   | "outfitDetail"
+  | "styleSession"
   | "photoDetail";
 
 /** An Explore tile the user tapped through to the photo-detail screen. */
@@ -176,6 +177,10 @@ interface WardrobeState {
    *  its "Shared" tab. WardrobeView consumes + clears it (survives a cold mount on
    *  web where the closet tab isn't kept alive). */
   pendingWardrobeTab: "shared" | null;
+  /** A styling session to surface/open (AJA-240). Not persisted — it's navigation. */
+  pendingStyleSessionId: string | null;
+  /** The session whose live board is on screen. */
+  styleSessionId: string | null;
   /** An image shared into the app (iOS Share Extension) as a data URL — opens the add
    *  form pre-loaded with the photo. ItemForm consumes it, then clears it. */
   pendingSharedImage: string | null;
@@ -262,6 +267,11 @@ interface WardrobeState {
   setPendingOpenItemId: (id: string | null) => void;
   dismissItemEditor: () => void;
   jumpToSharedCloset: () => void;
+  /** Land on Outfits with a styling session highlighted (from a notification). */
+  jumpToStyling: (sessionId?: string | null) => void;
+  setPendingStyleSessionId: (id: string | null) => void;
+  /** Open the live shared board for a session. */
+  openStyleSession: (sessionId: string) => void;
   setPendingWardrobeTab: (t: "shared" | null) => void;
   /** Queue / clear a shared image (data URL) for the add form (ItemForm). */
   setPendingSharedImage: (dataUrl: string | null) => void;
@@ -472,6 +482,8 @@ export const useWardrobe = create<WardrobeState>()(
       selectedOutfitId: null,
       editorCloseNonce: 0,
       pendingWardrobeTab: null,
+      pendingStyleSessionId: null,
+      styleSessionId: null,
       pendingSharedImage: null,
       importStatus: null,
       pendingImports: [],
@@ -757,6 +769,10 @@ export const useWardrobe = create<WardrobeState>()(
         set((s) => ({ editorCloseNonce: s.editorCloseNonce + 1 })),
       jumpToSharedCloset: () =>
         set({ pendingWardrobeTab: "shared", view: "wardrobe" }),
+      jumpToStyling: (sessionId) =>
+        set({ pendingStyleSessionId: sessionId ?? null, view: "outfits" }),
+      setPendingStyleSessionId: (pendingStyleSessionId) => set({ pendingStyleSessionId }),
+      openStyleSession: (styleSessionId) => set({ styleSessionId, view: "styleSession" }),
       setPendingWardrobeTab: (pendingWardrobeTab) => set({ pendingWardrobeTab }),
       setPendingSharedImage: (pendingSharedImage) => set({ pendingSharedImage }),
       openAddWithImage: (dataUrl) =>

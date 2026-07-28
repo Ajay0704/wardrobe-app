@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Star } from "lucide-react";
+import { Plus, Search, Star, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   inCollection,
@@ -12,6 +12,8 @@ import {
 import { useWardrobe } from "@/lib/store";
 import type { Outfit, WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
+import { AskToStyleSheet } from "./styling/AskToStyleSheet";
+import { StylingSessions } from "./styling/StylingSessions";
 
 /**
  * The looks library (AJA-239). Outfits is now purely a place to browse, find and reuse the
@@ -31,6 +33,10 @@ export function OutfitsView() {
 
   const [collection, setCollection] = useState<CollectionKey>("all");
   const [query, setQuery] = useState("");
+  const [askOpen, setAskOpen] = useState(false);
+  // Bumped after an ask is sent so the session list refetches without a round trip
+  // through realtime — the card has to appear the instant you send.
+  const [sessionsKey, setSessionsKey] = useState(0);
 
   const chips = useMemo(
     () => presentCollections(outfits, items),
@@ -53,6 +59,8 @@ export function OutfitsView() {
 
   return (
     <div className="pb-6">
+      <StylingSessions refreshKey={sessionsKey} />
+
       <button
         type="button"
         onClick={newLook}
@@ -60,6 +68,20 @@ export function OutfitsView() {
       >
         <Plus size={17} /> New look
       </button>
+
+      <button
+        type="button"
+        onClick={() => setAskOpen(true)}
+        className="mt-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-line bg-surface text-sm font-medium transition-transform active:scale-[0.98]"
+      >
+        <Wand2 size={16} /> Ask a friend to style me
+      </button>
+
+      <AskToStyleSheet
+        open={askOpen}
+        onClose={() => setAskOpen(false)}
+        onAsked={() => setSessionsKey((k) => k + 1)}
+      />
 
       {outfits.length === 0 ? (
         <div className="mt-6 rounded-2xl border border-line bg-surface p-6 text-center">

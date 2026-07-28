@@ -6,8 +6,10 @@ import {
   Heart,
   Luggage,
   MessageCircle,
+  Sparkles,
   UserPlus,
   Users,
+  Wand2,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -28,6 +30,8 @@ const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   vote: BarChart3,
   trip_invite: Luggage,
   closet_invite: Users,
+  style_request: Wand2,
+  style_accepted: Sparkles,
 };
 
 function actionText(n: AppNotification): string {
@@ -43,6 +47,9 @@ function actionText(n: AppNotification): string {
     return n.preview
       ? `invited you to the shared closet “${n.preview}”`
       : "invited you to a shared closet";
+  if (n.kind === "style_request")
+    return n.preview ? `needs help getting dressed: “${n.preview}”` : "needs help getting dressed";
+  if (n.kind === "style_accepted") return "is ready to style you";
   return "sent you a notification";
 }
 
@@ -70,6 +77,7 @@ function timeAgo(iso: string): string {
 export function NotificationsView() {
   const setView = useWardrobe((s) => s.setView);
   const jumpToSharedCloset = useWardrobe((s) => s.jumpToSharedCloset);
+  const jumpToStyling = useWardrobe((s) => s.jumpToStyling);
   const openUserProfile = useWardrobe((s) => s.openUserProfile);
   const profile = useWardrobe((s) => s.profile);
   const authUser = useWardrobe((s) => s.authUser);
@@ -129,6 +137,10 @@ export function NotificationsView() {
     if (n.kind === "follow" && n.actorId) return openUserProfile(n.actorId);
     if (n.kind === "trip_invite") return setView("travel");
     if (n.kind === "closet_invite") return jumpToSharedCloset();
+    // Unlike closet invites, styling notifications carry their session id, so this
+    // opens the specific ask rather than just the tab it lives on.
+    if (n.kind === "style_request" || n.kind === "style_accepted")
+      return jumpToStyling(n.stylingSessionId);
     return setView("explore");
   };
 
