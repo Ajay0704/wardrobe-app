@@ -67,7 +67,6 @@ export function StyleSessionView() {
   const [tick, setTick] = useState(0);
 
   const trashRef = useRef<HTMLDivElement>(null);
-  const areaRef = useRef<HTMLDivElement>(null);
   const heldRef = useRef<string | null>(null);
   const pendingRef = useRef(false);
   const sendGrabRef = useRef<((g: Grab) => void) | null>(null);
@@ -85,9 +84,16 @@ export function StyleSessionView() {
   /* ------------------------------------------------------------- board size */
   const [boxW, setBoxW] = useState(0);
   const [boxH, setBoxH] = useState(0);
-  useEffect(() => {
-    const el = areaRef.current;
+  // A CALLBACK ref, not useEffect + areaRef. The first render returns the `loading`
+  // branch, so a mount-effect with [] deps runs while the board element doesn't exist
+  // yet, finds a null ref, and never observes anything — leaving board.w at 0 and the
+  // board rendered with zero height. This runs the moment the node actually mounts.
+  const roRef = useRef<ResizeObserver | null>(null);
+  const attachArea = useCallback((el: HTMLDivElement | null) => {
+    roRef.current?.disconnect();
+    roRef.current = null;
     if (!el) return;
+    // observe() fires an initial callback, so the first size arrives without priming.
     const ro = new ResizeObserver((entries) => {
       const r = entries[0]?.contentRect;
       if (!r) return;
@@ -95,7 +101,7 @@ export function StyleSessionView() {
       setBoxH(r.height);
     });
     ro.observe(el);
-    return () => ro.disconnect();
+    roRef.current = ro;
   }, []);
 
   // The board shape comes from the SESSION, not local state, so both phones agree.
@@ -334,7 +340,7 @@ export function StyleSessionView() {
         </button>
       </div>
 
-      <div ref={areaRef} className="relative min-h-0 flex-1">
+      <div ref={attachArea} className="relative min-h-0 flex-1">
         <div
           className="relative mx-auto overflow-hidden rounded-2xl border border-line"
           style={{
@@ -347,6 +353,14 @@ export function StyleSessionView() {
             if (e.target === e.currentTarget) setSelectedId(null);
           }}
         >
+          {canvas.length === 0 && (
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 px-6 text-center">
+              <p className="text-sm font-medium">Nothing on the board yet</p>
+              <p className="text-xs text-muted">
+                Tap pieces below — you&apos;ll both see them appear.
+              </p>
+            </div>
+          )}
           {canvas.map((c) => {
             const it = c.itemId ? byRef.get(c.itemId) : undefined;
             const heldByThem = grab?.pieceId === c.id && grab.by !== myId;

@@ -1,11 +1,12 @@
 "use client";
 
 import { Check, Wand2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   endSession,
   listOpenSessions,
   respondToAsk,
+  subscribeMySessions,
   type StylingSession,
 } from "@/lib/styling";
 import { useWardrobe } from "@/lib/store";
@@ -29,6 +30,8 @@ export function StylingSessions({ refreshKey }: { refreshKey: number }) {
 
   const [sessions, setSessions] = useState<StylingSession[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
+  // Last status we saw per session, so we can spot the requested -> active moment.
+  const seen = useRef<Record<string, string>>({});
 
   // `reload` only bumps a counter the fetch effect depends on. Calling a function
   // that setStates *directly* from an effect body trips react-hooks/set-state-in-effect
@@ -45,7 +48,18 @@ export function StylingSessions({ refreshKey }: { refreshKey: number }) {
     (async () => {
       try {
         const rows = await listOpenSessions();
-        if (alive) setSessions(rows);
+        if (!alive) return;
+        // The friend accepted while we were waiting — asking for help and then being
+        // left on a "waiting" card is exactly the moment the session should start.
+        const justAccepted = rows.find(
+          (s) =>
+            s.ownerId === myId &&
+            s.status === "active" &&
+            seen.current[s.id] === "requested",
+        );
+        for (const s of rows) seen.current[s.id] = s.status;
+        setSessions(rows);
+        if (justAccepted) openStyleSession(justAccepted.id);
       } catch {
         /* offline — leave whatever we last had */
       }
@@ -53,7 +67,22 @@ export function StylingSessions({ refreshKey }: { refreshKey: number }) {
     return () => {
       alive = false;
     };
-  }, [view, myId, refreshKey, tick]);
+  }, [view, myId, refreshKey, tick, openStyleSession]);
+
+  // Live: the accept happens on the OTHER phone, so without this the person who asked
+  // never learns about it and sits on "waiting" until they navigate.
+  useEffect(() => {
+    if (!myId) return;
+    return subscribeMySessions(myId, reload);
+  }, [myId, reload]);
+
+  // Belt and braces. Realtime can drop on mobile networks or after a backgrounding,
+  // and being stuck on "waiting" forever is the worst failure mode this screen has.
+  useEffect(() => {
+    if (view !== "outfits" || !myId || sessions.length === 0) return;
+    const t = window.setInterval(reload, 8000);
+    return () => window.clearInterval(t);
+  }, [view, myId, sessions.length, reload]);
 
   // Arriving from a notification: clear the marker once the list has it, so the
   // highlight doesn't stick around for the rest of the session.

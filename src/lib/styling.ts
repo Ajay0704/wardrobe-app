@@ -508,6 +508,39 @@ export function canvasToPiece(
 
 /* ------------------------------------------------------------------- realtime */
 
+/**
+ * Every session I'm part of, live. Without this the person who asked sits on
+ * "waiting for them" forever, because their card only refetched on navigation and the
+ * accept happens on someone else's phone.
+ *
+ * Two filters rather than one: postgres_changes only supports a single `col=eq.value`
+ * per listener, and I could be either side of the session.
+ */
+export function subscribeMySessions(myId: string, onChange: () => void): () => void {
+  const sb = getSupabase();
+  if (!sb || !myId) return () => {};
+  sb.auth.getSession().then(({ data }) => {
+    const token = data.session?.access_token;
+    if (token) sb.realtime.setAuth(token);
+  });
+  const channel = sb
+    .channel(`styling-mine:${myId}`)
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "styling_sessions", filter: `owner_id=eq.${myId}` },
+      () => onChange(),
+    )
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "styling_sessions", filter: `stylist_id=eq.${myId}` },
+      () => onChange(),
+    )
+    .subscribe();
+  return () => {
+    sb.removeChannel(channel);
+  };
+}
+
 /** Who is holding which piece right now. Ephemeral — never stored. */
 export interface Grab {
   pieceId: string | null;
