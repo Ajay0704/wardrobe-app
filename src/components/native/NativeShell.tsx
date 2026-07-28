@@ -8,7 +8,6 @@ import {
   ChevronRight,
   Compass,
   Globe,
-  Heart,
   Image as ImageIcon,
   LayoutGrid,
   MessageCircle,
@@ -275,8 +274,9 @@ export function NativeShell() {
         <p className="px-1 pb-1 pt-4 text-xs font-medium uppercase tracking-wide text-muted">
           Closet
         </p>
-        <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} />
-        <SheetRow icon={Heart} label="Wishlist" onClick={() => runSheet(() => setView("wishlist"))} last />
+        {/* The wishlist used to have a row here too, which meant two ways in showing two
+            different screens. It's the Closet's "Wishlist" tab now — one surface. */}
+        <SheetRow icon={LayoutGrid} label="Go to closet" onClick={() => runSheet(() => setView("wardrobe"))} last />
 
         {sheetNote && (
           <p className="mt-3 rounded-full bg-surface-2 px-4 py-2 text-center text-sm text-muted">
