@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ExternalLink, Heart, Plus, Scale, Sparkles, Trash2 } from "lucide-react";
+import { Check, ExternalLink, Heart, Plus, Scale, Sparkles, Trash2, Wand2 } from "lucide-react";
 import { useState } from "react";
 import { useWardrobe } from "@/lib/store";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
@@ -37,7 +37,8 @@ export function ItemCard({
    *  grid never grows a wishlist-shaped button. */
   onDecide?: (item: WardrobeItem) => void;
 }) {
-  const { deleteItem, updateItem, addToDraft, setView, logWear } = useWardrobe();
+  const { deleteItem, updateItem, addToDraft, setView, logWear, styleAroundItem } =
+    useWardrobe();
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
   const [imgError, setImgError] = useState(false);
@@ -220,16 +221,28 @@ export function ItemCard({
           </p>
         )}
         {onDecide && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onDecide(item);
-            }}
-            className="mt-1.5 flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2 text-xs font-semibold transition-transform active:scale-[0.97]"
-          >
-            <Scale size={13} /> Should I?
-          </button>
+          <div className="mt-1.5 flex gap-1.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDecide(item);
+              }}
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface-2 text-xs font-semibold transition-transform active:scale-[0.97]"
+            >
+              <Scale size={13} /> Should I?
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                styleAroundItem(item.id);
+              }}
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-xl bg-accent-soft text-xs font-semibold text-accent transition-transform active:scale-[0.97]"
+            >
+              <Wand2 size={13} /> Style it
+            </button>
+          </div>
         )}
         {/* Shop link only on website cards — native opens it from the editor
             to avoid accidental Safari / layout jumps from the grid. */}

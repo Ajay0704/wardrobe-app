@@ -6,6 +6,7 @@ import {
   inCollection,
   matchesQuery,
   presentCollections,
+  wishPieceCount,
   wearSummary,
   type CollectionKey,
 } from "@/lib/outfit-collections";
@@ -171,6 +172,7 @@ function LookCard({
   onOpen: () => void;
   onFavorite: () => void;
 }) {
+  const wish = wishPieceCount(outfit, items);
   const never = !outfit.wearCount;
   return (
     <article className="animate-fade-up overflow-hidden rounded-2xl border border-line bg-surface">
@@ -180,11 +182,18 @@ function LookCard({
         aria-label={`Open ${outfit.name}`}
         className="block w-full text-left transition-transform active:scale-[0.98]"
       >
-        <OutfitBoardThumb
-          outfit={outfit}
-          items={items}
-          className="aspect-[4/5] w-full bg-surface-2/50"
-        />
+        <div className="relative">
+          <OutfitBoardThumb
+            outfit={outfit}
+            items={items}
+            className="aspect-[4/5] w-full bg-surface-2/50"
+          />
+          {wish > 0 && (
+            <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
+              {wish === 1 ? "1 to buy" : `${wish} to buy`}
+            </span>
+          )}
+        </div>
       </button>
       <div className="flex items-start gap-1.5 px-2.5 pb-2.5 pt-2">
         <button
@@ -195,9 +204,9 @@ function LookCard({
         >
           <h3 className="truncate text-sm font-medium">{outfit.name}</h3>
           <p
-            className={`mt-0.5 truncate text-xs ${never ? "text-amber-700/80" : "text-muted"}`}
+            className={`mt-0.5 truncate text-xs ${never || wish ? "text-amber-700/80" : "text-muted"}`}
           >
-            {wearSummary(outfit)}
+            {wearSummary(outfit, items)}
           </p>
         </button>
         <button

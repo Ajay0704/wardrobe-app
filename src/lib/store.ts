@@ -168,6 +168,8 @@ interface WardrobeState {
   /** Item id to open in the closet editor — set by the `://item?id=` deep link
    *  from a shared link's "Open in Wardrobe". WardrobeView consumes + clears it. */
   pendingOpenItemId: string | null;
+  /** Wish piece queued by "Style it" — consumed once by the canvas builder (AJA-245). */
+  pendingStyleItemId: string | null;
   /** Which look the outfit detail screen is showing (AJA-239). Transient. */
   selectedOutfitId: string | null;
   /** Bumped by the native dock on any tab tap so an open (portaled) item editor
@@ -301,6 +303,10 @@ interface WardrobeState {
   clearDraft: () => void;
   setDraft: (draft: Record<SlotKey, string[]>) => void;
   setCanvasDraft: (items: CanvasItem[]) => void;
+  /** Open the canvas and build a look around this piece (AJA-245). Only the id is
+   *  queued: the layout needs the measured board, which only the builder knows. */
+  styleAroundItem: (itemId: string) => void;
+  clearPendingStyleItem: () => void;
   addCanvasItem: (itemId: string) => void;
   addCanvasText: (text: string, color: string) => void;
   addCanvasSticker: (emoji: string) => void;
@@ -405,6 +411,13 @@ function normalizeCanvasItem(raw: Partial<CanvasItem> | null | undefined): Canva
   };
 }
 
+/** `wishItemIds` as stored: strings only, and absent rather than empty. */
+function normalizeWishIds(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const ids = raw.filter((x): x is string => typeof x === "string" && !!x);
+  return ids.length ? ids : undefined;
+}
+
 function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
   const o = (raw ?? {}) as Partial<Outfit>;
   return {
@@ -418,6 +431,9 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
     canvasBg: typeof o.canvasBg === "string" ? o.canvasBg : undefined,
     // AJA-239 — whitelist or it's stripped on every reload/pull (cf. AJA-223).
     favorite: o.favorite === true ? true : undefined,
+    // AJA-245 — same. Empty collapses to undefined, so a look whose pieces have all been
+    // bought is indistinguishable from one that never had wish pieces.
+    wishItemIds: normalizeWishIds(o.wishItemIds),
     wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
     lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
@@ -488,6 +504,7 @@ export const useWardrobe = create<WardrobeState>()(
       closetsOpen: false,
       pendingClipUrl: null,
       pendingOpenItemId: null,
+      pendingStyleItemId: null,
       selectedOutfitId: null,
       editorCloseNonce: 0,
       pendingWardrobeTab: null,
@@ -516,9 +533,23 @@ export const useWardrobe = create<WardrobeState>()(
         }),
 
       updateItem: (id, patch) =>
-        set((s) => ({
-          items: s.items.map((it) => (it.id === id ? { ...it, ...patch } : it)),
-        })),
+        set((s) => {
+          const items = s.items.map((it) => (it.id === id ? { ...it, ...patch } : it));
+          // A piece becoming owned ("I bought it", or the wishlist toggle in the editor)
+          // heals every look that was waiting on it — once the last one clears, the look
+          // stops being badged and rejoins the ordinary wear stats (AJA-245).
+          if (patch.wishlist === false) {
+            return {
+              items,
+              outfits: s.outfits.map((o) =>
+                o.wishItemIds?.includes(id)
+                  ? { ...o, wishItemIds: normalizeWishIds(o.wishItemIds.filter((w) => w !== id)) }
+                  : o,
+              ),
+            };
+          }
+          return { items };
+        }),
 
       deleteItem: (id) =>
         set((s) => ({
@@ -526,6 +557,7 @@ export const useWardrobe = create<WardrobeState>()(
           outfits: s.outfits.map((o) => ({
             ...o,
             itemIds: o.itemIds.filter((iid) => iid !== id),
+            wishItemIds: normalizeWishIds(o.wishItemIds?.filter((iid) => iid !== id)),
           })),
           calendar: s.calendar.map((e) => ({
             ...e,
@@ -582,6 +614,11 @@ export const useWardrobe = create<WardrobeState>()(
               itemIds,
               layout: layout && layout.length ? layout : undefined,
               canvasBg: canvasBg ?? undefined,
+              // Derived here rather than passed in (AJA-245), so no caller can save a
+              // look with unowned pieces and forget to mark it.
+              wishItemIds: normalizeWishIds(
+                itemIds.filter((id) => s.items.find((it) => it.id === id)?.wishlist),
+              ),
               createdAt: Date.now(),
             },
             ...s.outfits,
@@ -634,6 +671,11 @@ export const useWardrobe = create<WardrobeState>()(
         recordWearLogged();
         set((s) => {
           const ids = [...new Set(itemIds)];
+          // A piece you don't own can't have been worn. Without this, styling a wish
+          // piece and logging the look would inflate its wearCount, and that number
+          // feeds projectedAnnualWears and the closet's cost-per-wear average — the
+          // two things the "Should I?" sheet quotes back at you (AJA-245).
+          const wornIds = ids.filter((id) => !s.items.find((it) => it.id === id)?.wishlist);
           const entry: CalendarEntry = {
             id: uid(),
             date: day,
@@ -646,7 +688,7 @@ export const useWardrobe = create<WardrobeState>()(
           return {
             calendar: [entry, ...s.calendar],
             items: s.items.map((it) =>
-              ids.includes(it.id)
+              wornIds.includes(it.id)
                 ? {
                     ...it,
                     wearCount: (it.wearCount ?? 0) + 1,
@@ -829,6 +871,9 @@ export const useWardrobe = create<WardrobeState>()(
         set({ draft: emptyDraft(), canvasDraft: [], canvasBg: null }),
       setDraft: (draft) => set({ draft }),
       setCanvasDraft: (items) => set({ canvasDraft: items }),
+      styleAroundItem: (itemId) =>
+        set({ pendingStyleItemId: itemId, canvasDraft: [], view: "builder" }),
+      clearPendingStyleItem: () => set({ pendingStyleItemId: null }),
       addCanvasItem: (itemId) => set((s) => ({
         canvasDraft: [
           ...s.canvasDraft,

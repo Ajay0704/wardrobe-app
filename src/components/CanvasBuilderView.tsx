@@ -53,6 +53,11 @@ const BOARD_RESERVE = PEEK + 96;
 
 const TEXT_COLORS = ["#1c1917", "#ffffff", "#b05e3c", "#3b82f6", "#22c55e", "#eab308", "#ef4444", "#ec4899"];
 
+/** Amber silhouette for a piece you don't own yet (AJA-245) — four zero-blur shadows
+ *  offset on each axis, which outlines the cutout's alpha rather than its bounding box. */
+const WISH_OUTLINE =
+  "drop-shadow(2px 0 0 #f59e0b) drop-shadow(-2px 0 0 #f59e0b) drop-shadow(0 2px 0 #f59e0b) drop-shadow(0 -2px 0 #f59e0b)";
+
 const BG_SOLIDS = ["#ffffff", "#faf9f7", "#f3f1ed", "#ece4d4", "#f6e9e2", "#e6ece2", "#e4eef3", "#1c1917"];
 const BG_GRADIENTS = [
   "linear-gradient(180deg,#faf9f7,#e7e4de)",
@@ -254,29 +259,31 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     expand();
   };
 
+  // Wishlist pieces are addable (AJA-245) — seeing a thing you don't own next to the
+  // things you do is the whole question. In a shared session `collab.items` is already
+  // owned-only, so a friend's board never gains your wishes.
+  const addable = useMemo(
+    () => trayItems.filter((it) => it.imageUrl),
+    [trayItems],
+  );
+
   const pieces = useMemo(() => {
     const t = TABS.find((x) => x.key === tab)!;
-    return trayItems.filter(
-      (it) =>
-        !it.wishlist &&
-        it.imageUrl &&
-        (t.cat === null || it.category === t.cat) &&
-        matchesSubcategory(it, subCat),
+    return addable.filter(
+      (it) => (t.cat === null || it.category === t.cat) && matchesSubcategory(it, subCat),
     );
-  }, [trayItems, tab, subCat]);
+  }, [addable, tab, subCat]);
 
   // Sub-category chips present in the active category's addable pieces (+ Others).
   const subChips = useMemo(() => {
     const t = TABS.find((x) => x.key === tab);
-    return t?.cat
-      ? presentSubcategories(t.cat, trayItems.filter((it) => !it.wishlist && it.imageUrl))
-      : [];
-  }, [trayItems, tab]);
+    return t?.cat ? presentSubcategories(t.cat, addable) : [];
+  }, [addable, tab]);
 
-  const ownedCount = useMemo(
-    () => trayItems.filter((it) => !it.wishlist && it.imageUrl).length,
-    [trayItems],
-  );
+  // Counted separately: "Your closet · N" has to stay true, so the wishes are named
+  // as what they are rather than folded into the closet total.
+  const ownedCount = useMemo(() => addable.filter((it) => !it.wishlist).length, [addable]);
+  const wishCount = useMemo(() => addable.filter((it) => it.wishlist).length, [addable]);
 
   const bringToFront = (id: string) => {
     const top = nodes.reduce((m, c) => Math.max(m, c.zIndex), 0);
@@ -321,16 +328,18 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
 
   // Surprise me — ask the matching engine for a look, then lay it out head-to-toe
   // (top over bottom over shoes), centered and sized by slot, as a fresh board.
-  const surpriseLook = () => {
+  // `anchor` is the "Style it" case (AJA-245): a wish piece pinned into the look while
+  // everything supporting it stays owned. `filterPool` strips wishlist items from the
+  // candidate pool and `opts.anchor` is placed directly, so this needs nothing from
+  // matching.ts — and Surprise me with no anchor is unchanged, owned-only.
+  const buildLook = (anchor?: WardrobeItem): boolean => {
     const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
-    const ids = bestLook(owned)?.itemIds ?? [];
+    const ids = bestLook(owned, anchor ? { anchor } : {})?.itemIds ?? [];
+    const pool = anchor ? [anchor, ...owned] : owned;
     const picks = ids
-      .map((id) => owned.find((it) => it.id === id))
+      .map((id) => pool.find((it) => it.id === id))
       .filter((it): it is WardrobeItem => !!it);
-    if (picks.length === 0) {
-      flash("Add clothes to your closet first");
-      return;
-    }
+    if (picks.length === 0) return false;
     // Styled collage (AJA-232): top + bottom on the LEFT as the HERO (biggest), outerwear +
     // accessories on the RIGHT (smaller supports), shoes bottom-right. Bucketed by slot, placed in
     // board pixels + clamped. Hero is capped by height too so two stack cleanly on 3:4 AND 1:1.
@@ -381,9 +390,28 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     (bySlot.accessories ?? []).slice(0, 1).forEach((it) => putR(it, ry, ACC));
     if (bySlot.shoes?.length) putR(bySlot.shoes[0], bh * 0.7, SHOE);
     replaceNodes(next);
-    setSelectedId(null);
-    flash("Here's a look — tweak it");
+    return true;
   };
+
+  const surpriseLook = () => {
+    setSelectedId(null);
+    flash(buildLook() ? "Here's a look — tweak it" : "Add clothes to your closet first");
+  };
+
+  // "Style it" from a wishlist card (AJA-245). The queue carries only the id, because
+  // laying the look out needs the measured board — so wait for the first measurement,
+  // then consume it once. Never in a shared session: that board isn't yours.
+  const pendingStyleItemId = useWardrobe((s) => s.pendingStyleItemId);
+  const clearPendingStyleItem = useWardrobe((s) => s.clearPendingStyleItem);
+  useEffect(() => {
+    if (collab || !pendingStyleItemId || !board.w) return;
+    const anchor = trayItems.find((it) => it.id === pendingStyleItemId);
+    clearPendingStyleItem();
+    if (anchor) buildLook(anchor);
+    // buildLook is re-created every render; re-runs are harmless because the queue is
+    // cleared above, and the guard makes every later pass a no-op.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [collab, pendingStyleItemId, board.w, trayItems, clearPendingStyleItem]);
   const addText = () => {
     const t = textInput.trim();
     if (!t) return;
@@ -609,6 +637,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
 
           {nodes.map((c) => {
             let content: React.ReactNode;
+            let wish = false;
             if (c.kind === "text") {
               content = (
                 <div
@@ -641,6 +670,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
             } else {
               const item = trayItems.find((i) => i.id === c.itemId);
               if (!item) return null;
+              wish = item.wishlist;
               content = (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -648,7 +678,13 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   alt={item.name}
                   draggable={false}
                   className="pointer-events-none h-full w-full object-contain"
-                  style={{ transform: c.flipped ? "scaleX(-1)" : "scaleX(1)" }}
+                  style={{
+                    transform: c.flipped ? "scaleX(-1)" : "scaleX(1)",
+                    // Four zero-blur shadows trace the cutout's own alpha edge, so the
+                    // marker follows the garment's silhouette. A dashed box around a
+                    // narrow coat reads as a loose empty rectangle (AJA-245).
+                    filter: wish ? WISH_OUTLINE : undefined,
+                  }}
                 />
               );
             }
@@ -670,6 +706,11 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
               >
                 <div className="relative h-full w-full">
                   {content}
+                  {wish && (
+                    <span className="pointer-events-none absolute left-0 top-0 rounded-full bg-amber-500 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                      Wish
+                    </span>
+                  )}
                   {held && (
                     // Two broadcast events per gesture is what makes commit-level sync
                     // read as live instead of pieces teleporting with no explanation.
@@ -778,6 +819,9 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
               <div className="flex items-center justify-between px-4 pb-3">
                 <p className="text-[13px] text-muted">
                   Your closet · {ownedCount} {ownedCount === 1 ? "piece" : "pieces"}
+                  {wishCount > 0 && (
+                    <span className="text-amber-700/80"> · {wishCount} to buy</span>
+                  )}
                 </p>
                 <button
                   type="button"
@@ -831,8 +875,13 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                         style={{ animationDelay: `${Math.min(i, 12) * 25}ms` }}
                         className="animate-fade-up bg-surface px-2.5 pb-3 pt-2.5 text-left transition-transform active:scale-[0.97]"
                       >
-                        <div className="flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-surface-2">
+                        <div className="relative flex aspect-square items-center justify-center overflow-hidden rounded-lg bg-surface-2">
                           <PieceThumb item={item} />
+                          {item.wishlist && (
+                            <span className="absolute left-1 top-1 rounded-full bg-amber-500/90 px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-white">
+                              Wish
+                            </span>
+                          )}
                         </div>
                         <p className="mt-2 truncate text-[11px] font-medium text-foreground">
                           {item.name || item.brand || "Untitled"}

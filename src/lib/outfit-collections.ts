@@ -48,6 +48,20 @@ function daysSince(iso: string | undefined): number | null {
   return Math.floor((Date.now() - t) / 86_400_000);
 }
 
+/**
+ * How many pieces of this look you don't own yet (AJA-245).
+ *
+ * Verified against the live items rather than trusting `wishItemIds`, so a stale id —
+ * a piece bought on another device before the outfits synced, or deleted outright —
+ * can't leave a look badged forever.
+ */
+export function wishPieceCount(outfit: Outfit, items: WardrobeItem[]): number {
+  if (!outfit.wishItemIds?.length) return 0;
+  return outfit.wishItemIds.filter(
+    (id) => items.find((it) => it.id === id)?.wishlist === true,
+  ).length;
+}
+
 /** Does any member item match the predicate? */
 function anyItem(
   outfit: Outfit,
@@ -80,7 +94,8 @@ export function inCollection(
     case "cold":
       return anyItem(outfit, items, (it) => it.seasons?.includes("winter"));
     case "never":
-      return !outfit.wearCount;
+      // A look you can't wear yet isn't a neglected one (AJA-245).
+      return !outfit.wearCount && wishPieceCount(outfit, items) === 0;
     case "recent": {
       const d = daysSince(outfit.lastWornAt);
       return d !== null && d <= RECENT_DAYS;
@@ -122,8 +137,15 @@ export function matchesQuery(
 }
 
 /** "Worn 4× · in April" / "Never worn" — the library's honest replacement for the fake score. */
-export function wearSummary(outfit: Outfit): string {
+export function wearSummary(outfit: Outfit, items: WardrobeItem[]): string {
   const n = outfit.wearCount ?? 0;
+  const wish = wishPieceCount(outfit, items);
+  // Saying "never worn" about a look you don't own yet reads as a reproach for
+  // something you couldn't have done (AJA-245). Kept short because the library card is
+  // half-width — "1 piece you don't own yet" truncated to "1 piece you don't o…".
+  if (!n && wish > 0) {
+    return wish === 1 ? "1 piece to buy" : `${wish} pieces to buy`;
+  }
   if (!n) return "Never worn";
   const d = daysSince(outfit.lastWornAt);
   let when = "";

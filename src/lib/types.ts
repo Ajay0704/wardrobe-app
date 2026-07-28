@@ -312,6 +312,10 @@ export interface Outfit {
   /** Starred in the looks library (AJA-239). Collections are derived, this is the one
    *  manual signal — must stay whitelisted in `normalizeOutfit` or it's stripped on reload. */
   favorite?: boolean;
+  /** Subset of `itemIds` that were still on the wishlist when the look was saved
+   *  (AJA-245). Derived in `saveOutfit`, pruned as pieces become owned, so a look you
+   *  can't wear yet is never counted as one you neglect. Whitelist in `normalizeOutfit`. */
+  wishItemIds?: string[];
   wearCount?: number;
   lastWornAt?: string;
   createdAt: number;

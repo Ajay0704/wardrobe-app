@@ -112,7 +112,7 @@ export function OutfitDetailView() {
         placeholder="Name this look"
       />
       <p className="mt-0.5 text-sm text-muted">
-        {pieces.length} piece{pieces.length === 1 ? "" : "s"} · {wearSummary(outfit)}
+        {pieces.length} piece{pieces.length === 1 ? "" : "s"} · {wearSummary(outfit, items)}
       </p>
 
       {toast && (
