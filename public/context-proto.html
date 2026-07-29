@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>AJA-258 · Style context — 3 prototypes</title>
+<!--
+  AJA-258 prototype. NO app code is touched by this file.
+
+  Three ways to let you set the season / occasion / temp / coat that Surprise me
+  uses, instead of only the auto-detected weather. All three write to the SAME
+  shared state at the bottom and print the exact options object that would reach
+  suggestLooks(), so you can compare how each one feels rather than how it looks.
+
+  Scope chosen: a saved override in Settings. Nothing is added to the canvas.
+-->
+<style>
+  :root {
+    --bg: #faf9f7; --surface: #ffffff; --surface2: #f3f1ed; --line: #e7e4de;
+    --fg: #1c1917; --muted: #78716c; --accent: #4f6b47; --accent-soft: #e8efe4;
+    --amber: #b45309;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 15px/1.45 ui-sans-serif, -apple-system, "SF Pro Text", system-ui, sans-serif;
+    padding: 0 0 64px;
+  }
+  header { padding: 18px 16px 8px; }
+  h1 { font-size: 19px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin: 0; }
+  .tabs { display: flex; gap: 6px; padding: 12px 16px 0; }
+  .tabs button {
+    flex: 1; border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+    border-radius: 999px; padding: 8px 4px; font: inherit; font-size: 13px; font-weight: 600;
+  }
+  .tabs button[aria-selected="true"] { background: var(--fg); color: #fff; border-color: var(--fg); }
+  .pane { display: none; padding: 14px 16px 0; }
+  .pane.on { display: block; }
+
+  /* a Settings-looking row group, matching the app's Group/Row */
+  .group { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .row {
+    display: flex; align-items: center; gap: 12px; width: 100%;
+    padding: 12px 14px; background: none; border: 0; font: inherit; color: inherit; text-align: left;
+  }
+  .row + .row { border-top: 1px solid var(--line); }
+  .ico {
+    width: 32px; height: 32px; flex: none; border-radius: 10px; display: grid; place-items: center;
+    background: var(--accent-soft); color: var(--accent); font-size: 15px;
+  }
+  .row .lbl { flex: 1; min-width: 0; }
+  .row .val { color: var(--muted); font-size: 14px; flex: none; }
+  /* A long summary ("winter · everyday · 1° · coat") wrapped the LABEL onto two
+     lines and collided with it — the same bug the Settings "Engine feedback" row
+     had. Smaller, right-aligned, allowed to take two lines of its own. */
+  .row .val.sum { font-size: 11.5px; line-height: 1.35; text-align: right; max-width: 46%; white-space: normal; }
+  .chev { color: #b8b2aa; flex: none; }
+  .glabel { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin: 18px 2px 7px; }
+
+  /* chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    border: 1px solid var(--line); background: var(--surface); color: var(--muted);
+    border-radius: 999px; padding: 7px 13px; font: inherit; font-size: 13px; font-weight: 600;
+  }
+  .chip[aria-pressed="true"] { background: var(--fg); color: #fff; border-color: var(--fg); }
+  .field { padding: 13px 14px; }
+  .field + .field { border-top: 1px solid var(--line); }
+  .field h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .tempRow { display: flex; align-items: center; gap: 12px; }
+  .tempRow b { min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* toggle */
+  .sw { width: 46px; height: 28px; border-radius: 999px; background: var(--line); border: 0; position: relative; flex: none; transition: background .18s; }
+  .sw[aria-checked="true"] { background: var(--accent); }
+  .sw i { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform .18s cubic-bezier(.22,1,.36,1); }
+  .sw[aria-checked="true"] i { transform: translateX(18px); }
+
+  /* B: expanding disclosure */
+  .disc { max-height: 0; overflow: hidden; transition: max-height .26s cubic-bezier(.22,1,.36,1); }
+  .disc.open { max-height: 460px; }
+
+  /* C: presets */
+  .presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .preset {
+    border: 1px solid var(--line); background: var(--surface); border-radius: 14px;
+    padding: 12px; text-align: left; font: inherit; color: inherit;
+  }
+  .preset[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .preset b { display: block; font-size: 14px; }
+  .preset span { display: block; color: var(--muted); font-size: 11.5px; margin-top: 2px; }
+
+  .note { font-size: 12px; color: var(--muted); padding: 10px 2px 0; }
+  .warn { color: var(--amber); }
+
+  /* live result */
+  .out {
+    position: fixed; left: 0; right: 0; bottom: 0; background: var(--fg); color: #e8e6e1;
+    font: 11.5px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+    padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); white-space: pre-wrap;
+    border-top: 1px solid #000; max-height: 34vh; overflow: auto;
+  }
+  .out .k { color: #9ec89a; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Style context — 3 prototypes</h1>
+  <p class="sub">Same job, three shapes. The black strip at the bottom shows the exact
+  options object that would reach <code>suggestLooks()</code>. Nothing here touches app code.</p>
+</header>
+
+<div class="tabs" role="tablist">
+  <button role="tab" id="tA" aria-selected="true"  onclick="show('A')">A · Literal</button>
+  <button role="tab" id="tB" aria-selected="false" onclick="show('B')">B · Progressive</button>
+  <button role="tab" id="tC" aria-selected="false" onclick="show('C')">C · Presets</button>
+</div>
+
+<!-- ─────────────────────────── A — literal ─────────────────────────── -->
+<section class="pane on" id="pA">
+  <p class="note">Your screenshot, as a Settings sub-page. Every control visible at once.
+  <b>Cost:</b> four decisions before you get a look, and it's a page you must remember to go turn off.</p>
+
+  <div class="glabel">Surprise me context</div>
+  <div class="group">
+    <div class="field">
+      <h4>Season</h4>
+      <div class="chips" id="A-season"></div>
+    </div>
+    <div class="field">
+      <h4>Occasion</h4>
+      <div class="chips" id="A-occ"></div>
+    </div>
+    <div class="field">
+      <h4>Temperature</h4>
+      <div class="tempRow">
+        <input type="range" min="-10" max="40" value="27" id="A-temp" oninput="setTemp(+this.value)" />
+        <b id="A-tempV">27°C</b>
+      </div>
+    </div>
+    <div class="row">
+      <span class="ico">🧥</span>
+      <span class="lbl">Needs a coat</span>
+      <button class="sw" id="A-coat" role="switch" aria-checked="false" onclick="setCoat(!S.coat)"><i></i></button>
+    </div>
+  </div>
+  <p class="note warn" id="A-warn"></p>
+</section>
+
+<!-- ───────────────────── B — progressive disclosure ───────────────────── -->
+<section class="pane" id="pB">
+  <p class="note">One row that says what it's doing. Tap to open. <b>Auto</b> is the default,
+  so behaviour is identical to today unless you deliberately opt in — which is the
+  literal reading of "doesn't affect the current layout".</p>
+
+  <div class="glabel">Closet</div>
+  <div class="group">
+    <div class="row"><span class="ico">✨</span><span class="lbl">Standardize my closet</span><span class="chev">›</span></div>
+    <div class="row"><span class="ico">🪄</span><span class="lbl">Fill in missing details</span><span class="val">154 items</span><span class="chev">›</span></div>
+    <button class="row" onclick="toggleDisc()">
+      <span class="ico">🌤️</span>
+      <span class="lbl">Style context</span>
+      <span class="val sum" id="B-summary">Auto</span>
+      <span class="chev" id="B-chev">›</span>
+    </button>
+    <div class="disc" id="B-disc">
+      <div class="field" style="border-top:1px solid var(--line)">
+        <h4>Use</h4>
+        <div class="chips">
+          <button class="chip" id="B-auto" aria-pressed="true" onclick="setAuto(true)">Auto (weather)</button>
+          <button class="chip" id="B-man" aria-pressed="false" onclick="setAuto(false)">Set it myself</button>
+        </div>
+      </div>
+      <div id="B-manual" style="display:none">
+        <div class="field"><h4>Season</h4><div class="chips" id="B-season"></div></div>
+        <div class="field"><h4>Occasion</h4><div class="chips" id="B-occ"></div></div>
+        <div class="field">
+          <h4>Temperature</h4>
+          <div class="tempRow">
+            <input type="range" min="-10" max="40" value="27" id="B-temp" oninput="setTemp(+this.value)" />
+            <b id="B-tempV">27°C</b>
+          </div>
+        </div>
+        <div class="row" style="border-top:1px solid var(--line)">
+          <span class="ico">🧥</span><span class="lbl">Needs a coat</span>
+          <button class="sw" id="B-coat" role="switch" aria-checked="false" onclick="setCoat(!S.coat)"><i></i></button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="note">The row's value doubles as the status line, so you can always see whether
+  an override is live without opening anything.</p>
+</section>
+
+<!-- ─────────────────────────── C — presets ─────────────────────────── -->
+<section class="pane" id="pC">
+  <p class="note">One tap sets all four at once. <b>Cost:</b> you can't express
+  "summer but going out at 12°C" — the presets are opinions, not controls.
+  <b>Gain:</b> it's the only one you'd actually use in a hurry.</p>
+
+  <div class="glabel">Surprise me context</div>
+  <div style="padding:0 0 10px">
+    <div class="presets" id="C-presets"></div>
+  </div>
+  <div class="group">
+    <button class="row" onclick="setAuto(true)">
+      <span class="ico">🌤️</span>
+      <span class="lbl">Back to Auto</span>
+      <span class="val" id="C-auto">using weather</span>
+    </button>
+  </div>
+  <p class="note" id="C-detail"></p>
+</section>
+
+<div class="out" id="out"></div>
+
+<script>
+/* ── shared state: all three prototypes drive THIS, so they are comparable ── */
+const SEASONS = ["spring", "summer", "fall", "winter"];
+const OCCASIONS = ["everyday", "work", "going out"];
+const PRESETS = [
+  { key: "hot",    name: "Hot day",    hint: "summer · everyday · 31°",  season: "summer", occasion: "everyday",  temp: 31, coat: false },
+  { key: "office", name: "Office",     hint: "work · 21°",               season: "spring", occasion: "work",      temp: 21, coat: false },
+  { key: "night",  name: "Night out",  hint: "going out · 17°",          season: "fall",   occasion: "going out", temp: 17, coat: false },
+  { key: "cold",   name: "Cold snap",  hint: "winter · coat · 1°",       season: "winter", occasion: "everyday",  temp: 1,  coat: true  },
+];
+
+const S = { auto: true, season: "summer", occasion: "everyday", temp: 27, coat: false, preset: null };
+
+function show(which) {
+  for (const k of ["A", "B", "C"]) {
+    document.getElementById("p" + k).classList.toggle("on", k === which);
+    document.getElementById("t" + k).setAttribute("aria-selected", String(k === which));
+  }
+}
+
+/* ── mutations ── */
+function setSeason(v) { S.season = v; S.auto = false; S.preset = null; render(); }
+function setOcc(v)    { S.occasion = v; S.auto = false; S.preset = null; render(); }
+function setTemp(v)   { S.temp = v; S.auto = false; S.preset = null; render(); }
+function setCoat(v)   { S.coat = v; S.auto = false; S.preset = null; render(); }
+function setAuto(v)   { S.auto = v; if (v) S.preset = null; render(); }
+function applyPreset(k) {
+  const p = PRESETS.find((x) => x.key === k);
+  Object.assign(S, { season: p.season, occasion: p.occasion, temp: p.temp, coat: p.coat, auto: false, preset: k });
+  render();
+}
+function toggleDisc() {
+  const d = document.getElementById("B-disc");
+  d.classList.toggle("open");
+  document.getElementById("B-chev").textContent = d.classList.contains("open") ? "⌄" : "›";
+}
+
+/* ── chip builders (both A and B reuse these) ── */
+function chipRow(host, values, current, onPick) {
+  host.innerHTML = "";
+  for (const v of values) {
+    const b = document.createElement("button");
+    b.className = "chip";
+    b.textContent = v;
+    b.setAttribute("aria-pressed", String(v === current));
+    b.onclick = () => onPick(v);
+    host.appendChild(b);
+  }
+}
+
+/* What the app would actually receive. This is the point of the prototype:
+   whichever shape wins, THIS object is the contract. */
+function resolved() {
+  // Auto = today's behaviour: readCachedWeather() + profile.styleOccasions[0].
+  const AUTO = { season: "summer", tempC: 27, needsOuterwear: false, occasion: "everyday", source: "auto (readCachedWeather)" };
+  if (S.auto) return AUTO;
+  return {
+    season: S.season,
+    tempC: S.temp,
+    needsOuterwear: S.coat,
+    occasion: S.occasion,
+    source: S.preset ? `override (preset: ${S.preset})` : "override (manual)",
+  };
+}
+
+function render() {
+  // A
+  chipRow(document.getElementById("A-season"), SEASONS, S.auto ? null : S.season, setSeason);
+  chipRow(document.getElementById("A-occ"), OCCASIONS, S.auto ? null : S.occasion, setOcc);
+  document.getElementById("A-temp").value = S.temp;
+  document.getElementById("A-tempV").textContent = S.temp + "°C";
+  document.getElementById("A-coat").setAttribute("aria-checked", String(S.coat));
+  document.getElementById("A-warn").textContent = S.auto
+    ? ""
+    : "Override is live — auto weather is ignored until you clear this.";
+
+  // B
+  chipRow(document.getElementById("B-season"), SEASONS, S.season, setSeason);
+  chipRow(document.getElementById("B-occ"), OCCASIONS, S.occasion, setOcc);
+  document.getElementById("B-temp").value = S.temp;
+  document.getElementById("B-tempV").textContent = S.temp + "°C";
+  document.getElementById("B-coat").setAttribute("aria-checked", String(S.coat));
+  document.getElementById("B-auto").setAttribute("aria-pressed", String(S.auto));
+  document.getElementById("B-man").setAttribute("aria-pressed", String(!S.auto));
+  document.getElementById("B-manual").style.display = S.auto ? "none" : "block";
+  document.getElementById("B-summary").textContent = S.auto
+    ? "Auto"
+    : `${S.season} · ${S.occasion} · ${S.temp}°${S.coat ? " · coat" : ""}`;
+
+  // C
+  const host = document.getElementById("C-presets");
+  host.innerHTML = "";
+  for (const p of PRESETS) {
+    const b = document.createElement("button");
+    b.className = "preset";
+    b.setAttribute("aria-pressed", String(S.preset === p.key));
+    b.innerHTML = `<b>${p.name}</b><span>${p.hint}</span>`;
+    b.onclick = () => applyPreset(p.key);
+    host.appendChild(b);
+  }
+  document.getElementById("C-auto").textContent = S.auto ? "in use" : "using weather";
+  document.getElementById("C-detail").textContent = S.preset
+    ? `“${PRESETS.find((x) => x.key === S.preset).name}” → ${S.season}, ${S.occasion}, ${S.temp}°C${S.coat ? ", coat" : ""}.`
+    : S.auto ? "No override — Surprise me uses the detected weather." : "Manual values set on another tab.";
+
+  // shared readout
+  const r = resolved();
+  document.getElementById("out").innerHTML =
+    `<span class="k">// what suggestLooks() receives</span>\n` +
+    `{\n` +
+    `  weather: { season: "${r.season}", tempC: ${r.tempC}, needsOuterwear: ${r.needsOuterwear} },\n` +
+    `  season:  "${r.season}",\n` +
+    `  occasion: "${r.occasion}",\n` +
+    `  engine:  "v2"\n` +
+    `}\n` +
+    `<span class="k">// source: ${r.source}</span>`;
+}
+render();
+</script>
+</body>
+</html>
