@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Search, Star, Wand2 } from "lucide-react";
+import { Plus, ScanFace, Search, Star, Wand2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
   inCollection,
@@ -11,10 +11,30 @@ import {
   type CollectionKey,
 } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
+import type { TryOnGarment } from "@/lib/tryon";
 import type { Outfit, WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
+import { TryOnView } from "./explore/TryOnView";
 import { AskToStyleSheet } from "./styling/AskToStyleSheet";
 import { StylingSessions } from "./styling/StylingSessions";
+
+const itemImage = (it: WardrobeItem): string | undefined =>
+  it.beautifiedImageUrl ?? it.imageUrl;
+
+function garmentsForOutfit(outfit: Outfit, items: WardrobeItem[]): TryOnGarment[] {
+  return outfit.itemIds
+    .map((id) => items.find((it) => it.id === id))
+    .filter((it): it is WardrobeItem => !!it)
+    .map((it) => {
+      const image = itemImage(it);
+      if (!image) return null;
+      return {
+        image,
+        label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
+      };
+    })
+    .filter((g): g is TryOnGarment => !!g);
+}
 
 /**
  * The looks library (AJA-239). Outfits is now purely a place to browse, find and reuse the
@@ -35,6 +55,7 @@ export function OutfitsView() {
   const [collection, setCollection] = useState<CollectionKey>("all");
   const [query, setQuery] = useState("");
   const [askOpen, setAskOpen] = useState(false);
+  const [tryOnGarments, setTryOnGarments] = useState<TryOnGarment[] | null>(null);
   // Bumped after an ask is sent so the session list refetches without a round trip
   // through realtime — the card has to appear the instant you send.
   const [sessionsKey, setSessionsKey] = useState(0);
@@ -151,11 +172,19 @@ export function OutfitsView() {
                   items={items}
                   onOpen={() => openOutfitDetail(outfit.id)}
                   onFavorite={() => toggleOutfitFavorite(outfit.id)}
+                  onTryOn={() => {
+                    const g = garmentsForOutfit(outfit, items);
+                    if (g.length) setTryOnGarments(g);
+                  }}
                 />
               ))}
             </div>
           )}
         </>
+      )}
+
+      {tryOnGarments && (
+        <TryOnView garments={tryOnGarments} onClose={() => setTryOnGarments(null)} />
       )}
     </div>
   );
@@ -166,14 +195,17 @@ function LookCard({
   items,
   onOpen,
   onFavorite,
+  onTryOn,
 }: {
   outfit: Outfit;
   items: WardrobeItem[];
   onOpen: () => void;
   onFavorite: () => void;
+  onTryOn: () => void;
 }) {
   const wish = wishPieceCount(outfit, items);
   const never = !outfit.wearCount;
+  const canTryOn = garmentsForOutfit(outfit, items).length > 0;
   return (
     <article className="animate-fade-up overflow-hidden rounded-2xl border border-line bg-surface">
       <button
@@ -195,7 +227,7 @@ function LookCard({
           )}
         </div>
       </button>
-      <div className="flex items-start gap-1.5 px-2.5 pb-2.5 pt-2">
+      <div className="flex items-start gap-1.5 px-2.5 pt-2">
         <button
           type="button"
           onClick={onOpen}
@@ -219,6 +251,19 @@ function LookCard({
           }`}
         >
           <Star size={17} fill={outfit.favorite ? "currentColor" : "none"} />
+        </button>
+      </div>
+      <div className="px-2.5 pb-2.5 pt-1.5">
+        <button
+          type="button"
+          disabled={!canTryOn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onTryOn();
+          }}
+          className="flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-line bg-surface-2 text-xs font-medium transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <ScanFace size={14} /> Try it on me
         </button>
       </div>
     </article>

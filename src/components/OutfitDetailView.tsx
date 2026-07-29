@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   Copy,
   Pencil,
+  ScanFace,
   Send,
   Star,
   Trash2,
@@ -14,9 +15,26 @@ import { useMemo, useState } from "react";
 import { outfitPayload } from "@/lib/chat";
 import { wearSummary } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
+import type { TryOnGarment } from "@/lib/tryon";
 import { formatDisplayDate, type WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
+import { TryOnView } from "./explore/TryOnView";
+
+const itemImage = (it: WardrobeItem): string | undefined =>
+  it.beautifiedImageUrl ?? it.imageUrl;
+
+const toGarments = (pieces: WardrobeItem[]): TryOnGarment[] =>
+  pieces
+    .map((it) => {
+      const image = itemImage(it);
+      if (!image) return null;
+      return {
+        image,
+        label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
+      };
+    })
+    .filter((g): g is TryOnGarment => !!g);
 
 /**
  * Outfit detail (AJA-239). Tapping a look used to do nothing — the board, the notes field and
@@ -41,6 +59,7 @@ export function OutfitDetailView() {
   const [share, setShare] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [tryOn, setTryOn] = useState(false);
 
   const pieces = useMemo(
     () =>
@@ -49,6 +68,8 @@ export function OutfitDetailView() {
         .filter((it): it is WardrobeItem => !!it),
     [outfit, items],
   );
+
+  const tryOnGarments = useMemo(() => toGarments(pieces), [pieces]);
 
   const history = useMemo(
     () =>
@@ -130,6 +151,18 @@ export function OutfitDetailView() {
           onClick={() => {
             logWear({ outfitId: outfit.id, itemIds: outfit.itemIds });
             flash("Logged as worn today");
+          }}
+        />
+        <Action
+          wide
+          icon={ScanFace}
+          label="Try it on me"
+          onClick={() => {
+            if (!tryOnGarments.length) {
+              flash("Add photos to the pieces first");
+              return;
+            }
+            setTryOn(true);
           }}
         />
         <Action
@@ -244,6 +277,10 @@ export function OutfitDetailView() {
         payload={outfitPayload(outfit, pieces)}
         onClose={() => setShare(false)}
       />
+
+      {tryOn && (
+        <TryOnView garments={tryOnGarments} onClose={() => setTryOn(false)} />
+      )}
     </div>
   );
 }
