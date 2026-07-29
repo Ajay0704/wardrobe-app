@@ -28,6 +28,17 @@ export default function SurpriseProtoHost() {
 
   return (
     <div className="flex h-dvh w-full flex-col bg-black">
+      {/* A WKWebView has no browser chrome, so without this the app is a
+          force-quit away from being usable again after tapping into here. */}
+      <div
+        className="flex items-center gap-3 px-4 text-sm"
+        style={{ paddingTop: "max(env(safe-area-inset-top), 10px)", paddingBottom: 10 }}
+      >
+        <a href="/n?native=1" className="font-semibold text-white/90 underline">
+          ‹ Back to app
+        </a>
+        <span className="text-white/40">AJA-248 prototype</span>
+      </div>
       {usable.length < 8 && (
         <div className="px-4 py-3 text-sm text-amber-300">
           Only {usable.length} usable items in the store — sign in and let the
