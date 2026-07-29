@@ -248,6 +248,18 @@ export function YouView() {
           }
           chevron={needBackfill > 0 && !jobRunning}
         />
+        {/* AJA-248 — TEMPORARY entry point for the Surprise me prototype. The
+            static page can't read the WKWebView's storage, so it needs a route
+            inside the app. DELETE this row with the prototype. */}
+        <Row
+          icon={Sparkles}
+          label="Surprise me prototype"
+          value="AJA-248"
+          onClick={() => {
+            window.location.href = "/surprise-proto";
+          }}
+          chevron
+        />
       </Group>
 
       <Group label="App">

@@ -5,22 +5,55 @@
 const P = window.SurpriseProto;
 const $ = (id) => document.getElementById(id);
 
-// ---- load the closet from the app's own localStorage; nothing is bundled here ----
+// ---- where the closet comes from, in order of reliability ----
+// 1. postMessage from /surprise-proto (the in-app route reads the LIVE zustand
+//    store, so it works inside the WKWebView where Safari's localStorage isn't
+//    visible — this is the route that actually works on device).
+// 2. window.__PROTO_CLOSET__ if a host page set it synchronously.
+// 3. localStorage["wardrobe-store-v2"] — only works on an origin where the web
+//    app has been used in THIS browser.
+// 4. paste-a-JSON fallback.
+// Nothing is bundled into this file either way.
 let owned = [];
+const usable = (arr) => arr.filter((i) => i && !i.wishlist && i.imageUrl);
+
 function loadCloset() {
+  if (Array.isArray(window.__PROTO_CLOSET__) && window.__PROTO_CLOSET__.length) {
+    return usable(window.__PROTO_CLOSET__);
+  }
   try {
     const raw = localStorage.getItem("wardrobe-store-v2");
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     const items = parsed?.state?.items ?? parsed?.items;
     if (!Array.isArray(items)) return null;
-    return items.filter((i) => i && !i.wishlist && i.imageUrl);
+    return usable(items);
   } catch { return null; }
 }
-function setCloset(list) {
+function setCloset(list, source) {
   owned = list;
-  $("sub").innerHTML = `<b>${owned.length}</b> owned items with an image · read from this origin's localStorage · nothing is stored in this page`;
+  $("sub").innerHTML = `<b>${owned.length}</b> owned items with an image · ${source || "from this origin's localStorage"} · nothing is stored in this page`;
 }
+
+// The in-app route hands the live store over. Same-origin check enforced.
+window.addEventListener("message", (e) => {
+  if (e.origin !== location.origin) return;
+  const d = e.data;
+  if (!d || d.type !== "proto-closet" || !Array.isArray(d.items)) return;
+  const list = usable(d.items);
+  if (!list.length) return;
+  setCloset(list, "live from the app's store");
+  const b = $("banner");
+  b.hidden = true;
+  b.classList.remove("err");
+  run();
+});
+// Tell a host page we're ready, so it doesn't have to guess at load timing.
+try {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: "proto-ready" }, location.origin);
+  }
+} catch { /* cross-origin parent — ignore */ }
 
 const found = loadCloset();
 if (found && found.length >= 8) {
@@ -37,7 +70,7 @@ if (found && found.length >= 8) {
     try {
       const arr = JSON.parse(e.target.value);
       if (Array.isArray(arr) && arr.length >= 8) {
-        setCloset(arr.filter((i) => i && !i.wishlist && i.imageUrl));
+        setCloset(usable(arr), "pasted");
         b.hidden = true;
         run();
       }
