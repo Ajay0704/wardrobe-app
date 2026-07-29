@@ -24,17 +24,18 @@ import { TryOnView } from "./explore/TryOnView";
 const itemImage = (it: WardrobeItem): string | undefined =>
   it.beautifiedImageUrl ?? it.imageUrl;
 
-const toGarments = (pieces: WardrobeItem[]): TryOnGarment[] =>
-  pieces
-    .map((it) => {
-      const image = itemImage(it);
-      if (!image) return null;
-      return {
-        image,
-        label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
-      };
-    })
-    .filter((g): g is TryOnGarment => !!g);
+const toGarments = (pieces: WardrobeItem[]): TryOnGarment[] => {
+  const out: TryOnGarment[] = [];
+  for (const it of pieces) {
+    const image = itemImage(it);
+    if (!image) continue;
+    out.push({
+      image,
+      label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
+    });
+  }
+  return out;
+};
 
 /**
  * Outfit detail (AJA-239). Tapping a look used to do nothing — the board, the notes field and

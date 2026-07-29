@@ -22,18 +22,18 @@ const itemImage = (it: WardrobeItem): string | undefined =>
   it.beautifiedImageUrl ?? it.imageUrl;
 
 function garmentsForOutfit(outfit: Outfit, items: WardrobeItem[]): TryOnGarment[] {
-  return outfit.itemIds
-    .map((id) => items.find((it) => it.id === id))
-    .filter((it): it is WardrobeItem => !!it)
-    .map((it) => {
-      const image = itemImage(it);
-      if (!image) return null;
-      return {
-        image,
-        label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
-      };
-    })
-    .filter((g): g is TryOnGarment => !!g);
+  const out: TryOnGarment[] = [];
+  for (const id of outfit.itemIds) {
+    const it = items.find((x) => x.id === id);
+    if (!it) continue;
+    const image = itemImage(it);
+    if (!image) continue;
+    out.push({
+      image,
+      label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
+    });
+  }
+  return out;
 }
 
 /**
