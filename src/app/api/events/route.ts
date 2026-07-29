@@ -3,7 +3,12 @@ import { adminClient } from "@/lib/supabase/admin";
 
 export const runtime = "nodejs";
 
-const TYPES = new Set(["view", "grab", "own", "wishlist", "shop_click", "purchase", "decision"]);
+// `public.events.type` is plain `text not null` with no CHECK constraint, so this
+// allowlist is the only gate — adding a type here needs no migration (AJA-255).
+const TYPES = new Set([
+  "view", "grab", "own", "wishlist", "shop_click", "purchase", "decision",
+  "engine_feedback",
+]);
 
 /** Fire-and-forget telemetry — the training + moat data. Never fails the caller hard. */
 export async function POST(request: Request) {

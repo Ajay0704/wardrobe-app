@@ -32,6 +32,7 @@ import {
 import type { SyncStatus } from "./supabase/sync";
 import { scrubSnapshotImages } from "./heal";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
+import { lookWorn } from "./engine-feedback";
 
 export type ThemeMode = "light" | "dark";
 
@@ -229,7 +230,7 @@ interface WardrobeState {
     itemIds: string[],
     layout?: CanvasItem[],
     canvasBg?: string | null,
-  ) => void;
+  ) => string;
   deleteOutfit: (id: string) => void;
   /** Star/unstar a look in the library (AJA-239). */
   toggleOutfitFavorite: (id: string) => void;
@@ -621,10 +622,14 @@ export const useWardrobe = create<WardrobeState>()(
 
       saveOutfit: (name, notes, itemIds, layout, canvasBg) => {
         recordOutfitCreated();
+        // Hoisted out of the updater so the caller can correlate the save back to
+        // whatever produced the look (AJA-255). Returning the id also matches
+        // duplicateOutfit, which already does this.
+        const id = uid();
         set((s) => ({
           outfits: [
             {
-              id: uid(),
+              id,
               name,
               notes,
               itemIds,
@@ -640,6 +645,7 @@ export const useWardrobe = create<WardrobeState>()(
             ...s.outfits,
           ],
         }));
+        return id;
       },
 
       deleteOutfit: (id) =>
@@ -685,6 +691,10 @@ export const useWardrobe = create<WardrobeState>()(
       logWear: ({ outfitId, itemIds, date, note }) => {
         const day = date ?? todayISO();
         recordWearLogged();
+        // AJA-255 — the strongest positive label the engine can get. Hooked here
+        // rather than at the call sites because there are several and a wear logged
+        // from Calendar counts exactly as much as one logged from a look's detail.
+        lookWorn({ outfitId, itemIds });
         set((s) => {
           const ids = [...new Set(itemIds)];
           // A piece you don't own can't have been worn. Without this, styling a wish

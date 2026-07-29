@@ -21,6 +21,20 @@ import { suggestLooks } from "@/lib/matching";
 import { readCachedWeather } from "@/lib/weather";
 import { primaryStyleVibe } from "@/lib/profile";
 import { readTaste } from "@/lib/taste";
+import {
+  REASON_LABEL,
+  REROLL_REASONS,
+  boardTouched,
+  isUntouchedSlate,
+  lookKept,
+  pieceAdded,
+  pieceRemoved,
+  rerollAnswered,
+  rerolled,
+  slatePicked,
+  slateShown,
+  type RerollReason,
+} from "@/lib/engine-feedback";
 import { useWardrobe, uid } from "@/lib/store";
 import type { CanvasItem, Category, WardrobeItem } from "@/lib/types";
 import { matchesSubcategory, presentSubcategories, slotForCategory } from "@/lib/types";
@@ -163,6 +177,9 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // surpriseLook reads the slate immediately after building it, before the state
   // update has landed, so it needs the ref rather than the stale closure value.
   const slateRef = useRef<SlateEntry[]>([]);
+  // AJA-255 — the slate id of a re-roll waiting on "what was off?". A re-roll is the
+  // only feedback event with nothing to infer from, so it is the only one we ask about.
+  const [askSlateId, setAskSlateId] = useState<string | null>(null);
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
@@ -314,13 +331,36 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // boards would z-fight. Bring-to-front stays as the explicit button.
     if (!collab) bringToFront(id);
   };
+  /**
+   * The closet pieces currently on the board. AJA-255 — swap inference reasons
+   * about garments, not canvas nodes, and colour is only meaningful relative to
+   * what a piece is worn with.
+   */
+  const boardItems = (): WardrobeItem[] =>
+    nodes
+      .map((c) => (c.itemId ? trayItems.find((it) => it.id === c.itemId) : undefined))
+      .filter((x): x is WardrobeItem => !!x);
+
+  /** Drag / resize / rotate commit. Marks the board engaged with (AJA-255). */
+  const commitNode = (id: string, patch: Partial<CanvasItem>) => {
+    boardTouched();
+    updateNode(id, patch);
+  };
+
   const deletePiece = (id: string) => {
+    // Buffer the removal before the node goes: if a piece of the same category
+    // follows, that pair is a swap and the diff names the term that misfired.
+    const node = nodes.find((x) => x.id === id);
+    const item = node?.itemId ? trayItems.find((it) => it.id === node.itemId) : undefined;
+    if (item) pieceRemoved(item, boardItems());
+    else boardTouched();
     removeNode(id);
     if (selectedId === id) setSelectedId(null);
   };
   const duplicatePiece = (id: string) => {
     const c = nodes.find((x) => x.id === id);
     if (!c) return;
+    boardTouched();
     const top = nodes.reduce((m, x) => Math.max(m, x.zIndex), 0);
     // uid(), not Date.now(): two clients on a shared board can duplicate in the same
     // millisecond and collide on the piece id (AJA-240).
@@ -342,7 +382,12 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
       addCanvasItem(itemId);
       selectLast();
     }
-    flash("Added to your look");
+    // AJA-255 — if this fills a hole a recent removal left, it's a swap. Naming the
+    // inferred reason back to the user is deliberate: it's the only way to notice
+    // on device that the inference is wrong, and "read as" says it's a guess.
+    const item = trayItems.find((it) => it.id === itemId);
+    const reason = item ? pieceAdded(item) : null;
+    flash(reason ? `Swapped · read as ${REASON_LABEL[reason]}` : "Added to your look");
   };
 
   // Surprise me — ask the matching engine for a look, then lay it out head-to-toe
@@ -453,6 +498,15 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
       }))
       .filter((entry) => entry.picks.length > 0);
     if (!resolved.length) return [];
+    // AJA-255 — record provenance BEFORE placing, so a swap that happens two taps
+    // later still knows which look and which engine produced the piece it replaced.
+    // Logged with the looks the engine returned, not `resolved`: a look whose items
+    // failed to resolve was still scored, and dropping it would bias the record.
+    slateShown(looks, {
+      engine: engineV2 ? "v2" : "v1",
+      season: weather?.season,
+      slotNames: [...SLATE_LABELS],
+    });
     slateRef.current = resolved;
     placeLook(resolved[0].picks);
     return resolved;
@@ -479,16 +533,21 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     if (!entry) return;
     setSelectedId(null);
     setSlateIdx(i);
+    slatePicked(i); // AJA-255 — a vote on the MMR lambdas
     placeLook(entry.picks);
     if (entry.reason) flash(`${SLATE_LABELS[i]} · ${entry.reason}`);
   };
 
   const surpriseLook = () => {
     setSelectedId(null);
+    // AJA-255 — re-rolling a slate nobody touched is the loudest rejection there is,
+    // and the only feedback event with nothing to diff. Ask, once, before rebuilding.
+    const rejected = isUntouchedSlate() ? rerolled() : null;
     if (!buildLook()) {
       flash("Add clothes to your closet first");
       return;
     }
+    setAskSlateId(rejected);
     // The engine's own "why this" line, not a generic string — the brief calls
     // the explanation a product requirement, and the canvas was dropping it.
     const first = slateRef.current[0]?.reason;
@@ -546,7 +605,11 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     }
     // Persist the full board layout (positions/sizes/rotation/z + text/stickers + bg),
     // not just the item ids, so the board restores exactly on reopen.
-    saveOutfit(name, "", ids, nodes, canvasBg);
+    const outfitId = saveOutfit(name, "", ids, nodes, canvasBg);
+    // AJA-255 — the strongest in-session positive signal. `lookKept` itself checks the
+    // saved look is still substantially the generated one; a board rebuilt by hand
+    // earns the engine no credit. outfitId is the join key for a later `worn`.
+    if (typeof outfitId === "string") lookKept(outfitId, ids);
     clearDraft();
     setSaving(false);
     setSaveName("");
@@ -795,7 +858,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                 scale={boardScale}
                 selected={selectedId === c.id}
                 onSelect={select}
-                onCommit={updateNode}
+                onCommit={commitNode}
                 onRemove={deletePiece}
                 trashRef={trashRef}
                 onGrab={collab?.onGrab}
@@ -961,6 +1024,41 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   {slate[slateIdx]?.reason && (
                     <p className="truncate text-[11.5px] text-muted">{slate[slateIdx].reason}</p>
                   )}
+                </div>
+              )}
+
+              {/* AJA-255 — the one thing the engine can't infer. A swap tells you which
+                  term misfired by diffing the two pieces; re-rolling an untouched slate
+                  tells you only that three looks were wrong, with nothing to diff. So
+                  this is the single place we ask. Dismissible, and it never blocks.
+                  Wraps rather than scrolls: at 375px the five chips plus the dismiss
+                  button overflow, and a dismiss control you have to scroll sideways to
+                  find is worse than a second line. */}
+              {askSlateId && (
+                <div className="animate-pop flex flex-wrap items-center gap-1.5 px-4 pb-3">
+                  <span className="text-[11.5px] text-muted">What was off?</span>
+                  {REROLL_REASONS.map((r) => (
+                    <button
+                      key={r.key}
+                      type="button"
+                      onClick={() => {
+                        rerollAnswered(askSlateId, r.key as RerollReason);
+                        setAskSlateId(null);
+                        flash("Thanks — noted");
+                      }}
+                      className="rounded-full border border-line px-2.5 py-1 text-[11.5px] font-medium text-muted transition-transform active:scale-95"
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    aria-label="Dismiss"
+                    onClick={() => setAskSlateId(null)}
+                    className="rounded-full p-1 text-muted transition-transform active:scale-95"
+                  >
+                    <X size={13} />
+                  </button>
                 </div>
               )}
               <div className="flex gap-6 overflow-x-auto border-b border-line px-5">
