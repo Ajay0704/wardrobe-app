@@ -202,12 +202,43 @@ function isCollared(it) {
   return /(polo|button-?up|button-?down|oxford|dress shirt|collared|camp collar)/.test(n);
 }
 
-/* No \b here on purpose: "Gymshark" must match "gym". A previous version used
- * \bgym\b, which silently missed every Gymshark item in the measured closet —
- * caught by the verification script, not by reading the code. */
-const ATHLETIC = /(jogger|sweatpant|track|gym|athletic|legging|compression|running|basketball|activewear)/;
-const isAthletic = (it) => ATHLETIC.test(sub(it)) || ATHLETIC.test(nm(it)) ||
-  ATHLETIC.test(String(it.brand || "").toLowerCase());
+/*
+ * ACTIVEWEAR IS ITS OWN REGISTER, not a low point on the formality scale.
+ *
+ * A linear dressiness scale cannot express "gym clothes go with gym clothes."
+ * Gym tops are d0 and jeans are d1, so a gap rule waves them straight through —
+ * which is why the prototype paired Gymshark tops with jeans and put running
+ * shoes on casual looks.
+ *
+ * Deliberately no bare "track": 11 items in the measured closet are tagged
+ * subcategory=trackjacket while actually being casual zip-ups ("Pinstripe
+ * zip-up jacket", "Beige striped zip-up jacket"). Matching "track" would ban
+ * them from casual outfits — the over-blocking failure mode.
+ *
+ * "gym" has no \b so "Gymshark" matches; an earlier \bgym\b missed every one.
+ */
+const GYM_RE = /(gymshark|compression|athletic|training|performance|dri-?fit|adizero|running|basketball|\bcurry\b|on ?cloud|jogger|sweatpant|legging|track ?pant|activewear)/;
+const isGym = (it) =>
+  GYM_RE.test(sub(it)) || GYM_RE.test(nm(it)) || GYM_RE.test(String(it.brand || "").toLowerCase());
+
+/** Kept as the old name for the dressiness fallback; same detector. */
+const isAthletic = isGym;
+
+/**
+ * Pieces that read as street/smart and therefore must not share an outfit with
+ * activewear. Note `trousers` is only "smart" when it isn't gym — the closet
+ * tags "Gymshark straight leg pumper pants" as trousers, and isGym wins.
+ */
+const SMART_SUBS = new Set([
+  "jeans", "chinos", "trousers", "slacks", "shirt", "polo", "blouse",
+  "buttonup", "blazer", "suit", "dressshoes", "oxford", "derby", "brogue",
+  "loafer", "boot",
+]);
+const isSmartCasual = (it) => {
+  if (isGym(it)) return false;
+  if (SMART_SUBS.has(sub(it))) return true;
+  return /(jeans|chino|button-?up|oxford|dress shirt|blazer|chelsea boot|loafer)/.test(nm(it));
+};
 const isShorts = (it) => sub(it) === "shorts" || /\bshorts\b/.test(nm(it));
 
 const itemSeasons = (it) => (Array.isArray(it.seasons) ? it.seasons : []);
@@ -260,8 +291,23 @@ function rejectReason(outfit, ctx) {
     if (gap >= 3) return "formality clash (dressy piece with sportswear)";
   }
 
-  // 5. Athleisure bottoms don't take a dressy top.
-  const athleticBottom = outfit.find((i) => i.category === "bottom" && isAthletic(i));
+  // 5. Activewear is an exclusive register: gym kit pairs with gym kit.
+  //    Catches both reported failures — a Gymshark top with jeans, and a
+  //    running/training shoe on a casual look. A dressiness gap can't express
+  //    this, because gym tops are d0 and jeans d1 (a gap of 1 = "fine").
+  const gym = outfit.filter(isGym);
+  if (gym.length) {
+    const smart = outfit.find(isSmartCasual);
+    if (smart) {
+      const g = gym.find((x) => x.category === "shoes") ?? gym[0];
+      return g.category === "shoes"
+        ? `sports shoes (${g.name}) with ${smart.name}`
+        : `gym kit (${g.name}) with ${smart.name}`;
+    }
+  }
+
+  // 6. Athleisure bottoms still don't take a dressy top (e.g. joggers + shirt).
+  const athleticBottom = outfit.find((i) => i.category === "bottom" && isGym(i));
   if (athleticBottom) {
     const dressyTop = outfit.find(
       (i) => i.category === "top" && (dressiness(i) ?? 0) >= 2,
@@ -269,7 +315,7 @@ function rejectReason(outfit, ctx) {
     if (dressyTop) return "dress shirt with athletic bottoms";
   }
 
-  // 6. Season / weather coherence.
+  // 7. Season / weather coherence.
   if (ctx.season) {
     for (const it of outfit) {
       const s = itemSeasons(it);
@@ -289,7 +335,7 @@ function rejectReason(outfit, ctx) {
   if (outfit.some(isShorts) && outfit.some(isColdAccessory)) {
     return "knit accessory with shorts";
   }
-  // 7. Weather: outerwear only when it's earned (shipped engine: random()<0.45).
+  // 8. Weather: outerwear only when it's earned (shipped engine: random()<0.45).
   if (cats.includes("outerwear") && ctx.needsOuterwear === false && ctx.tempC != null && ctx.tempC >= 22) {
     return "coat in warm weather";
   }
