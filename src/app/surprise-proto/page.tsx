@@ -16,7 +16,11 @@ import { useWardrobe } from "@/lib/store";
  */
 export default function SurpriseProtoHost() {
   const items = useWardrobe((s) => s.items);
+  const authUser = useWardrobe((s) => s.authUser);
   const usable = items.filter((i) => i && !i.wishlist && i.imageUrl);
+  // Signed out, the store serves demo-data.ts. Eight fake garments look exactly
+  // like "the prototype still isn't reading my closet", so say it plainly.
+  const isDemo = !authUser;
 
   const send = (w: Window | null) => {
     if (!w) return;
@@ -39,10 +43,17 @@ export default function SurpriseProtoHost() {
         </a>
         <span className="text-white/40">AJA-248 prototype</span>
       </div>
-      {usable.length < 8 && (
+      {isDemo && (
         <div className="px-4 py-3 text-sm text-amber-300">
-          Only {usable.length} usable items in the store — sign in and let the
-          closet sync, then reload this page.
+          You&rsquo;re not signed in, so these are the {usable.length} built-in
+          demo garments — <b>not your closet</b>. Sign in, let the closet sync,
+          then come back.
+        </div>
+      )}
+      {!isDemo && usable.length < 8 && (
+        <div className="px-4 py-3 text-sm text-amber-300">
+          Only {usable.length} usable items in the store — wait for the closet to
+          sync, then reload this page.
         </div>
       )}
       <iframe
