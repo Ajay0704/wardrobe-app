@@ -584,11 +584,20 @@ function suggestLooksV2(
     return list[Math.floor(random() * list.length)];
   };
 
-  const tries = opts.candidates ?? 400;
+  /**
+   * `candidates` means "accepted candidates to aim for", NOT raw sampling
+   * attempts. v1 had no hard filters, so N attempts yielded ~N usable looks and
+   * callers pass small numbers (styleWays passes count*10 = 30). v2 rejects most
+   * attempts, so treating it as attempts starved every such caller: Rediscover
+   * returned 0.25 ideas per run instead of 3. Sample until the pool is full or
+   * the cap is hit — this is pure in-memory work, so the cap is cheap.
+   */
+  const wantPool = Math.max(opts.candidates ?? 60, 24);
+  const maxTries = Math.max(wantPool * 25, 800);
   const seen = new Set<string>();
   const scored: { look: ScoredLook; items: WardrobeItem[] }[] = [];
 
-  for (let n = 0; n < tries; n++) {
+  for (let n = 0; n < maxTries && scored.length < wantPool; n++) {
     const picked: WardrobeItem[] = [];
     const place = (it: WardrobeItem | null) => {
       if (it && !picked.some((p) => p.id === it.id)) picked.push(it);

@@ -98,6 +98,7 @@ export function CalendarView() {
     calendar, outfits, items, profile,
     planOutfit, logWear, deleteCalendarEntry, loadOutfitIntoDraft, setDraft, setView,
   } = useWardrobe();
+  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
 
   const today = todayISO();
   const [selected, setSelected] = useState(today);
@@ -161,6 +162,7 @@ export function CalendarView() {
         : null,
       occasion: "day",
       candidates: 18,
+      engine: engineV2 ? "v2" : undefined, // AJA-248
     });
     return look?.itemIds ?? [];
   };

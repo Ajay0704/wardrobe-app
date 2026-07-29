@@ -60,6 +60,8 @@ export function styleWays(
   allItems: WardrobeItem[],
   count = 3,
   random: () => number = Math.random,
+  /** AJA-248 — pass "v2" to use src/lib/outfit-rules. */
+  engine?: "v1" | "v2",
 ): OutfitIdea[] {
   void random;
   const owned = allItems.filter((it) => !it.wishlist);
@@ -68,6 +70,7 @@ export function styleWays(
     count,
     candidates: count * 10,
     mood: anchor.tags[0] || "everyday",
+    engine,
   })
     .filter((look) => look.itemIds.includes(anchor.id) && look.items.length >= 3)
     .map((look) => ({

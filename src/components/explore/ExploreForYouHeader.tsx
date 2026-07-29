@@ -112,6 +112,7 @@ function bestDraft(
   occ: OccKey,
   weather: WeatherSnapshot | null,
   seed: number,
+  engine?: "v1" | "v2",
 ): ScoredLook | null {
   const meta = OCCASION_META[occ];
   void seed; // reshuffle re-runs suggestLooks (stochastic sampling)
@@ -130,6 +131,7 @@ function bestDraft(
     season: weather?.season,
     taste: typeof window !== "undefined" ? readTaste() : undefined,
     candidates: 20,
+    engine,
   });
 }
 
@@ -174,6 +176,7 @@ export function ExploreForYouHeader({
   onOpenShop?: () => void;
 }) {
   const items = useWardrobe((s) => s.items);
+  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
   const profile = useWardrobe((s) => s.profile);
   const calendar = useWardrobe((s) => s.calendar);
   const setDraft = useWardrobe((s) => s.setDraft);
@@ -279,9 +282,9 @@ export function ExploreForYouHeader({
   }, [family, dominantColor, mostOwnedCat]);
 
   const heroLook = useMemo(
-    () => bestDraft(owned, occ, weather, seed),
+    () => bestDraft(owned, occ, weather, seed, engineV2 ? "v2" : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, occ, seed, weather?.season, weather?.needsOuterwear, weather?.tempC],
+    [poolKey, occ, seed, weather?.season, weather?.needsOuterwear, weather?.tempC, engineV2],
   );
   const heroOutfit = useMemo(() => resolveOutfit(heroLook), [heroLook]);
   const recreateLook = useMemo(
@@ -298,9 +301,10 @@ export function ExploreForYouHeader({
           : null,
         season: weather?.season,
         candidates: 16,
+        engine: engineV2 ? "v2" : undefined, // AJA-248
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, weather?.season],
+    [poolKey, weather?.season, engineV2],
   );
   const recreateOutfit = useMemo(() => resolveOutfit(recreateLook), [recreateLook]);
 

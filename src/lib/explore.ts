@@ -181,6 +181,8 @@ export function buildClosetLooks(
   vibe: string | undefined,
   count = 8,
   exclude?: Set<string>,
+  /** AJA-248 — pass "v2" to use src/lib/outfit-rules. */
+  engine?: "v1" | "v2",
 ): ExplorePin[] {
   const pool = items.filter((it) => !it.wishlist && it.imageUrl);
   if (pool.length < 2) return [];
@@ -191,6 +193,7 @@ export function buildClosetLooks(
     occasion: vibe,
     count: count * 2,
     candidates: count * 8,
+    engine,
   });
   const cands: { id: string; ids: string[]; chosen: WardrobeItem[]; score: number }[] = [];
   for (const look of looks) {

@@ -19,6 +19,7 @@ export function RediscoverModal({
   onClose: () => void;
 }) {
   const items = useWardrobe((s) => s.items);
+  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
   const saveOutfit = useWardrobe((s) => s.saveOutfit);
   const logWear = useWardrobe((s) => s.logWear);
   const [seed, setSeed] = useState(0);
@@ -27,9 +28,9 @@ export function RediscoverModal({
 
   // seed is a dependency so "Shuffle" regenerates a fresh set of ideas.
   const ideas = useMemo(
-    () => styleWays(anchor, items),
+    () => styleWays(anchor, items, undefined, undefined, engineV2 ? "v2" : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [anchor, items, seed],
+    [anchor, items, seed, engineV2],
   );
 
   return (
