@@ -17,7 +17,7 @@ import {
   Lock,
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { bestLook } from "@/lib/matching";
+import { suggestLooks } from "@/lib/matching";
 import { readCachedWeather } from "@/lib/weather";
 import { primaryStyleVibe } from "@/lib/profile";
 import { readTaste } from "@/lib/taste";
@@ -28,6 +28,14 @@ import { CanvasPiece } from "./CanvasPiece";
 import { Chip } from "./ui";
 
 type Mode = "items" | "background" | "text" | "sticker";
+
+/** AJA-248 phase 4 — the three vibes the engine returns, in slate order. */
+const SLATE_LABELS = ["Safe", "Elevated", "Experimental"] as const;
+
+interface SlateEntry {
+  reason: string;
+  picks: WardrobeItem[];
+}
 
 /* One tab per category (AJA-229), with a sub-category chip row underneath. */
 const TABS: { key: string; label: string; cat: Category | null }[] = [
@@ -149,6 +157,12 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   const setBgFn = collab ? collab.setBg : setCanvasBg;
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // AJA-248 phase 4 — the current slate of three looks and which one is on the board.
+  const [slate, setSlate] = useState<SlateEntry[]>([]);
+  const [slateIdx, setSlateIdx] = useState(0);
+  // surpriseLook reads the slate immediately after building it, before the state
+  // update has landed, so it needs the ref rather than the stale closure value.
+  const slateRef = useRef<SlateEntry[]>([]);
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
@@ -337,35 +351,12 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // everything supporting it stays owned. `filterPool` strips wishlist items from the
   // candidate pool and `opts.anchor` is placed directly, so this needs nothing from
   // matching.ts — and Surprise me with no anchor is unchanged, owned-only.
-  const buildLook = (anchor?: WardrobeItem): boolean => {
-    const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
-    // AJA-248. This used to pass `{}` — with no options, four of the six weights
-    // in scoreLook are frozen constants (weather 0.7, vibe 0.65, semantic 0.55,
-    // taste 0.5) and only antiRepeat varies, which is why Surprise me was
-    // statistically indistinguishable from random. Weather is already cached and
-    // free; the vibe/occasion come from the onboarding quiz that Settings
-    // already advertises as tuning "Generate outfit".
-    const weather = readCachedWeather();
-    const ids =
-      bestLook(owned, {
-        ...(anchor ? { anchor } : {}),
-        ...(engineV2 ? { engine: "v2" as const } : {}),
-        weather: weather
-          ? {
-              season: weather.season,
-              needsOuterwear: weather.needsOuterwear,
-              tempC: weather.tempC ?? undefined,
-            }
-          : null,
-        season: weather?.season,
-        vibe: primaryStyleVibe(profile) || undefined,
-        occasion: profile.styleOccasions?.[0],
-        taste: readTaste(),
-      })?.itemIds ?? [];
-    const pool = anchor ? [anchor, ...owned] : owned;
-    const picks = ids
-      .map((id) => pool.find((it) => it.id === id))
-      .filter((it): it is WardrobeItem => !!it);
+  /**
+   * Lay a set of picks out head-to-toe as a fresh board. Extracted from
+   * buildLook (AJA-248 phase 4) so switching between the slate's three looks
+   * reuses exactly the same layout rather than a second copy of it.
+   */
+  const placeLook = (picks: WardrobeItem[]): boolean => {
     if (picks.length === 0) return false;
     // Styled collage (AJA-232): top + bottom on the LEFT as the HERO (biggest), outerwear +
     // accessories on the RIGHT (smaller supports), shoes bottom-right. Bucketed by slot, placed in
@@ -420,9 +411,88 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     return true;
   };
 
+  /**
+   * Surprise me. AJA-248: this used to pass `{}` — with no options four of the
+   * six v1 weights are frozen constants (weather 0.7, vibe 0.65, semantic 0.55,
+   * taste 0.5) and only antiRepeat varies, which is why it was statistically
+   * indistinguishable from random. Weather is already cached and free; the
+   * vibe/occasion come from the onboarding quiz that Settings already advertises
+   * as tuning "Generate outfit".
+   *
+   * Phase 4: asks for a slate of three (safe / elevated / experimental) instead
+   * of one, places the first, and keeps the rest for the vibe chips. The engine
+   * already produced these; the canvas was discarding two of them along with
+   * every "why this" line.
+   */
+  const buildAndPlace = (anchor?: WardrobeItem): SlateEntry[] => {
+    const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
+    const weather = readCachedWeather();
+    const looks = suggestLooks(owned, {
+      ...(anchor ? { anchor } : {}),
+      ...(engineV2 ? { engine: "v2" as const } : {}),
+      weather: weather
+        ? {
+            season: weather.season,
+            needsOuterwear: weather.needsOuterwear,
+            tempC: weather.tempC ?? undefined,
+          }
+        : null,
+      season: weather?.season,
+      vibe: primaryStyleVibe(profile) || undefined,
+      occasion: profile.styleOccasions?.[0],
+      taste: readTaste(),
+      count: 3,
+    });
+    const pool = anchor ? [anchor, ...owned] : owned;
+    const resolved = looks
+      .map((look) => ({
+        reason: look.reasons[0] ?? "",
+        picks: look.itemIds
+          .map((id) => pool.find((it) => it.id === id))
+          .filter((x): x is WardrobeItem => !!x),
+      }))
+      .filter((entry) => entry.picks.length > 0);
+    if (!resolved.length) return [];
+    slateRef.current = resolved;
+    placeLook(resolved[0].picks);
+    return resolved;
+  };
+
+  /**
+   * Surprise me. Wraps buildAndPlace and publishes the slate to React state for
+   * the vibe chips. Only call this from an event handler — react-hooks/
+   * set-state-in-effect is a STATIC rule, so it flags any call site that can
+   * transitively reach setState regardless of runtime guards. The "Style it"
+   * effect calls buildAndPlace directly for exactly that reason.
+   */
+  const buildLook = (anchor?: WardrobeItem): boolean => {
+    const resolved = buildAndPlace(anchor);
+    if (!resolved.length) return false;
+    setSlate(resolved);
+    setSlateIdx(0);
+    return true;
+  };
+
+  /** Swap the board to another look from the current slate. */
+  const pickSlate = (i: number) => {
+    const entry = slate[i];
+    if (!entry) return;
+    setSelectedId(null);
+    setSlateIdx(i);
+    placeLook(entry.picks);
+    if (entry.reason) flash(`${SLATE_LABELS[i]} · ${entry.reason}`);
+  };
+
   const surpriseLook = () => {
     setSelectedId(null);
-    flash(buildLook() ? "Here's a look — tweak it" : "Add clothes to your closet first");
+    if (!buildLook()) {
+      flash("Add clothes to your closet first");
+      return;
+    }
+    // The engine's own "why this" line, not a generic string — the brief calls
+    // the explanation a product requirement, and the canvas was dropping it.
+    const first = slateRef.current[0]?.reason;
+    flash(first ? `${SLATE_LABELS[0]} · ${first}` : "Here's a look — tweak it");
   };
 
   // "Style it" from a wishlist card (AJA-245). The queue carries only the id, because
@@ -434,7 +504,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     if (collab || !pendingStyleItemId || !board.w) return;
     const anchor = trayItems.find((it) => it.id === pendingStyleItemId);
     clearPendingStyleItem();
-    if (anchor) buildLook(anchor);
+    if (anchor) buildAndPlace(anchor);
     // buildLook is re-created every render; re-runs are harmless because the queue is
     // cleared above, and the guard makes every later pass a no-op.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -858,6 +928,41 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   <Sparkles size={14} /> Surprise me
                 </button>
               </div>
+
+              {/* AJA-248 phase 4 — vibe chips. The engine returns three looks
+                  (safe / elevated / experimental) with a "why this" line each;
+                  the canvas used to place the first and discard the rest along
+                  with every rationale.
+                  Lives here, not on the board: the board card is only ~209px
+                  wide on a phone and the gap beneath it is ~27px, so a 227px
+                  chip row anchored there rendered *underneath* this sheet. Here
+                  it also sits directly under the button that produced it. */}
+              {slate.length > 1 && (
+                <div className="flex items-center gap-2 px-4 pb-3">
+                  <div
+                    role="group"
+                    aria-label="Outfit vibe"
+                    className="flex shrink-0 overflow-hidden rounded-full border border-line"
+                  >
+                    {slate.map((entry, i) => (
+                      <button
+                        key={`${SLATE_LABELS[i]}-${entry.picks[0]?.id ?? i}`}
+                        type="button"
+                        aria-pressed={i === slateIdx}
+                        onClick={() => pickSlate(i)}
+                        className={`px-2.5 py-1 text-[11.5px] font-semibold transition-colors active:scale-95 ${
+                          i === slateIdx ? "bg-accent text-accent-foreground" : "text-muted"
+                        }`}
+                      >
+                        {SLATE_LABELS[i]}
+                      </button>
+                    ))}
+                  </div>
+                  {slate[slateIdx]?.reason && (
+                    <p className="truncate text-[11.5px] text-muted">{slate[slateIdx].reason}</p>
+                  )}
+                </div>
+              )}
               <div className="flex gap-6 overflow-x-auto border-b border-line px-5">
                 {TABS.map((t) => (
                   <button
