@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { bestLook } from "@/lib/matching";
+import { readCachedWeather } from "@/lib/weather";
+import { primaryStyleVibe } from "@/lib/profile";
+import { readTaste } from "@/lib/taste";
 import { useWardrobe, uid } from "@/lib/store";
 import type { CanvasItem, Category, WardrobeItem } from "@/lib/types";
 import { matchesSubcategory, presentSubcategories, slotForCategory } from "@/lib/types";
@@ -131,6 +134,8 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     clearDraft,
     saveOutfit,
     setView,
+    profile,
+    engineV2,
   } = useWardrobe();
 
   // The single switch between "my draft" and "our session". Everything below reads
@@ -334,7 +339,29 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // matching.ts — and Surprise me with no anchor is unchanged, owned-only.
   const buildLook = (anchor?: WardrobeItem): boolean => {
     const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
-    const ids = bestLook(owned, anchor ? { anchor } : {})?.itemIds ?? [];
+    // AJA-248. This used to pass `{}` — with no options, four of the six weights
+    // in scoreLook are frozen constants (weather 0.7, vibe 0.65, semantic 0.55,
+    // taste 0.5) and only antiRepeat varies, which is why Surprise me was
+    // statistically indistinguishable from random. Weather is already cached and
+    // free; the vibe/occasion come from the onboarding quiz that Settings
+    // already advertises as tuning "Generate outfit".
+    const weather = readCachedWeather();
+    const ids =
+      bestLook(owned, {
+        ...(anchor ? { anchor } : {}),
+        ...(engineV2 ? { engine: "v2" as const } : {}),
+        weather: weather
+          ? {
+              season: weather.season,
+              needsOuterwear: weather.needsOuterwear,
+              tempC: weather.tempC ?? undefined,
+            }
+          : null,
+        season: weather?.season,
+        vibe: primaryStyleVibe(profile) || undefined,
+        occasion: profile.styleOccasions?.[0],
+        taste: readTaste(),
+      })?.itemIds ?? [];
     const pool = anchor ? [anchor, ...owned] : owned;
     const picks = ids
       .map((id) => pool.find((it) => it.id === id))

@@ -57,6 +57,8 @@ export function YouView() {
   } = useWardrobe();
 
   const importStatus = useWardrobe((s) => s.importStatus);
+  const engineV2 = useWardrobe((s) => s.engineV2);
+  const setEngineV2 = useWardrobe((s) => s.setEngineV2);
   const jobRunning = !!importStatus?.running;
   const backfillRunning = jobRunning && importStatus?.phase === "backfill";
   const needBackfill = useMemo(() => countNeedingBackfill(items), [items]);
@@ -248,12 +250,24 @@ export function YouView() {
           }
           chevron={needBackfill > 0 && !jobRunning}
         />
-        {/* AJA-248 — TEMPORARY entry point for the Surprise me prototype. The
-            static page can't read the WKWebView's storage, so it needs a route
-            inside the app. DELETE this row with the prototype. */}
+        {/* AJA-248 — TEMPORARY, delete with the prototype. The toggle routes
+            Surprise me through src/lib/outfit-rules.ts; the link opens the
+            side-by-side comparison page (a static page can't read the
+            WKWebView's storage, hence the /surprise-proto route). */}
         <Row
           icon={Sparkles}
-          label="Surprise me prototype"
+          label="New outfit engine"
+          right={
+            <Toggle
+              on={engineV2}
+              onChange={() => setEngineV2(!engineV2)}
+              label="New outfit engine"
+            />
+          }
+        />
+        <Row
+          icon={Sparkles}
+          label="Compare engines (prototype)"
           value="AJA-248"
           onClick={() => {
             window.location.href = "/surprise-proto";

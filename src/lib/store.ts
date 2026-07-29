@@ -196,6 +196,13 @@ interface WardrobeState {
   draft: Record<SlotKey, string[]>;
   /** Explore pins saved to the user's board. */
   savedPinIds: string[];
+  /**
+   * AJA-248 — opt into the rebuilt outfit engine (src/lib/outfit-rules.ts).
+   * Off by default: `suggestLooks`/`bestLook` feed six screens (Today, Calendar,
+   * Explore, Stylist, Travel, the canvas), so this ships behind a toggle rather
+   * than changing all of them at once. Persisted, so it survives a reload.
+   */
+  engineV2: boolean;
   /** Freeform canvas items. */
   canvasDraft: CanvasItem[];
   /** Board background for the canvas composer (CSS color/gradient, or null). */
@@ -321,6 +328,7 @@ interface WardrobeState {
   setCanvasBg: (bg: string | null) => void;
   /** Save/unsave an Explore pin. */
   toggleSavePin: (id: string) => void;
+  setEngineV2: (on: boolean) => void;
   /** Replace persisted fields from a remote snapshot (Supabase pull). */
   hydrateFromRemote: (data: {
     items: WardrobeItem[];
@@ -524,6 +532,7 @@ export const useWardrobe = create<WardrobeState>()(
       filters: { search: "", category: "all", season: "all", tag: "all" },
       draft: emptyDraft(),
       savedPinIds: [],
+      engineV2: false,
       canvasDraft: [],
       canvasBg: null,
 
@@ -948,6 +957,8 @@ export const useWardrobe = create<WardrobeState>()(
             : [id, ...s.savedPinIds],
         })),
 
+      setEngineV2: (on) => set({ engineV2: on }),
+
       hydrateFromRemote: (data) =>
         set(() => {
           const profile = data.profile ?? get().profile;
@@ -1011,6 +1022,7 @@ export const useWardrobe = create<WardrobeState>()(
           canvasDraft: s.canvasDraft,
           canvasBg: s.canvasBg,
           savedPinIds: s.savedPinIds,
+          engineV2: s.engineV2,
         }),
     },
   ),

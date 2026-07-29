@@ -14,6 +14,13 @@ import {
   outfitQueryAffinity,
 } from "./style-embed";
 import { tasteAffinity, type TasteState } from "./taste";
+import {
+  explainOutfit,
+  lookSimilarity,
+  rejectOutfit,
+  scoreOutfitV2,
+  type OutfitContext,
+} from "./outfit-rules";
 import type { Season, SlotKey, WardrobeItem } from "./types";
 
 export interface WeatherContext {
@@ -47,6 +54,12 @@ export interface GenerateOptions {
   taste?: TasteState;
   /** Randomness source, injectable for tests. */
   random?: () => number;
+  /**
+   * AJA-248 — which engine to use. "v2" runs the rebuilt hard-filter + pairwise
+   * scorer in ./outfit-rules. Defaults to "v1" (the shipped behaviour) because
+   * this function feeds six screens; callers opt in individually.
+   */
+  engine?: "v1" | "v2";
 }
 
 export interface ScoredLook {
@@ -55,8 +68,9 @@ export interface ScoredLook {
   items: WardrobeItem[];
   /** Composite 0–100 score (same scale as legacy outfitScore for UI badges). */
   score: number;
-  /** Breakdown 0–1 for debugging / future UI. */
+  /** Breakdown 0–1 for debugging / future UI. Extra keys when engine "v2". */
   signals: {
+    [k: string]: number | undefined;
     color: number;
     formality: number;
     weather: number;
@@ -445,6 +459,7 @@ export function suggestLooks(
   items: WardrobeItem[],
   opts: GenerateOptions = {},
 ): ScoredLook[] {
+  if (opts.engine === "v2") return suggestLooksV2(items, opts);
   const pool = filterPool(items, opts);
   if (pool.length < 2 && !opts.anchor) return [];
 
@@ -529,4 +544,131 @@ export function outfitScore(items: WardrobeItem[]): number {
 /** One-line reason for UI (joins top reasons). */
 export function lookReasonLine(look: ScoredLook): string {
   return look.reasons[0] ?? "A solid pairing from your closet.";
+}
+
+/**
+ * AJA-248 engine v2 — hard filters, then a pairwise score, then a slate
+ * diversified on garment TYPE rather than item id. Returns the same ScoredLook
+ * shape as v1 so every caller is unaffected.
+ *
+ * Reached only via `opts.engine === "v2"`.
+ */
+function suggestLooksV2(
+  items: WardrobeItem[],
+  opts: GenerateOptions,
+): ScoredLook[] {
+  const random = opts.random ?? Math.random;
+  const pool = items.filter((it) => !it.wishlist && it.imageUrl);
+  if (pool.length < 2 && !opts.anchor) return [];
+
+  const ctx: OutfitContext = {
+    season: opts.weather?.season ?? opts.season,
+    tempC: opts.weather?.tempC ?? null,
+    needsOuterwear: opts.weather?.needsOuterwear,
+    occasion: opts.occasion,
+    vibe: opts.vibe,
+    formality: opts.formality,
+  };
+  const wantsCoat =
+    ctx.needsOuterwear === true || ctx.season === "winter" || ctx.season === "fall";
+
+  const byCat = new Map<string, WardrobeItem[]>();
+  for (const it of pool) {
+    const list = byCat.get(it.category) ?? [];
+    list.push(it);
+    byCat.set(it.category, list);
+  }
+  const pick = (cat: string): WardrobeItem | null => {
+    const list = byCat.get(cat);
+    if (!list?.length) return null;
+    return list[Math.floor(random() * list.length)];
+  };
+
+  const tries = opts.candidates ?? 400;
+  const seen = new Set<string>();
+  const scored: { look: ScoredLook; items: WardrobeItem[] }[] = [];
+
+  for (let n = 0; n < tries; n++) {
+    const picked: WardrobeItem[] = [];
+    const place = (it: WardrobeItem | null) => {
+      if (it && !picked.some((p) => p.id === it.id)) picked.push(it);
+    };
+    if (opts.anchor) place(opts.anchor);
+    const hasCore = picked.some((p) => p.category === "dress") ||
+      (picked.some((p) => p.category === "top") && picked.some((p) => p.category === "bottom"));
+    if (!hasCore) {
+      if ((byCat.get("dress")?.length ?? 0) > 0 && random() < 0.2) place(pick("dress"));
+      else { place(pick("top")); place(pick("bottom")); }
+    }
+    if (!picked.some((p) => p.category === "shoes")) place(pick("shoes"));
+    // Outerwear only when the weather earns it (v1 fires on random() < 0.45).
+    if (wantsCoat && !picked.some((p) => p.category === "outerwear") && random() < 0.6) {
+      place(pick("outerwear"));
+    }
+    // Accessories opt-in and rarer than v1's 70%, which put a knit scarf in 39%
+    // of looks from a five-item accessory pool.
+    if (random() < 0.3 && !picked.some((p) => p.category === "accessory" || p.category === "bag")) {
+      place(random() < 0.5 ? pick("accessory") : pick("bag"));
+    }
+    if (picked.length < 2) continue;
+    const key = picked.map((p) => p.id).sort().join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (rejectOutfit(picked, ctx)) continue;
+
+    const { score, signals } = scoreOutfitV2(picked, ctx);
+    const draft = draftFromPicked(picked);
+    scored.push({
+      items: picked,
+      look: {
+        draft,
+        itemIds: draftIds(draft),
+        items: picked,
+        score,
+        // v1 signal keys kept present so existing consumers don't break; the v2
+        // breakdown rides alongside via the index signature.
+        signals: {
+          // v2 breakdown rides along via the index signature; the v1 keys are
+          // aliased on top so existing consumers keep working. `formality` is
+          // shared and comes from the spread.
+          ...signals,
+          color: signals.colour,
+          weather: signals.context,
+          vibe: signals.style,
+          antiRepeat: signals.utility,
+          semantic: signals.role,
+          taste: signals.balance,
+        },
+        reasons: explainOutfit(picked, signals, ctx),
+      },
+    });
+  }
+  if (!scored.length) return [];
+  scored.sort((a, b) => b.look.score - a.look.score);
+
+  // Slate by MMR at descending lambda: safe / elevated / experimental. Canvas
+  // brief p3 — "a random shuffle is not a surprise feature".
+  const want = opts.count ?? 1;
+  const lambdas = [0.85, 0.55, 0.35];
+  const best = scored[0].look.score || 1;
+  const out: ScoredLook[] = [];
+  const takenItems: WardrobeItem[][] = [];
+  for (let slot = 0; slot < want; slot++) {
+    const lambda = lambdas[Math.min(slot, lambdas.length - 1)];
+    let bestVal = -Infinity;
+    let bestIdx = -1;
+    for (let i = 0; i < scored.length; i++) {
+      if (out.includes(scored[i].look)) continue;
+      const rel = scored[i].look.score / best;
+      const sim = takenItems.length
+        ? Math.max(...takenItems.map((t) => lookSimilarity(scored[i].items, t)))
+        : 0;
+      const val = lambda * rel - (1 - lambda) * sim;
+      if (val > bestVal) { bestVal = val; bestIdx = i; }
+    }
+    if (bestIdx < 0) break;
+    out.push(scored[bestIdx].look);
+    takenItems.push(scored[bestIdx].items);
+  }
+  return out;
 }
