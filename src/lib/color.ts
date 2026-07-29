@@ -80,8 +80,14 @@ const COLOR_NAMES: { name: string; h: number }[] = [
 /** Best-effort human name for a hex color ("navy", "cream", "olive"...). */
 export function nameColor(hex: string): string {
   const hsl = hexToHsl(hex);
+  const { r, g, b } = hexToRgb(hex);
+  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
   if (hsl.l >= 95) return "white";
-  if (hsl.l <= 8) return "black";
+  // Anything this dark reads as black unless it carries real colour. `l <= 8` alone left
+  // #1a1a1a — a black t-shirt — named "grey", because it landed one point above the cut
+  // and fell through to the grey branch below (AJA-252). Gated on chroma so a dark but
+  // genuinely coloured navy or burgundy still reaches the hue table and gets its own word.
+  if (hsl.l <= 12 && chroma <= 24) return "black";
   if (hsl.s <= 10) return hsl.l > 60 ? "light grey" : "grey";
   // Warm hues with little actual colour in them are earth words in English, not
   // "orange": before this, a beige coat was named "light orange" and a brown one
@@ -91,15 +97,20 @@ export function nameColor(hex: string): string {
   //
   // Deliberately NOT fixed by widening `isNeutral`: that feeds outfit harmony
   // scoring app-wide, and this is only a question of what to call the colour.
-  const { r, g, b } = hexToRgb(hex);
-  const chroma = Math.max(r, g, b) - Math.min(r, g, b);
-  if (hsl.h >= 18 && hsl.h <= 48 && chroma <= 84) {
+  // The cap is hue-aware. #f3d19e (a pale sand, hue 36) has chroma 85 and was named "light
+  // orange" under a flat `<= 84`; raising the cap everywhere would instead drag peach
+  // (#f0b79a, hue 20, chroma 86) into "beige", which is worse than what it does now. Sand
+  // and tan sit above hue 28; peach and salmon sit below it.
+  if (hsl.h >= 18 && hsl.h <= 48 && chroma <= (hsl.h >= 28 ? 92 : 84)) {
     if (hsl.l >= 80) return "cream";
     if (hsl.l >= 70) return "beige";
     if (hsl.l >= 42) return "tan";
     return "brown";
   }
-  if (isNeutral(hsl)) return hsl.l > 70 ? "cream" : "beige";
+  // Cream and beige are LIGHT words. `isNeutral` also answers true for anything near black
+  // (it has an `l <= 10` clause for harmony scoring), so without the lightness guard a very
+  // dark navy like #121921 came out "beige" — the worst miss in the closet (AJA-252).
+  if (isNeutral(hsl) && hsl.l >= 40) return hsl.l > 70 ? "cream" : "beige";
   let best = COLOR_NAMES[0];
   for (const c of COLOR_NAMES) {
     if (hueDistance(hsl.h, c.h) < hueDistance(hsl.h, best.h)) best = c;

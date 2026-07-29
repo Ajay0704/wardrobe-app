@@ -8,6 +8,7 @@
  * Mirrors /api/analyze (raw Gemini REST, x-goog-api-key, thought-part filtering).
  */
 import { requireUser } from "@/lib/auth-server";
+import { parseModelJson } from "@/lib/model-json";
 import { inferSubcategory } from "@/lib/subcategory";
 import { FIT_VALUES, type Category } from "@/lib/types";
 import { normalizeFit } from "@/lib/analyze-attrs";
@@ -157,11 +158,8 @@ export async function POST(request: Request) {
     return Response.json({ error: `Detection error (${resp.status}).`, detail }, { status: 502 });
   }
 
-  const text = extractText(await resp.json());
-  let parsed: { items?: unknown };
-  try {
-    parsed = JSON.parse(text.replace(/^```json\s*|\s*```$/g, "").trim());
-  } catch {
+  const parsed: { items?: unknown } | null = parseModelJson(extractText(await resp.json()));
+  if (!parsed) {
     return Response.json({ error: "Couldn't read the detection. Try again." }, { status: 502 });
   }
 

@@ -3,6 +3,7 @@ import { safeFetch } from "@/lib/net";
 import { inferSubcategory } from "@/lib/subcategory";
 import type { Category } from "@/lib/types";
 import { normalizeFit } from "@/lib/analyze-attrs";
+import { parseModelJson } from "@/lib/model-json";
 import {
   ANALYZE_FORMALITY,
   ANALYZE_GENERATION_CONFIG,
@@ -126,11 +127,8 @@ export async function POST(request: Request) {
     return Response.json({ error: `Analysis error (${resp.status}).`, detail }, { status: 502 });
   }
 
-  const text = extractText(await resp.json());
-  let parsed: Record<string, unknown>;
-  try {
-    parsed = JSON.parse(text.replace(/^```json\s*|\s*```$/g, "").trim());
-  } catch {
+  const parsed = parseModelJson(extractText(await resp.json()));
+  if (!parsed) {
     return Response.json({ error: "Couldn't read the analysis. Try again." }, { status: 502 });
   }
 
