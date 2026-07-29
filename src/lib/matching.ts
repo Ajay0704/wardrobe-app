@@ -614,10 +614,31 @@ function suggestLooksV2(
     if (wantsCoat && !picked.some((p) => p.category === "outerwear") && random() < 0.6) {
       place(pick("outerwear"));
     }
-    // Accessories opt-in and rarer than v1's 70%, which put a knit scarf in 39%
-    // of looks from a five-item accessory pool.
-    if (random() < 0.3 && !picked.some((p) => p.category === "accessory" || p.category === "bag")) {
-      place(random() < 0.5 ? pick("accessory") : pick("bag"));
+    // AJA-256. This was `random() < 0.3` then a blind 50/50 between accessory and
+    // bag, which dropped accessories from v1's 80.3% of looks to 4.9% — sunglasses
+    // stopped appearing at all. Three things were wrong:
+    //
+    //  1. The 0.3 gate. I cut it from v1's 0.7 because v1 put a knit scarf in 39%
+    //     of summer looks — but rejectOutfit's knit-in-warm-weather filter already
+    //     fixes that. The rate cut fixed the same bug a second time and took every
+    //     other accessory down with it.
+    //  2. The 50/50 coin. The measured closet has ZERO bags, so half the attempts
+    //     drew from an empty pool and placed nothing, halving 0.3 to an effective
+    //     0.15. Choose proportionally to what actually exists instead.
+    //  3. Even then rejectOutfit legitimately removes most of a small accessory
+    //     drawer per season, so the attempt rate has to sit well above the target
+    //     appearance rate.
+    //
+    // TUNE: the gate is near-linear in the resulting rate (measured 0.55 -> 21.7%
+    // of summer looks, 0.70 -> 29.1%, 0.85 -> 40.1%). 0.70 is "sometimes, not every
+    // time" — the user's words: at 29% per look, a three-look slate shows an
+    // accessory ~64% of the time. Guarded by a rate BAND in the test, not a point.
+    if (random() < 0.7 && !picked.some((p) => p.category === "accessory" || p.category === "bag")) {
+      const nAcc = byCat.get("accessory")?.length ?? 0;
+      const nBag = byCat.get("bag")?.length ?? 0;
+      if (nAcc + nBag > 0) {
+        place(random() < nAcc / (nAcc + nBag) ? pick("accessory") : pick("bag"));
+      }
     }
     if (picked.length < 2) continue;
     const key = picked.map((p) => p.id).sort().join("|");

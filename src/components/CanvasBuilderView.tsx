@@ -51,16 +51,26 @@ interface SlateEntry {
   picks: WardrobeItem[];
 }
 
-/* One tab per category (AJA-229), with a sub-category chip row underneath. */
+/*
+ * One tab per category (AJA-229), with a sub-category chip row underneath.
+ *
+ * AJA-257: this row used to slide sideways under your thumb — eight labels at 15px
+ * with 24px gaps measured 604px inside a 375px sheet. "Outerwear" and "Accessories"
+ * are the two that make it impossible: with every label spelled out, even 13px type
+ * needs 352px and leaves 3px total for seven gaps. Shortened to "Coats" and
+ * "Extras" the set measures 288px, so all eight fit at 375px and the row stops
+ * moving. `overflow-x-auto` stays on the row as a safety net for 320px screens and
+ * large accessibility type — it just no longer has anything to scroll.
+ */
 const TABS: { key: string; label: string; cat: Category | null }[] = [
   { key: "all", label: "All", cat: null },
   { key: "top", label: "Tops", cat: "top" },
   { key: "bottom", label: "Bottoms", cat: "bottom" },
   { key: "dress", label: "Dresses", cat: "dress" },
-  { key: "outerwear", label: "Outerwear", cat: "outerwear" },
+  { key: "outerwear", label: "Coats", cat: "outerwear" },
   { key: "shoes", label: "Shoes", cat: "shoes" },
   { key: "bag", label: "Bags", cat: "bag" },
-  { key: "accessory", label: "Accessories", cat: "accessory" },
+  { key: "accessory", label: "Extras", cat: "accessory" },
 ];
 
 const SHEET_TITLE: Record<Mode, string> = {
@@ -1061,7 +1071,11 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   </button>
                 </div>
               )}
-              <div className="flex gap-6 overflow-x-auto border-b border-line px-5">
+              {/* text-[13px] + gap-[6px] + px-3 measured at a 375px viewport: the row
+                  fits with ~11px to spare, so it holds still (AJA-257). The slack is
+                  deliberate — at exactly 375/375 any bump in accessibility type size
+                  would start it sliding again. */}
+              <div className="flex gap-[6px] overflow-x-auto border-b border-line px-3">
                 {TABS.map((t) => (
                   <button
                     key={t.key}
@@ -1069,7 +1083,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                       setTab(t.key);
                       setSubCat("all");
                     }}
-                    className={`relative shrink-0 pb-3 pt-1 text-[15px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
+                    className={`relative shrink-0 pb-3 pt-1 text-[13px] ${tab === t.key ? "font-medium text-foreground" : "text-muted"}`}
                   >
                     {t.label}
                     {tab === t.key && (

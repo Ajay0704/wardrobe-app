@@ -30,6 +30,7 @@ import {
   rejectOutfit,
   scoreOutfitV2,
 } from "@/lib/outfit-rules";
+import { suggestLooks } from "@/lib/matching";
 import { SUBCATEGORIES } from "@/lib/types";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 
@@ -210,6 +211,63 @@ ok(simSameType > 0.5, "swapping one jersey for another is NOT counted as diverse
 const { score, signals } = scoreOutfitV2([shirt, jeans, sneakers], SUMMER);
 ok(score >= 0 && score <= 100, "score is 0..100", String(score));
 ok(Object.values(signals).every((v) => v >= 0 && v <= 1), "every signal is 0..1");
+
+// ---------------------------------------------------------------------------
+// AJA-256 — accessories must appear SOMETIMES. A point assertion here would be
+// brittle and, worse, would not have caught the original regression: the rate fell
+// from 80.3% to 4.9% with every existing test still green, because nothing measured
+// how often an accessory reaches a look. A band does catch both failure modes —
+// vanished, and every-single-time.
+console.log("\n=== accessory appearance rate (AJA-256) ===");
+{
+  // A synthetic closet, so the band does not depend on anyone's wardrobe. Two
+  // accessories legal in summer, one knit that summer must exclude, and NO bags —
+  // the empty-bag-pool case that halved the real rate via a blind 50/50 coin.
+  const shades = it({ category: "accessory", subcategory: "sunglasses", name: "Black sunglasses", color: "#1a1a1a" });
+  const knit = it({ category: "accessory", subcategory: "scarf", name: "Black knit scarf", color: "#1a1a1a", seasons: ["winter"] });
+  const cap = it({ category: "accessory", subcategory: "hat", name: "Cotton cap", color: "#f2f2f2" });
+  // The garments are made ALL-SEASON (empty seasons list) on purpose: the shared
+  // fixtures above are summer-only, and reusing them as-is left winter with zero
+  // looks, which would have made every winter assertion pass vacuously.
+  const closet: WardrobeItem[] = [
+    shirt, jersey, jersey2, tee, jeans, suitTrousers, sneakers, dressShoes,
+  ]
+    .map((x, i) => ({ ...x, id: `g-${i}`, imageUrl: "x.png", seasons: [] as Season[] }))
+    .concat(
+      [shades, cap].map((x, i) => ({ ...x, id: `a-${i}`, imageUrl: "x.png", seasons: [] as Season[] })),
+      [{ ...knit, id: "a-knit", imageUrl: "x.png" }],
+    );
+
+  const rate = (season: Season, tempC: number) => {
+    let n = 0, a = 0, knits = 0, multi = 0;
+    for (let s = 0; s < 200; s++) {
+      for (const l of suggestLooks(closet, {
+        weather: { season, needsOuterwear: season === "winter", tempC }, season,
+        vibe: "casual", occasion: "everyday", mood: "everyday", count: 3, engine: "v2",
+      })) {
+        n++;
+        const acc = l.items.filter((x) => x.category === "accessory" || x.category === "bag");
+        if (acc.length) a++;
+        if (acc.length > 1) multi++;
+        if (l.items.some(isColdAccessory)) knits++;
+      }
+    }
+    return { n, pct: n ? a / n : 0, knitPct: n ? knits / n : 0, multiPct: n ? multi / n : 0 };
+  };
+
+  const su = rate("summer", 27);
+  console.log(`  summer: ${su.n} looks, accessory ${(su.pct * 100).toFixed(1)}%, knit ${(su.knitPct * 100).toFixed(1)}%`);
+  ok(su.n > 0, "summer produces looks", String(su.n));
+  ok(su.pct > 0.1, "accessories are NOT absent (the AJA-256 regression: 4.9%)", `${(su.pct * 100).toFixed(1)}%`);
+  ok(su.pct < 0.75, "…and NOT on every look either (v1 shipped 80.3%)", `${(su.pct * 100).toFixed(1)}%`);
+  ok(su.knitPct === 0, "no knit accessory in summer", `${(su.knitPct * 100).toFixed(1)}%`);
+  ok(su.multiPct === 0, "never more than one accessory in a look", `${(su.multiPct * 100).toFixed(1)}%`);
+
+  const wi = rate("winter", 2);
+  console.log(`  winter: ${wi.n} looks, accessory ${(wi.pct * 100).toFixed(1)}%, knit ${(wi.knitPct * 100).toFixed(1)}%`);
+  ok(wi.pct > 0.1, "accessories reach winter looks too", `${(wi.pct * 100).toFixed(1)}%`);
+  ok(wi.knitPct > 0, "a knit scarf IS allowed in winter (the filter is seasonal, not a ban)", `${(wi.knitPct * 100).toFixed(1)}%`);
+}
 
 console.log(`\n${fails === 0 ? "ALL OUTFIT-RULE CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);
 process.exit(fails ? 1 : 0);
