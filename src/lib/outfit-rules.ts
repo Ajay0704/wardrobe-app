@@ -295,6 +295,14 @@ export function isCollared(it: WardrobeItem): boolean {
   return /(polo|button-?up|button-?down|oxford|dress shirt|collared|camp collar)/.test(n);
 }
 
+/**
+ * At or above this, knitwear reads wrong however the season is labelled (AJA-258).
+ * Lower than the coat threshold of 22°C on purpose: a wool scarf is a stronger
+ * cold signal than a light jacket, and 20°C in a scarf already looks like a
+ * mistake. TUNE.
+ */
+const KNIT_MAX_C = 20;
+
 const COLD_RE = /(scarf|beanie|glove|mitten|earmuff)/;
 export const isColdAccessory = (it: WardrobeItem): boolean =>
   COLD_RE.test(sub(it)) || COLD_RE.test(nm(it));
@@ -388,16 +396,35 @@ export function rejectOutfit(items: WardrobeItem[], ctx: OutfitContext = {}): st
   if (season) {
     for (const it of items) {
       const s = itemSeasons(it);
-      // Only reject for the layers that actually read wrong out of season; a
-      // spring top in summer is fine.
+      // Only reject for the pieces that actually read wrong out of season; a spring
+      // top in summer is fine.
+      //
+      // AJA-258: `shoes` was missing here, and it is the worst omission of the three
+      // — measured on the real closet at winter 1°C, **26.8% of looks arrived with
+      // sandals**. All 17 shoes carry season tags, so this was never a data problem.
+      // Safe to add precisely because of that tagging plus the `s.length` guard: an
+      // untagged shoe is still allowed, and 8 of the 17 include winter, so there is
+      // no shortage of legal choices. Found by driving a manual winter override,
+      // which is exactly what the prototype was for.
       if (s.length && !s.includes(season) &&
-          (it.category === "accessory" || it.category === "outerwear")) {
+          (it.category === "accessory" || it.category === "outerwear" || it.category === "shoes")) {
         return `${it.name} is not a ${season} piece`;
       }
     }
-    if ((season === "summer" || season === "spring") && items.some(isColdAccessory)) {
-      return "knit accessory in warm weather";
-    }
+  }
+  // AJA-258. This used to live inside `if (season)` and test the SEASON only, so
+  // "winter at 27°C" put a wool scarf on you. Unreachable while season and tempC
+  // both came from one weather snapshot and therefore always agreed — the moment a
+  // user can set them independently it is reachable, so temperature counts too.
+  //
+  // Deliberately an OR, not a replacement: it only ever adds rejections in warm
+  // weather. Deriving a "thermal season" from tempC and using that instead would
+  // have been tidier but regresses the boundaries — summer at 20°C would resolve to
+  // spring and start rejecting summer-only accessories as out of season.
+  const warmBySeason = season === "summer" || season === "spring";
+  const warmByTemp = ctx.tempC != null && ctx.tempC >= KNIT_MAX_C;
+  if ((warmBySeason || warmByTemp) && items.some(isColdAccessory)) {
+    return "knit accessory in warm weather";
   }
   if (items.some(isShorts) && items.some(isColdAccessory)) {
     return "knit accessory with shorts";

@@ -4,6 +4,7 @@ import {
   Bell,
   CalendarDays,
   ChartBar,
+  CloudSun,
   Download,
   FileText,
   LifeBuoy,
@@ -27,15 +28,33 @@ import {
 import { profileHandle } from "@/lib/profile";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
 import { REASON_LABEL, readEngineFeedback, topReason } from "@/lib/engine-feedback";
+import {
+  CONTEXT_SEASONS,
+  TEMP_MAX,
+  TEMP_MIN,
+  describeStyleContext,
+} from "@/lib/style-context";
+import { STYLE_OCCASIONS } from "@/lib/style-quiz";
 import { useWardrobe } from "@/lib/store";
 import { signOut } from "@/lib/supabase/auth";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ProfileAvatar } from "./ProfileAvatar";
-import { Toggle } from "./ui";
+import { Chip, Toggle } from "./ui";
 import { countNeedingBackfill } from "@/lib/backfill-attrs";
 import { runAttributeBackfill } from "@/lib/import-queue";
 import { Group, Row } from "./you/settings-ui";
+
+/** AJA-258 — a settings field holding interactive children. `Row` renders a
+ *  <button>, so chips can't nest inside one; this mirrors Row's padding + hairline. */
+function CtxField({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="px-3.5 py-3 [&:not(:first-child)]:border-t [&:not(:first-child)]:border-line">
+      <p className="mb-2 text-[13px] font-medium text-muted">{title}</p>
+      {children}
+    </div>
+  );
+}
 
 /**
  * "Settings" — one calm hub (AJA-202). A profile card, an upgrade card, then
@@ -78,6 +97,22 @@ export function YouView() {
   // so navigating here remounts and the tally is fresh. A lazy initializer, not an
   // effect: react-hooks/set-state-in-effect rejects setState from an effect body.
   const [fb] = useState(() => readEngineFeedback());
+  // AJA-258 — Style context row (variant B). Collapsed by default.
+  const styleContext = useWardrobe((s) => s.styleContext);
+  const setStyleContext = useWardrobe((s) => s.setStyleContext);
+  const [ctxOpen, setCtxOpen] = useState(false);
+  // Season and temperature are independent controls, so they can disagree. The
+  // thermal filters follow the temperature (AJA-258 phase 1) while the scorer's
+  // contextFit still follows the declared season, so a contradictory pair gives
+  // you coherent-but-surprising looks. Saying so beats letting you wonder.
+  const ctxContradiction = useMemo(() => {
+    if (styleContext.mode !== "manual") return null;
+    const { season, tempC } = styleContext;
+    const warmSeason = season === "summer" || season === "spring";
+    if (warmSeason && tempC < 10) return `${season} at ${tempC}°C is contradictory — cold-weather rules will win.`;
+    if (!warmSeason && tempC > 22) return `${season} at ${tempC}°C is contradictory — warm-weather rules will win.`;
+    return null;
+  }, [styleContext]);
   const fbTop = useMemo(() => topReason(fb), [fb]);
 
   const name = profile.displayName?.trim() || "You";
@@ -256,6 +291,107 @@ export function YouView() {
           }
           chevron={needBackfill > 0 && !jobRunning}
         />
+        {/* AJA-258 — Style context. Variant B of three prototypes: one row that
+            expands, with Auto as the default so behaviour is unchanged unless you
+            deliberately opt in. The row's value doubles as the status line, which
+            is the point — the real failure mode of an override is forgetting it is
+            on and wondering why suggestions look wrong. */}
+        <Row
+          icon={CloudSun}
+          label="Style context"
+          onClick={() => setCtxOpen((o) => !o)}
+          // `right`, not `value`: the summary runs to ~30 characters, and Row's value
+          // slot is a shrink-0 single line that overlapped and wrapped the label.
+          right={
+            <span className="max-w-[46%] shrink-0 text-right text-[11.5px] capitalize leading-[1.35] text-muted">
+              {describeStyleContext(styleContext)}
+            </span>
+          }
+          chevron
+        />
+        {ctxOpen && (
+          <>
+            <CtxField title="Use">
+              <div className="flex flex-wrap gap-1.5">
+                <Chip
+                  active={styleContext.mode === "auto"}
+                  onClick={() => setStyleContext({ mode: "auto" })}
+                >
+                  Auto
+                </Chip>
+                <Chip
+                  active={styleContext.mode === "manual"}
+                  onClick={() => setStyleContext({ mode: "manual" })}
+                >
+                  Manual
+                </Chip>
+              </div>
+            </CtxField>
+            {styleContext.mode === "manual" && (
+              <>
+                <CtxField title="Season">
+                  <div className="flex flex-wrap gap-1.5">
+                    {CONTEXT_SEASONS.map((s) => (
+                      <Chip
+                        key={s}
+                        active={styleContext.season === s}
+                        onClick={() => setStyleContext({ season: s })}
+                      >
+                        {s}
+                      </Chip>
+                    ))}
+                  </div>
+                </CtxField>
+                <CtxField title="Occasion">
+                  <div className="flex flex-wrap gap-1.5">
+                    {STYLE_OCCASIONS.map((o) => (
+                      <Chip
+                        key={o.id}
+                        active={styleContext.occasion === o.id}
+                        onClick={() => setStyleContext({ occasion: o.id })}
+                      >
+                        {o.label.split(" / ")[0]}
+                      </Chip>
+                    ))}
+                  </div>
+                </CtxField>
+                <CtxField title="Temperature">
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min={TEMP_MIN}
+                      max={TEMP_MAX}
+                      value={styleContext.tempC}
+                      onChange={(e) => setStyleContext({ tempC: Number(e.target.value) })}
+                      className="h-1.5 w-full"
+                      style={{ accentColor: "var(--accent)" }}
+                      aria-label="Temperature"
+                    />
+                    <b className="w-12 shrink-0 text-right text-[15px] tabular-nums">
+                      {styleContext.tempC}°C
+                    </b>
+                  </div>
+                </CtxField>
+                <Row
+                  icon={CloudSun}
+                  label="Needs a coat"
+                  right={
+                    <Toggle
+                      on={styleContext.needsOuterwear}
+                      onChange={() => setStyleContext({ needsOuterwear: !styleContext.needsOuterwear })}
+                      label="Needs a coat"
+                    />
+                  }
+                />
+                {ctxContradiction && (
+                  <p className="px-3.5 pb-3 text-[11.5px] leading-relaxed text-amber-700">
+                    {ctxContradiction}
+                  </p>
+                )}
+              </>
+            )}
+          </>
+        )}
         {/* AJA-248 — TEMPORARY, delete with the prototype. The toggle routes
             Surprise me through src/lib/outfit-rules.ts; the link opens the
             side-by-side comparison page (a static page can't read the

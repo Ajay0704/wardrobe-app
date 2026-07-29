@@ -213,6 +213,69 @@ ok(score >= 0 && score <= 100, "score is 0..100", String(score));
 ok(Object.values(signals).every((v) => v >= 0 && v <= 1), "every signal is 0..1");
 
 // ---------------------------------------------------------------------------
+// AJA-258 — thermal rules must follow the TEMPERATURE, not just the season label.
+// Before this, "knit accessory in warm weather" lived inside `if (season)` and
+// tested only whether the season was summer/spring, so a declared season of winter
+// at 27C put a wool scarf on you. Unreachable while both values came from one
+// weather snapshot; reachable the moment a user can set them apart.
+console.log("\n=== season/temperature contradictions (AJA-258) ===");
+{
+  const cold = [
+    it({ category: "top", subcategory: "sweater", name: "Wool jumper", color: "#4a4a4a" }),
+    it({ category: "bottom", subcategory: "jeans", name: "Dark jeans", color: "#2b3a55" }),
+    it({ category: "shoes", subcategory: "boots", name: "Chelsea boots", color: "#2b1d16" }),
+  ];
+  // `scarf` is tagged fall+winter, so with season:"winter" the out-of-season loop
+  // passes it and the knit rule is the ONLY thing that can catch it — which is
+  // exactly the path that was broken.
+  const withScarf = [...cold, scarf];
+  const R = (tempC: number | null, season: Season = "winter") =>
+    rejectOutfit(withScarf, { season, tempC, needsOuterwear: true });
+
+  ok(R(27) !== null, "winter at 27C rejects a wool scarf", String(R(27)));
+  ok(R(27) === "knit accessory in warm weather", "…for the right reason", String(R(27)));
+  ok(R(3) === null, "winter at 3C still allows it — the rule is thermal, not a ban", String(R(3)));
+  ok(R(null) === null, "with no temperature, winter behaves exactly as before", String(R(null)));
+  // Boundary, derived from the constant rather than retyped, so moving KNIT_MAX_C
+  // moves the test with it instead of silently disagreeing.
+  ok(R(20) !== null && R(19) === null, "the cutoff sits between 19C and 20C",
+    `19C -> ${R(19)} | 20C -> ${R(20)}`);
+  // Summer must be unchanged: it was already correct via the season branch.
+  ok(rejectOutfit(withScarf, { season: "summer", tempC: 27, needsOuterwear: false }) !== null,
+    "summer at 27C still rejects it (season branch preserved)");
+  ok(rejectOutfit(withScarf, { season: "summer", tempC: null }) !== null,
+    "summer with no temperature still rejects it");
+  // And it must not over-reject: warm weather alone is not a rejection.
+  ok(rejectOutfit(cold, { season: "winter", tempC: 27, needsOuterwear: true }) === null,
+    "a warm winter look WITHOUT a knit accessory is still allowed",
+    String(rejectOutfit(cold, { season: "winter", tempC: 27, needsOuterwear: true })));
+
+  // Out-of-season SHOES. The seasonality loop covered accessories and outerwear but
+  // not shoes, and on the real closet that put sandals in 26.8% of winter looks —
+  // the biggest of the three season bugs, found only once a manual winter override
+  // made it easy to look at.
+  const sandals = it({ category: "shoes", subcategory: "sandals", name: "Slide sandals", color: "#1a1a1a", seasons: ["summer"] });
+  const allSeasonSneaker = it({ category: "shoes", subcategory: "sneakers", name: "Vans", color: "#1a1a1a", seasons: ["spring", "summer", "fall", "winter"] });
+  const untagged = it({ category: "shoes", subcategory: "sneakers", name: "Untagged sneaker", color: "#1a1a1a" });
+  const core = [
+    it({ category: "top", subcategory: "sweater", name: "Wool jumper" }),
+    it({ category: "bottom", subcategory: "jeans", name: "Dark jeans" }),
+  ];
+  const W = { season: "winter" as Season, tempC: 1, needsOuterwear: true };
+  ok(rejectOutfit([...core, sandals], W) !== null, "summer-only sandals are rejected in winter",
+    String(rejectOutfit([...core, sandals], W)));
+  ok(rejectOutfit([...core, allSeasonSneaker], W) === null, "an all-season sneaker is fine in winter",
+    String(rejectOutfit([...core, allSeasonSneaker], W)));
+  // The `s.length` guard is what makes this safe to add — an untagged shoe must NOT
+  // start being rejected just because it has no season data.
+  ok(rejectOutfit([...core, untagged], W) === null, "an UNTAGGED shoe is not rejected (no data is not bad data)",
+    String(rejectOutfit([...core, untagged], W)));
+  ok(rejectOutfit([...core, sandals], { season: "summer", tempC: 31, needsOuterwear: false }) === null,
+    "…and sandals are still allowed in summer",
+    String(rejectOutfit([...core, sandals], { season: "summer", tempC: 31, needsOuterwear: false })));
+}
+
+// ---------------------------------------------------------------------------
 // AJA-256 — accessories must appear SOMETIMES. A point assertion here would be
 // brittle and, worse, would not have caught the original regression: the rate fell
 // from 80.3% to 4.9% with every existing test still green, because nothing measured

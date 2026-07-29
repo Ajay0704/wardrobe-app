@@ -4,6 +4,8 @@ import { Check, RefreshCw, Sparkles } from "lucide-react";
 import { useMemo, useState } from "react";
 import { styleWays } from "@/lib/rediscover";
 import { useWardrobe } from "@/lib/store";
+import { resolveStyleContext } from "@/lib/style-context";
+import { readCachedWeather } from "@/lib/weather";
 import type { WardrobeItem } from "@/lib/types";
 import { Button, MatchBadge, Modal } from "./ui";
 
@@ -20,6 +22,8 @@ export function RediscoverModal({
 }) {
   const items = useWardrobe((s) => s.items);
   const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
+  const styleContext = useWardrobe((s) => s.styleContext); // AJA-258
+  const profile = useWardrobe((s) => s.profile);
   const saveOutfit = useWardrobe((s) => s.saveOutfit);
   const logWear = useWardrobe((s) => s.logWear);
   const [seed, setSeed] = useState(0);
@@ -27,10 +31,18 @@ export function RediscoverModal({
   const [worn, setWorn] = useState<Record<number, boolean>>({});
 
   // seed is a dependency so "Shuffle" regenerates a fresh set of ideas.
+  // AJA-258 — Rediscover used to pass NO season or temperature at all, so it could
+  // offer a knit scarf in July. It now reads the same ambient context as Today and
+  // the canvas.
+  const resolved = useMemo(
+    () => resolveStyleContext(styleContext, readCachedWeather(), profile.styleOccasions?.[0]),
+    [styleContext, profile.styleOccasions],
+  );
+
   const ideas = useMemo(
-    () => styleWays(anchor, items, undefined, undefined, engineV2 ? "v2" : undefined),
+    () => styleWays(anchor, items, undefined, undefined, engineV2 ? "v2" : undefined, resolved),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [anchor, items, seed, engineV2],
+    [anchor, items, seed, engineV2, resolved],
   );
 
   return (

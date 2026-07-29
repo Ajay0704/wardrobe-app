@@ -32,6 +32,7 @@ import {
 import type { SyncStatus } from "./supabase/sync";
 import { scrubSnapshotImages } from "./heal";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
+import { DEFAULT_STYLE_CONTEXT, normalizeStyleContext, type StyleContext } from "./style-context";
 import { lookWorn } from "./engine-feedback";
 
 export type ThemeMode = "light" | "dark";
@@ -204,6 +205,13 @@ interface WardrobeState {
    * than changing all of them at once. Persisted, so it survives a reload.
    */
   engineV2: boolean;
+  /**
+   * AJA-258 — user override for the ambient context Surprise me and Today read.
+   * `mode: "auto"` (the default) means "use the detected weather", i.e. unchanged
+   * behaviour. Screens with their OWN context (Calendar's tapped date, Travel's
+   * trip) deliberately ignore this.
+   */
+  styleContext: StyleContext;
   /** Freeform canvas items. */
   canvasDraft: CanvasItem[];
   /** Board background for the canvas composer (CSS color/gradient, or null). */
@@ -330,6 +338,7 @@ interface WardrobeState {
   /** Save/unsave an Explore pin. */
   toggleSavePin: (id: string) => void;
   setEngineV2: (on: boolean) => void;
+  setStyleContext: (patch: Partial<StyleContext>) => void;
   /** Replace persisted fields from a remote snapshot (Supabase pull). */
   hydrateFromRemote: (data: {
     items: WardrobeItem[];
@@ -534,6 +543,7 @@ export const useWardrobe = create<WardrobeState>()(
       draft: emptyDraft(),
       savedPinIds: [],
       engineV2: false,
+      styleContext: { ...DEFAULT_STYLE_CONTEXT },
       canvasDraft: [],
       canvasBg: null,
 
@@ -969,6 +979,11 @@ export const useWardrobe = create<WardrobeState>()(
 
       setEngineV2: (on) => set({ engineV2: on }),
 
+      // Patch, not replace, so the UI can flip one field without restating the
+      // rest — and re-normalized on the way in, so no caller can push a bad value.
+      setStyleContext: (patch) =>
+        set((st) => ({ styleContext: normalizeStyleContext({ ...st.styleContext, ...patch }, st.styleContext) })),
+
       hydrateFromRemote: (data) =>
         set(() => {
           const profile = data.profile ?? get().profile;
@@ -1016,6 +1031,10 @@ export const useWardrobe = create<WardrobeState>()(
           draft: normalizeDraft(p.draft),
           canvasDraft: Array.isArray(p.canvasDraft) ? p.canvasDraft : current.canvasDraft,
           profile: { ...DEFAULT_PROFILE, ...(p.profile ?? {}) },
+          // `...p` above spreads persisted fields straight through, so this is the
+          // only chance to reject a corrupt blob before it reaches the engine as
+          // season:"banana" or tempC:NaN (AJA-258).
+          styleContext: normalizeStyleContext(p.styleContext),
           theme: p.theme === "dark" ? "dark" : "light",
           // Launch screen comes from profile.startView (not last-visited tab).
           view: resolveStartView(p.profile),
@@ -1033,6 +1052,7 @@ export const useWardrobe = create<WardrobeState>()(
           canvasBg: s.canvasBg,
           savedPinIds: s.savedPinIds,
           engineV2: s.engineV2,
+          styleContext: s.styleContext,
         }),
     },
   ),

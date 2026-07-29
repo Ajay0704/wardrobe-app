@@ -12,6 +12,7 @@ import {
 import { primaryStyleVibe } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { readTaste } from "@/lib/taste";
+import { resolveStyleContext, type ResolvedContext } from "@/lib/style-context";
 import type { WardrobeItem } from "@/lib/types";
 import {
   cacheWeather,
@@ -33,24 +34,21 @@ type Suggestion = {
 
 function buildSuggestions(
   pool: WardrobeItem[],
-  weather: WeatherSnapshot | null,
+  // AJA-258: the RESOLVED context, not the raw forecast. The weather card above
+  // still shows the real forecast — overriding what it displays would be lying
+  // about the weather; this only changes what the engine is told.
+  ctx: ResolvedContext,
   vibe: string | undefined,
   count = 3,
   engine?: "v1" | "v2",
 ): Suggestion[] {
   if (pool.length < 2) return [];
   return suggestLooks(pool, {
-    vibe,
-    occasion: "today",
+    vibe: ctx.vibe ?? vibe,
+    occasion: ctx.occasion ?? "today",
     mood: vibe || "everyday",
-    weather: weather
-      ? {
-          season: weather.season,
-          needsOuterwear: weather.needsOuterwear,
-          tempC: weather.tempC,
-        }
-      : null,
-    season: weather?.season,
+    weather: ctx.weather,
+    season: ctx.season,
     taste: typeof window !== "undefined" ? readTaste() : undefined,
     count,
     candidates: count * 8,
@@ -68,6 +66,7 @@ export function TodayView() {
   const { items, logWear, setDraft, setView, saveOutfit, profile, openSplit } =
     useWardrobe();
   const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
+  const styleContext = useWardrobe((s) => s.styleContext); // AJA-258
   // Show the last known forecast instantly, then refresh below.
   const [weather, setWeather] = useState<WeatherSnapshot | null>(() =>
     readCachedWeather(),
@@ -133,10 +132,17 @@ export function TodayView() {
 
   const styleVibe = primaryStyleVibe(profile);
 
+  // AJA-258 — one resolver decides what "right now" means; `weather` stays the
+  // real forecast for the card above it.
+  const resolved = useMemo(
+    () => resolveStyleContext(styleContext, weather, profile.styleOccasions?.[0]),
+    [styleContext, weather, profile.styleOccasions],
+  );
+
   const suggestions = useMemo(
-    () => buildSuggestions(pool, weather, styleVibe, 3, engineV2 ? "v2" : undefined),
+    () => buildSuggestions(pool, resolved, styleVibe, 3, engineV2 ? "v2" : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed forces reshuffle
-    [pool, weather, seed, styleVibe, engineV2],
+    [pool, resolved, seed, styleVibe, engineV2],
   );
 
   const flash = (msg: string) => {

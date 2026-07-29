@@ -21,6 +21,7 @@ import { suggestLooks } from "@/lib/matching";
 import { readCachedWeather } from "@/lib/weather";
 import { primaryStyleVibe } from "@/lib/profile";
 import { readTaste } from "@/lib/taste";
+import { resolveStyleContext } from "@/lib/style-context";
 import {
   REASON_LABEL,
   REROLL_REASONS,
@@ -168,6 +169,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     setView,
     profile,
     engineV2,
+    styleContext,
   } = useWardrobe();
 
   // The single switch between "my draft" and "our session". Everything below reads
@@ -481,20 +483,23 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
    */
   const buildAndPlace = (anchor?: WardrobeItem): SlateEntry[] => {
     const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
-    const weather = readCachedWeather();
+    // AJA-258 — one resolver decides what "right now" means. In auto mode this is
+    // exactly the old behaviour (cached weather + the quiz occasion); in manual mode
+    // Settings' Style context wins. Note that with no cached weather AND auto mode
+    // the engine gets no season at all, which is why the seasonal filters go inert —
+    // setting it manually is the fix for that, not just a convenience.
+    const ctx = resolveStyleContext(
+      styleContext,
+      readCachedWeather(),
+      profile.styleOccasions?.[0],
+    );
     const looks = suggestLooks(owned, {
       ...(anchor ? { anchor } : {}),
       ...(engineV2 ? { engine: "v2" as const } : {}),
-      weather: weather
-        ? {
-            season: weather.season,
-            needsOuterwear: weather.needsOuterwear,
-            tempC: weather.tempC ?? undefined,
-          }
-        : null,
-      season: weather?.season,
-      vibe: primaryStyleVibe(profile) || undefined,
-      occasion: profile.styleOccasions?.[0],
+      weather: ctx.weather,
+      season: ctx.season,
+      vibe: ctx.vibe ?? (primaryStyleVibe(profile) || undefined),
+      occasion: ctx.occasion,
       taste: readTaste(),
       count: 3,
     });
@@ -514,7 +519,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // failed to resolve was still scored, and dropping it would bias the record.
     slateShown(looks, {
       engine: engineV2 ? "v2" : "v1",
-      season: weather?.season,
+      season: ctx.season,
       slotNames: [...SLATE_LABELS],
     });
     slateRef.current = resolved;

@@ -7,6 +7,7 @@
 
 import { scorePair } from "./color";
 import { suggestLooks } from "./matching";
+import type { ResolvedContext } from "./style-context";
 import type { WardrobeItem } from "./types";
 
 export interface OutfitIdea {
@@ -62,6 +63,13 @@ export function styleWays(
   random: () => number = Math.random,
   /** AJA-248 — pass "v2" to use src/lib/outfit-rules. */
   engine?: "v1" | "v2",
+  /**
+   * AJA-258 — resolved ambient context. Optional, and omitting it reproduces the
+   * old behaviour exactly: NO season and NO temperature, which is why Rediscover
+   * could offer a knit scarf in July. Callers with a conversational or explicit
+   * context of their own (the stylist) deliberately pass nothing.
+   */
+  ctx?: ResolvedContext,
 ): OutfitIdea[] {
   void random;
   const owned = allItems.filter((it) => !it.wishlist);
@@ -71,6 +79,7 @@ export function styleWays(
     candidates: count * 10,
     mood: anchor.tags[0] || "everyday",
     engine,
+    ...(ctx ? { weather: ctx.weather, season: ctx.season, occasion: ctx.occasion, vibe: ctx.vibe } : {}),
   })
     .filter((look) => look.itemIds.includes(anchor.id) && look.items.length >= 3)
     .map((look) => ({
