@@ -64,8 +64,15 @@ function ouLuoLightness(labA, labB) {
   const dL = Math.abs(labA.L - labB.L);
   const HLsum = 0.3 + 0.5 * Math.tanh(-4 + 0.029 * Lsum);
   const HdL = 0.14 + 0.15 * Math.tanh(-2 + 0.2 * dL);
-  // Observed range of the sum is roughly [-0.2, 1.1]; map to 0..1.
-  return clamp01((HLsum + HdL + 0.2) / 1.3);
+
+  // HdL is the CONTRAST term and rises with |dL| — that is the one that matters
+  // for clothing. HLsum is a *brightness preference*: it rates two pale items
+  // above a black/white pairing, which is not a contrast judgment at all.
+  // Summing them equally (the first version here) made black+white score 0.30.
+  // Contrast leads, brightness is a light modifier.
+  const contrast = clamp01((HdL + 0.01) / 0.30); // dL 5→0.12, 10→0.50, 20→0.98
+  const brightness = clamp01(HLsum + 0.2);
+  return clamp01(0.75 * contrast + 0.25 * brightness);
 }
 
 /** Shortest distance between two hue angles, 0..180. */
@@ -101,14 +108,21 @@ function colourPair(hexA, hexB) {
   const nA = isNeutralLab(A);
   const nB = isNeutralLab(B);
 
+  // The two branches below MUST span comparable ranges. An earlier version used
+  // floors of 0.30 (both neutral) and 0.62 (one neutral), which handed every
+  // colourful item a ~0.23 systematic bonus: black jeans + white tee scored
+  // 0.525 while black jeans + a red football jersey scored 0.707. Result was
+  // jerseys chosen at 67% against a 17% base rate. Keep these aligned.
   if (nA && nB) {
-    // Both neutral: lightness is the ONLY information. Muddy near-matches
-    // (charcoal on black) should not score the same as black on cream.
-    return { score: 0.30 + 0.70 * light, kind: "neutral pair", light };
+    // Both neutral: contrast is the only information. Black-on-charcoal should
+    // fail; black-on-white is one of the best pairings there is.
+    return { score: 0.40 + 0.52 * light, kind: "neutral pair", light };
   }
   if (nA || nB) {
-    // One neutral anchor: forgiving, but lightness still matters.
-    return { score: 0.62 + 0.38 * light, kind: "neutral anchor", light };
+    // One neutral anchor: safe, but must not out-score a crisp neutral pairing.
+    // Span kept wide (0.40) so the term stays discriminating — a narrow 0.26
+    // span clustered 29% of all pairs at the mode, i.e. half-inert again.
+    return { score: 0.52 + 0.40 * light, kind: "neutral anchor", light };
   }
   // Both chromatic: hue leads, lightness modulates.
   const hue = hueHarmony(A.h, B.h);
@@ -137,30 +151,64 @@ const nm = (it) => String(it.name || "").toLowerCase();
  * TUNE: these are styling convention, not a published scale — no ordinal
  * garment formality scale was found in the literature.
  */
+/*
+ * Covers EVERY value in src/lib/types.ts SUBCATEGORIES (87 options across 7
+ * categories, 18 of them tagged gender:"female", 2 gender:"male"), plus a few
+ * aliases the model emits. The earlier table was invented rather than derived
+ * and had singular/plural mismatches — `boot` vs the app's `boots`, `heel` vs
+ * `heels`, `loafer` vs `loafers`, `legging` vs `leggings`, and no `dressshoes`
+ * at all. Those only worked by accident via the name fallback, and every
+ * womenswear subcategory (mini/midi/maxi/gown/jumpsuit/romper/sundress, crop,
+ * camisole, bodysuit, flats, wedges, clutch, satchel...) was missing entirely.
+ * The verification script asserts 100% coverage against the app's own list, so
+ * this can't silently drift again.
+ *
+ * NOTE: no gender branching anywhere. The ACM survey's ethics section (p26-28)
+ * flags hard-coded gendered garment rules as a bias failure mode, so the fix is
+ * vocabulary COVERAGE, not a "women's mode".
+ */
 const SUB_DRESS = {
-  // tops
+  // --- top ---
   tshirt: 0, tee: 0, jersey: 0, tank: 0, hoodie: 0, sweatshirt: 0, zipup: 0,
-  longsleeve: 1, sweater: 1, knit: 1, cardigan: 1, polo: 1,
+  crop: 0,
+  longsleeve: 1, sweater: 1, knit: 1, cardigan: 1, polo: 1, camisole: 1,
+  bodysuit: 1,
   shirt: 2, blouse: 2, buttonup: 2,
-  blazer: 3, suit: 3,
-  // bottoms
-  shorts: 0, joggers: 0, sweatpants: 0, track: 0, legging: 0,
+  // --- bottom ---
+  shorts: 0, joggers: 0, sweatpants: 0, leggings: 0, legging: 0, cargo: 0,
   jeans: 1, skirt: 1,
   chinos: 2, trousers: 2, pants: 2, slacks: 2,
-  // shoes
-  slides: 0, sandal: 0, flipflop: 0, sneaker: 0, sneakers: 0, trainer: 0,
-  boot: 2, loafer: 2, mule: 2,
-  oxford: 3, derby: 3, brogue: 3, heel: 3,
-  // outerwear
-  puffer: 0, windbreaker: 0, anorak: 0, raincoat: 0,
-  bomber: 1, denim: 1, overshirt: 1, utility: 1, fleece: 1,
-  trench: 2, coat: 2, peacoat: 2,
-  // accessories
+  // --- dress (one-piece) ---
+  sundress: 1, romper: 1, mini: 1,
+  midi: 2, maxi: 2, jumpsuit: 2,
+  gown: 3,
+  // --- outerwear ---
+  windbreaker: 0, puffer: 0, parka: 0, trackjacket: 0, anorak: 0, raincoat: 0,
+  jacket: 1, bomber: 1, denim: 1, leather: 1, vest: 1, overshirt: 1,
+  utility: 1, fleece: 1,
+  coat: 2, trench: 2, peacoat: 2,
+  blazer: 3, suit: 3,
+  // --- shoes ---
+  slides: 0, sandals: 0, sandal: 0, flipflop: 0, sneakers: 0, sneaker: 0,
+  trainer: 0,
+  espadrilles: 1, flats: 1,
+  boots: 2, boot: 2, loafers: 2, loafer: 2, wedges: 2, mule: 2,
+  heels: 3, heel: 3, dressshoes: 3, oxford: 3, derby: 3, brogue: 3,
+  // --- bag ---
+  backpack: 0, duffel: 0, beltbag: 0,
+  tote: 1, crossbody: 1, messenger: 1, shoulder: 1, bag: 1,
+  handbag: 2, satchel: 2,
+  clutch: 3,
+  // --- accessory ---
   cap: 0, beanie: 0, bucket: 0,
-  scarf: 1, sunglasses: 1, bag: 1, backpack: 0,
+  hat: 1, scarf: 1, sunglasses: 1, gloves: 1, wallet: 1, hair: 1,
+  bracelet: 1, earrings: 1, necklace: 1,
   belt: 2, watch: 2,
-  tie: 3, bowtie: 3, pocketsquare: 3,
+  tie: 3, bowtie: 3, pocketsquare: 3, cufflinks: 3,
 };
+
+/** Garments that define an outfit's register. Shoes/bags/accessories excluded. */
+const CORE_CATS = new Set(["top", "bottom", "dress", "outerwear"]);
 
 /**
  * Dressiness, or null when unknown. Falls back to the name for bad tags.
@@ -217,7 +265,11 @@ function isCollared(it) {
  *
  * "gym" has no \b so "Gymshark" matches; an earlier \bgym\b missed every one.
  */
-const GYM_RE = /(gymshark|compression|athletic|training|performance|dri-?fit|adizero|running|basketball|\bcurry\b|on ?cloud|jogger|sweatpant|legging|track ?pant|activewear)/;
+// `legging` is deliberately NOT here, for the same reason as bare `track`:
+// leggings + sweater + boots is an ordinary outfit, not gym kit. The subcategory
+// alone isn't proof of activewear — a name/brand signal is ("Gymshark leggings",
+// "compression leggings" still match). Same judgment call as `trackjacket`.
+const GYM_RE = /(gymshark|compression|athletic|training|performance|dri-?fit|adizero|running|basketball|\bcurry\b|on ?cloud|jogger|sweatpant|track ?pant|activewear)/;
 const isGym = (it) =>
   GYM_RE.test(sub(it)) || GYM_RE.test(nm(it)) || GYM_RE.test(String(it.brand || "").toLowerCase());
 
@@ -230,9 +282,16 @@ const isAthletic = isGym;
  * tags "Gymshark straight leg pumper pants" as trousers, and isGym wins.
  */
 const SMART_SUBS = new Set([
+  // bottoms / tops
   "jeans", "chinos", "trousers", "slacks", "shirt", "polo", "blouse",
-  "buttonup", "blazer", "suit", "dressshoes", "oxford", "derby", "brogue",
-  "loafer", "boot",
+  "buttonup", "blazer", "suit",
+  // one-piece
+  "gown", "midi", "maxi", "jumpsuit",
+  // shoes — both spellings, since the app uses plurals and the model emits both
+  "dressshoes", "oxford", "derby", "brogue", "loafers", "loafer",
+  "boots", "boot", "heels", "heel", "wedges",
+  // dressy bags: a clutch does not belong on a gym look
+  "clutch", "handbag", "satchel",
 ]);
 const isSmartCasual = (it) => {
   if (isGym(it)) return false;
@@ -284,11 +343,39 @@ function rejectReason(outfit, ctx) {
     }
   }
 
-  // 4. Dressiness gap — derived from subcategory, not the holey formality field.
-  const dr = outfit.map(dressiness).filter((d) => d !== null);
-  if (dr.length >= 2) {
-    const gap = Math.max(...dr) - Math.min(...dr);
+  // 4. Dressiness gap over the CORE garments only — top/bottom/dress/outerwear.
+  //    Shoes and accessories are excluded deliberately. 16 of 17 shoes in the
+  //    measured closet are dressiness 0, so including them meant every outfit
+  //    carried a sneaker and any top above d0 was marked down: `shirt` went from
+  //    16.8% of accepted candidates to 0.3% of chosen ones, and blazer+sneakers
+  //    was rejected outright. This is the per-category-pair point from
+  //    Vasileva et al. — top<->bottom is a real constraint, top<->sneaker is not.
+  const coreDr = outfit
+    .filter((i) => CORE_CATS.has(i.category))
+    .map(dressiness)
+    .filter((d) => d !== null);
+  if (coreDr.length >= 2) {
+    const gap = Math.max(...coreDr) - Math.min(...coreDr);
     if (gap >= 3) return "formality clash (dressy piece with sportswear)";
+  }
+  // Shoes get targeted rules instead of a gap: sneakers go with almost anything,
+  // but dress shoes and heels do not belong on a gym or beach look.
+  const shoe = outfit.find((i) => i.category === "shoes");
+  if (shoe && (dressiness(shoe) ?? 0) >= 2) {
+    const tooCasual = outfit.find(
+      (i) => CORE_CATS.has(i.category) && (dressiness(i) ?? 1) === 0 && isGym(i),
+    );
+    if (tooCasual) return `${shoe.name} with ${tooCasual.name}`;
+    if (outfit.some(isShorts)) return `${shoe.name} with shorts`;
+  }
+  // And the reverse: a formal one-piece needs shoes to match. Sneakers with a
+  // blazer is fine; sneakers with a gown is not. Only fires at dressiness 3, so
+  // it never touches a midi/sundress worn casually.
+  const formalCore = outfit.find(
+    (i) => CORE_CATS.has(i.category) && (dressiness(i) ?? 0) >= 3,
+  );
+  if (formalCore && shoe && (dressiness(shoe) ?? 0) <= 0 && sub(formalCore) === "gown") {
+    return `${formalCore.name} with ${shoe.name}`;
   }
 
   // 5. Activewear is an exclusive register: gym kit pairs with gym kit.
@@ -371,11 +458,18 @@ function formalityPair(a, b) {
     const db = dressiness(b);
     if (da == null || db == null) return 0.6; // genuinely unknown
     const g = Math.abs(da - db);
-    return g === 0 ? 1 : g === 1 ? 0.82 : g === 2 ? 0.45 : 0.15;
+    return g === 0 ? 1 : g === 1 ? 0.95 : g === 2 ? 0.5 : 0.15;
   }
   const gap = Math.abs(ra - rb);
-  // Shipped code scores gap<=1 as 1.00, which rates dress-shirt+joggers IDEAL.
-  return gap === 0 ? 1 : gap <= 0.5 ? 0.95 : gap <= 1 ? 0.78 : gap <= 1.5 ? 0.5 : 0.2;
+  // One step of formality between pieces is NORMAL — a shirt with jeans is one
+  // of the most standard outfits there is. An earlier curve scored gap 1 at 0.78,
+  // which handed all-casual combinations a systematic edge: jersey+jeans (both
+  // tagged casual, gap 0) scored 1.00 while shirt+jeans scored 0.78, and shirts
+  // fell to 0.3% of chosen tops against a 19% base rate. Two steps is where it
+  // actually starts to read wrong.
+  // Shipped code scores gap<=1 as 1.00, which rates dress-shirt+joggers IDEAL —
+  // that end still has to bite, hence the sharp drop past 1.5.
+  return gap === 0 ? 1 : gap <= 0.5 ? 0.98 : gap <= 1 ? 0.95 : gap <= 1.5 ? 0.7 : gap <= 2 ? 0.45 : 0.2;
 }
 
 function contextFit(outfit, ctx) {
@@ -413,13 +507,20 @@ function daysSince(iso) {
 function styleCoherence(outfit) {
   // Shared tags across pieces = a coherent register. "Fashion style
   // consistency" (ACM CSUR p16): pieces can look different yet share a style.
+  //
+  // Normalised by the tag pool, because a raw shared-tag COUNT just rewards
+  // items that happen to carry more tags. Football jerseys in this closet carry
+  // 9 tags (sporty, casual, athletic, branded, football, streetwear, ...) while
+  // shirts carry a different set, so the unnormalised version handed jerseys a
+  // free 0.11 on this term.
   const counts = new Map();
   for (const it of outfit) {
-    for (const t of it.tags || []) counts.set(t, (counts.get(t) || 0) + 1);
+    for (const t of new Set(it.tags || [])) counts.set(t, (counts.get(t) || 0) + 1);
   }
   if (!counts.size) return 0.6;
   const shared = [...counts.values()].filter((n) => n >= 2).length;
-  return clamp01(0.5 + Math.min(shared, 3) * 0.17);
+  const pool = counts.size;
+  return clamp01(0.55 + 0.45 * Math.min(1, shared / Math.max(1, pool * 0.4)));
 }
 
 /** Weights are starting guesses. Brief p5 step 6: tune from feedback. TUNE. */
@@ -444,9 +545,15 @@ function scoreOutfit(outfit, ctx) {
   const colour = pairs.length ? 0.6 * mean(cols) + 0.4 * Math.min(...cols) : 0.7;
   const formality = pairs.length ? 0.5 * mean(forms) + 0.5 * Math.min(...forms) : 0.7;
 
-  const dr = outfit.map(dressiness).filter((d) => d !== null);
+  // Same restriction as the hard filter: score the gap across core garments
+  // only. Including shoes made the ranker reject every top above dressiness 0,
+  // because this closet's shoe pool is 16/17 sneakers.
+  const dr = outfit
+    .filter((i) => CORE_CATS.has(i.category))
+    .map(dressiness)
+    .filter((d) => d !== null);
   const gap = dr.length >= 2 ? Math.max(...dr) - Math.min(...dr) : 0;
-  const role = gap === 0 ? 1 : gap === 1 ? 0.85 : gap === 2 ? 0.45 : 0.1;
+  const role = gap === 0 ? 1 : gap === 1 ? 0.9 : gap === 2 ? 0.6 : 0.15;
 
   const signals = {
     colour,
@@ -539,12 +646,38 @@ function buildCandidates(pool, ctx, rnd, tries) {
   return out;
 }
 
-/** Jaccard overlap on item ids — the similarity MMR penalises. */
+/**
+ * Similarity MMR penalises. Item-id Jaccard ALONE is not enough: this closet
+ * holds 16 football jerseys, so three different jerseys score 0% overlap and
+ * the slate comes back looking identical while claiming to be diverse. That is
+ * both why jerseys monopolised every slot and why the three looks felt samey.
+ * Garment TYPE and register carry most of the weight instead.
+ */
 function lookSim(a, b) {
-  const A = new Set(a.items.map((i) => i.id));
+  const ids = new Set(a.items.map((i) => i.id));
   let shared = 0;
-  for (const i of b.items) if (A.has(i.id)) shared++;
-  return shared / Math.max(A.size, b.items.length, 1);
+  for (const i of b.items) if (ids.has(i.id)) shared++;
+  const idSim = shared / Math.max(ids.size, b.items.length, 1);
+
+  // Garment-type profile: two jersey+jeans+sneaker looks are the same outfit.
+  const subA = new Set(a.items.map(sub).filter(Boolean));
+  const subB = new Set(b.items.map(sub).filter(Boolean));
+  let subShared = 0;
+  for (const s of subB) if (subA.has(s)) subShared++;
+  const subSim = subShared / Math.max(subA.size, subB.size, 1);
+
+  // Register: a smart look and a relaxed look are meaningfully different even
+  // when they happen to share a garment type.
+  const coreD = (look) => {
+    const ds = look.items
+      .filter((i) => CORE_CATS.has(i.category))
+      .map(dressiness)
+      .filter((d) => d !== null);
+    return ds.length ? mean(ds) : 1;
+  };
+  const regSim = 1 - Math.min(1, Math.abs(coreD(a) - coreD(b)) / 2);
+
+  return 0.35 * idSim + 0.45 * subSim + 0.20 * regSim;
 }
 
 /**
