@@ -86,14 +86,74 @@ export interface AmbientWeather {
   needsOuterwear?: boolean;
 }
 
+/**
+ * IANA zones whose population is mostly SOUTHERN hemisphere. Used only to flip the
+ * month->season mapping when we have no weather at all (AJA-269).
+ *
+ * Deliberately a short list rather than a complete one: `Intl` gives us a timezone
+ * for free with no permission prompt, and covering Australasia, southern South
+ * America and southern Africa gets the large majority of southern-hemisphere users
+ * right. Anyone this misses lands on the northern mapping — the same answer they got
+ * before this existed — and Style context is the precise fix either way.
+ *
+ * Not attempted: deriving latitude from a timezone offset. Offset encodes longitude,
+ * not latitude, so it cannot answer this question at all.
+ */
+const SOUTHERN_ZONES = [
+  "Australia/", "Pacific/Auckland", "Pacific/Chatham", "Pacific/Fiji", "Pacific/Port_Moresby",
+  "Antarctica/",
+  "America/Argentina/", "America/Sao_Paulo", "America/Santiago", "America/Montevideo",
+  "America/Asuncion", "America/La_Paz", "America/Lima",
+  "Africa/Johannesburg", "Africa/Windhoek", "Africa/Harare", "Africa/Lusaka",
+  "Africa/Maputo", "Africa/Gaborone", "Africa/Nairobi",
+  "Indian/Mauritius", "Indian/Reunion",
+];
+
+/** True when the device's timezone looks southern-hemisphere. */
+export function isSouthernHemisphere(timeZone?: string): boolean {
+  let tz = timeZone;
+  if (!tz) {
+    try {
+      tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    } catch {
+      return false;
+    }
+  }
+  if (!tz) return false;
+  return SOUTHERN_ZONES.some((z) => (z.endsWith("/") ? tz.startsWith(z) : tz === z));
+}
+
+/**
+ * The season implied by the calendar, for when there is no weather at all.
+ *
+ * A season is a calendar fact, so it can be recovered without a location. A
+ * TEMPERATURE cannot, and this deliberately does not invent one — see `resolve`.
+ */
+export function seasonFromDate(date = new Date(), timeZone?: string): Season {
+  const north: Season[] = [
+    "winter", "winter", "spring", "spring", "spring", "summer",
+    "summer", "summer", "fall", "fall", "fall", "winter",
+  ];
+  const s = north[date.getMonth()];
+  if (!isSouthernHemisphere(timeZone)) return s;
+  const flip: Record<Season, Season> = {
+    winter: "summer", summer: "winter", spring: "fall", fall: "spring",
+  };
+  return flip[s];
+}
+
 export interface ResolvedContext {
   weather: { season: Season; needsOuterwear: boolean; tempC?: number } | null;
   season?: Season;
   occasion?: string;
   /** The matching vibe the occasion maps to, so callers don't repeat the lookup. */
   vibe?: string;
-  /** For the UI and for telemetry — never fed to the engine. */
-  source: "manual" | "auto" | "none";
+  /**
+   * For the UI and for telemetry — never fed to the engine.
+   * "season-only" = no weather was available, so the season came from the calendar
+   * and there is no temperature (AJA-269).
+   */
+  source: "manual" | "auto" | "season-only";
 }
 
 /**
@@ -120,7 +180,32 @@ export function resolveStyleContext(
   }
   const occasion = quizOccasion;
   const vibe = STYLE_OCCASIONS.find((o) => o.id === occasion)?.vibe;
-  if (!ambient) return { weather: null, occasion, vibe, source: "none" };
+  if (!ambient) {
+    /**
+     * AJA-269 — no weather at all. This used to return `weather: null` and no
+     * season, which switches `rejectOutfit`'s seasonal rules off entirely: the
+     * out-of-season loop sits inside `if (season)`, and the knit-accessory check
+     * needs either a warm season or a temperature. That is the mechanism behind
+     * "why is it suggesting a scarf in July".
+     *
+     * It happens whenever `profile.location` is unset AND the user has never tapped
+     * "Use my location" on Today — which is every automatic weather path in the app,
+     * so it is the DEFAULT state of a fresh install, not an edge case.
+     *
+     * The month is known for free, so give the engine a season. Deliberately NO
+     * `tempC`: a season is a calendar fact, a temperature is not, and inventing one
+     * would silently re-arm the coat rule and the knit-at-20C rule on a number
+     * nobody measured. `needsOuterwear` stays false for the same reason.
+     */
+    const season = seasonFromDate();
+    return {
+      weather: { season, needsOuterwear: false },
+      season,
+      occasion,
+      vibe,
+      source: "season-only",
+    };
+  }
   return {
     weather: {
       season: ambient.season,

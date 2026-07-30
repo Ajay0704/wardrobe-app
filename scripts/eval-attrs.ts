@@ -289,7 +289,12 @@ async function run() {
       try {
         const inline = await toInline(c.imageUrl);
         if (!inline) throw new Error("image fetch failed");
-        done[c.id] = { id: c.id, ok: true, ms: Date.now() - t0, raw: await callModel(model, inline) };
+        // Await FIRST, then read the clock. Object properties evaluate left to right, so
+        // `ms: Date.now() - t0` alongside an awaited `raw:` was computed BEFORE the model call
+        // resolved — every latency this harness reported was image-fetch time with the model
+        // call excluded, understating tagging by more than 10x (AJA-268).
+        const raw = await callModel(model, inline);
+        done[c.id] = { id: c.id, ok: true, ms: Date.now() - t0, raw };
       } catch (e) {
         done[c.id] = { id: c.id, ok: false, ms: Date.now() - t0, error: String(e).slice(0, 2000) };
       }

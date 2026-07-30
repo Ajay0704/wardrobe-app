@@ -27,9 +27,25 @@ interface ImportJob {
   dataUrl: string;
 }
 
-/** Process ONE photo at a time in the background so the on-device cutout (imgly WASM) doesn't
- *  starve the phone's cores and jank the UI while the user keeps using the app (AJA-237). */
-const CONCURRENCY = 1;
+/**
+ * Process ONE photo at a time during EXTRACT so the on-device cutout (imgly WASM) doesn't starve
+ * the phone's cores and jank the UI while the user keeps using the app (AJA-237).
+ *
+ * Raise this once the cutout moves off WASM — Apple's Vision segmentation measures ~22ms per
+ * garment against imgly's seconds, at which point this stage stops being CPU-bound.
+ */
+const EXTRACT_CONCURRENCY = 1;
+
+/**
+ * COMMIT is a different animal and was throttled to 1 for a reason that never applied to it:
+ * it is pure network (beautify → refine → Storage upload) with no WASM and no canvas work, so
+ * one-at-a-time just makes the user wait N times longer. `BACKFILL_CONCURRENCY` below already
+ * makes exactly this argument for exactly this kind of work.
+ *
+ * 3 is measured, not guessed: 3 concurrent redraws completed 2.3x faster than serial, and a burst
+ * of 6 all succeeded with no throttling and no 429s across 24 calls against the live API.
+ */
+const COMMIT_CONCURRENCY = 3;
 /** Safety cap per enqueue call (the pickers already limit selection). */
 const MAX_PER_BATCH = 30;
 
@@ -127,7 +143,7 @@ export function cancelImports() {
  * when the run starts, so a value typed while the pass is in flight is never clobbered.
  *
  * Reads the item list fresh each iteration for the same reason. Network-bound rather than
- * CPU-bound (no cutout, no WASM), so it can run wider than the photo import's CONCURRENCY 1.
+ * CPU-bound (no cutout, no WASM), so it can run wider than the import's EXTRACT_CONCURRENCY.
  */
 const BACKFILL_CONCURRENCY = 3;
 let backfillCancelled = false;
@@ -197,7 +213,7 @@ export function discardPending() {
 }
 
 async function drain() {
-  while (!cancelled && active < CONCURRENCY && queue.length) {
+  while (!cancelled && active < EXTRACT_CONCURRENCY && queue.length) {
     const job = queue.shift()!;
     active++;
     void processJob(job).finally(() => {
@@ -285,7 +301,9 @@ export async function commitPending(picks: { id: string; beautify: boolean }[]) 
       await commitOne(job.item, job.beautify);
     }
   };
-  await Promise.all(Array.from({ length: CONCURRENCY }, () => worker()));
+  await Promise.all(
+    Array.from({ length: Math.min(COMMIT_CONCURRENCY, jobs.length) }, () => worker()),
+  );
 
   const s = useWardrobe.getState().importStatus;
   if (s && s.running) useWardrobe.getState().setImportStatus({ ...s, running: false });

@@ -52,7 +52,10 @@ function loadImage(src: string): Promise<HTMLImageElement> {
  * single cutout. Downscaling keeps the payload small and turns HEIC into JPEG;
  * detection returns normalized boxes, so we still crop from the full-res image.
  */
-function downscaleForDetect(img: HTMLImageElement, maxDim = 1400, quality = 0.85): string {
+/** Longest edge sent to the detector. Shared with `MIN_CROP_PX`, which is calibrated at it. */
+const DETECT_MAX_DIM = 1400;
+
+function downscaleForDetect(img: HTMLImageElement, maxDim = DETECT_MAX_DIM, quality = 0.85): string {
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
   const scale = Math.min(1, maxDim / Math.max(W, H));
@@ -67,6 +70,27 @@ function downscaleForDetect(img: HTMLImageElement, maxDim = 1400, quality = 0.85
   return canvas.toDataURL("image/jpeg", quality);
 }
 
+/**
+ * Smallest crop worth keeping, measured at DETECT_MAX_DIM scale (see below for why).
+ *
+ * The detector reliably emits slivers for garments half out of frame — across 12 real photos it
+ * produced 11 of them, things like a 20x14 "accessory" and a 35x20 "shoes". Each becomes a junk
+ * closet item AND costs a cutout, a tag and a redraw; they were ~22% of the redraws in that run.
+ *
+ * The guard has to live here rather than in `toBox()` on the server: that function works in
+ * normalized 0-1 coordinates and only rejects boxes under 1% of each dimension, which on a
+ * 468x550 image is about 5x6 pixels. It cannot express a size floor because it never sees the
+ * pixels.
+ *
+ * 48 removed every sliver in the measured set without dropping a real garment — but it was
+ * calibrated on images downscaled to `DETECT_MAX_DIM`, while cropping here happens at NATURAL
+ * resolution (deliberately, so crops stay sharp). A flat 48 would therefore be ~1.8x more
+ * permissive on a 2526px screenshot than on the images it was tuned against. So the box is
+ * measured at detect scale instead, which makes the threshold mean the same thing at any input
+ * size: "this garment occupies too little of the frame to be real".
+ */
+const MIN_CROP_PX = 48;
+
 /** Crop a normalized box (with a little padding) out of an image to a JPEG data URL. */
 function cropBox(img: HTMLImageElement, box: ApiGarment["box"], pad = 0.06): string | null {
   const W = img.naturalWidth || img.width;
@@ -78,7 +102,9 @@ function cropBox(img: HTMLImageElement, box: ApiGarment["box"], pad = 0.06): str
   const y1 = Math.min(H, (box.y + box.h * (1 + pad)) * H);
   const cw = Math.round(x1 - x0);
   const ch = Math.round(y1 - y0);
-  if (cw < 8 || ch < 8) return null;
+  // Judge the size at detect scale, not natural scale, so the threshold is resolution-independent.
+  const detectScale = Math.min(1, DETECT_MAX_DIM / Math.max(W, H));
+  if (cw * detectScale < MIN_CROP_PX || ch * detectScale < MIN_CROP_PX) return null;
   const canvas = document.createElement("canvas");
   canvas.width = cw;
   canvas.height = ch;

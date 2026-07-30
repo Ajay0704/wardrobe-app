@@ -32,6 +32,9 @@ const {
   describeStyleContext,
   normalizeStyleContext,
   resolveStyleContext,
+  seasonFromDate,
+  isSouthernHemisphere,
+  CONTEXT_SEASONS,
 } = await import("@/lib/style-context");
 const { useWardrobe } = await import("@/lib/store");
 const { rejectOutfit } = await import("@/lib/outfit-rules");
@@ -46,6 +49,11 @@ const ok = (cond: boolean, label: string, detail = "") => {
 };
 
 const PERSIST_KEY = "wardrobe-store-v2";
+
+/** Minimal item; only the fields the rules read. Hoisted — used from section 2 on. */
+const it = (p: Partial<WardrobeItem> & { category: Category }): WardrobeItem =>
+  ({ id: "x", name: p.name ?? "", category: p.category, color: "#333", seasons: [], tags: [], createdAt: 0, ...p }) as WardrobeItem;
+
 
 // ---------------------------------------------------------------------------
 console.log("\n=== 1. normalize rejects everything it should ===");
@@ -100,12 +108,68 @@ ok(rMan.weather?.needsOuterwear === true, "…including the coat flag");
 ok(rMan.occasion === "work" && rMan.vibe === "work",
   "…and ignores the quiz occasion", `${rMan.occasion}/${rMan.vibe}`);
 
+// AJA-269 — no weather at all. This assertion used to require `season === undefined`,
+// which was asserting the BUG: no season switches rejectOutfit's seasonal rules off
+// entirely, and that is the default state of a fresh install (every automatic weather
+// path is gated on profile.location).
 const rNone = resolveStyleContext({ ...DEFAULT_STYLE_CONTEXT }, null, "everyday");
-ok(rNone.weather === null && rNone.season === undefined && rNone.source === "none",
-  "auto with no cached weather yields NO season — today's real behaviour");
-// The point of the whole feature: manual mode is the fix for that hole.
+ok(rNone.source === "season-only", "auto with no weather reports source=season-only", rNone.source);
+ok(rNone.season === seasonFromDate(),
+  "…and falls back to the season implied by the calendar", String(rNone.season));
+ok(rNone.weather?.season === rNone.season,
+  "…passed through on `weather` too, so rejectOutfit's `if (season)` branch fires");
+// The honest half: a season is a calendar fact, a temperature is not.
+ok(rNone.weather?.tempC === undefined,
+  "…with NO invented temperature", String(rNone.weather?.tempC));
+ok(rNone.weather?.needsOuterwear === false, "…and no invented coat requirement");
+// The whole point: the seasonal rules must now actually be able to fire.
+{
+  const scarfLook = [
+    it({ category: "top", subcategory: "sweater", name: "Wool jumper" }),
+    it({ category: "bottom", subcategory: "jeans", name: "Dark jeans" }),
+    it({ category: "shoes", subcategory: "boots", name: "Chelsea boots" }),
+    it({ category: "accessory", subcategory: "scarf", name: "Knit scarf", seasons: ["fall", "winter"] }),
+  ];
+  const asCtx = { season: rNone.season, tempC: null, needsOuterwear: false };
+  const verdict = rejectOutfit(scarfLook, asCtx);
+  const summery = rNone.season === "summer" || rNone.season === "spring";
+  ok(summery ? verdict !== null : verdict === null,
+    `in a ${rNone.season} fallback the knit rule ${summery ? "FIRES" : "correctly stays quiet"}`,
+    String(verdict));
+  // And prove it fires when it should, independent of what month the test runs in.
+  ok(rejectOutfit(scarfLook, { season: "summer", tempC: null }) !== null,
+    "a summer fallback rejects the scarf — the rule is reachable again");
+}
+// Manual mode still wins, and still supplies a temperature.
 ok(resolveStyleContext(manual, null).season === "winter",
-  "manual mode still gives the engine a season when no weather was ever detected");
+  "manual mode still overrides the calendar fallback");
+ok(resolveStyleContext(manual, null).weather?.tempC === 3,
+  "…and manual DOES supply a temperature, unlike the fallback");
+
+console.log("\n--- season from the calendar ---");
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const NY = "America/New_York";
+const SYD = "Australia/Sydney";
+const nth = MONTHS.map((_, m) => seasonFromDate(new Date(2026, m, 15), NY));
+const sth = MONTHS.map((_, m) => seasonFromDate(new Date(2026, m, 15), SYD));
+console.log(`  north: ${nth.join(",")}`);
+console.log(`  south: ${sth.join(",")}`);
+ok(seasonFromDate(new Date(2026, 6, 15), NY) === "summer", "July in New York is summer");
+ok(seasonFromDate(new Date(2026, 6, 15), SYD) === "winter", "July in Sydney is winter");
+ok(seasonFromDate(new Date(2026, 0, 15), NY) === "winter", "January in New York is winter");
+ok(seasonFromDate(new Date(2026, 0, 15), SYD) === "summer", "January in Sydney is summer");
+// Every month must map to a real season in both hemispheres, and the two must never agree.
+ok(nth.every((x) => CONTEXT_SEASONS.includes(x)) && sth.every((x) => CONTEXT_SEASONS.includes(x)),
+  "every month maps to a valid season in both hemispheres");
+ok(nth.every((x, i) => x !== sth[i]), "the hemispheres never agree on a month's season");
+ok(new Set(nth).size === 4, "all four seasons occur across the year");
+ok(!isSouthernHemisphere(NY) && isSouthernHemisphere(SYD), "hemisphere detection reads the timezone");
+ok(!isSouthernHemisphere("Europe/London") && !isSouthernHemisphere("Asia/Tokyo"),
+  "northern zones are not misread as southern");
+ok(isSouthernHemisphere("America/Argentina/Buenos_Aires") && !isSouthernHemisphere("America/New_York"),
+  "a prefix rule matches the sub-zone without catching its neighbours");
+ok(!isSouthernHemisphere("Not/AZone") && !isSouthernHemisphere(""),
+  "an unknown or empty timezone falls back to northern rather than throwing");
 ok(resolveStyleContext(undefined, AMB).source === "auto",
   "a missing context object behaves as auto, never as a crash");
 
@@ -163,8 +227,6 @@ ok(rehydrated.mode === "manual", "…while still honouring the parts that were v
 console.log("\n=== 4. the override actually reaches the rules ===");
 // Wiring a value through is not the same as it taking effect, so drive the real
 // filter with the real resolver output.
-const it = (p: Partial<WardrobeItem> & { category: Category }): WardrobeItem =>
-  ({ id: p.name ?? "x", name: p.name ?? "", category: p.category, color: "#333", seasons: [], tags: [], createdAt: 0, ...p }) as WardrobeItem;
 const look = [
   it({ category: "top", subcategory: "sweater", name: "Wool jumper" }),
   it({ category: "bottom", subcategory: "jeans", name: "Dark jeans" }),

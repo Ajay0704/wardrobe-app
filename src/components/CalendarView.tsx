@@ -33,6 +33,7 @@ import {
 } from "@/lib/types";
 import {
   convertTemp,
+  cacheWeather,
   fetchWeatherForPlace,
   weatherIconKey,
   type TempUnit,
@@ -110,7 +111,16 @@ export function CalendarView() {
     const loc = profile.location?.trim();
     if (!loc) return;
     let alive = true;
-    fetchWeatherForPlace(loc).then((w) => alive && setWeather(w)).catch(() => {});
+    fetchWeatherForPlace(loc)
+      .then((w) => {
+        if (!alive) return;
+        setWeather(w);
+        // AJA-269: contribute to the shared cache. Calendar was the last surface that
+        // fetched a forecast and threw it away, so opening Calendar first left every
+        // other screen with no weather (same asymmetry AJA-267 fixed in Explore).
+        cacheWeather(w);
+      })
+      .catch(() => {});
     return () => { alive = false; };
   }, [profile.location]);
 
