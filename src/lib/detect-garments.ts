@@ -82,12 +82,21 @@ function downscaleForDetect(img: HTMLImageElement, maxDim = DETECT_MAX_DIM, qual
  * 468x550 image is about 5x6 pixels. It cannot express a size floor because it never sees the
  * pixels.
  *
- * 48 removed every sliver in the measured set without dropping a real garment — but it was
- * calibrated on images downscaled to `DETECT_MAX_DIM`, while cropping here happens at NATURAL
- * resolution (deliberately, so crops stay sharp). A flat 48 would therefore be ~1.8x more
- * permissive on a 2526px screenshot than on the images it was tuned against. So the box is
- * measured at detect scale instead, which makes the threshold mean the same thing at any input
- * size: "this garment occupies too little of the frame to be real".
+ * Measured at detect scale, not natural scale. The threshold was calibrated on images downscaled
+ * to `DETECT_MAX_DIM`, while cropping here happens at NATURAL resolution (deliberately, so crops
+ * stay sharp) — so a flat 48 would be ~1.8x more permissive on a 2526px screenshot than on the
+ * images it was tuned against.
+ *
+ * Two honest caveats on the value itself:
+ *
+ * - The margin is thin. Across 86 real boxes the largest rejected sliver had a 41px short side
+ *   and the smallest kept garment 48px — 1.17x apart. Area does NOT separate them at all (the
+ *   smallest real crop is 2,928px², smaller than the largest sliver at 4,655px²), which is why
+ *   this tests the short side rather than area.
+ * - That 48px floor on the smallest kept garment exists BY CONSTRUCTION: the calibration run
+ *   filtered at 48, so anything below it was never recorded. Whether real garments live between
+ *   41 and 48 is unmeasured. If users report missing belts, scarves or straps from wide shots,
+ *   this is the first number to lower.
  */
 const MIN_CROP_PX = 48;
 

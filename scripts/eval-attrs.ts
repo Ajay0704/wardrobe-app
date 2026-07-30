@@ -40,7 +40,7 @@ import { normalizeFit } from "../src/lib/analyze-attrs";
 import { ANALYZE_FORMALITY, ANALYZE_TONE, ANALYZE_GENERATION_CONFIG, buildAnalyzePrompt } from "../src/lib/analyze-prompt";
 import { bestAnalyzeSource } from "../src/lib/backfill-attrs";
 import { parseModelJson } from "../src/lib/model-json";
-import { inferSubcategory } from "../src/lib/subcategory";
+import { inferSubcategory, migrateSubcategory } from "../src/lib/subcategory";
 import type { Category, WardrobeItem } from "../src/lib/types";
 
 const OUT = join(homedir(), "Desktop", "wardrobe-upload-research", "eval");
@@ -172,7 +172,13 @@ async function pull() {
       trustBrand: source.trustBrand,
       truth: {
         category: item.category,
-        subcategory: item.subcategory,
+        // Migrate the stored value the way the app does. `normalizeItem` runs
+        // `migrateSubcategory` on every load (AJA-265), so the closet's live value for a
+        // retired subcategory is NOT what sits in the snapshot. Reading the raw blob without
+        // this made the harness score the model against stale vocabulary: 10 items still hold
+        // `longsleeve`, which was removed, and every one counted as a miss — a 6.5-point
+        // artefact on a field that had not actually regressed.
+        subcategory: migrateSubcategory(item.category, item.subcategory, item.name),
         color: item.color,
         colorName: item.colorName,
         seasons: item.seasons,
