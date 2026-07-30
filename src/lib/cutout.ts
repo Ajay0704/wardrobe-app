@@ -4,12 +4,18 @@
  *   - "imgly" (default) — on-device @imgly WASM background removal (subject vs background).
  *   - "garment"         — clothes-aware SegFormer via /api/cutout: extracts JUST the garment
  *                         for the item's category (top/bottom/dress/…), not the whole person.
- * A non-imgly engine that fails (missing key, provider error, empty mask) falls back to imgly,
- * so a cutout never hard-fails. Every result is stamped with the engine that produced it.
+ *   - "applevision"     — Apple's Vision foreground segmentation on the Neural Engine, via a
+ *                         native Capacitor plugin (AJA-273). Same subject-vs-background job as
+ *                         imgly, ~144ms instead of seconds, and no AGPL dependency.
+ * A non-imgly engine that fails (missing key, provider error, empty mask, plugin absent, iOS too
+ * old) falls back to imgly, so a cutout never hard-fails. Every result is stamped with the engine
+ * that produced it.
  */
+import { Capacitor } from "@capacitor/core";
 import { resolveImageSource } from "./supabase/storage";
 import { authHeaders } from "./supabase/client";
 import { trimAndCenter } from "./trim-center";
+import { AppleVision } from "./native/apple-vision";
 
 const IMGLY_VERSION = "1.7.0";
 
@@ -77,14 +83,61 @@ const garmentEngine: CutoutEngine = {
   },
 };
 
+/**
+ * Base64-encode a Blob without blowing the stack. `String.fromCharCode(...bytes)` on a
+ * multi-megabyte PNG spreads millions of arguments and throws; chunking keeps it flat.
+ */
+async function blobToBase64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let s = "";
+  const CHUNK = 0x8000;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    s += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(s);
+}
+
+/**
+ * Apple's Vision foreground segmentation, on the Neural Engine (AJA-273). Measured at ~144ms per
+ * garment crop against seconds for the imgly WASM engine, and it runs twice per garment because
+ * `beautify()` calls `cutout()` on its own white render.
+ *
+ * Every unavailability case THROWS rather than degrading here, because `cutout()` below already
+ * routes a non-imgly throw to imgly. That covers three real situations: the web build, an installed
+ * binary older than this plugin, and an iOS 15/16 device (the request is iOS 17+ while the app's
+ * deployment target is 15.0).
+ *
+ * Not an accuracy change. Vision removes BACKGROUND, so on a crop from a worn photo the mask keeps
+ * the whole salient subject — hands, hair and the neighbouring garment can survive, exactly as they
+ * do with imgly. Isolating the single garment happens later, in the redraw.
+ */
+const appleVisionEngine: CutoutEngine = {
+  id: "applevision@vision17",
+  async run(src) {
+    // `isPluginAvailable` rather than `isNativeApp()` from platform.ts: that one latches true in
+    // mobile Safari, which would send every web cutout down a bridge that isn't there.
+    if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("AppleVision")) {
+      throw new Error("applevision-unavailable");
+    }
+    // The native side accepts a data: URL as-is, so only remote sources need fetching. Note this
+    // hands a multi-MB base64 string across the Capacitor bridge; the bridge cost is real and has
+    // not been measured on a device yet, so the 144ms figure is segmentation time, not end-to-end.
+    const imageBase64 = src.startsWith("http") ? await blobToBase64(await (await fetch(src)).blob()) : src;
+    const { pngBase64 } = await AppleVision.removeBackground({ imageBase64 });
+    if (!pngBase64) throw new Error("applevision-empty");
+    return base64ToBlob(pngBase64, "image/png");
+  },
+};
+
 /** Resolve the active cutout engine (REMOVAL_ENGINE flag; on-device @imgly is the default). */
 export function getCutoutEngine(): CutoutEngine {
   const which = (process.env.NEXT_PUBLIC_REMOVAL_ENGINE || "imgly").toLowerCase();
   switch (which) {
     case "garment":
       return garmentEngine;
+    case "applevision":
+      return appleVisionEngine;
     // case "sam":         return samEngine;         // SAM-3 via Replicate — future
-    // case "applevision": return appleVisionEngine; // native Capacitor plugin — future
     case "imgly":
     default:
       return imglyEngine;

@@ -17,6 +17,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		A1B2C3D41E5F678900ABC001 /* MobileBridgeViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D41E5F678900ABC002 /* MobileBridgeViewController.swift */; };
 		E7A1B2C3D4E5F60718293A02 /* SharedInboxPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A1B2C3D4E5F60718293A01 /* SharedInboxPlugin.swift */; };
+		E7A1B2C3D4E5F60718293B02 /* AppleVisionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A1B2C3D4E5F60718293B01 /* AppleVisionPlugin.swift */; };
 		E86BABDE30150F7A004D887A /* ShareExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = E86BABD430150F7A004D887A /* ShareExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
@@ -57,6 +58,7 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		A1B2C3D41E5F678900ABC002 /* MobileBridgeViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileBridgeViewController.swift; sourceTree = "<group>"; };
 		E7A1B2C3D4E5F60718293A01 /* SharedInboxPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedInboxPlugin.swift; sourceTree = "<group>"; };
+		E7A1B2C3D4E5F60718293B01 /* AppleVisionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleVisionPlugin.swift; sourceTree = "<group>"; };
 		E86BABD430150F7A004D887A /* ShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -120,6 +122,7 @@
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				A1B2C3D41E5F678900ABC002 /* MobileBridgeViewController.swift */,
 				E7A1B2C3D4E5F60718293A01 /* SharedInboxPlugin.swift */,
+				E7A1B2C3D4E5F60718293B01 /* AppleVisionPlugin.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
 				504EC30E1FED79650016851F /* Assets.xcassets */,
 				504EC3101FED79650016851F /* LaunchScreen.storyboard */,
@@ -250,6 +253,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				A1B2C3D41E5F678900ABC001 /* MobileBridgeViewController.swift in Sources */,
 				E7A1B2C3D4E5F60718293A02 /* SharedInboxPlugin.swift in Sources */,
+				E7A1B2C3D4E5F60718293B02 /* AppleVisionPlugin.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
