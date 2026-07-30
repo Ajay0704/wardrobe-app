@@ -44,11 +44,25 @@ import { Chip } from "./ui";
 
 type Mode = "items" | "background" | "text" | "sticker";
 
-/** AJA-248 phase 4 — the three vibes the engine returns, in slate order. */
-const SLATE_LABELS = ["Safe", "Elevated", "Experimental"] as const;
+/**
+ * The three looks the engine returns, in slate order.
+ *
+ * AJA-263: these read "Safe / Elevated / Experimental" until Ajay asked what they
+ * meant — which was the answer. The axis is confidence vs variety (MMR lambda
+ * 0.85 / 0.55 / 0.35), and "Elevated" implied *dressier*, which it never was: an
+ * Elevated look is simply more different from the best-scoring one, and can easily
+ * be more casual.
+ */
+const SLATE_LABELS = ["Best match", "Different", "Wildcard"] as const;
+
+/**
+ * Telemetry slot keys, deliberately NOT renamed with the display labels. The events
+ * table already holds rows tagged safe/elevated/experimental, and an analysis that
+ * groups by slot has to keep working across a copy change.
+ */
+const SLATE_SLOTS = ["safe", "elevated", "experimental"] as const;
 
 interface SlateEntry {
-  reason: string;
   picks: WardrobeItem[];
 }
 
@@ -188,6 +202,10 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // surpriseLook reads the slate immediately after building it, before the state
   // update has landed, so it needs the ref rather than the stale closure value.
   const slateRef = useRef<SlateEntry[]>([]);
+  // AJA-263 — the chosen variant, in a ref as well as state: buildAndPlace runs
+  // outside React's commit (it is also called from the "Style it" effect, which must
+  // not setState) and needs to read the selection synchronously.
+  const slateIdxRef = useRef(0);
   // AJA-262 — is the flag's reason row open? Never opened automatically.
   const [flagOpen, setFlagOpen] = useState(false);
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
@@ -503,7 +521,6 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     const pool = anchor ? [anchor, ...owned] : owned;
     const resolved = looks
       .map((look) => ({
-        reason: look.reasons[0] ?? "",
         picks: look.itemIds
           .map((id) => pool.find((it) => it.id === id))
           .filter((x): x is WardrobeItem => !!x),
@@ -516,10 +533,18 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // failed to resolve was still scored, and dropping it would bias the record.
     slateShown(looks, {
       season: ctx.season,
-      slotNames: [...SLATE_LABELS],
+      slotNames: [...SLATE_SLOTS],
     });
     slateRef.current = resolved;
-    placeLook(resolved[0].picks);
+    // AJA-263 — keep the variant you chose. A segmented control's selection is a
+    // preference, not a property of the content: re-rolling used to silently drop you
+    // back to "Best match", so picking Wildcard and asking for another look quietly
+    // undid the choice you had just made. Clamped, because a later slate can be
+    // shorter than the one you were looking at.
+    const keep = Math.min(slateIdxRef.current, resolved.length - 1);
+    slateIdxRef.current = keep;
+    placeLook(resolved[keep].picks);
+    if (keep > 0) slatePicked(keep); // the placed look is the one being shown
     return resolved;
   };
 
@@ -534,7 +559,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     const resolved = buildAndPlace(anchor);
     if (!resolved.length) return false;
     setSlate(resolved);
-    setSlateIdx(0);
+    setSlateIdx(slateIdxRef.current);
     return true;
   };
 
@@ -543,10 +568,11 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     const entry = slate[i];
     if (!entry) return;
     setSelectedId(null);
+    slateIdxRef.current = i;
     setSlateIdx(i);
     slatePicked(i); // AJA-255 — a vote on the MMR lambdas
     placeLook(entry.picks);
-    if (entry.reason) flash(`${SLATE_LABELS[i]} · ${entry.reason}`);
+    flash(SLATE_LABELS[i]);
   };
 
   const surpriseLook = () => {
@@ -560,10 +586,9 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
       return;
     }
     setFlagOpen(false);
-    // The engine's own "why this" line, not a generic string — the brief calls
-    // the explanation a product requirement, and the canvas was dropping it.
-    const first = slateRef.current[0]?.reason;
-    flash(first ? `${SLATE_LABELS[0]} · ${first}` : "Here's a look — tweak it");
+    // Names the variant that's actually on the board, which is no longer always the
+    // first one. The colour rationale used to ride along here; dropped with the row.
+    flash(SLATE_LABELS[Math.min(slateIdxRef.current, slateRef.current.length - 1)]);
   };
 
   // "Style it" from a wishlist card (AJA-245). The queue carries only the id, because
@@ -1014,35 +1039,38 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   it also sits directly under the button that produced it. */}
               {slate.length > 1 && (
                 <div className="flex items-center gap-2 px-4 pb-3">
+                  {/* Equal thirds with a pill that TRAVELS to the selection rather than
+                      teleporting — the same pattern as the tool bar above, so two
+                      segmented controls on one screen behave alike. Critically damped
+                      (no overshoot): this is a tap, not a flick, and there is no
+                      gesture momentum to inherit. */}
                   <div
                     role="group"
-                    aria-label="Outfit vibe"
-                    className="flex shrink-0 overflow-hidden rounded-full border border-line"
+                    aria-label="Outfit variant"
+                    className="relative flex min-w-0 flex-1 overflow-hidden rounded-full border border-line"
                   >
+                    <span
+                      aria-hidden
+                      className="absolute inset-y-0 left-0 w-1/3 rounded-full bg-accent motion-safe:transition-transform motion-safe:duration-[350ms] motion-safe:[transition-timing-function:cubic-bezier(0.22,1,0.36,1)]"
+                      style={{ transform: `translateX(${slateIdx * 100}%)` }}
+                    />
                     {slate.map((entry, i) => (
                       <button
-                        key={`${SLATE_LABELS[i]}-${entry.picks[0]?.id ?? i}`}
+                        key={`${SLATE_SLOTS[i]}-${entry.picks[0]?.id ?? i}`}
                         type="button"
                         aria-pressed={i === slateIdx}
                         onClick={() => pickSlate(i)}
-                        className={`px-2.5 py-1 text-[11.5px] font-semibold transition-colors active:scale-95 ${
-                          i === slateIdx ? "bg-accent text-accent-foreground" : "text-muted"
+                        className={`relative z-[1] flex-1 truncate px-1 py-1 text-[11.5px] font-semibold transition-colors active:scale-95 ${
+                          i === slateIdx ? "text-accent-foreground" : "text-muted"
                         }`}
                       >
                         {SLATE_LABELS[i]}
                       </button>
                     ))}
                   </div>
-                  {slate[slateIdx]?.reason && (
-                    <p className="min-w-0 flex-1 truncate text-[11.5px] text-muted">
-                      {slate[slateIdx].reason}
-                    </p>
-                  )}
                   {/* AJA-262 — flag a bad look. Opt-in: the first version popped the
                       reason chips up automatically after a re-roll, which interrupted
-                      to ask about a look you had already moved past. A flag also names
-                      WHICH of the three was wrong, where the old prompt could only say
-                      "those three weren't it". */}
+                      to ask about a look you had already moved past. */}
                   <button
                     type="button"
                     aria-label="Flag this look"
