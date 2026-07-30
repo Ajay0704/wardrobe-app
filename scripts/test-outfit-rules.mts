@@ -32,7 +32,7 @@ import {
 } from "@/lib/outfit-rules";
 import { suggestLooks } from "@/lib/matching";
 import { SUBCATEGORIES } from "@/lib/types";
-import { migrateSubcategory } from "@/lib/subcategory";
+import { inferSubcategory, migrateSubcategory } from "@/lib/subcategory";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 
 let fails = 0;
@@ -289,6 +289,55 @@ console.log("\n=== subcategory migration (AJA-265) ===");
     "`activewear` alone marks a piece athletic — no brand name needed");
   ok(!isGym(it({ category: "top", subcategory: "shirt", name: "Oxford shirt" })),
     "…and an ordinary shirt is still not athletic");
+
+  // ---- inferSubcategory, the path for items arriving with NO subcategory ----
+  // This is not migrateSubcategory's job: normalizeItem calls one OR the other, and
+  // infer's output is never migrated. So infer must be capable of producing only
+  // values that exist in the vocabulary, and must know about the new ones.
+  const I = (cat: Category, name: string) => inferSubcategory(cat, name, []);
+
+  // THE trap: infer used to return `longsleeve`, which no longer exists, so a newly
+  // imported long-sleeve shirt would have been filed under a dead value and become
+  // invisible in every chip filter.
+  const everyValue = new Set(all.map((o) => `${o.cat}/${o.value}`));
+  const probes: [Category, string][] = [
+    ["top", "Brown long-sleeve button-up shirt"], ["top", "White long-sleeve compression top"],
+    ["top", "Plain white t-shirt"], ["top", "Manchester United jersey"], ["top", "Gymshark hoodie"],
+    ["top", "Asics patterned athletic t-shirt"], ["top", "Navy quarter-zip sweater"],
+    ["shoes", "Adidas Adizero Evo SL Running Shoes"], ["shoes", "Under Armour Curry sneaker"],
+    ["shoes", "Nike training shoe"], ["shoes", "Black Lacoste sneaker"],
+    ["shoes", "Nike trainers"], ["shoes", "Black leather Chelsea boot"],
+  ];
+  const bogus = probes
+    .map(([cat, n]) => ({ cat, n, v: I(cat, n) }))
+    .filter((p) => p.v && !everyValue.has(`${p.cat}/${p.v}`));
+  for (const b of bogus) console.log(`     INFERRED A DEAD VALUE: ${b.cat}/${b.v} <- "${b.n}"`);
+  ok(bogus.length === 0, "inferSubcategory never returns a value outside SUBCATEGORIES",
+    bogus.length ? `${bogus.length} bogus` : `${probes.length} probes clean`);
+
+  ok(I("top", "Brown long-sleeve button-up shirt") === "shirt",
+    "a long-sleeve shirt now infers `shirt`, not the dead `longsleeve`",
+    String(I("top", "Brown long-sleeve button-up shirt")));
+  ok(I("top", "White long-sleeve compression top") === "activewear",
+    "a compression top infers activewear", String(I("top", "White long-sleeve compression top")));
+  ok(I("top", "Asics patterned athletic t-shirt") === "activewear",
+    "an athletic tee infers activewear, not tshirt", String(I("top", "Asics patterned athletic t-shirt")));
+  // Shape wins over register where the shape IS the identity.
+  ok(I("top", "Manchester United jersey") === "jersey", "a football jersey stays a jersey");
+  ok(I("top", "Gymshark hoodie") === "hoodie", "a Gymshark hoodie is still a hoodie");
+  ok(I("top", "Plain white t-shirt") === "tshirt", "an ordinary tee is still a tshirt");
+
+  ok(I("shoes", "Adidas Adizero Evo SL Running Shoes") === "running",
+    "a running shoe infers running, not the sneakers catch-all",
+    String(I("shoes", "Adidas Adizero Evo SL Running Shoes")));
+  ok(I("shoes", "Under Armour Curry sneaker") === "basketball", "the Curry infers basketball");
+  ok(I("shoes", "Nike training shoe") === "training", "a training shoe infers training");
+  ok(I("shoes", "Black Lacoste sneaker") === "sneakers", "a casual sneaker stays a sneaker");
+  // British English: "trainers" means sneakers, so it must NOT become `training`.
+  ok(I("shoes", "Nike trainers") === "sneakers",
+    "\"trainers\" is British for sneakers and must not infer `training`",
+    String(I("shoes", "Nike trainers")));
+  ok(I("shoes", "Black leather Chelsea boot") === "boots", "a boot is unaffected");
 }
 
 // ---------------------------------------------------------------------------

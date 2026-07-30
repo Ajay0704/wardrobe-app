@@ -12,6 +12,25 @@
  */
 import type { Category } from "./types";
 
+/**
+ * AJA-265 — athletic evidence, shared by BOTH `inferSubcategory` (an item arriving
+ * with no subcategory) and `migrateSubcategory` (an item re-filed from an old one).
+ * Declared once because two copies of the same intent drift, and the whole point of
+ * this issue was that garment register should be data rather than a guess.
+ *
+ * NOT included: "trainer". In British English trainers ARE sneakers, so mapping it
+ * to `training` would misfile ordinary casual shoes.
+ */
+const SPORT_SHOE: [RegExp, string][] = [
+  [/basketball|\bcurry\b|\blebron\b|\bkd\b|jordan/, "basketball"],
+  [/running|runner|adizero|\bpegasus\b|vaporfly|on ?cloud|\bultraboost\b/, "running"],
+  [/training|crossfit|metcon|\bgym\b/, "training"],
+];
+
+/** Activewear evidence for tops. */
+const ACTIVE_TOP =
+  /compression|base ?layer|rash ?guard|dri-?fit|gymshark|athletic|performance|moisture.?wicking|\bgym\b/;
+
 const RULES: Record<Category, [RegExp, string][]> = {
   top: [
     [/\bpolo\b/, "polo"],
@@ -26,7 +45,15 @@ const RULES: Record<Category, [RegExp, string][]> = {
     [/crop top|cropped/, "crop"],
     [/blouse/, "blouse"],
     [/tank|sleeveless/, "tank"],
-    [/long.?sleeve/, "longsleeve"],
+    // Activewear sits AFTER the shape-specific rules on purpose: a Gymshark hoodie
+    // is still a hoodie, and a football shirt is still a jersey. It only claims the
+    // pieces whose only real identity is "athletic top".
+    [ACTIVE_TOP, "activewear"],
+    // `longsleeve` was REMOVED here with AJA-265. It is not in SUBCATEGORIES any
+    // more, and inferSubcategory's output does NOT pass through migrateSubcategory,
+    // so returning it would file a brand-new item under a value that no longer
+    // exists — invisible in every chip filter. A long-sleeve shirt now falls to the
+    // `shirt` rule below, which is what it always should have been.
     [/t.?shirt|\btee\b/, "tshirt"],
     [/\bshirt\b/, "shirt"],
   ],
@@ -63,7 +90,10 @@ const RULES: Record<Category, [RegExp, string][]> = {
     [/jacket/, "jacket"],
   ],
   shoes: [
-    [/sneaker|trainer|running|runner/, "sneakers"],
+    // BEFORE the sneakers catch-all, which itself matched /running/ and so filed
+    // every running shoe as a plain sneaker (AJA-265).
+    ...SPORT_SHOE,
+    [/sneaker|trainer/, "sneakers"],
     [/boot|chelsea/, "boots"],
     [/heel|stiletto|pump/, "heels"],
     [/wedge/, "wedges"],
@@ -127,17 +157,6 @@ const RETIRED: Record<string, { cat: Category; test: RegExp; to: string }[]> = {
 };
 
 /**
- * Athletic footwear filed as plain `sneakers`. Not a retirement — `sneakers` is
- * still a real option — so this only ever moves a shoe whose own name says what it
- * is, and never touches a casual sneaker.
- */
-const SNEAKER_SPLIT: { test: RegExp; to: string }[] = [
-  { test: /basketball|\bcurry\b|\blebron\b|\bkd\b|jordan/, to: "basketball" },
-  { test: /running|adizero|\bpegasus\b|vaporfly|on ?cloud|\bultraboost\b/, to: "running" },
-  { test: /training|trainer|\bgym\b|crossfit|metcon/, to: "training" },
-];
-
-/**
  * Re-file a stored subcategory onto the current vocabulary. Returns the value
  * unchanged when nothing applies, so it is safe to call on every load.
  */
@@ -151,8 +170,11 @@ export function migrateSubcategory(
   for (const rule of RETIRED[subcategory] ?? []) {
     if (rule.cat === category && rule.test.test(hay)) return rule.to;
   }
+  // Athletic footwear filed as plain `sneakers`. Not a retirement — `sneakers` is
+  // still a real option — so this only moves a shoe whose own name says what it is,
+  // and never touches a casual sneaker. Same SPORT_SHOE list inferSubcategory uses.
   if (category === "shoes" && (subcategory === "sneakers" || subcategory === "sneaker")) {
-    for (const rule of SNEAKER_SPLIT) if (rule.test.test(hay)) return rule.to;
+    for (const [test, to] of SPORT_SHOE) if (test.test(hay)) return to;
   }
   return subcategory;
 }
