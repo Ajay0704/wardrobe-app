@@ -20,7 +20,6 @@ import { forgottenItems, styleWays } from "../rediscover";
 import { analyzeSmartBuy } from "../smart-buy";
 import { authHeaders } from "../supabase/client";
 import { readTaste } from "../taste";
-import { engineOption } from "../engine-flag";
 import type { SlotKey, WardrobeItem } from "../types";
 import { SLOT_CONFIG, slotForCategory } from "../types";
 import { fetchWeatherForPlace, type WeatherSnapshot } from "../weather";
@@ -163,7 +162,6 @@ function bestOutfit(
       : null,
     taste: typeof window !== "undefined" ? readTaste() : undefined,
     candidates: Math.max(tries * 3, 12),
-    ...engineOption(), // AJA-248
   });
   return look ? lookToCard(look) : null;
 }
@@ -289,7 +287,6 @@ export async function runTool(
         taste: typeof window !== "undefined" ? readTaste() : undefined,
         count: 5,
         candidates: 24,
-        ...engineOption(), // AJA-248
       });
       const chosen =
         (await assembleFromCandidates(
@@ -367,7 +364,7 @@ export async function runTool(
       const blocks: StylistBlock[] = [
         { type: "item_list", title: "Least-worn pieces", itemIds: list.map((it) => it.id) },
       ];
-      const ideas = styleWays(list[0], own, 2, undefined, engineOption().engine);
+      const ideas = styleWays(list[0], own, 2);
       if (ideas.length) {
         blocks.push({
           type: "carousel",
@@ -419,7 +416,7 @@ export async function runTool(
           compact: { intent, note: "no item attached" },
         };
       }
-      const ideas = styleWays(anchor, own, 3, undefined, engineOption().engine);
+      const ideas = styleWays(anchor, own, 3);
       if (!ideas.length) {
         return {
           blocks: [{ type: "empty_closet", needed: "a few more pieces to pair with it" }],

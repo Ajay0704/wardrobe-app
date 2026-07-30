@@ -119,7 +119,7 @@ interface SlateLook {
 
 interface Slate {
   id: string;
-  engine: "v1" | "v2";
+  engine: "v2";
   season?: Season;
   looks: SlateLook[];
   /** Which of the three is on the board. */
@@ -259,12 +259,15 @@ function ref(): Record<string, unknown> {
  */
 export function slateShown(
   looks: ScoredLook[],
-  opts: { engine: "v1" | "v2"; season?: Season; slotNames: string[] },
+  opts: { season?: Season; slotNames: string[] },
 ): void {
   if (!looks.length) return;
   current = {
     id: sid(),
-    engine: opts.engine,
+    // AJA-259: there is only one engine now. The field stays in the payload because
+    // the events table already holds v1 rows from the toggle period, and an analysis
+    // that groups by it must keep working.
+    engine: "v2",
     season: opts.season,
     idx: 0,
     touched: false,

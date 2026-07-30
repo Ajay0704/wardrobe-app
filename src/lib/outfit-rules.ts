@@ -1,8 +1,8 @@
 /**
  * AJA-248 — outfit hard filters + pairwise scoring ("engine v2").
  *
- * Validated as `public/surprise-proto.js` against the real 154-item closet
- * before being ported here. Behind the `engineV2` store toggle; `matching.ts`
+ * Validated against the real 154-item closet in a standalone prototype before
+ * being ported here. Sole engine since AJA-259; `matching.ts`
  * routes to it so all six existing callers keep the same API.
  *
  * WHY THIS EXISTS — measured, not asserted. The shipped scorer is statistically

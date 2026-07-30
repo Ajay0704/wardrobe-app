@@ -21,7 +21,6 @@ export function RediscoverModal({
   onClose: () => void;
 }) {
   const items = useWardrobe((s) => s.items);
-  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
   const styleContext = useWardrobe((s) => s.styleContext); // AJA-258
   const profile = useWardrobe((s) => s.profile);
   const saveOutfit = useWardrobe((s) => s.saveOutfit);
@@ -40,9 +39,9 @@ export function RediscoverModal({
   );
 
   const ideas = useMemo(
-    () => styleWays(anchor, items, undefined, undefined, engineV2 ? "v2" : undefined, resolved),
+    () => styleWays(anchor, items, undefined, undefined, resolved),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [anchor, items, seed, engineV2, resolved],
+    [anchor, items, seed, resolved],
   );
 
   return (

@@ -110,7 +110,7 @@ const flush = () => new Promise((r) => setTimeout(r, 5));
 const fresh = async (looks: ScoredLook[], season?: Season) => {
   __resetFeedback();
   sent.length = 0;
-  slateShown(looks, { engine: "v2", season, slotNames: SLOTS });
+  slateShown(looks, { season, slotNames: SLOTS });
   await flush();
 };
 

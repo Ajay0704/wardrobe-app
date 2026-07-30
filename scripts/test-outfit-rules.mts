@@ -306,7 +306,7 @@ console.log("\n=== accessory appearance rate (AJA-256) ===");
     for (let s = 0; s < 200; s++) {
       for (const l of suggestLooks(closet, {
         weather: { season, needsOuterwear: season === "winter", tempC }, season,
-        vibe: "casual", occasion: "everyday", mood: "everyday", count: 3, engine: "v2",
+        vibe: "casual", occasion: "everyday", mood: "everyday", count: 3,
       })) {
         n++;
         const acc = l.items.filter((x) => x.category === "accessory" || x.category === "bag");

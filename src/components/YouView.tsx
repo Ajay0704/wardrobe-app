@@ -27,7 +27,6 @@ import {
 } from "@/lib/native-notifications";
 import { profileHandle } from "@/lib/profile";
 import { subscribeToPush, unsubscribeFromPush } from "@/lib/push-client";
-import { REASON_LABEL, readEngineFeedback, topReason } from "@/lib/engine-feedback";
 import {
   CONTEXT_SEASONS,
   TEMP_MAX,
@@ -77,8 +76,6 @@ export function YouView() {
   } = useWardrobe();
 
   const importStatus = useWardrobe((s) => s.importStatus);
-  const engineV2 = useWardrobe((s) => s.engineV2);
-  const setEngineV2 = useWardrobe((s) => s.setEngineV2);
   const jobRunning = !!importStatus?.running;
   const backfillRunning = jobRunning && importStatus?.phase === "backfill";
   const needBackfill = useMemo(() => countNeedingBackfill(items), [items]);
@@ -93,10 +90,6 @@ export function YouView() {
   );
   const [notifBusy, setNotifBusy] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  // AJA-255 — read once per mount. AppViews renders `{view === "you" && <YouView />}`,
-  // so navigating here remounts and the tally is fresh. A lazy initializer, not an
-  // effect: react-hooks/set-state-in-effect rejects setState from an effect body.
-  const [fb] = useState(() => readEngineFeedback());
   // AJA-258 — Style context row (variant B). Collapsed by default.
   const styleContext = useWardrobe((s) => s.styleContext);
   const setStyleContext = useWardrobe((s) => s.setStyleContext);
@@ -113,7 +106,6 @@ export function YouView() {
     if (!warmSeason && tempC > 22) return `${season} at ${tempC}°C is contradictory — warm-weather rules will win.`;
     return null;
   }, [styleContext]);
-  const fbTop = useMemo(() => topReason(fb), [fb]);
 
   const name = profile.displayName?.trim() || "You";
   const handle = profileHandle(profile);
@@ -392,58 +384,6 @@ export function YouView() {
             )}
           </>
         )}
-        {/* AJA-248 — TEMPORARY, delete with the prototype. The toggle routes
-            Surprise me through src/lib/outfit-rules.ts; the link opens the
-            side-by-side comparison page (a static page can't read the
-            WKWebView's storage, hence the /surprise-proto route). */}
-        <Row
-          icon={Sparkles}
-          label="New outfit engine"
-          right={
-            <Toggle
-              on={engineV2}
-              onChange={() => setEngineV2(!engineV2)}
-              label="New outfit engine"
-            />
-          }
-        />
-        {/* AJA-255 — read-only feedback tally. Without this there is no way to
-            confirm on device that the logging fires at all; the numbers come from
-            localStorage, so it works signed out and needs no round trip. */}
-        <Row
-          icon={Sparkles}
-          label="Engine feedback"
-          // `right`, not `value`: Row's value is a shrink-0 single line, and the full
-          // tally is far too long for it — as one string it overlapped the label and
-          // wrapped it onto two lines. Two short lines in the value slot fit.
-          right={
-            fb.shown === 0 ? (
-              <span className="shrink-0 text-sm text-muted">nothing yet</span>
-            ) : (
-              <span className="shrink-0 text-right text-[11.5px] leading-[1.35] text-muted">
-                {fb.shown} shown · {fb.kept} kept
-                <br />
-                {fb.swaps} swapped · {fb.rerolls} re-rolled
-              </span>
-            )
-          }
-        />
-        {fbTop && (
-          <Row
-            icon={Sparkles}
-            label="Most common complaint"
-            value={`${REASON_LABEL[fbTop.key] ?? fbTop.key} · ${fbTop.count}`}
-          />
-        )}
-        <Row
-          icon={Sparkles}
-          label="Compare engines (prototype)"
-          value="AJA-248"
-          onClick={() => {
-            window.location.href = "/surprise-proto";
-          }}
-          chevron
-        />
       </Group>
 
       <Group label="App">

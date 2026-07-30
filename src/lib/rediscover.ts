@@ -61,8 +61,6 @@ export function styleWays(
   allItems: WardrobeItem[],
   count = 3,
   random: () => number = Math.random,
-  /** AJA-248 — pass "v2" to use src/lib/outfit-rules. */
-  engine?: "v1" | "v2",
   /**
    * AJA-258 — resolved ambient context. Optional, and omitting it reproduces the
    * old behaviour exactly: NO season and NO temperature, which is why Rediscover
@@ -78,7 +76,6 @@ export function styleWays(
     count,
     candidates: count * 10,
     mood: anchor.tags[0] || "everyday",
-    engine,
     ...(ctx ? { weather: ctx.weather, season: ctx.season, occasion: ctx.occasion, vibe: ctx.vibe } : {}),
   })
     .filter((look) => look.itemIds.includes(anchor.id) && look.items.length >= 3)

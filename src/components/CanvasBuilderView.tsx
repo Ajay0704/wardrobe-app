@@ -168,7 +168,6 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     saveOutfit,
     setView,
     profile,
-    engineV2,
     styleContext,
   } = useWardrobe();
 
@@ -495,7 +494,6 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     );
     const looks = suggestLooks(owned, {
       ...(anchor ? { anchor } : {}),
-      ...(engineV2 ? { engine: "v2" as const } : {}),
       weather: ctx.weather,
       season: ctx.season,
       vibe: ctx.vibe ?? (primaryStyleVibe(profile) || undefined),
@@ -518,7 +516,6 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // Logged with the looks the engine returned, not `resolved`: a look whose items
     // failed to resolve was still scored, and dropping it would bias the record.
     slateShown(looks, {
-      engine: engineV2 ? "v2" : "v1",
       season: ctx.season,
       slotNames: [...SLATE_LABELS],
     });

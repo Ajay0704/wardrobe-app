@@ -40,7 +40,6 @@ function buildSuggestions(
   ctx: ResolvedContext,
   vibe: string | undefined,
   count = 3,
-  engine?: "v1" | "v2",
 ): Suggestion[] {
   if (pool.length < 2) return [];
   return suggestLooks(pool, {
@@ -52,7 +51,6 @@ function buildSuggestions(
     taste: typeof window !== "undefined" ? readTaste() : undefined,
     count,
     candidates: count * 8,
-    engine,
   }).map((look) => ({
     key: look.itemIds.slice().sort().join("|"),
     itemIds: look.itemIds,
@@ -65,7 +63,6 @@ function buildSuggestions(
 export function TodayView() {
   const { items, logWear, setDraft, setView, saveOutfit, profile, openSplit } =
     useWardrobe();
-  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
   const styleContext = useWardrobe((s) => s.styleContext); // AJA-258
   // Show the last known forecast instantly, then refresh below.
   const [weather, setWeather] = useState<WeatherSnapshot | null>(() =>
@@ -140,9 +137,9 @@ export function TodayView() {
   );
 
   const suggestions = useMemo(
-    () => buildSuggestions(pool, resolved, styleVibe, 3, engineV2 ? "v2" : undefined),
+    () => buildSuggestions(pool, resolved, styleVibe, 3),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- seed forces reshuffle
-    [pool, resolved, seed, styleVibe, engineV2],
+    [pool, resolved, seed, styleVibe],
   );
 
   const flash = (msg: string) => {

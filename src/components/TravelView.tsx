@@ -68,7 +68,6 @@ function Avatar({
 
 export function TravelView() {
   const { items, profile } = useWardrobe();
-  const engineV2 = useWardrobe((s) => s.engineV2); // AJA-248
   const owned = useMemo(() => items.filter((it) => !it.wishlist), [items]);
   const ownedById = useMemo(() => new Map(owned.map((it) => [it.id, it])), [owned]);
   const myIdentity = useMemo<Trips.Identity>(
@@ -338,7 +337,6 @@ export function TravelView() {
       occasion: "trip",
       count: 4,
       candidates: 20,
-      engine: engineV2 ? "v2" : undefined, // AJA-248
     });
     setCapsules(looks.map((l) => l.itemIds));
   };
