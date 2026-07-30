@@ -45,11 +45,14 @@ import { readTaste } from "@/lib/taste";
 import type { Category, WardrobeItem } from "@/lib/types";
 import type { TryOnGarment } from "@/lib/tryon";
 import {
+  cacheWeather,
   convertTemp,
   fetchWeatherForPlace,
+  readCachedWeather,
   type TempUnit,
   type WeatherSnapshot,
 } from "@/lib/weather";
+import { resolveStyleContext, type ResolvedContext } from "@/lib/style-context";
 import { ResaleView } from "./ResaleView";
 import { TryOnView } from "./TryOnView";
 
@@ -110,24 +113,23 @@ const itemImage = (it: WardrobeItem): string | undefined =>
 function bestDraft(
   owned: WardrobeItem[],
   occ: OccKey,
-  weather: WeatherSnapshot | null,
+  ctx: ResolvedContext,
   seed: number,
 ): ScoredLook | null {
   const meta = OCCASION_META[occ];
   void seed; // reshuffle re-runs suggestLooks (stochastic sampling)
   return bestLook(owned, {
     vibe: meta.vibe,
-    occasion: meta.occasion,
+    // AJA-267 — the occasion bar is an EXPLICIT choice on this screen, so a chip
+    // beats the Style context override exactly the way a tapped calendar date does.
+    // The one exception is "Dress me for…", which states no occasion of its own, so
+    // the override's occasion is allowed to fill it.
+    occasion: occ === "today" ? (ctx.occasion ?? meta.occasion) : meta.occasion,
     mood: meta.mood,
     formality: meta.formality,
-    weather: weather
-      ? {
-          season: weather.season,
-          needsOuterwear: weather.needsOuterwear,
-          tempC: weather.tempC,
-        }
-      : null,
-    season: weather?.season,
+    // Weather is ambient, so the override always wins here.
+    weather: ctx.weather,
+    season: ctx.season,
     taste: typeof window !== "undefined" ? readTaste() : undefined,
     candidates: 20,
   });
@@ -146,13 +148,25 @@ const toGarments = (out: WardrobeItem[]): TryOnGarment[] =>
     label: [it.colorName, it.category].filter(Boolean).join(" "),
   }));
 
-function heroTitle(occ: OccKey, w: WeatherSnapshot | null): string {
+/**
+ * AJA-267 — takes the RESOLVED temperature, not the raw forecast.
+ *
+ * These lines are a styling statement, not a weather report: with a Manual winter
+ * override and a cached summer forecast, this said "Keep it light today" directly
+ * above a look with a parka in it. The screen contradicted itself.
+ *
+ * Note the deliberate difference from TodayView, where the weather CARD still shows
+ * the real forecast — that card's job IS to report the weather, and overriding what
+ * it displays would be lying about it. Here the copy describes what the app is
+ * dressing you for, so it has to follow whatever the engine was told.
+ */
+function heroTitle(occ: OccKey, tempC: number | null | undefined): string {
   if (occ === "work") return "Dressed for work";
   if (occ === "date") return "Date-night ready";
   if (occ === "event") return "Event-ready";
   if (occ === "trip") return "Easy for travel";
-  if (!w) return "Today's pick from your closet";
-  const c = w.tempC;
+  if (tempC == null) return "Today's pick from your closet";
+  const c = tempC;
   if (c >= 26) return "Keep it light today";
   if (c >= 18) return "Easy and breezy today";
   if (c >= 10) return "Comfortable layers today";
@@ -176,6 +190,7 @@ export function ExploreForYouHeader({
   const items = useWardrobe((s) => s.items);
   const profile = useWardrobe((s) => s.profile);
   const calendar = useWardrobe((s) => s.calendar);
+  const styleContext = useWardrobe((s) => s.styleContext); // AJA-267
   const setDraft = useWardrobe((s) => s.setDraft);
   const setView = useWardrobe((s) => s.setView);
   const openStylist = useWardrobe((s) => s.openStylist);
@@ -186,7 +201,12 @@ export function ExploreForYouHeader({
 
   const [occ, setOcc] = useState<OccKey>("today");
   const [seed, setSeed] = useState(0);
-  const [weather, setWeather] = useState<WeatherSnapshot | null>(null);
+  // AJA-267: seeded from the SHARED cache, not null. Before this, Explore's weather
+  // stayed null forever whenever `profile.location` was empty — the effect below
+  // returns early — so the engine got no season at all on this surface and the
+  // seasonal filters went inert (a knit scarf in July). Same lazy-initializer
+  // pattern TodayView already uses.
+  const [weather, setWeather] = useState<WeatherSnapshot | null>(() => readCachedWeather());
   const [resaleOpen, setResaleOpen] = useState(false);
   const [tryOnItems, setTryOnItems] = useState<TryOnGarment[] | null>(null);
   const [capsules, setCapsules] = useState<PartnerCapsule[]>([]);
@@ -209,7 +229,14 @@ export function ExploreForYouHeader({
     if (!loc) return;
     let cancelled = false;
     fetchWeatherForPlace(loc)
-      .then((w) => !cancelled && setWeather(w))
+      .then((w) => {
+        if (cancelled) return;
+        setWeather(w);
+        // Explore used to fetch a forecast and throw it away. TodayView caches its
+        // fetches, so the two surfaces could hold different weather for the same
+        // moment; now whichever screen you open first warms the cache for both.
+        cacheWeather(w);
+      })
       .catch(() => {});
     return () => {
       cancelled = true;
@@ -278,10 +305,18 @@ export function ExploreForYouHeader({
     };
   }, [family, dominantColor, mostOwnedCat]);
 
+  // AJA-267 — one resolver, same as Today / the canvas / Rediscover. Explore was the
+  // last ambient surface still reading raw weather, so a Manual override in Settings
+  // changed every screen except this one.
+  const resolved = useMemo(
+    () => resolveStyleContext(styleContext, weather, profile.styleOccasions?.[0]),
+    [styleContext, weather, profile.styleOccasions],
+  );
+
   const heroLook = useMemo(
-    () => bestDraft(owned, occ, weather, seed),
+    () => bestDraft(owned, occ, resolved, seed),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, occ, seed, weather?.season, weather?.needsOuterwear, weather?.tempC],
+    [poolKey, occ, seed, resolved],
   );
   const heroOutfit = useMemo(() => resolveOutfit(heroLook), [heroLook]);
   const recreateLook = useMemo(
@@ -289,18 +324,12 @@ export function ExploreForYouHeader({
       bestLook(owned, {
         vibe: "minimal",
         mood: "minimal",
-        weather: weather
-          ? {
-              season: weather.season,
-              needsOuterwear: weather.needsOuterwear,
-              tempC: weather.tempC,
-            }
-          : null,
-        season: weather?.season,
+        weather: resolved.weather,
+        season: resolved.season,
         candidates: 16,
       }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey, weather?.season],
+    [poolKey, resolved],
   );
   const recreateOutfit = useMemo(() => resolveOutfit(recreateLook), [recreateLook]);
 
@@ -343,7 +372,12 @@ export function ExploreForYouHeader({
     );
   }
 
-  const temp = weather ? Math.round(convertTemp(weather.tempC, unit)) : null;
+  // Resolved, not raw — the badge sits beside the styling headline, so the two must
+  // agree. "Today · 31°" over a parka is worse than no badge at all.
+  const temp =
+    resolved.weather?.tempC != null
+      ? Math.round(convertTemp(resolved.weather.tempC, unit))
+      : null;
   const flash = (m: string) => {
     setToast(m);
     window.setTimeout(() => setToast(null), 2000);
@@ -452,7 +486,7 @@ export function ExploreForYouHeader({
             <Sparkles size={13} />
             {occ === "today" ? (temp != null ? `Today · ${temp}°${unit}` : "Today") : "For you"}
           </p>
-          <p className="mt-1 text-lg font-semibold leading-tight">{heroTitle(occ, weather)}</p>
+          <p className="mt-1 text-lg font-semibold leading-tight">{heroTitle(occ, resolved.weather?.tempC)}</p>
           <p className="mt-0.5 text-xs text-white/70">
             {heroLook ? lookReasonLine(heroLook) : "From your closet — nothing to buy."}
           </p>
