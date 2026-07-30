@@ -10,6 +10,7 @@ import {
   Shirt,
   Sparkles,
   Sticker,
+  Flag,
   Trash2,
   Type,
   X,
@@ -23,18 +24,17 @@ import { primaryStyleVibe } from "@/lib/profile";
 import { readTaste } from "@/lib/taste";
 import { resolveStyleContext } from "@/lib/style-context";
 import {
+  FLAG_REASONS,
   REASON_LABEL,
-  REROLL_REASONS,
   boardTouched,
   isUntouchedSlate,
   lookKept,
   pieceAdded,
   pieceRemoved,
-  rerollAnswered,
+  lookFlagged,
   rerolled,
   slatePicked,
   slateShown,
-  type RerollReason,
 } from "@/lib/engine-feedback";
 import { useWardrobe, uid } from "@/lib/store";
 import type { CanvasItem, Category, WardrobeItem } from "@/lib/types";
@@ -188,9 +188,8 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // surpriseLook reads the slate immediately after building it, before the state
   // update has landed, so it needs the ref rather than the stale closure value.
   const slateRef = useRef<SlateEntry[]>([]);
-  // AJA-255 — the slate id of a re-roll waiting on "what was off?". A re-roll is the
-  // only feedback event with nothing to infer from, so it is the only one we ask about.
-  const [askSlateId, setAskSlateId] = useState<string | null>(null);
+  // AJA-262 — is the flag's reason row open? Never opened automatically.
+  const [flagOpen, setFlagOpen] = useState(false);
   const trashRef = useRef<HTMLDivElement | null>(null); // drag-to-delete zone (toggled imperatively)
   const [tab, setTab] = useState("all");
   const [subCat, setSubCat] = useState("all");
@@ -552,14 +551,15 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
 
   const surpriseLook = () => {
     setSelectedId(null);
-    // AJA-255 — re-rolling a slate nobody touched is the loudest rejection there is,
-    // and the only feedback event with nothing to diff. Ask, once, before rebuilding.
-    const rejected = isUntouchedSlate() ? rerolled() : null;
+    // Re-rolling a slate nobody touched is still logged as a rejection — it is just
+    // no longer worth interrupting anyone over (AJA-262). Must run BEFORE buildLook,
+    // which replaces the slate this refers to.
+    if (isUntouchedSlate()) rerolled();
     if (!buildLook()) {
       flash("Add clothes to your closet first");
       return;
     }
-    setAskSlateId(rejected);
+    setFlagOpen(false);
     // The engine's own "why this" line, not a generic string — the brief calls
     // the explanation a product requirement, and the canvas was dropping it.
     const first = slateRef.current[0]?.reason;
@@ -1034,29 +1034,43 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                     ))}
                   </div>
                   {slate[slateIdx]?.reason && (
-                    <p className="truncate text-[11.5px] text-muted">{slate[slateIdx].reason}</p>
+                    <p className="min-w-0 flex-1 truncate text-[11.5px] text-muted">
+                      {slate[slateIdx].reason}
+                    </p>
                   )}
+                  {/* AJA-262 — flag a bad look. Opt-in: the first version popped the
+                      reason chips up automatically after a re-roll, which interrupted
+                      to ask about a look you had already moved past. A flag also names
+                      WHICH of the three was wrong, where the old prompt could only say
+                      "those three weren't it". */}
+                  <button
+                    type="button"
+                    aria-label="Flag this look"
+                    aria-pressed={flagOpen}
+                    onClick={() => setFlagOpen((o) => !o)}
+                    className={`shrink-0 rounded-full p-1.5 transition-colors active:scale-90 ${
+                      flagOpen ? "bg-accent-soft text-accent" : "text-muted"
+                    }`}
+                  >
+                    <Flag size={14} />
+                  </button>
                 </div>
               )}
 
-              {/* AJA-255 — the one thing the engine can't infer. A swap tells you which
-                  term misfired by diffing the two pieces; re-rolling an untouched slate
-                  tells you only that three looks were wrong, with nothing to diff. So
-                  this is the single place we ask. Dismissible, and it never blocks.
-                  Wraps rather than scrolls: at 375px the five chips plus the dismiss
+              {/* Wraps rather than scrolls: at 375px the five chips plus the dismiss
                   button overflow, and a dismiss control you have to scroll sideways to
-                  find is worse than a second line. */}
-              {askSlateId && (
+                  find is worse than a second line (AJA-255). */}
+              {flagOpen && (
                 <div className="animate-pop flex flex-wrap items-center gap-1.5 px-4 pb-3">
-                  <span className="text-[11.5px] text-muted">What was off?</span>
-                  {REROLL_REASONS.map((r) => (
+                  <span className="text-[11.5px] text-muted">What&rsquo;s wrong with it?</span>
+                  {FLAG_REASONS.map((r) => (
                     <button
                       key={r.key}
                       type="button"
                       onClick={() => {
-                        rerollAnswered(askSlateId, r.key as RerollReason);
-                        setAskSlateId(null);
-                        flash("Thanks — noted");
+                        lookFlagged(r.key);
+                        setFlagOpen(false);
+                        flash(`Flagged — ${REASON_LABEL[r.key] ?? r.label}`);
                       }}
                       className="rounded-full border border-line px-2.5 py-1 text-[11.5px] font-medium text-muted transition-transform active:scale-95"
                     >
@@ -1066,7 +1080,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                   <button
                     type="button"
                     aria-label="Dismiss"
-                    onClick={() => setAskSlateId(null)}
+                    onClick={() => setFlagOpen(false)}
                     className="rounded-full p-1 text-muted transition-transform active:scale-95"
                   >
                     <X size={13} />

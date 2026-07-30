@@ -56,6 +56,7 @@ const {
   pieceAdded,
   pieceRemoved,
   readEngineFeedback,
+  lookFlagged,
   rerolled,
   slatePicked,
   slateShown,
@@ -257,9 +258,49 @@ ok(pieceAdded(buttonUp) === null, "no slate → no swap (nothing to attribute it
 await fresh([look([tee, jeans, shoes])], "summer");
 ok(isUntouchedSlate(), "untouched before the re-roll");
 const id = rerolled();
-ok(typeof id === "string", "rerolled() returns the slate id to attach an answer to");
+ok(typeof id === "string", "rerolled() returns the slate id");
 ok(!isUntouchedSlate(), "a rejected slate can't be rejected twice");
 ok(rerolled() === null, "…and a second rerolled() is a no-op");
+await flush();
+ok(
+  !sent.some((e) => (e.payload as { asked?: boolean }).asked),
+  "a re-roll no longer claims it asked anything (AJA-262 — it is silent now)",
+);
+
+// AJA-262 — the flag. Volunteered, names the look on the board, and does NOT close
+// the slate: flagging one vibe must not stop you wearing another.
+await fresh([look([tee, jeans, shoes]), look([buttonUp, jeans, shoes], 76), look([hoodie, jeans, shoes], 71)], "summer");
+sent.length = 0;
+slatePicked(2);
+await flush();
+sent.length = 0;
+ok(lookFlagged("too_dressy") === true, "flagging a live slate succeeds");
+await flush();
+const fl = sent.find((e) => (e.payload as { stage?: string }).stage === "flag");
+ok(!!fl, "…and posts stage=flag");
+ok(
+  (fl?.payload as { slot?: string })?.slot === "Experimental",
+  "…naming WHICH look was on the board, not just the slate",
+  String((fl?.payload as { slot?: string })?.slot),
+);
+ok(
+  Array.isArray((fl?.payload as { itemIds?: string[] })?.itemIds) &&
+    !!(fl?.payload as { signals?: unknown })?.signals,
+  "…with that look's items and signal breakdown, so a complaint can be regressed on them",
+);
+ok((fl?.payload as { reason?: string })?.reason === "too_dressy", "…and the reason");
+ok(readEngineFeedback().flags > 0, "the flag counter moves");
+ok((readEngineFeedback().reasons.too_dressy ?? 0) > 0, "the reason tally moves");
+// Not closing the slate is the point: a flagged look can still be kept or worn.
+sent.length = 0;
+lookKept("outfit-flagged", [hoodie.id, jeans.id, shoes.id]);
+await flush();
+ok(
+  sent.some((e) => (e.payload as { stage?: string }).stage === "kept"),
+  "a flagged slate can still be kept — flagging is not rejecting",
+);
+__resetFeedback();
+ok(lookFlagged("not_it") === false, "flagging with no live slate is a no-op");
 
 await fresh([look([tee, jeans, shoes])], "summer");
 boardTouched();

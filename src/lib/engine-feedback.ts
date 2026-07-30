@@ -27,7 +27,7 @@ import { colourPair, dressiness } from "./outfit-rules";
 import type { ScoredLook } from "./matching";
 import type { Season, WardrobeItem } from "./types";
 
-export type FeedbackStage = "shown" | "pick" | "swap" | "reroll" | "kept" | "worn";
+export type FeedbackStage = "shown" | "pick" | "swap" | "reroll" | "flag" | "kept" | "worn";
 
 /** Why a piece was replaced. Inferred from the diff; never asked. */
 export type SwapReason =
@@ -38,10 +38,19 @@ export type SwapReason =
   | "style"
   | "variety";
 
-/** Why a whole look was rejected. Asked, because a re-roll leaves nothing to diff. */
-export type RerollReason = "too_dressy" | "too_casual" | "colour" | "weather" | "not_it";
+/**
+ * Why a whole look is wrong. Volunteered by tapping the flag — NOT asked.
+ *
+ * The first version of this popped the chip row up automatically after a re-roll,
+ * on the reasoning that a re-roll is the one event with nothing to infer from.
+ * That was the wrong trade: it interrupts to ask about a look you have already
+ * moved past, and reads as noise rather than as a question worth answering. A
+ * flag is opt-in and, because it names the look on the board, it says WHICH of
+ * the three was bad instead of only "those three weren't it".
+ */
+export type FlagReason = "too_dressy" | "too_casual" | "colour" | "weather" | "not_it";
 
-export const REROLL_REASONS: { key: RerollReason; label: string }[] = [
+export const FLAG_REASONS: { key: FlagReason; label: string }[] = [
   { key: "too_dressy", label: "Too dressy" },
   { key: "too_casual", label: "Too casual" },
   { key: "colour", label: "Colours" },
@@ -150,6 +159,8 @@ export interface FeedbackCounters {
   picks: number;
   swaps: number;
   rerolls: number;
+  /** Looks the user explicitly flagged as bad. */
+  flags: number;
   kept: number;
   worn: number;
   /** Swap + reroll reason tallies, so the readout can name the top complaint. */
@@ -157,7 +168,7 @@ export interface FeedbackCounters {
 }
 
 function empty(): FeedbackCounters {
-  return { shown: 0, picks: 0, swaps: 0, rerolls: 0, kept: 0, worn: 0, reasons: {} };
+  return { shown: 0, picks: 0, swaps: 0, rerolls: 0, flags: 0, kept: 0, worn: 0, reasons: {} };
 }
 
 export function readEngineFeedback(): FeedbackCounters {
@@ -348,28 +359,37 @@ export function pieceAdded(item: WardrobeItem): SwapReason | null {
 
 /**
  * True when the live slate was never engaged with — the caller is about to throw
- * away three looks the user did not touch, which is the loudest negative signal
- * available and the only one with nothing to infer from. The canvas uses this to
- * decide whether to ask why.
+ * away three looks the user did not touch. Still worth logging as a rejection; it
+ * is simply no longer worth interrupting anyone over.
  */
 export function isUntouchedSlate(): boolean {
   return !!current && !current.closed && !current.touched;
 }
 
-/** Log the rejection. Returns the id to attach a reason to if the user answers. */
+/** Log the rejection, silently. Returns the slate id, or null if already counted. */
 export function rerolled(): string | null {
   if (!current || current.closed) return null;
   const id = current.id;
   current.closed = true;
   bump({ rerolls: 1 });
-  emit("reroll", { ...ref(), asked: true });
+  emit("reroll", { ...ref() });
   return id;
 }
 
-/** The answer to "what was off?" — logged against the slate that was rejected. */
-export function rerollAnswered(slateId: string, reason: RerollReason): void {
-  bump({}, reason);
-  emit("reroll", { slateId, reason, answered: true });
+/**
+ * The user flagged the look currently on the board as bad, and said why.
+ *
+ * Strictly better data than the old "answer after a re-roll": `ref()` names the
+ * exact slot, item ids and signal breakdown that were on screen, so a complaint
+ * of "too dressy" can be regressed against the formality score of the specific
+ * look that earned it. Deliberately does NOT close the slate — flagging is not
+ * rejecting, and you can flag one vibe and then go and wear another.
+ */
+export function lookFlagged(reason: FlagReason): boolean {
+  if (!current) return false;
+  bump({ flags: 1 }, reason);
+  emit("flag", { ...ref(), reason });
+  return true;
 }
 
 /**
