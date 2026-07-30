@@ -32,6 +32,7 @@ import {
 } from "@/lib/outfit-rules";
 import { suggestLooks } from "@/lib/matching";
 import { SUBCATEGORIES } from "@/lib/types";
+import { migrateSubcategory } from "@/lib/subcategory";
 import type { Category, Season, WardrobeItem } from "@/lib/types";
 
 let fails = 0;
@@ -72,6 +73,18 @@ ok(unknown.length === 0, `every app subcategory resolves to a dressiness`,
   unknown.length ? `${unknown.length} unknown` : `${all.length} covered`);
 ok(unknown.filter((o) => o.gender === "female").length === 0,
   "no female-tagged subcategory is unknown to the scorer");
+
+// AJA-265 — the check above is necessary but NOT sufficient, which I found out the
+// hard way. `dressiness()` calls `isGym()` first and then falls back to a substring
+// scan over SUB_DRESS keys, so a new subcategory whose *name* happens to contain a
+// GYM_RE word ("activewear", "running", "basketball", "training") resolves to 0 and
+// looks covered while being absent from the table. Four new values did exactly that
+// and this suite stayed green. So assert EXPLICIT membership too.
+const notExplicit = all.filter((o) => !(o.value in SUB_DRESS));
+for (const u of notExplicit) console.log(`     NOT IN SUB_DRESS: ${u.cat}/${u.value}`);
+ok(notExplicit.length === 0,
+  "every app subcategory is an EXPLICIT SUB_DRESS key, not merely resolvable by regex",
+  notExplicit.length ? `${notExplicit.length} missing` : `${all.length} explicit`);
 
 // Ordering relationships. Derived comparisons, so absolute values can be tuned
 // without rewriting the test.
@@ -211,6 +224,72 @@ ok(simSameType > 0.5, "swapping one jersey for another is NOT counted as diverse
 const { score, signals } = scoreOutfitV2([shirt, jeans, sneakers], SUMMER);
 ok(score >= 0 && score <= 100, "score is 0..100", String(score));
 ok(Object.values(signals).every((v) => v >= 0 && v <= 1), "every signal is 0..1");
+
+// ---------------------------------------------------------------------------
+// AJA-265 — the subcategory migration. Removing a value from SUBCATEGORIES without
+// re-filing the items holding it ORPHANS them: presentSubcategories won't list a
+// value that left the vocabulary, and matchesSubcategory(item,"others") is false for
+// any non-empty subcategory, so the item vanishes from every chip filter.
+console.log("\n=== subcategory migration (AJA-265) ===");
+{
+  const M = (cat: Category, sub: string | undefined, name: string) =>
+    migrateSubcategory(cat, sub, name);
+  const vocab = (cat: Category) => new Set((SUBCATEGORIES[cat] ?? []).map((o) => o.value));
+
+  // The premise: `longsleeve` really is gone from the vocabulary.
+  ok(!vocab("top").has("longsleeve"), "premise: `longsleeve` left the top vocabulary");
+  ok(vocab("top").has("activewear"), "premise: `activewear` is in the top vocabulary");
+  for (const v of ["running", "basketball", "training"]) {
+    ok(vocab("shoes").has(v), `premise: \`${v}\` is in the shoe vocabulary`);
+  }
+
+  // Shirts out of longsleeve — 8 of the 10 real items looked like this.
+  ok(M("top", "longsleeve", "Brown long-sleeve button-up shirt") === "shirt",
+    "a long-sleeve button-up becomes a shirt");
+  ok(M("top", "longsleeve", "Dark blue denim shirt") === "shirt", "a denim shirt becomes a shirt");
+  ok(M("top", "longsleeve", "Dusty pink long-sleeve dress shirt") === "shirt", "a dress shirt becomes a shirt");
+  // Gym tops out of longsleeve — and compression must win over the \bshirt\b rule,
+  // because "Gymshark long-sleeve compression shirt" matches BOTH. Order matters.
+  ok(M("top", "longsleeve", "White Gymshark long-sleeve compression shirt") === "activewear",
+    "compression beats the shirt rule even when the name says \"shirt\"",
+    String(M("top", "longsleeve", "White Gymshark long-sleeve compression shirt")));
+  ok(M("top", "longsleeve", "White long-sleeve compression top") === "activewear",
+    "a compression top becomes activewear");
+  // No evidence either way: leave it alone rather than guess.
+  ok(M("top", "longsleeve", "Plain long-sleeve top") === "longsleeve",
+    "with no evidence the value is LEFT ALONE, not guessed",
+    String(M("top", "longsleeve", "Plain long-sleeve top")));
+
+  // Athletic footwear out of plain sneakers.
+  ok(M("shoes", "sneakers", "Adidas Adizero Evo SL Running Shoes") === "running", "adizero -> running");
+  ok(M("shoes", "sneakers", "On Cloud running shoe") === "running", "on cloud -> running");
+  ok(M("shoes", "sneakers", "Under Armour Curry sneaker") === "basketball", "curry -> basketball");
+  ok(M("shoes", "sneakers", "Green and black Nike training shoe") === "training", "training shoe -> training");
+  // A casual sneaker must NOT be dragged into a sports bucket.
+  for (const n of ["Black Lacoste sneaker", "Vans Old Skool black sneakers", "White New Balance 550 sneaker"]) {
+    ok(M("shoes", "sneakers", n) === "sneakers", `"${n.slice(0, 24)}…" stays a plain sneaker`,
+      String(M("shoes", "sneakers", n)));
+  }
+
+  // Safety properties.
+  ok(M("top", undefined, "anything") === undefined, "an item with no subcategory is untouched");
+  ok(M("bottom", "longsleeve", "button-up shirt") === "longsleeve",
+    "a retirement rule is category-scoped and won't fire on the wrong category");
+  const once = M("top", "longsleeve", "Brown long-sleeve button-up shirt");
+  ok(M("top", once, "Brown long-sleeve button-up shirt") === once,
+    "idempotent — running it twice changes nothing");
+
+  // The whole point: the athletic register must not shift.
+  const gymBefore = isGym(it({ category: "shoes", subcategory: "sneakers", name: "On Cloud running shoe" }));
+  const gymAfter = isGym(it({ category: "shoes", subcategory: "running", name: "On Cloud running shoe" }));
+  ok(gymBefore === gymAfter && gymAfter === true,
+    "migrating a running shoe leaves isGym unchanged (and true)");
+  // And a bare subcategory with NO corroborating name is now enough on its own.
+  ok(isGym(it({ category: "top", subcategory: "activewear", name: "" })),
+    "`activewear` alone marks a piece athletic — no brand name needed");
+  ok(!isGym(it({ category: "top", subcategory: "shirt", name: "Oxford shirt" })),
+    "…and an ordinary shirt is still not athletic");
+}
 
 // ---------------------------------------------------------------------------
 // AJA-258 — thermal rules must follow the TEMPERATURE, not just the season label.

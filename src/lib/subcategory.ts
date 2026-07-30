@@ -105,6 +105,58 @@ const RULES: Record<Category, [RegExp, string][]> = {
   ],
 };
 
+/**
+ * AJA-265 — one-way migrations for subcategory values that left `SUBCATEGORIES`.
+ *
+ * Removing a value without this ORPHANS the items holding it: `presentSubcategories`
+ * won't list a value that is no longer in the vocabulary, and
+ * `matchesSubcategory(item, "others")` is false for any non-empty subcategory. So
+ * the item silently disappears from every chip filter and shows only under "All".
+ *
+ * `longsleeve` described SLEEVE LENGTH, not garment type. In the measured closet it
+ * held 10 items: 8 button-up / denim / dress shirts and 2 compression tops. The
+ * names are unusually explicit, so a name rule re-files them accurately; anything
+ * that matches neither pattern is LEFT ALONE rather than guessed at, and shows up
+ * under "Others" for the user to fix by hand.
+ */
+const RETIRED: Record<string, { cat: Category; test: RegExp; to: string }[]> = {
+  longsleeve: [
+    { cat: "top", test: /(compression|base ?layer|thermal|rash ?guard|dri-?fit|gymshark)/, to: "activewear" },
+    { cat: "top", test: /(button-?up|button-?down|oxford|dress shirt|denim shirt|flannel|\bshirt\b)/, to: "shirt" },
+  ],
+};
+
+/**
+ * Athletic footwear filed as plain `sneakers`. Not a retirement — `sneakers` is
+ * still a real option — so this only ever moves a shoe whose own name says what it
+ * is, and never touches a casual sneaker.
+ */
+const SNEAKER_SPLIT: { test: RegExp; to: string }[] = [
+  { test: /basketball|\bcurry\b|\blebron\b|\bkd\b|jordan/, to: "basketball" },
+  { test: /running|adizero|\bpegasus\b|vaporfly|on ?cloud|\bultraboost\b/, to: "running" },
+  { test: /training|trainer|\bgym\b|crossfit|metcon/, to: "training" },
+];
+
+/**
+ * Re-file a stored subcategory onto the current vocabulary. Returns the value
+ * unchanged when nothing applies, so it is safe to call on every load.
+ */
+export function migrateSubcategory(
+  category: Category,
+  subcategory: string | undefined,
+  name: string | undefined,
+): string | undefined {
+  if (!subcategory) return subcategory;
+  const hay = String(name ?? "").toLowerCase();
+  for (const rule of RETIRED[subcategory] ?? []) {
+    if (rule.cat === category && rule.test.test(hay)) return rule.to;
+  }
+  if (category === "shoes" && (subcategory === "sneakers" || subcategory === "sneaker")) {
+    for (const rule of SNEAKER_SPLIT) if (rule.test.test(hay)) return rule.to;
+  }
+  return subcategory;
+}
+
 export function inferSubcategory(
   category: Category,
   name: string | undefined,

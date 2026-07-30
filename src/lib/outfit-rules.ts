@@ -177,6 +177,11 @@ export const SUB_DRESS: Record<string, number> = {
   // top
   tshirt: 0, tee: 0, jersey: 0, tank: 0, hoodie: 0, sweatshirt: 0, zipup: 0,
   crop: 0,
+  // `activewear` is the explicit athletic register (AJA-265). `longsleeve` stays as
+  // a KEY even though it left SUBCATEGORIES: items saved before the migration, and
+  // the model's free-text output, both still emit it, and the substring fallback
+  // below reads these keys out of item names too.
+  activewear: 0,
   longsleeve: 1, sweater: 1, knit: 1, cardigan: 1, polo: 1, camisole: 1,
   bodysuit: 1,
   shirt: 2, blouse: 2, buttonup: 2,
@@ -197,6 +202,8 @@ export const SUB_DRESS: Record<string, number> = {
   // shoes
   slides: 0, sandals: 0, sandal: 0, flipflop: 0, sneakers: 0, sneaker: 0,
   trainer: 0,
+  // Athletic footwear, explicit rather than sniffed from a brand name (AJA-265).
+  running: 0, basketball: 0, training: 0,
   espadrilles: 1, flats: 1,
   boots: 2, boot: 2, loafers: 2, loafer: 2, wedges: 2, mule: 2,
   heels: 3, heel: 3, dressshoes: 3, oxford: 3, derby: 3, brogue: 3,
@@ -239,8 +246,23 @@ const BASE_CATS = new Set<Category>(["top", "bottom", "dress"]);
 const GYM_RE =
   /(gymshark|compression|athletic|training|performance|dri-?fit|adizero|running|basketball|\bcurry\b|on ?cloud|jogger|sweatpant|track ?pant|activewear)/;
 
+/**
+ * Subcategories that ARE the athletic register (AJA-265). Authoritative: if the
+ * user filed something as Activewear or as a Running / Basketball / Training shoe,
+ * that is a stated fact and needs no corroboration from a brand name.
+ *
+ * These happen to also match GYM_RE by substring, so this set changes no behaviour
+ * today. It is here because the behaviour should be DECLARED rather than emergent —
+ * a regex that matches the field by coincidence is one rename away from breaking,
+ * and it already fooled the coverage test in this issue.
+ */
+const ATHLETIC_SUBS = new Set(["activewear", "running", "basketball", "training"]);
+
 export const isGym = (it: WardrobeItem): boolean =>
-  GYM_RE.test(sub(it)) || GYM_RE.test(nm(it)) || GYM_RE.test(brand(it));
+  ATHLETIC_SUBS.has(sub(it)) ||
+  GYM_RE.test(sub(it)) ||
+  GYM_RE.test(nm(it)) ||
+  GYM_RE.test(brand(it));
 
 /** Pieces that read street/smart and must not share an outfit with gym kit. */
 const SMART_SUBS = new Set([

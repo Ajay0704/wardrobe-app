@@ -19,7 +19,7 @@ import type {
   CanvasItem,
 } from "./types";
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
-import { inferSubcategory } from "./subcategory";
+import { inferSubcategory, migrateSubcategory } from "./subcategory";
 import type { AnalyzedAttrs } from "./analyze-attrs";
 import { isSampleItem, sampleCloset } from "./demo-data";
 import {
@@ -383,9 +383,13 @@ function normalizeItem(raw: Partial<WardrobeItem> | null | undefined): WardrobeI
     category,
     // Backfill a sub-category for existing items with none (AJA-228) — deterministic, from the
     // name/tags; never overrides a value already set. Must be whitelisted here or it's stripped.
+    // AJA-265: `migrateSubcategory` re-files values that left the vocabulary
+    // (`longsleeve`) and splits athletic footwear out of plain `sneakers`. Runs on
+    // every load, which is fine because it is idempotent and only ever acts on
+    // explicit evidence in the item's own name.
     subcategory:
       typeof it.subcategory === "string" && it.subcategory
-        ? it.subcategory
+        ? migrateSubcategory(category, it.subcategory, name)
         : inferSubcategory(category, name, tags),
     color: typeof it.color === "string" ? it.color : "#a8a29e",
     colorName: typeof it.colorName === "string" ? it.colorName : undefined,

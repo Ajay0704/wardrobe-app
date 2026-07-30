@@ -57,7 +57,12 @@ export function Chip({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
+      // AJA-265: `whitespace-nowrap` — without it "T-shirt" breaks at the hyphen
+      // into "T-" / "shirt", making that one chip two lines tall and the whole row
+      // ragged. Bottoms and Outerwear looked fine only because no label in those
+      // rows happens to contain a hyphen. Fixed here rather than per-row so every
+      // chip row in the app gets it.
+      className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors ${
         active
           ? "border-accent bg-accent text-accent-foreground"
           : "border-line bg-surface text-muted hover:border-accent/50 hover:text-foreground"

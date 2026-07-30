@@ -73,8 +73,15 @@ export const SUBCATEGORIES: Record<Category, SubOption[]> = {
     { value: "sweatshirt", label: "Sweatshirt" },
     { value: "zipup", label: "Zip-up" },
     { value: "tank", label: "Tank" },
-    { value: "longsleeve", label: "Long-sleeve" },
+    // AJA-265: `longsleeve` was removed here. It described SLEEVE LENGTH, not a
+    // garment type, so it swallowed 10 items in the measured closet — 8 of them
+    // button-up/denim/dress shirts and 2 compression tops — and forced `isCollared`
+    // to carry a workaround for exactly that. Migration in ./subcategory.ts.
     { value: "jersey", label: "Jersey" },
+    // Explicit athletic register. Before this, the engine had to infer "this is gym
+    // kit" from a regex over brand names (gymshark|dri-fit|adizero|…), which is a
+    // missing field standing on its head.
+    { value: "activewear", label: "Activewear" },
     { value: "cardigan", label: "Cardigan" },
     { value: "blouse", label: "Blouse", gender: "female" },
     { value: "crop", label: "Crop top", gender: "female" },
@@ -115,6 +122,14 @@ export const SUBCATEGORIES: Record<Category, SubOption[]> = {
   ],
   shoes: [
     { value: "sneakers", label: "Sneakers" },
+    // AJA-265: 14 of 17 shoes in the measured closet were all `sneakers`, so a
+    // marathon racer, a basketball shoe and a Lacoste were indistinguishable and
+    // the engine guessed from brand names. Kept specific rather than one "Sports"
+    // umbrella — a chip only renders when you own something in it, so the cost of
+    // granularity is zero and the benefit is a real filter.
+    { value: "running", label: "Running" },
+    { value: "basketball", label: "Basketball" },
+    { value: "training", label: "Training" },
     { value: "boots", label: "Boots" },
     { value: "loafers", label: "Loafers" },
     { value: "sandals", label: "Sandals" },
