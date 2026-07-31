@@ -12,7 +12,9 @@
     "cap:sync:local": "CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npx cap sync ios",
     "test:rules": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-outfit-rules.mts",
     "test:feedback": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-engine-feedback.mts",
-    "test:context": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-style-context.mts"
+    "test:context": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-style-context.mts",
+    "test:storage": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-private-storage.mts",
+    "test:render": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-outfit-render.mts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",

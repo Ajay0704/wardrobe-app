@@ -264,7 +264,11 @@ export function OutfitDetailView() {
       />
 
       {tryOn && (
-        <TryOnView garments={tryOnGarments} onClose={() => setTryOn(false)} />
+        <TryOnView
+          garments={tryOnGarments}
+          outfitId={outfit?.id}
+          onClose={() => setTryOn(false)}
+        />
       )}
     </div>
   );

@@ -1,7 +1,8 @@
 import { useWardrobe } from "./store";
 import type { UserProfile } from "./profile";
-import type { WardrobeItem } from "./types";
+import type { Outfit, WardrobeItem } from "./types";
 import { dataUrlToFile, resolveImageSource } from "./supabase/storage";
+import { isRenderPath } from "./supabase/private-storage";
 
 const DATA_URL_RE = /^data:/i;
 /** Inline images larger than this (or HEIC) poison sync — drop them. */
@@ -41,7 +42,7 @@ export function scrubBloatedInlineImages(): number {
 
 /** Pure scrub for persist merge / partialize (no store writes). */
 export function scrubSnapshotImages<
-  T extends { items?: WardrobeItem[]; profile?: UserProfile },
+  T extends { items?: WardrobeItem[]; profile?: UserProfile; outfits?: Outfit[] },
 >(data: T): T {
   const items = Array.isArray(data.items)
     ? data.items.map((it) =>
@@ -62,7 +63,25 @@ export function scrubSnapshotImages<
     profile = next;
   }
 
-  return { ...data, items, profile };
+  /**
+   * AJA-275 — `tryOnRenderPath` must be a bucket path, never a URL or inline data.
+   *
+   * `isBadInline` is the wrong test here and would let the dangerous case through:
+   * it only rejects `data:` URLs over 200k chars, so a SIGNED url (~200 chars of
+   * `https:`) sails past it, syncs to every device, and expires an hour later
+   * leaving a look whose thumbnail silently stops loading. `isRenderPath` inverts
+   * the check — accept only a bare path — which also covers oversized data URLs.
+   */
+  const outfits = Array.isArray(data.outfits)
+    ? data.outfits.map((o) => {
+        if (o.tryOnRenderPath === undefined || isRenderPath(o.tryOnRenderPath)) return o;
+        const next = { ...o };
+        delete next.tryOnRenderPath;
+        return next;
+      })
+    : data.outfits;
+
+  return { ...data, items, profile, outfits };
 }
 
 /**

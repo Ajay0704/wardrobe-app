@@ -331,6 +331,16 @@ export interface Outfit {
    *  (AJA-245). Derived in `saveOutfit`, pruned as pieces become owned, so a look you
    *  can't wear yet is never counted as one you neglect. Whitelist in `normalizeOutfit`. */
   wishItemIds?: string[];
+  /**
+   * Saved on-body try-on render (AJA-275) — a PATH in the private `renders-private`
+   * bucket, e.g. `<userId>/<uuid>.jpg`. Never a URL and never inline data:
+   *  - a data URL would be 400,000+ chars, and the snapshot has a hard size budget;
+   *  - a signed URL would sync to every device and then expire, and no scrubber
+   *    catches it because they only test `^data:`.
+   * Read it with `signedRenderUrl(path)` at display time. Whitelist in
+   * `normalizeOutfit` or it's stripped on every reload/pull (cf. AJA-223/239/245).
+   */
+  tryOnRenderPath?: string;
   wearCount?: number;
   lastWornAt?: string;
   createdAt: number;

@@ -14,6 +14,7 @@ import { useWardrobe } from "@/lib/store";
 import { toGarments, type TryOnGarment } from "@/lib/tryon";
 import type { Outfit, WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
+import { useSavedRenderUrls } from "./useSavedRenderUrls";
 import { TryOnView } from "./explore/TryOnView";
 import { AskToStyleSheet } from "./styling/AskToStyleSheet";
 import { StylingSessions } from "./styling/StylingSessions";
@@ -46,7 +47,12 @@ export function OutfitsView() {
   const [collection, setCollection] = useState<CollectionKey>("all");
   const [query, setQuery] = useState("");
   const [askOpen, setAskOpen] = useState(false);
-  const [tryOnGarments, setTryOnGarments] = useState<TryOnGarment[] | null>(null);
+  // Carries the outfit id alongside the garments so a render can be saved back to
+  // the look it came from (AJA-275).
+  const [tryOnTarget, setTryOnTarget] = useState<{
+    garments: TryOnGarment[];
+    outfitId: string;
+  } | null>(null);
   // Bumped after an ask is sent so the session list refetches without a round trip
   // through realtime — the card has to appear the instant you send.
   const [sessionsKey, setSessionsKey] = useState(0);
@@ -64,6 +70,11 @@ export function OutfitsView() {
       .sort((a, b) => b.createdAt - a.createdAt)
       .filter((o) => inCollection(active, o, items) && matchesQuery(o, items, query));
   }, [outfits, items, collection, query, chips]);
+
+  // One batched signing request for whatever is on screen, re-signed when the app
+  // comes back from the background (AJA-275).
+  const renderPaths = useMemo(() => visible.map((o) => o.tryOnRenderPath), [visible]);
+  const renderUrls = useSavedRenderUrls(renderPaths);
 
   const newLook = () => {
     clearDraft();
@@ -161,11 +172,14 @@ export function OutfitsView() {
                   key={outfit.id}
                   outfit={outfit}
                   items={items}
+                  renderUrl={
+                    outfit.tryOnRenderPath ? renderUrls[outfit.tryOnRenderPath] : undefined
+                  }
                   onOpen={() => openOutfitDetail(outfit.id)}
                   onFavorite={() => toggleOutfitFavorite(outfit.id)}
                   onTryOn={() => {
                     const g = garmentsForOutfit(outfit, items);
-                    if (g.length) setTryOnGarments(g);
+                    if (g.length) setTryOnTarget({ garments: g, outfitId: outfit.id });
                   }}
                 />
               ))}
@@ -174,8 +188,12 @@ export function OutfitsView() {
         </>
       )}
 
-      {tryOnGarments && (
-        <TryOnView garments={tryOnGarments} onClose={() => setTryOnGarments(null)} />
+      {tryOnTarget && (
+        <TryOnView
+          garments={tryOnTarget.garments}
+          outfitId={tryOnTarget.outfitId}
+          onClose={() => setTryOnTarget(null)}
+        />
       )}
     </div>
   );
@@ -184,12 +202,15 @@ export function OutfitsView() {
 function LookCard({
   outfit,
   items,
+  renderUrl,
   onOpen,
   onFavorite,
   onTryOn,
 }: {
   outfit: Outfit;
   items: WardrobeItem[];
+  /** Signed URL for a saved try-on render, if the look has one and it resolved. */
+  renderUrl?: string;
   onOpen: () => void;
   onFavorite: () => void;
   onTryOn: () => void;
@@ -206,11 +227,25 @@ function LookCard({
         className="block w-full text-left transition-transform active:scale-[0.98]"
       >
         <div className="relative">
-          <OutfitBoardThumb
-            outfit={outfit}
-            items={items}
-            className="aspect-[4/5] w-full bg-surface-2/50"
-          />
+          {/* A saved on-body render beats a flat-lay board — it's the look as it
+              actually appears on you. Falls back to the board when there's no
+              render, or while its signed URL is still resolving, or if signing
+              failed; never a broken image. */}
+          {renderUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={renderUrl}
+              alt={outfit.name}
+              loading="lazy"
+              className="aspect-[4/5] w-full bg-surface-2/50 object-cover"
+            />
+          ) : (
+            <OutfitBoardThumb
+              outfit={outfit}
+              items={items}
+              className="aspect-[4/5] w-full bg-surface-2/50"
+            />
+          )}
           {wish > 0 && (
             <span className="absolute left-2 top-2 rounded-full bg-amber-500/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white backdrop-blur">
               {wish === 1 ? "1 to buy" : `${wish} to buy`}

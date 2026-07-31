@@ -1,35 +1,50 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { ChevronLeft, ImagePlus, Loader2, RefreshCw, ScanFace, User } from "lucide-react";
+import { Check, ChevronLeft, ImagePlus, Loader2, RefreshCw, ScanFace, User } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { pickNativePhoto } from "@/lib/native-camera";
-import { toCompressedDataUrl } from "@/lib/supabase/storage";
+import { useWardrobe } from "@/lib/store";
+import { deletePrivateRender, uploadPrivateRender } from "@/lib/supabase/private-storage";
+import { dataUrlToFile, toCompressedDataUrl } from "@/lib/supabase/storage";
 import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
 
 /**
- * "See it on you" (AJA-158 Phase 3; accuracy pass AJA-274). Renders the given
- * outfit on the user's own photo via /api/tryon.
+ * "See it on you" (AJA-158 Phase 3; accuracy pass AJA-274; saving AJA-275).
  *
  * AJA-274 removed the render-on-mount: the screen used to spend a paid generation
  * on a stock model before you touched anything, so the first thing you saw on a
  * screen called "See it on you" was a stranger — and picking your own photo meant
  * paying twice for one answer. It now waits for a subject.
  *
- * The photo is used for the request only, never stored. Experimental, labeled so.
+ * AJA-275 adds saving. Two things stay true and are worth not breaking:
+ *  - the photo you pick is still never stored, only the RENDER is;
+ *  - the render goes to a PRIVATE bucket, not the public one the garment images
+ *    live in, and only a bucket path is persisted (see private-storage.ts).
  */
 export function TryOnView({
   garments,
+  outfitId,
   onClose,
 }: {
   garments: TryOnGarment[];
+  /** Saved look to attach the render to. Absent for unsaved suggestions (Explore's
+   *  hero look is a raw item list), in which case saving isn't offered. */
+  outfitId?: string;
   onClose: () => void;
 }) {
+  const authUser = useWardrobe((s) => s.authUser);
+  const setOutfitRender = useWardrobe((s) => s.setOutfitRender);
+  const savedPath = useWardrobe((s) =>
+    outfitId ? s.outfits.find((o) => o.id === outfitId)?.tryOnRenderPath : undefined,
+  );
+
   const [personSrc, setPersonSrc] = useState<string | null>(null);
   const [scene, setScene] = useState<TryOnScene>("street");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   /** 501 = provider not configured; a retry can never succeed, so stop offering one. */
   const [unavailable, setUnavailable] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -42,6 +57,8 @@ export function TryOnView({
       }
       setLoading(true);
       setError(null);
+      // A new render is not the saved one — re-arm the button.
+      setSaveState("idle");
       try {
         setResult(await tryOnOutfit({ garments, personImage: person, scene: withScene }));
       } catch (e) {
@@ -88,7 +105,32 @@ export function TryOnView({
     if (result || loading) void run(personSrc, next);
   };
 
+  const saveRender = async () => {
+    if (!result || !outfitId || !authUser || saveState !== "idle") return;
+    setSaveState("saving");
+    try {
+      // The route returns a data URL, but tolerate a remote URL so this doesn't
+      // break if the transport changes again.
+      const blob = result.startsWith("data:")
+        ? dataUrlToFile(result, "tryon")
+        : await (await fetch(result)).blob();
+      const path = await uploadPrivateRender(blob, authUser.id);
+      const previous = savedPath;
+      setOutfitRender(outfitId, path);
+      // Replacing: drop the old blob, or it lingers unreferenced until the account
+      // is deleted. Best-effort — the look already points at the new render.
+      if (previous && previous !== path) void deletePrivateRender(previous);
+      setSaveState("saved");
+    } catch (e) {
+      setSaveState("idle");
+      setError(
+        e instanceof Error ? `Couldn't save that render — ${e.message}` : "Couldn't save that render.",
+      );
+    }
+  };
+
   const started = loading || result !== null || error !== null;
+  const canSave = Boolean(result && !loading && outfitId && authUser);
 
   return (
     <div className="native-item-page native-page-in" role="dialog" aria-label="See it on you">
@@ -186,6 +228,29 @@ export function TryOnView({
           ))}
         </div>
 
+        {canSave && (
+          <button
+            type="button"
+            onClick={() => void saveRender()}
+            disabled={saveState !== "idle"}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-accent bg-accent/10 py-2.5 text-sm font-medium text-foreground disabled:opacity-70"
+          >
+            {saveState === "saving" ? (
+              <>
+                <Loader2 size={15} className="animate-spin" /> Saving…
+              </>
+            ) : saveState === "saved" ? (
+              <>
+                <Check size={15} /> Saved to this look
+              </>
+            ) : (
+              <>
+                <ImagePlus size={15} /> {savedPath ? "Replace saved render" : "Save to this look"}
+              </>
+            )}
+          </button>
+        )}
+
         {started && !unavailable && (
           <button
             type="button"
@@ -198,8 +263,10 @@ export function TryOnView({
         )}
 
         <p className="pb-2 text-center text-[11px] text-muted">
-          AI try-on is experimental — the fit is an approximation, not a measurement. Your photo is
-          used only for this render, not stored.
+          AI try-on is experimental — the fit is an approximation, not a measurement.{" "}
+          {saveState === "saved" || savedPath
+            ? "Saved renders are private to your account — only you can see them. The photo you picked is never stored."
+            : "Your photo is used only for this render, not stored."}
         </p>
 
         <input

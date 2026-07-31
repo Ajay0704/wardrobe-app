@@ -111,3 +111,55 @@ create index if not exists closet_share_replies_share_id_idx
 
 alter table public.closet_shares enable row level security;
 alter table public.closet_share_replies enable row level security;
+
+-- ---------------------------------------------------------------------------
+-- AJA-275 — PRIVATE bucket for on-body try-on renders.
+--
+-- Deliberately NOT `wardrobe-images`. That bucket is public=true with a "Public
+-- read wardrobe images" policy over the whole bucket, which is the right call for
+-- a photo of a jumper and the wrong call for a photograph of the user's face and
+-- body. A try-on render is the latter, so it gets its own bucket and its own
+-- blast radius.
+--
+-- Objects here are readable ONLY by their owner, and only via a short-lived
+-- signed URL (createSignedUrl). Never store a signed URL — see
+-- src/lib/supabase/private-storage.ts for why.
+--
+-- Paths are FLAT: `<user-id>/<uuid>.jpg`. Nesting would still satisfy RLS
+-- (foldername[1] is the uid either way) but would be missed by account deletion,
+-- because Supabase's list() is not recursive and remove() on a prefix is a
+-- silent no-op. src/app/api/account/delete/route.ts relies on flatness.
+--
+-- Unlike the blocks above, this one is re-runnable: the drops make re-applying
+-- schema.sql safe instead of erroring on an existing policy.
+-- ---------------------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('renders-private', 'renders-private', false)
+on conflict (id) do nothing;
+
+drop policy if exists "Users read own renders" on storage.objects;
+create policy "Users read own renders"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'renders-private'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+drop policy if exists "Users upload own renders" on storage.objects;
+create policy "Users upload own renders"
+  on storage.objects for insert to authenticated
+  with check (
+    bucket_id = 'renders-private'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+-- A new capability: `wardrobe-images` has NO delete policy, so clients cannot
+-- remove their own objects there at all. Body imagery needs a user-driven wipe,
+-- so grant delete — scoped to this bucket and the caller's own folder only.
+drop policy if exists "Users delete own renders" on storage.objects;
+create policy "Users delete own renders"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'renders-private'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

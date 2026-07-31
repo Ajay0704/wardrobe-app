@@ -31,6 +31,7 @@ import {
 } from "./profile";
 import type { SyncStatus } from "./supabase/sync";
 import { scrubSnapshotImages } from "./heal";
+import { isRenderPath } from "./supabase/private-storage";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
 import { DEFAULT_STYLE_CONTEXT, normalizeStyleContext, type StyleContext } from "./style-context";
 import { lookWorn } from "./engine-feedback";
@@ -239,6 +240,11 @@ interface WardrobeState {
   /** Star/unstar a look in the library (AJA-239). */
   toggleOutfitFavorite: (id: string) => void;
   renameOutfit: (id: string, name: string) => void;
+  /**
+   * Attach (or clear, with null) a saved try-on render (AJA-275). Takes a bucket
+   * PATH — pass the result of `uploadPrivateRender`, never a signed URL.
+   */
+  setOutfitRender: (id: string, path: string | null) => void;
   /** Deep-copy a look (new ids, wear history reset). Returns the new id. */
   duplicateOutfit: (id: string) => string | null;
   /** Open the outfit detail screen for a look. */
@@ -457,6 +463,11 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
     // AJA-245 — same. Empty collapses to undefined, so a look whose pieces have all been
     // bought is indistinguishable from one that never had wish pieces.
     wishItemIds: normalizeWishIds(o.wishItemIds),
+    // AJA-275 — whitelist or it's stripped on every reload/pull. Validated as a
+    // PATH, not merely as a string: `isRenderPath` rejects data URLs (400k+ chars,
+    // which is how the snapshot size budget gets blown) and signed URLs (which
+    // expire, and which no scrubber catches because they only test `^data:`).
+    tryOnRenderPath: isRenderPath(o.tryOnRenderPath) ? o.tryOnRenderPath : undefined,
     wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
     lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
@@ -674,6 +685,19 @@ export const useWardrobe = create<WardrobeState>()(
       renameOutfit: (id, name) =>
         set((s) => ({
           outfits: s.outfits.map((o) => (o.id === id ? { ...o, name } : o)),
+        })),
+
+      setOutfitRender: (id, path) =>
+        set((s) => ({
+          outfits: s.outfits.map((o) => {
+            if (o.id !== id) return o;
+            // Validate on the way IN as well as in normalizeOutfit. Without this a
+            // caller could park a data URL or a signed URL in memory, where it
+            // would reach `partialize` and count against the snapshot budget before
+            // any normalizer saw it.
+            const next = path !== null && isRenderPath(path) ? path : undefined;
+            return { ...o, tryOnRenderPath: next };
+          }),
         })),
 
       duplicateOutfit: (id) => {
