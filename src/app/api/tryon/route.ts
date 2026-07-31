@@ -7,26 +7,34 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 /**
- * AJA-274 — on-body try-on, via Replicate rather than the Gemini API directly.
+ * AJA-274 — on-body try-on.
  *
- * Four reasons, only one of which is billing:
- *  1. `aspect_ratio` is a real parameter here. Asking for 3:4 in prose gave a square
- *     1024x1024 render with the old prompt and 896x1200 with an explicit framing
- *     instruction — non-deterministic geometry, which the UI then cropped.
- *  2. Separate billing balance from the Gemini key shared by analyze/beautify/chat,
- *     so the most expensive call in the app can't starve closet tagging.
- *  3. The pattern is already proven in /api/segment-outfit.
- *  4. It lets this route return 501 for "not configured" like beautify and cutout,
- *     so the client can disable the affordance instead of offering a dead retry.
+ * MODEL: `gemini-2.5-flash-image` was measured to IGNORE the person reference
+ * entirely and render a stock model; so was `gemini-3.1-flash-image`. Only
+ * `gemini-3-pro-image` preserves identity. That is why the model is pinned here and
+ * not configurable down to a cheaper tier — the cheap tiers do not do the job at all.
  *
- * `gemini-2.5-flash-image` was measured to IGNORE the person reference entirely and
- * render a stock model; nano-banana-pro (gemini-3-pro-image) preserves identity.
- * That is why the model id is not configurable down to a cheaper tier.
+ * WHY NOT REPLICATE: this first shipped against `google/nano-banana-pro` on Replicate,
+ * chiefly because `aspect_ratio` is a real parameter there and prose framing had
+ * produced non-deterministic geometry (a 1024x1024 square with the old prompt, 896x1200
+ * with an explicit instruction). Two things then settled it the other way:
+ *   1. Production's REPLICATE_API_TOKEN is empty, so the route 501'd on device. The
+ *      only other consumer, /api/segment-outfit, silently falls back to Gemini
+ *      detection, which is why nobody had noticed.
+ *   2. Gemini has its own `imageConfig.aspectRatio`, which is just as much a real
+ *      parameter — 9 of 9 test renders came back exactly 896x1200 through it.
+ * So the reason for the detour disappeared. Replicate also cost 23-50s against
+ * Gemini's 19-23s. The one thing given up is a separate billing balance: a try-on
+ * spike now shares quota with beautify, analyze and chat.
  */
-const MODEL_VERSION = "93f55bfdbdfd4a62e16bf861729bcfa9e8fd9b0325fb218cbc4dd138ecc87cc7";
+const MODEL = "gemini-3-pro-image";
 
-/** 2K measured 40-55s against maxDuration=60 — no headroom. 1K is plenty on a phone. */
-const RESOLUTION = "1K";
+/**
+ * 1K, not 2K. 2K measured 40-55s against maxDuration=60 — no headroom. And it is not
+ * a cost saving: both emit 1120 output image tokens, confirmed from a real
+ * usageMetadata response, so ~$0.134/render either way. 1K buys latency only.
+ */
+const IMAGE_SIZE = "1K";
 
 /** Leave the platform room to return a real error instead of being killed mid-flight. */
 const RENDER_TIMEOUT_MS = 45_000;
@@ -36,7 +44,7 @@ interface InlineImage {
   data: string;
 }
 
-/** Turn a data: URL or a remote image URL into base64. */
+/** Turn a data: URL or a remote image URL into base64 for an inline_data part. */
 async function toBase64(src: string): Promise<InlineImage | null> {
   if (src.startsWith("data:")) {
     const m = /^data:([^;]+);base64,(.+)$/.exec(src);
@@ -57,83 +65,39 @@ async function toBase64(src: string): Promise<InlineImage | null> {
   }
 }
 
-const asDataUrl = (i: InlineImage) => `data:${i.mimeType};base64,${i.data}`;
+type Part = { text: string } | { inline_data: { mime_type: string; data: string } };
 
-// ---------------------------------------------------------------- replicate
+const part = (i: InlineImage): Part => ({
+  inline_data: { mime_type: i.mimeType, data: i.data },
+});
 
-async function render(
-  input: Record<string, unknown>,
-  token: string,
-): Promise<{ url?: string; error?: string; status?: number }> {
-  let resp: Response;
-  try {
-    resp = await fetch("https://api.replicate.com/v1/predictions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        // Block for up to ~60s server-side instead of polling from the start.
-        Prefer: "wait",
-      },
-      body: JSON.stringify({ version: MODEL_VERSION, input }),
-      signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
-    });
-  } catch {
-    return { error: "Couldn't reach the image service.", status: 502 };
-  }
-  if (!resp.ok) {
-    return {
-      error: `Image service error (${resp.status}).`,
-      status: 502,
-    };
-  }
-
-  let pred = (await resp.json()) as {
-    status?: string;
-    output?: string | string[];
-    error?: unknown;
-    urls?: { get?: string };
-  };
-  // `Prefer: wait` usually returns a finished prediction, but a cold start can come
-  // back still processing — same belt-and-braces poll as /api/segment-outfit.
-  for (let i = 0; i < 8 && pred.status && !["succeeded", "failed", "canceled"].includes(pred.status); i++) {
-    await new Promise((r) => setTimeout(r, 2000));
-    if (!pred.urls?.get) break;
-    try {
-      const again = await fetch(pred.urls.get, {
-        headers: { Authorization: `Bearer ${token}` },
-        signal: AbortSignal.timeout(10_000),
-      });
-      if (!again.ok) break;
-      pred = await again.json();
-    } catch {
-      break;
+function extractImage(data: unknown): InlineImage | null {
+  const parts = (
+    data as { candidates?: Array<{ content?: { parts?: Array<Record<string, unknown>> } }> }
+  )?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  for (const p of parts) {
+    const inline = (p.inlineData ?? p.inline_data) as
+      | { data?: string; mimeType?: string; mime_type?: string }
+      | undefined;
+    if (inline?.data) {
+      return { mimeType: inline.mimeType ?? inline.mime_type ?? "image/png", data: inline.data };
     }
   }
-
-  if (pred.status !== "succeeded") {
-    return {
-      error: String(pred.error ?? "").slice(0, 200) || "The render didn't finish. Try again.",
-      status: 502,
-    };
-  }
-  const out = Array.isArray(pred.output) ? pred.output[0] : pred.output;
-  return out ? { url: out } : { error: "The model didn't return an image. Try again.", status: 502 };
+  return null;
 }
-
-// ---------------------------------------------------------------- handler
 
 export async function POST(request: Request) {
   if (!(await requireUser(request))) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
 
-  const token = process.env.REPLICATE_API_TOKEN;
-  if (!token) {
-    // 501, matching /api/beautify and /api/segment-outfit, so the client can tell
-    // "not configured" apart from "transient failure" and stop offering a retry.
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    // 501, matching /api/beautify and /api/cutout, so the client can tell "not
+    // configured" apart from "transient failure" and stop offering a dead retry.
     return Response.json(
-      { error: "Try-on isn't configured yet (missing REPLICATE_API_TOKEN)." },
+      { error: "Try-on isn't configured yet (missing GEMINI_API_KEY)." },
       { status: 501 },
     );
   }
@@ -159,22 +123,14 @@ export async function POST(request: Request) {
   }
 
   /**
-   * Replicate's `image_input` is a flat array with nowhere to attach per-image
-   * labels, so order is load-bearing and the prompt has to name it. Cap at 6
-   * (down from 8): with 2 person references that is 8 images, and the reference
-   * guidance is explicit that past ~6 the extra images compete for control. Real
-   * outfits are 3-5 items, so this clips almost nothing.
+   * Capped at 6 (down from 8). With two person references that is already 8 images,
+   * and the reference guidance is explicit that past ~6 the extras start competing
+   * for control of the result. Real outfits are 3-5 items, so this clips almost nothing.
    */
-  const garments: Array<{ src: string; label?: string }> = [];
+  const garments: Array<InlineImage & { label?: string }> = [];
   for (const g of garmentInputs.slice(0, 6)) {
-    // Remote URLs are passed straight through — Replicate fetches them itself, which
-    // makes the request smaller than inlining every garment as base64 did.
-    if (/^https?:\/\//i.test(g.image)) {
-      garments.push({ src: g.image, label: g.label });
-      continue;
-    }
     const b = await toBase64(g.image);
-    if (b) garments.push({ src: asDataUrl(b), label: g.label });
+    if (b) garments.push({ ...b, label: g.label });
   }
   if (garments.length === 0) {
     return Response.json({ error: "No usable garment images in this outfit." }, { status: 400 });
@@ -183,10 +139,6 @@ export async function POST(request: Request) {
   const person = body.personImage ? await toBase64(body.personImage) : null;
   const face = person && body.faceImage ? await toBase64(body.faceImage) : null;
 
-  const people: string[] = [];
-  if (face) people.push(asDataUrl(face));
-  if (person) people.push(asDataUrl(person));
-
   const prompt = buildTryOnPrompt({
     hasFace: Boolean(face),
     hasPerson: Boolean(person),
@@ -194,23 +146,47 @@ export async function POST(request: Request) {
     scene: body.scene,
   });
 
-  const result = await render(
-    {
-      prompt,
-      image_input: [...people, ...garments.map((g) => g.src)],
-      aspect_ratio: "3:4",
-      resolution: RESOLUTION,
-      output_format: "jpg",
-    },
-    token,
-  );
+  // Order is load-bearing: the prompt's image manifest names these by index, and
+  // buildTryOnPrompt derives that numbering from the same two flags used here.
+  const parts: Part[] = [{ text: prompt }];
+  if (face) parts.push(part(face));
+  if (person) parts.push(part(person));
+  for (const g of garments) parts.push(part(g));
 
-  if (!result.url) {
-    return Response.json({ error: result.error }, { status: result.status ?? 502 });
+  let resp: Response;
+  try {
+    resp = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": key },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          // A real parameter, not a request in prose — this is what makes the 3:4
+          // container in TryOnView a guarantee instead of a hope.
+          generationConfig: { imageConfig: { aspectRatio: "3:4", imageSize: IMAGE_SIZE } },
+        }),
+        signal: AbortSignal.timeout(RENDER_TIMEOUT_MS),
+      },
+    );
+  } catch {
+    return Response.json({ error: "Couldn't reach the image service." }, { status: 502 });
   }
-  // A Replicate output URL, not inline bytes — keeps the response tiny. The contract
-  // with lib/tryon.ts is "a string usable as <img src>", which this satisfies. Note
-  // these URLs expire (~1h), so anything that later SAVES a render must re-host it
-  // through resolveImageSource first.
-  return Response.json({ image: result.url });
+
+  if (!resp.ok) {
+    const detail = (await resp.text()).slice(0, 400);
+    return Response.json(
+      { error: `Image service error (${resp.status}).`, detail },
+      { status: 502 },
+    );
+  }
+
+  const image = extractImage(await resp.json());
+  if (!image) {
+    return Response.json({ error: "The model didn't return an image. Try again." }, { status: 502 });
+  }
+  // A data URL, so the contract with lib/tryon.ts stays "a string usable as <img src>".
+  // ~300-500KB at 1K. Anything that later SAVES a render must re-host it through
+  // resolveImageSource rather than persisting this string — see heal.ts's inline limit.
+  return Response.json({ image: `data:${image.mimeType};base64,${image.data}` });
 }
