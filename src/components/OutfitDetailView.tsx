@@ -15,27 +15,11 @@ import { useMemo, useState } from "react";
 import { outfitPayload } from "@/lib/chat";
 import { wearSummary } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
-import type { TryOnGarment } from "@/lib/tryon";
+import { toGarments } from "@/lib/tryon";
 import { formatDisplayDate, type WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 import { TryOnView } from "./explore/TryOnView";
-
-const itemImage = (it: WardrobeItem): string | undefined =>
-  it.beautifiedImageUrl ?? it.imageUrl;
-
-const toGarments = (pieces: WardrobeItem[]): TryOnGarment[] => {
-  const out: TryOnGarment[] = [];
-  for (const it of pieces) {
-    const image = itemImage(it);
-    if (!image) continue;
-    out.push({
-      image,
-      label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
-    });
-  }
-  return out;
-};
 
 /**
  * Outfit detail (AJA-239). Tapping a look used to do nothing — the board, the notes field and

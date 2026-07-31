@@ -1,23 +1,23 @@
 "use client";
 
+import { Capacitor } from "@capacitor/core";
 import { ChevronLeft, ImagePlus, Loader2, RefreshCw, ScanFace, User } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { tryOnOutfit, type TryOnGarment } from "@/lib/tryon";
+import { useCallback, useRef, useState } from "react";
+import { pickNativePhoto } from "@/lib/native-camera";
+import { toCompressedDataUrl } from "@/lib/supabase/storage";
+import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
 
 /**
- * "See it on you" (AJA-158, Phase 3). Renders the given outfit on the user's
- * body via /api/tryon. Opens rendering on a generic model immediately; the user
- * can add a photo of themselves to keep their own identity. The photo is used
- * for the request only — not stored. Experimental (AI try-on), labeled as such.
+ * "See it on you" (AJA-158 Phase 3; accuracy pass AJA-274). Renders the given
+ * outfit on the user's own photo via /api/tryon.
+ *
+ * AJA-274 removed the render-on-mount: the screen used to spend a paid generation
+ * on a stock model before you touched anything, so the first thing you saw on a
+ * screen called "See it on you" was a stranger — and picking your own photo meant
+ * paying twice for one answer. It now waits for a subject.
+ *
+ * The photo is used for the request only, never stored. Experimental, labeled so.
  */
-const fileToDataUrl = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const r = new FileReader();
-    r.onload = () => resolve(r.result as string);
-    r.onerror = () => reject(r.error ?? new Error("read-failed"));
-    r.readAsDataURL(file);
-  });
-
 export function TryOnView({
   garments,
   onClose,
@@ -26,13 +26,16 @@ export function TryOnView({
   onClose: () => void;
 }) {
   const [personSrc, setPersonSrc] = useState<string | null>(null);
+  const [scene, setScene] = useState<TryOnScene>("street");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** 501 = provider not configured; a retry can never succeed, so stop offering one. */
+  const [unavailable, setUnavailable] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const run = useCallback(
-    async (person: string | null) => {
+    async (person: string | null, withScene: TryOnScene) => {
       if (!garments.length) {
         setError("This look has no items to try on.");
         return;
@@ -40,9 +43,11 @@ export function TryOnView({
       setLoading(true);
       setError(null);
       try {
-        setResult(await tryOnOutfit(garments, person));
+        setResult(await tryOnOutfit({ garments, personImage: person, scene: withScene }));
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Try-on failed. Try again.");
+        const msg = e instanceof Error ? e.message : "Try-on failed. Try again.";
+        setError(msg);
+        if (/isn't configured/i.test(msg)) setUnavailable(true);
       } finally {
         setLoading(false);
       }
@@ -50,22 +55,40 @@ export function TryOnView({
     [garments],
   );
 
-  // Kick off on a model as soon as the page opens.
-  useEffect(() => {
-    void run(null);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const onPickPhoto = async (file?: File) => {
+  const applyPhoto = async (file?: File) => {
     if (!file) return;
     try {
-      const src = await fileToDataUrl(file);
+      // Compresses AND HEIC-decodes. The old bare FileReader did neither, so a
+      // full-res photo went into the JSON body and an iPhone HEIC failed outright.
+      const src = await toCompressedDataUrl(file);
       setPersonSrc(src);
-      void run(src);
-    } catch {
-      setError("Couldn't read that photo.");
+      void run(src, scene);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't read that photo.");
     }
   };
+
+  // WKWebView won't drive a bare <input type="file"> reliably — every other photo
+  // entry point in the app goes through pickNativePhoto for exactly this reason.
+  const pickPhoto = async () => {
+    if (!Capacitor.isNativePlatform()) {
+      fileRef.current?.click();
+      return;
+    }
+    try {
+      const file = await pickNativePhoto();
+      if (file) void applyPhoto(file);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the photo library.");
+    }
+  };
+
+  const changeScene = (next: TryOnScene) => {
+    setScene(next);
+    if (result || loading) void run(personSrc, next);
+  };
+
+  const started = loading || result !== null || error !== null;
 
   return (
     <div className="native-item-page native-page-in" role="dialog" aria-label="See it on you">
@@ -78,11 +101,12 @@ export function TryOnView({
       </div>
 
       <div className="native-item-page-body space-y-4">
-        {/* Result canvas */}
+        {/* Result canvas. object-contain, not object-cover: the render's aspect is the
+            model's to choose, and cover silently sliced the head off a square one. */}
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl border border-line bg-surface-2">
           {result && !loading && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={result} alt="Try-on result" className="h-full w-full object-cover" />
+            <img src={result} alt="Try-on result" className="h-full w-full object-contain" />
           )}
           {loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
@@ -91,10 +115,19 @@ export function TryOnView({
               <p className="text-[11px]">Takes a few seconds</p>
             </div>
           )}
-          {!loading && !result && error && (
+          {!loading && !result && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center text-muted">
               <ScanFace size={26} />
-              <p className="text-sm">{error}</p>
+              {error ? (
+                <p className="text-sm">{error}</p>
+              ) : (
+                <>
+                  <p className="text-sm text-foreground">See this look on your body</p>
+                  <p className="text-[12px]">
+                    Add a photo of yourself — full length, facing the camera.
+                  </p>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -111,13 +144,13 @@ export function TryOnView({
           ))}
         </div>
 
-        {/* Controls */}
+        {/* Subject. Your photo is the primary action — it's what the screen is for. */}
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            disabled={loading}
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2.5 text-sm font-medium disabled:opacity-50"
+            onClick={() => void pickPhoto()}
+            disabled={loading || unavailable}
+            className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl bg-accent py-2.5 text-sm font-medium text-accent-foreground disabled:opacity-50"
           >
             <ImagePlus size={15} /> {personSrc ? "Change photo" : "Use my photo"}
           </button>
@@ -125,26 +158,48 @@ export function TryOnView({
             type="button"
             onClick={() => {
               setPersonSrc(null);
-              void run(null);
+              void run(null, scene);
             }}
-            disabled={loading}
+            disabled={loading || unavailable}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2.5 text-sm font-medium disabled:opacity-50"
           >
             <User size={15} /> On a model
           </button>
         </div>
-        <button
-          type="button"
-          onClick={() => void run(personSrc)}
-          disabled={loading}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-accent py-2.5 text-sm font-medium text-accent-foreground disabled:opacity-50"
-        >
-          <RefreshCw size={15} /> {loading ? "Working…" : "Try again"}
-        </button>
+
+        {/* Scene. Presets, not free text — a dim or busy backdrop hides the clothes. */}
+        <div className="flex gap-1.5 overflow-x-auto pb-0.5">
+          {TRYON_SCENES.map((s) => (
+            <button
+              key={s.id}
+              type="button"
+              onClick={() => changeScene(s.id)}
+              disabled={loading || unavailable}
+              className={`whitespace-nowrap rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
+                scene === s.id
+                  ? "border-accent bg-accent text-accent-foreground"
+                  : "border-line bg-surface text-muted"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
+        {started && !unavailable && (
+          <button
+            type="button"
+            onClick={() => void run(personSrc, scene)}
+            disabled={loading}
+            className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2.5 text-sm font-medium disabled:opacity-50"
+          >
+            <RefreshCw size={15} /> {loading ? "Working…" : "Try again"}
+          </button>
+        )}
 
         <p className="pb-2 text-center text-[11px] text-muted">
-          AI try-on is experimental — it keeps your face but the fit is an approximation. Your photo
-          is used only for this render, not stored.
+          AI try-on is experimental — the fit is an approximation, not a measurement. Your photo is
+          used only for this render, not stored.
         </p>
 
         <input
@@ -153,7 +208,7 @@ export function TryOnView({
           accept="image/*"
           className="hidden"
           onChange={(e) => {
-            void onPickPhoto(e.target.files?.[0]);
+            void applyPhoto(e.target.files?.[0]);
             e.target.value = "";
           }}
         />

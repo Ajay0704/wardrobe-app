@@ -133,6 +133,32 @@ async function decodeHeic(file: File): Promise<File> {
   }
 }
 
+/**
+ * Compress (and HEIC-decode) a picked photo into an inline data URL WITHOUT
+ * uploading it (AJA-274).
+ *
+ * For session-only images — the try-on person photo — where `resolveImageSource`'s
+ * Storage upload would persist something the UI promises not to keep. Before this,
+ * TryOnView used a bare `FileReader`, which skipped compression (a full-res phone
+ * photo went into the JSON body) AND skipped `decodeHeic`, so an iPhone HEIC photo
+ * failed outright with an unhelpful error.
+ *
+ * The defaults are deliberately looser than `compressImage`'s 1200/0.82: at 1200px
+ * a 1086x1448 reference is downscaled to 900x1200 and an already-tiny face loses
+ * ~17% of its linear detail — the opposite of what the try-on accuracy work needs.
+ */
+export async function toCompressedDataUrl(
+  file: File,
+  maxDim = 1600,
+  quality = 0.9,
+): Promise<string> {
+  let source = file;
+  if (/image\/hei[cf]/i.test(file.type) || /\.hei[cf]$/i.test(file.name)) {
+    source = await decodeHeic(file);
+  }
+  return blobToDataUrl(await compressImage(source, maxDim, quality));
+}
+
 export async function resolveImageSource(
   file: File,
   userId: string | null,

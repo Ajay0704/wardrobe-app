@@ -11,29 +11,20 @@ import {
   type CollectionKey,
 } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
-import type { TryOnGarment } from "@/lib/tryon";
+import { toGarments, type TryOnGarment } from "@/lib/tryon";
 import type { Outfit, WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
 import { TryOnView } from "./explore/TryOnView";
 import { AskToStyleSheet } from "./styling/AskToStyleSheet";
 import { StylingSessions } from "./styling/StylingSessions";
 
-const itemImage = (it: WardrobeItem): string | undefined =>
-  it.beautifiedImageUrl ?? it.imageUrl;
-
 function garmentsForOutfit(outfit: Outfit, items: WardrobeItem[]): TryOnGarment[] {
-  const out: TryOnGarment[] = [];
+  const pieces: WardrobeItem[] = [];
   for (const id of outfit.itemIds) {
     const it = items.find((x) => x.id === id);
-    if (!it) continue;
-    const image = itemImage(it);
-    if (!image) continue;
-    out.push({
-      image,
-      label: [it.colorName, it.category].filter(Boolean).join(" ") || it.name,
-    });
+    if (it) pieces.push(it);
   }
-  return out;
+  return toGarments(pieces);
 }
 
 /**

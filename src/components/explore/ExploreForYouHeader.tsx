@@ -43,7 +43,7 @@ import { searchProducts, type ShopResult } from "@/lib/shop-search";
 import { useWardrobe } from "@/lib/store";
 import { readTaste } from "@/lib/taste";
 import type { Category, WardrobeItem } from "@/lib/types";
-import type { TryOnGarment } from "@/lib/tryon";
+import { garmentImage, toGarments, type TryOnGarment } from "@/lib/tryon";
 import {
   cacheWeather,
   convertTemp,
@@ -106,8 +106,8 @@ const OCCASION_META: Record<
   trip: { vibe: "casual", occasion: "travel", formality: "casual", mood: "travel" },
 };
 
-const itemImage = (it: WardrobeItem): string | undefined =>
-  it.beautifiedImageUrl ?? it.imageUrl;
+/** Also the try-on garment source — see garmentImage's note on why the redraw wins. */
+const itemImage = garmentImage;
 
 /** Hybrid ranker: weather-aware, multi-signal, with why-reasons. */
 function bestDraft(
@@ -141,12 +141,6 @@ function resolveOutfit(look: ScoredLook | null): WardrobeItem[] {
     .slice()
     .sort((a, b) => (CAT_ORDER[a.category] ?? 9) - (CAT_ORDER[b.category] ?? 9));
 }
-
-const toGarments = (out: WardrobeItem[]): TryOnGarment[] =>
-  out.map((it) => ({
-    image: itemImage(it) as string,
-    label: [it.colorName, it.category].filter(Boolean).join(" "),
-  }));
 
 /**
  * AJA-267 — takes the RESOLVED temperature, not the raw forecast.
