@@ -65,6 +65,9 @@ export interface PendingImport extends AnalyzedAttrs {
   colorName?: string;
   tags: string[];
   seasons: Season[];
+  /** Which background remover produced `cutoutUrl`. Carried through to the item so the closet
+   *  records what made each image — see the note on `DetectedGarment.cutoutEngine` (AJA-273). */
+  cutoutEngine?: string;
 }
 
 export type View =

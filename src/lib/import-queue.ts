@@ -19,6 +19,8 @@ import { detectGarments } from "./detect-garments";
 import { useWardrobe, type ImportStatus, type PendingImport } from "./store";
 import { readAnalyzedAttrs, type AnalyzedAttrs } from "./analyze-attrs";
 import { backfillPatch, bestAnalyzeSource, needsBackfill } from "./backfill-attrs";
+import { Capacitor } from "@capacitor/core";
+import { getCutoutEngine } from "./cutout";
 import { authHeaders } from "./supabase/client";
 import { CATEGORY_LABEL } from "./types";
 
@@ -28,13 +30,39 @@ interface ImportJob {
 }
 
 /**
- * Process ONE photo at a time during EXTRACT so the on-device cutout (imgly WASM) doesn't starve
- * the phone's cores and jank the UI while the user keeps using the app (AJA-237).
+ * EXTRACT width, decided per run rather than fixed (AJA-273).
  *
- * Raise this once the cutout moves off WASM — Apple's Vision segmentation measures ~22ms per
- * garment against imgly's seconds, at which point this stage stops being CPU-bound.
+ * This was 1 because the on-device cutout was imgly WASM, which is CPU-heavy enough to starve the
+ * phone's cores and jank the UI while the user keeps using the app (AJA-237). Apple's Vision
+ * segmentation measures ~144ms per garment against imgly's seconds, so that argument dies — but
+ * ONLY where Vision actually runs. It does not run on web, and it does not run on a binary older
+ * than the plugin; in both cases `cutout()` falls back to imgly and the original reason still
+ * holds. A flat constant would quietly reintroduce the jank on exactly those platforms.
+ *
+ * So the predicate is the same one `appleVisionEngine` itself checks. Testing the engine id alone
+ * would be wrong: `NEXT_PUBLIC_REMOVAL_ENGINE` is global and compiled in, so the id reads
+ * "applevision" in a desktop browser too, where the plugin cannot possibly exist.
+ *
+ * Note the native side runs Vision on a SERIAL queue, so concurrent JS calls line up in native
+ * anyway — bounded memory, and at 144ms each the queueing is noise. The parallelism that actually
+ * pays here is overlapping the per-garment /api/analyze network calls, which are ~2.5s.
  */
-const EXTRACT_CONCURRENCY = 1;
+function nativeCutoutIsCheap(): boolean {
+  return (
+    getCutoutEngine().id.startsWith("applevision") &&
+    Capacitor.isNativePlatform() &&
+    Capacitor.isPluginAvailable("AppleVision")
+  );
+}
+
+/** Photos in flight at once. */
+const extractConcurrency = () => (nativeCutoutIsCheap() ? 2 : 1);
+
+/**
+ * Garments in flight per photo, passed to `detectGarments`. Combined with the above this is at
+ * most 6 concurrent /api/analyze calls. If 429s ever show up, lower THIS first — it multiplies.
+ */
+const garmentWorkers = () => (nativeCutoutIsCheap() ? 3 : 1);
 
 /**
  * COMMIT is a different animal and was throttled to 1 for a reason that never applied to it:
@@ -143,7 +171,7 @@ export function cancelImports() {
  * when the run starts, so a value typed while the pass is in flight is never clobbered.
  *
  * Reads the item list fresh each iteration for the same reason. Network-bound rather than
- * CPU-bound (no cutout, no WASM), so it can run wider than the import's EXTRACT_CONCURRENCY.
+ * CPU-bound (no cutout, no WASM), so it can run wider than the import extract phase.
  */
 const BACKFILL_CONCURRENCY = 3;
 let backfillCancelled = false;
@@ -213,7 +241,7 @@ export function discardPending() {
 }
 
 async function drain() {
-  while (!cancelled && active < EXTRACT_CONCURRENCY && queue.length) {
+  while (!cancelled && active < extractConcurrency() && queue.length) {
     const job = queue.shift()!;
     active++;
     void processJob(job).finally(() => {
@@ -234,7 +262,7 @@ async function processJob(job: ImportJob) {
   const userId = useWardrobe.getState().authUser?.id ?? null;
   let found = 0;
   try {
-    const detected = await detectGarments(job.dataUrl, userId, 1); // 1 cutout at a time → smoother UI
+    const detected = await detectGarments(job.dataUrl, userId, garmentWorkers());
     if (cancelled) return; // don't buffer items for a job that finished after cancel
     for (const g of detected) {
       addPending({
@@ -243,6 +271,7 @@ async function processJob(job: ImportJob) {
         ...readAnalyzedAttrs(g as unknown as Record<string, unknown>),
         id: uid(),
         cutoutUrl: g.url,
+        cutoutEngine: g.cutoutEngine,
         name: g.name || CATEGORY_LABEL[g.category],
         category: g.category,
         color: g.color,
@@ -319,6 +348,7 @@ async function commitOne(p: PendingImport, wantBeautify: boolean) {
     colorName: p.colorName,
     tags: p.tags,
     seasons: p.seasons,
+    cutoutEngine: p.cutoutEngine,
     wishlist: false,
   };
   try {

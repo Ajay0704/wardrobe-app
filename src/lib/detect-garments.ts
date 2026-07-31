@@ -24,6 +24,17 @@ export interface DetectedGarment extends AnalyzedAttrs {
   tags: string[];
   /** Re-hosted transparent PNG (cutout), or the crop data URL if cutout failed. */
   url: string;
+  /**
+   * Which background remover produced `url` — e.g. "applevision@vision17" or "imgly@1.7.0", or
+   * "raw-crop@no-cutout" when removal failed and the bare crop was kept.
+   *
+   * `cutout()` has always returned this and this function has always discarded it, which made the
+   * whole add-by-photo path unable to say what produced any of its items: 188 of 191 items in a
+   * real closet carried no engine at all. That is not cosmetic — the Apple Vision engine degrades
+   * to imgly silently by design, so without this an unreachable native plugin is indistinguishable
+   * from a working one, and that cost a full day of device round-trips to diagnose (AJA-273).
+   */
+  cutoutEngine?: string;
 }
 
 interface ApiGarment extends AnalyzedAttrs {
@@ -218,8 +229,11 @@ export async function detectGarments(
       const crop = cropBox(img, g.box);
       if (!crop) continue;
       let url = crop;
+      let cutoutEngine: string | undefined;
       try {
-        url = (await cutout(crop, userId, { category: g.category })).url;
+        const cut = await cutout(crop, userId, { category: g.category });
+        url = cut.url;
+        cutoutEngine = cut.engine;
       } catch {
         // Background removal failed — still re-host the raw crop to Storage so we never
         // persist a multi-MB base64 data URL (AJA-233 P2): inline images freeze the UI on
@@ -231,6 +245,9 @@ export async function detectGarments(
         } catch {
           url = crop;
         }
+        // Recorded explicitly rather than left blank, so "removal failed on this item" stays
+        // distinguishable from "this item predates engine recording".
+        cutoutEngine = "raw-crop@no-cutout";
       }
       let name = g.name?.trim() || "";
       let color = g.color;
@@ -258,6 +275,7 @@ export async function detectGarments(
         seasons,
         tags,
         url,
+        cutoutEngine,
       });
       // Yield to the event loop so the UI can paint between CPU-heavy cutouts.
       await new Promise((r) => setTimeout(r, 0));

@@ -18,6 +18,8 @@ type SplitSource = "camera" | "library";
 interface SplitRow extends AnalyzedAttrs {
   id: string;
   imageUrl: string; // re-hosted garment cutout (transparent PNG)
+  /** Which background remover produced `imageUrl` — see `DetectedGarment.cutoutEngine` (AJA-273). */
+  cutoutEngine?: string;
   status: "analyzing" | "ready";
   include: boolean;
   name: string;
@@ -99,6 +101,7 @@ export function OutfitSplitImport({
           detected.map((g, idx) => ({
             id: `${Date.now()}-${idx}`,
             imageUrl: g.url,
+            cutoutEngine: g.cutoutEngine,
             status: "ready",
             include: true,
             name: g.name || CATEGORY_LABEL[g.category],
@@ -245,6 +248,7 @@ export function OutfitSplitImport({
           colorName: r.colorName,
           tags: r.tags,
           seasons: r.seasons,
+          cutoutEngine: r.cutoutEngine,
           wishlist: false,
         });
       }
