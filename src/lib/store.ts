@@ -712,6 +712,13 @@ export const useWardrobe = create<WardrobeState>()(
           favorite: undefined,
           wearCount: undefined,
           lastWornAt: undefined,
+          // NOT inherited (AJA-275 Phase 5). `...src` would alias one blob to two
+          // looks, and removing or replacing the render on either deletes the file
+          // out from under the other — a thumbnail that breaks with no cause the
+          // user can see. Copying the blob isn't an option here: this action is
+          // synchronous and the store does no IO. A duplicate simply hasn't been
+          // tried on yet.
+          tryOnRenderPath: undefined,
           createdAt: Date.now(),
         };
         set((s) => ({ outfits: [copy, ...s.outfits] }));

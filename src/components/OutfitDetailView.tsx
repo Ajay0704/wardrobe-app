@@ -11,13 +11,15 @@ import {
   Star,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { outfitPayload } from "@/lib/chat";
 import { wearSummary } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
+import { deletePrivateRender } from "@/lib/supabase/private-storage";
 import { toGarments } from "@/lib/tryon";
 import { formatDisplayDate, type WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
+import { useSavedRenderUrls } from "./useSavedRenderUrls";
 import { ShareToChatSheet } from "./chat/ShareToChatSheet";
 import { TryOnView } from "./explore/TryOnView";
 
@@ -39,12 +41,22 @@ export function OutfitDetailView() {
   const toggleOutfitFavorite = useWardrobe((s) => s.toggleOutfitFavorite);
   const loadOutfitBoardIntoCanvas = useWardrobe((s) => s.loadOutfitBoardIntoCanvas);
   const openOutfitDetail = useWardrobe((s) => s.openOutfitDetail);
+  const setOutfitRender = useWardrobe((s) => s.setOutfitRender);
 
   const outfit = outfits.find((o) => o.id === selectedOutfitId) ?? null;
   const [share, setShare] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [confirmRemoveRender, setConfirmRemoveRender] = useState(false);
+  const [showBoard, setShowBoard] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [tryOn, setTryOn] = useState(false);
+
+  // AJA-275 Phase 5. The Looks grid already swaps in a saved render; the detail
+  // screen showed the flat-lay board regardless, so tapping a card of yourself
+  // wearing the outfit landed on a picture of the garments. It also left nowhere
+  // to manage the render from.
+  const renderPaths = useMemo(() => [outfit?.tryOnRenderPath], [outfit?.tryOnRenderPath]);
+  const renderUrl = useSavedRenderUrls(renderPaths)[outfit?.tryOnRenderPath ?? ""];
 
   const pieces = useMemo(
     () =>
@@ -92,6 +104,24 @@ export function OutfitDetailView() {
     if (id) openOutfitDetail(id);
   };
 
+  const savedPath = outfit.tryOnRenderPath;
+  // The render is only *viewable* once its URL signs. Until then — and if signing
+  // fails outright, because the blob is gone — the board stands in. Removal stays
+  // available either way: a path pointing at nothing is precisely the state the
+  // user needs to be able to clear.
+  const showingRender = !!renderUrl && !showBoard;
+
+  const removeRender = () => {
+    setConfirmRemoveRender(false);
+    setShowBoard(false);
+    // Clear the pointer FIRST. If the delete fails we're left with an orphaned
+    // blob (swept on account deletion) rather than a look still showing an image
+    // the user asked to be rid of.
+    setOutfitRender(outfit.id, null);
+    if (savedPath) void deletePrivateRender(savedPath);
+    flash("Render removed");
+  };
+
   return (
     <div className="pb-8">
       <div className="-mx-4 mb-3 flex items-center gap-1 px-2">
@@ -104,11 +134,72 @@ export function OutfitDetailView() {
         </button>
       </div>
 
-      <OutfitBoardThumb
-        outfit={outfit}
-        items={items}
-        className="aspect-[3/4] w-full rounded-3xl border border-line bg-surface"
-      />
+      {showingRender ? (
+        // object-contain, matching TryOnView: the render's aspect is the model's to
+        // choose, and cover silently cropped the head off a square one.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={renderUrl}
+          alt={`${outfit.name} on you`}
+          className="aspect-[3/4] w-full rounded-3xl border border-line bg-surface object-contain"
+        />
+      ) : (
+        <OutfitBoardThumb
+          outfit={outfit}
+          items={items}
+          className="aspect-[3/4] w-full rounded-3xl border border-line bg-surface"
+        />
+      )}
+
+      {savedPath && (
+        <div className="mt-2.5 flex items-center gap-2">
+          <div className="flex rounded-full border border-line bg-surface p-0.5">
+            {/* "On you" disables itself while the URL is still signing, or if it
+                can't be signed at all — a chip that stays inert says "not right
+                now" without flashing an error message during the round trip. */}
+            <ViewChip on={showingRender} disabled={!renderUrl} onClick={() => setShowBoard(false)}>
+              On you
+            </ViewChip>
+            <ViewChip on={!showingRender} onClick={() => setShowBoard(true)}>
+              Board
+            </ViewChip>
+          </div>
+          <span className="flex-1" />
+          <button
+            type="button"
+            onClick={() => setConfirmRemoveRender(true)}
+            className="rounded-lg px-2 py-1.5 text-xs text-muted active:scale-95"
+          >
+            Remove render
+          </button>
+        </div>
+      )}
+
+      {confirmRemoveRender && (
+        <div className="animate-fade-up mt-2 rounded-2xl border border-line bg-surface p-4 text-center">
+          <p className="text-sm font-medium">Remove the saved render?</p>
+          <p className="mt-1 text-xs text-muted">
+            The look and its pieces stay. The photo is deleted for good — making
+            another means generating it again.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmRemoveRender(false)}
+              className="flex-1 rounded-xl border border-line py-2.5 text-sm"
+            >
+              Keep
+            </button>
+            <button
+              type="button"
+              onClick={removeRender}
+              className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      )}
 
       <input
         value={outfit.name}
@@ -193,7 +284,11 @@ export function OutfitDetailView() {
             <button
               type="button"
               onClick={() => {
+                // Take the path before the look goes — deleting the look is the
+                // other way a render stops being referenced, and without this the
+                // blob sits in the bucket until the account is deleted.
                 deleteOutfit(outfit.id);
+                if (savedPath) void deletePrivateRender(savedPath);
                 back();
               }}
               className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white"
@@ -271,6 +366,32 @@ export function OutfitDetailView() {
         />
       )}
     </div>
+  );
+}
+
+function ViewChip({
+  on,
+  disabled,
+  onClick,
+  children,
+}: {
+  on: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={on}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition-colors disabled:opacity-40 ${
+        on ? "bg-accent text-accent-foreground" : "text-muted"
+      }`}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -72,6 +72,22 @@ useWardrobe.getState().setOutfitRender(id, null);
 ok(outfitById(id)?.tryOnRenderPath === undefined, "null clears the render (Phase 5 needs this)");
 
 // ---------------------------------------------------------------------------
+console.log("\n=== 1b. Phase 5: one blob, one owner ===");
+// `duplicateOutfit` spreads `...src`, so before Phase 5 a duplicate pointed at the
+// SAME file as the original. Harmless while renders could only be added — the
+// moment removal exists, clearing either look deletes the file out from under the
+// other, and the survivor's thumbnail breaks with no visible cause.
+useWardrobe.getState().setOutfitRender(id, GOOD);
+const dupId = useWardrobe.getState().duplicateOutfit(id);
+ok(!!dupId, "duplicateOutfit returned an id");
+ok(
+  outfitById(dupId!)?.tryOnRenderPath === undefined,
+  "a duplicate does NOT inherit the render path",
+  String(outfitById(dupId!)?.tryOnRenderPath),
+);
+ok(outfitById(id)?.tryOnRenderPath === GOOD, "…and the original keeps its own");
+
+// ---------------------------------------------------------------------------
 console.log("\n=== 2. partialize: does it reach localStorage at all? ===");
 useWardrobe.getState().setOutfitRender(id, GOOD);
 const saved = persisted().outfits?.find((o: { id: string }) => o.id === id);
