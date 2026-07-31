@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for the App target.
+
+  Mandatory since May 2024 for any bundle that calls a "required reason" API. The only one this
+  target calls is UserDefaults, in SharedInboxPlugin.swift:20, reading what the Share Extension
+  stashed in the App Group. Reason CA92.1 is the exact match: "Access info from same app, or app
+  group your app is a member of."
+
+  Deliberately NOT declared, because they are not required-reason APIs:
+    - FileManager contents/removeItem/createDirectory (SharedInboxPlugin.swift:22, :31). The
+      file-timestamp category (C617.1 etc.) covers creationDate / modificationDate /
+      attributesOfItem only, none of which this app calls.
+    - Location. CoreLocation is not a required-reason API; it is governed by the Info.plist usage
+      string and the runtime prompt.
+
+  NSPrivacyCollectedDataTypes is intentionally omitted. It is required of third-party SDKs, not of
+  apps, and the authoritative privacy label for an app is the App Privacy questionnaire in App
+  Store Connect. Declaring it in both places invites a mismatch between them. THE QUESTIONNAIRE
+  STILL HAS TO BE FILLED IN — this file does not replace it.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

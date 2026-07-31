@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Privacy manifest for the ShareExtension target.
+
+  App extensions ship as their own bundle, so Apple's required-reason declaration applies to them
+  separately — a manifest in the App target does not cover this one. The extension calls
+  UserDefaults at ShareViewController.swift:91 to hand a shared image to the app through the App
+  Group, which is reason CA92.1 ("Access info from same app, or app group your app is a member of").
+
+  FileManager containerURL / createDirectory (:89, :94) are not required-reason APIs; only the
+  file-timestamp accessors are, and this target does not use them.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>
