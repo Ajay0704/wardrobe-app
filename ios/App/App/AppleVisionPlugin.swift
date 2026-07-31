@@ -7,6 +7,12 @@ import CoreImage
 /// `@imgly` WASM engine. Called from JS via `registerPlugin("AppleVision")` (see
 /// `src/lib/native/apple-vision.ts`), which the `appleVisionEngine` in `src/lib/cutout.ts` wraps.
 ///
+/// REGISTRATION IS NOT AUTOMATIC. This class is registered by hand in
+/// `MobileBridgeViewController.capacitorDidLoad()`. Capacitor does not scan the binary for `@objc`
+/// plugins — it only loads what `capacitor.config.json`'s `packageClassList` names, and `cap sync`
+/// generates that list from npm packages, so an app-local plugin is never in it. Without that
+/// explicit registration every call here is unreachable and `cutout()` silently uses imgly.
+///
 /// `VNGenerateForegroundInstanceMaskRequest` is the class-agnostic foreground segmentation behind
 /// "lift subject from background" in Photos. It runs on the Neural Engine — dedicated silicon, so
 /// unlike imgly it is not competing with the WebView for CPU. Measured on real garment crops at

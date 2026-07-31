@@ -116,6 +116,11 @@ const appleVisionEngine: CutoutEngine = {
   async run(src) {
     // `isPluginAvailable` rather than `isNativeApp()` from platform.ts: that one latches true in
     // mobile Safari, which would send every web cutout down a bridge that isn't there.
+    //
+    // This guard answered FALSE on a binary that definitely contained the plugin, because
+    // Capacitor only registers what `packageClassList` names and app-local plugins are never in
+    // it. The class is now registered explicitly in `MobileBridgeViewController.capacitorDidLoad()`.
+    // If this ever silently reverts to imgly again, check that registration first.
     if (!Capacitor.isNativePlatform() || !Capacitor.isPluginAvailable("AppleVision")) {
       throw new Error("applevision-unavailable");
     }
