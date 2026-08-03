@@ -44,10 +44,18 @@ export function useTryOnPhoto() {
    * asked for a render, and a storage outage must not block it. `saved` says
    * whether it will still be there next time, which is what the copy keys off.
    *
+   * Returns the new `path` too. Callers need it to stamp their own
+   * already-have-these-bytes guard — reading `path` from this hook right after
+   * calling `save` gives the STALE value, because the store write hasn't
+   * re-rendered yet. That mistake cost a duplicate download and a duplicate paid
+   * render (AJA-276).
+   *
    * Throws only when the FILE can't be read (an undecodable HEIC), because there
    * is nothing to render in that case.
    */
-  const save = async (file: File): Promise<{ src: string; saved: boolean }> => {
+  const save = async (
+    file: File,
+  ): Promise<{ src: string; saved: boolean; path?: string }> => {
     setSaveError(null);
     // Bare call — the defaults are 1600/0.9, deliberately above compressImage's
     // 1200/0.82, because facial detail is the whole point of the reference photo.
@@ -58,7 +66,7 @@ export function useTryOnPhoto() {
       const previous = path;
       setTryOnPhoto(next);
       if (previous && previous !== next) void deletePrivateImage(previous);
-      return { src, saved: true };
+      return { src, saved: true, path: next };
     } catch (e) {
       // Leave the existing pointer and blob alone — a failed replace must not cost
       // the user the photo they already had.

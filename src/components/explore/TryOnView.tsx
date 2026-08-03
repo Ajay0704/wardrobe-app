@@ -24,11 +24,16 @@ import { useTryOnPhoto } from "../useTryOnPhoto";
  * screen called "See it on you" was a stranger — and picking your own photo meant
  * paying twice for one answer.
  *
- * AJA-276 brings an auto-render back, but only under the conditions that made the
- * old one wrong. It fires ONLY when we already hold the user's own photo, and NOT
- * when the look already has a saved render — paying to reproduce something already
- * stored is waste, so that render is shown instead and "Try again" is right there.
- * It never renders a stranger unprompted.
+ * AJA-276 briefly brought an auto-render back for the case where the user's own photo
+ * was already saved. That was wrong for reasons the original bug didn't cover, and it
+ * is gone again: it fired on the default scene, so choosing a different one cost a
+ * second generation; it spent money before you could pick "On a model"; and simply
+ * opening the screen — or opening it by accident — was billable.
+ *
+ * THE RULE NOW, no exceptions: nothing renders until the user taps. Opening this screen
+ * is free. The saved photo is decoded and shown in the canvas as the subject so the
+ * screen still says what it's going to do, and if the look already has a saved render
+ * that is displayed instead of generating a new one.
  *
  * The reference photo IS now stored — same private bucket as the renders, as a PATH
  * on the profile (see private-storage.ts). The disclaimer composes from the real
@@ -117,22 +122,18 @@ export function TryOnView({
     };
   }, [savedPath]);
 
-  // Decode the saved reference photo, then auto-render on it. Every setState sits in
-  // a promise callback, never the effect body — the repo's
-  // react-hooks/set-state-in-effect rule is a static check on the body.
+  // Decode the saved reference photo so it can be shown as the subject and posted on
+  // demand. It does NOT render — see the header note. Every setState sits in a promise
+  // callback, never the effect body: the repo's react-hooks/set-state-in-effect rule
+  // is a static check on the body.
   const loadedPath = useRef<string | null>(null);
   useEffect(() => {
     if (!photoPath || loadedPath.current === photoPath) return;
     loadedPath.current = photoPath;
-    // `savedPath` is a synchronous store read, so there is no race with the effect
-    // above: we already know whether a saved render will be shown.
-    const shouldRender = !savedPath;
     let alive = true;
     void privateImageDataUrl(photoPath).then(
       (src) => {
-        if (!alive) return;
-        setSavedPhoto(src);
-        if (shouldRender) void run(src, scene);
+        if (alive) setSavedPhoto(src);
       },
       () => {
         if (alive) setSavedPhotoFailed(true);
@@ -141,23 +142,24 @@ export function TryOnView({
     return () => {
       alive = false;
     };
-    // Read once at open. Adding `scene`/`run` would re-download the photo and fire a
-    // second paid render every time the user changed scene.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photoPath]);
 
   const applyPhoto = async (file?: File) => {
     if (!file) return;
     try {
       // Compresses, HEIC-decodes, uploads, repoints the profile. Resolves with the
-      // bytes even if the upload failed, so a storage outage still renders.
-      const { src } = await save(file);
-      // We already hold the bytes — stop the load effect re-downloading them.
-      loadedPath.current = photoPath ?? null;
+      // bytes even if the upload failed, so a storage outage still lets you render.
+      const { src, path: newPath } = await save(file);
+      // Stamp the guard with the NEW path. Using the hook's `path` here reads the
+      // stale value (the store write hasn't re-rendered yet), which let the load
+      // effect re-fire — re-downloading the photo we already hold and, back when
+      // this screen auto-rendered, spending a second generation.
+      if (newPath) loadedPath.current = newPath;
       setPicked(src);
       setSavedPhotoFailed(false);
       setOnModel(false);
-      void run(src, scene);
+      // Deliberately no render here either: picking a photo sets the subject, and the
+      // canvas shows it immediately, so the tap that costs money stays explicit.
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't read that photo.");
     }
@@ -252,7 +254,23 @@ export function TryOnView({
               <p className="text-[11px]">Takes a few seconds</p>
             </div>
           )}
-          {!loading && !result && (
+          {/* Your photo stands in until you ask for a render, so the screen shows what
+              it's about to use instead of an empty box. Dimmed and captioned so it
+              can't be mistaken for the finished render. */}
+          {!loading && !result && havePhoto && !onModel && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={(picked ?? savedPhoto) as string}
+                alt="Your photo"
+                className="h-full w-full object-cover opacity-60"
+              />
+              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/55 to-transparent px-3 pb-2.5 pt-8 text-center">
+                <p className="text-[11px] font-medium text-white">Your photo</p>
+              </div>
+            </>
+          )}
+          {!loading && !result && !(havePhoto && !onModel) && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center text-muted">
               {loadingPhoto ? (
                 <>
@@ -270,8 +288,8 @@ export function TryOnView({
                         ? "Couldn't load your saved photo — pick one for this render."
                         : "Sign in to use your saved photo, or pick one for this render."}
                     </p>
-                  ) : havePhoto ? (
-                    <p className="text-sm text-foreground">Ready when you are</p>
+                  ) : onModel ? (
+                    <p className="text-sm text-foreground">On a model</p>
                   ) : (
                     <>
                       <p className="text-sm text-foreground">See this look on your body</p>
