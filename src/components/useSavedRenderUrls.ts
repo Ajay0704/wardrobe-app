@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { isRenderPath, signedRenderUrls } from "@/lib/supabase/private-storage";
+import { isRenderPath, signedPrivateUrl, signedRenderUrls } from "@/lib/supabase/private-storage";
 
 /**
  * AJA-275 — resolve saved try-on render paths into displayable signed URLs.
@@ -66,3 +66,48 @@ export function useSavedRenderUrls(paths: (string | undefined)[]): Record<string
 
 /** Module-level so the empty case is referentially stable across renders. */
 const EMPTY: Record<string, string> = {};
+
+/**
+ * AJA-276 — single-path variant that also reports FAILURE.
+ *
+ * The batch hook above deliberately omits paths it couldn't sign, which is right for
+ * a grid (one bad row falls back to a board thumbnail) but wrong for a screen whose
+ * whole job is showing one image: "absent" there is indistinguishable from "still
+ * signing", so a dead pointer would show a loading shimmer forever with no
+ * explanation. This separates the two so the caller can say so and offer Remove.
+ *
+ * Same `visibilitychange` re-sign as the batch version, because a settings screen can
+ * sit open far longer than the 600s TTL.
+ */
+export function usePrivateImageUrl(path: string | undefined): {
+  url?: string;
+  failed: boolean;
+} {
+  const [state, setState] = useState<{ url?: string; failed: boolean }>({ failed: false });
+
+  useEffect(() => {
+    // No setState in the effect body — react-hooks/set-state-in-effect is a static
+    // check on the body, and the return below is gated on `path` anyway.
+    if (!path) return;
+    let alive = true;
+    const resolve = () => {
+      void signedPrivateUrl(path).then((u) => {
+        if (alive) setState(u ? { url: u, failed: false } : { failed: true });
+      });
+    };
+    resolve();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") resolve();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      alive = false;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [path]);
+
+  return path ? state : NO_IMAGE;
+}
+
+/** Referentially stable "nothing to show, nothing wrong" result. */
+const NO_IMAGE = { failed: false } as const;

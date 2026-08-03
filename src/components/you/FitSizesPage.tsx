@@ -1,18 +1,13 @@
 "use client";
 
-import { Capacitor } from "@capacitor/core";
-import { ScanFace } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { pickNativePhoto } from "@/lib/native-camera";
+import { useState } from "react";
 import { BODY_SHAPES, FIT_PREFERENCES, type UserProfile } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
-import { signedPrivateUrl } from "@/lib/supabase/private-storage";
 import { Button, Chip, inputClass } from "../ui";
-import { useTryOnPhoto } from "../useTryOnPhoto";
 import { Group, Note, PageShell, PickRow, Row, Sheet, Snapshot } from "./settings-ui";
 
 type SizeKey = "top" | "bottom" | "shoes" | "dress";
-type SheetKind = "shop" | SizeKey | "fit" | "height" | "body" | "photo" | null;
+type SheetKind = "shop" | SizeKey | "fit" | "height" | "body" | null;
 
 const SHOP: { value: NonNullable<UserProfile["shopGender"]>; label: string }[] = [
   { value: "male", label: "Menswear" },
@@ -30,9 +25,7 @@ const shopLabel = (g: UserProfile["shopGender"]) =>
 export function FitSizesPage() {
   const profile = useWardrobe((s) => s.profile);
   const updateProfile = useWardrobe((s) => s.updateProfile);
-  const authUser = useWardrobe((s) => s.authUser);
   const [sheet, setSheet] = useState<SheetKind>(null);
-  const { path: photoPath, save, remove, saveError } = useTryOnPhoto();
 
   const sizes = profile.sizes ?? {};
   const setSize = (k: SizeKey, v: string) =>
@@ -71,22 +64,9 @@ export function FitSizesPage() {
         <Row label="Body shape" value={profile.bodyShape || "Add"} onClick={() => setSheet("body")} chevron />
       </Group>
 
-      {/* AJA-276. Shown even when signed out — every other row on this page works
-          without an account, and a row that appears and disappears with auth is more
-          confusing than one that explains why it can't save. */}
-      <Group label="On-body try-on">
-        <Row
-          icon={ScanFace}
-          label="Try-on photo"
-          value={authUser ? (photoPath ? "Added" : "Add") : "Sign in to save"}
-          onClick={() => setSheet("photo")}
-          chevron
-        />
-      </Group>
-      <Note>
-        Saved so try-on stops asking every time. Only you can see it, and removing it
-        deletes the file.
-      </Note>
+      {/* The try-on photo used to live here, behind a row that said "Added". It is now
+          a top-level row in Settings → You that shows the photo itself (AJA-276) —
+          discoverable, and one tap instead of three. Deliberately not duplicated here. */}
 
       <Sheet open={sheet === "shop"} title="How you shop" onClose={() => setSheet(null)}>
           {SHOP.map((s) => (
@@ -156,167 +136,7 @@ export function FitSizesPage() {
             ))}
           </div>
         </Sheet>
-
-      <Sheet open={sheet === "photo"} title="Try-on photo" onClose={() => setSheet(null)}>
-        {sheet === "photo" && (
-          <PhotoSheetBody
-            path={photoPath}
-            signedIn={!!authUser}
-            saveError={saveError}
-            onPick={save}
-            onRemove={remove}
-          />
-        )}
-      </Sheet>
     </PageShell>
-  );
-}
-
-/**
- * Body is gated on the sheet being open (same pattern as `InputSheet`) so the preview
- * signs fresh each time rather than holding a URL past its 10-minute TTL.
- */
-function PhotoSheetBody({
-  path,
-  signedIn,
-  saveError,
-  onPick,
-  onRemove,
-}: {
-  path: string | undefined;
-  signedIn: boolean;
-  saveError: string | null;
-  onPick: (file: File) => Promise<{ src: string; saved: boolean }>;
-  onRemove: () => void;
-}) {
-  const [url, setUrl] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  // A signed URL is the right tool here and nowhere else in this feature: display
-  // only, on screen for seconds, and a failure is VISIBLE rather than silently
-  // substituting a stranger into a paid render.
-  useEffect(() => {
-    if (!path) return;
-    let alive = true;
-    void signedPrivateUrl(path).then((u) => {
-      if (!alive) return;
-      if (u) setUrl(u);
-      else setFailed(true);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [path]);
-
-  const apply = async (file?: File) => {
-    if (!file) return;
-    setBusy(true);
-    setErr(null);
-    try {
-      await onPick(file);
-      setUrl(null);
-      setFailed(false);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't read that photo.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const choose = async () => {
-    if (!Capacitor.isNativePlatform()) {
-      fileRef.current?.click();
-      return;
-    }
-    try {
-      const file = await pickNativePhoto();
-      if (file) await apply(file);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't open the photo library.");
-    }
-  };
-
-  return (
-    <div className="pt-1">
-      {path && (
-        <div className="mb-3 overflow-hidden rounded-xl border border-line bg-surface-2">
-          {url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={url} alt="Your try-on photo" className="mx-auto max-h-52 object-contain" />
-          ) : (
-            <p className="px-4 py-8 text-center text-sm text-muted">
-              {failed ? "That photo couldn't be loaded." : "Loading…"}
-            </p>
-          )}
-        </div>
-      )}
-
-      {!signedIn && (
-        <p className="mb-3 text-sm text-muted">
-          Sign in to keep a photo. Until then try-on will ask for one each time, and it
-          won&rsquo;t be stored.
-        </p>
-      )}
-      {(err ?? saveError) && (
-        <p className="mb-3 text-sm text-red-500">{err ?? saveError}</p>
-      )}
-
-      <Button onClick={() => void choose()} disabled={busy} className="w-full">
-        {busy ? "Saving…" : path ? "Replace photo" : "Choose photo"}
-      </Button>
-
-      {/* Full length works better than a selfie — the render needs a body reference,
-          and a head-and-shoulders shot leaves the model to invent the rest. */}
-      <p className="mt-2 text-center text-[11px] text-muted">Full length works best.</p>
-
-      {path &&
-        (confirm ? (
-          <div className="mt-3 rounded-xl border border-red-200 p-3 text-center">
-            <p className="text-sm font-medium">Remove your try-on photo?</p>
-            <p className="mt-1 text-xs text-muted">
-              The file is deleted. Try-on will ask for a photo next time.
-            </p>
-            <div className="mt-3 flex gap-2">
-              <button
-                type="button"
-                onClick={() => setConfirm(false)}
-                className="flex-1 rounded-xl border border-line py-2.5 text-sm"
-              >
-                Keep
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setConfirm(false);
-                  onRemove();
-                }}
-                className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white"
-              >
-                Remove
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-3">
-            <Row danger label="Remove photo" onClick={() => setConfirm(true)} />
-          </div>
-        ))}
-
-      <input
-        ref={fileRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          void apply(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
-    </div>
   );
 }
 

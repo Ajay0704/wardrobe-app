@@ -39,6 +39,7 @@ import { signOut } from "@/lib/supabase/auth";
 import { DeleteAccountDialog } from "./DeleteAccountDialog";
 import { useIsNativeApp } from "./NativeAppClass";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { TryOnPhotoRow } from "./TryOnPhotoRow";
 import { Chip, Toggle } from "./ui";
 import { countNeedingBackfill } from "@/lib/backfill-attrs";
 import { runAttributeBackfill } from "@/lib/import-queue";
@@ -254,6 +255,9 @@ export function YouView() {
       </Group>
 
       <Group label="You">
+        {/* First in the group, and it shows the photo itself (AJA-276) — it was
+            previously buried inside Fit & sizes behind the word "Added". */}
+        <TryOnPhotoRow />
         <Row icon={Ruler} label="Fit & sizes" onClick={() => setView("fitSizes")} chevron />
         <Row icon={Palette} label="Style & taste" onClick={() => setView("styleTaste")} chevron />
       </Group>
