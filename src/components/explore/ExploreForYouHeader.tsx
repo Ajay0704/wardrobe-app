@@ -590,7 +590,10 @@ export function ExploreForYouHeader({
                 <p className="mt-0.5 text-xs text-muted">
                   On-body try-on for any look — your closet or the shop. No guessing how it fits.
                 </p>
-                <p className="mt-1.5 text-[11px] text-muted">Your photo is used only for the render.</p>
+                {/* Was "used only for the render", which stopped being true once the
+                    reference photo could be saved (AJA-276). True in every state, and
+                    needs no store read here. */}
+                <p className="mt-1.5 text-[11px] text-muted">Your photo stays private to your account.</p>
               </div>
             </div>
             <button

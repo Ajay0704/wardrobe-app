@@ -242,7 +242,7 @@ interface WardrobeState {
   renameOutfit: (id: string, name: string) => void;
   /**
    * Attach (or clear, with null) a saved try-on render (AJA-275). Takes a bucket
-   * PATH — pass the result of `uploadPrivateRender`, never a signed URL.
+   * PATH — pass the result of `uploadPrivateImage`, never a signed URL.
    */
   setOutfitRender: (id: string, path: string | null) => void;
   /** Deep-copy a look (new ids, wear history reset). Returns the new id. */
@@ -271,6 +271,14 @@ interface WardrobeState {
   deleteCalendarEntry: (id: string) => void;
 
   updateProfile: (patch: Partial<UserProfile>) => void;
+  /**
+   * Saved try-on reference photo (AJA-276). PATH only — pass the result of
+   * `uploadPrivateImage`, never a signed URL. `null` clears it.
+   *
+   * Exists as its own setter rather than a `updateProfile` call because
+   * `updateProfile` validates nothing and `profile` has no normalizer.
+   */
+  setTryOnPhoto: (path: string | null) => void;
   resetAll: () => void;
   setAuthUser: (user: AuthUser | null) => void;
   setAuthChecked: (checked: boolean) => void;
@@ -838,6 +846,26 @@ export const useWardrobe = create<WardrobeState>()(
 
       updateProfile: (patch) =>
         set((s) => ({ profile: { ...s.profile, ...patch } })),
+
+      setTryOnPhoto: (path) =>
+        set((s) => {
+          // Validate on the way IN. Unlike items/outfits there is no
+          // `normalizeProfile` to catch a bad value later, and `updateProfile` is
+          // an unvalidated spread — so without this a caller could park a signed
+          // URL in memory, where `partialize` would persist it and
+          // `sanitizeSnapshotForPush` would ship it to Postgres.
+          const next = path !== null && isRenderPath(path) ? path : undefined;
+          // No-op early-out. Every profile write makes a new object reference and
+          // AuthProvider pushes a snapshot on any reference change, so writing a
+          // rejected value would fire a pointless network round trip.
+          if (s.profile.tryOnPhotoPath === next) return {};
+          const profile = { ...s.profile };
+          // `delete`, not `= undefined`, so the key is genuinely absent from the
+          // persisted JSON rather than serialising as noise.
+          if (next) profile.tryOnPhotoPath = next;
+          else delete profile.tryOnPhotoPath;
+          return { profile };
+        }),
 
       resetAll: () =>
         set({

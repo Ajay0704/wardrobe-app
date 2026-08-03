@@ -63,6 +63,17 @@ export interface UserProfile {
   heightCm?: number;
   /** Body shape (optional; fit-diagnosis style hints). */
   bodyShape?: BodyShape;
+  /**
+   * Saved reference photo for on-body try-on (AJA-276) — a `renders-private`
+   * bucket PATH, never a URL and never inline data. Same bucket, same sensitivity
+   * class and same validator as `Outfit.tryOnRenderPath`.
+   *
+   * Write it ONLY through `setTryOnPhoto`. `updateProfile` is an unvalidated
+   * spread and there is no `normalizeProfile` behind it, so a signed URL parked
+   * here would sync to every device and expire ten minutes later. The setter and
+   * `scrubSnapshotImages` are the two things standing between that and the DB.
+   */
+  tryOnPhotoPath?: string;
   /** Colors you gravitate toward — sharpens recommendations + honest picks. */
   colorsLove?: string[];
   /** Colors to steer away from. */

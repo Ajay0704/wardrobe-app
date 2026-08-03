@@ -337,7 +337,7 @@ export interface Outfit {
    *  - a data URL would be 400,000+ chars, and the snapshot has a hard size budget;
    *  - a signed URL would sync to every device and then expire, and no scrubber
    *    catches it because they only test `^data:`.
-   * Read it with `signedRenderUrl(path)` at display time. Whitelist in
+   * Read it with `signedPrivateUrl(path)` at display time. Whitelist in
    * `normalizeOutfit` or it's stripped on every reload/pull (cf. AJA-223/239/245).
    */
   tryOnRenderPath?: string;

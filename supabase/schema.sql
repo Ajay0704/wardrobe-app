@@ -113,22 +113,32 @@ alter table public.closet_shares enable row level security;
 alter table public.closet_share_replies enable row level security;
 
 -- ---------------------------------------------------------------------------
--- AJA-275 — PRIVATE bucket for on-body try-on renders.
+-- AJA-275 / AJA-276 — PRIVATE bucket for the user's own body imagery.
+--
+-- Holds BOTH the on-body try-on renders (AJA-275, `Outfit.tryOnRenderPath`) and the
+-- saved reference photo they are generated from (AJA-276, `profile.tryOnPhotoPath`).
+-- Same sensitivity class, so the same bucket and the same policies — and note the
+-- policies below are scoped to the bucket plus `foldername[1] = uid`, NOT to a
+-- filename pattern, so the reference photo needed no new SQL.
 --
 -- Deliberately NOT `wardrobe-images`. That bucket is public=true with a "Public
 -- read wardrobe images" policy over the whole bucket, which is the right call for
 -- a photo of a jumper and the wrong call for a photograph of the user's face and
--- body. A try-on render is the latter, so it gets its own bucket and its own
--- blast radius.
+-- body. Both kinds of object here are the latter, so they get their own bucket and
+-- their own blast radius.
 --
 -- Objects here are readable ONLY by their owner, and only via a short-lived
 -- signed URL (createSignedUrl). Never store a signed URL — see
 -- src/lib/supabase/private-storage.ts for why.
 --
--- Paths are FLAT: `<user-id>/<uuid>.jpg`. Nesting would still satisfy RLS
--- (foldername[1] is the uid either way) but would be missed by account deletion,
--- because Supabase's list() is not recursive and remove() on a prefix is a
--- silent no-op. src/app/api/account/delete/route.ts relies on flatness.
+-- There is NO update policy, deliberately: replacing an object means uploading a
+-- fresh uuid, repointing, then deleting the old one. An `upsert: true` write to a
+-- stable filename would be refused by RLS.
+--
+-- Paths are FLAT: `<user-id>/<uuid>.jpg`. The binding reason is `isRenderPath`,
+-- which allows exactly one slash, so every validator in the app rejects a nested
+-- path. (Account deletion's sweep is recursive since AJA-275 and would cope either
+-- way — an earlier version of this comment said otherwise.)
 --
 -- Unlike the blocks above, this one is re-runnable: the drops make re-applying
 -- schema.sql safe instead of erroring on an existing policy.

@@ -12,7 +12,7 @@
  *   - a SIGNED URL landing in the snapshot, which no existing scrubber rejects
  *     because they only test `^data:` — it would sync everywhere and then expire.
  */
-import { isRenderPath, RENDERS_BUCKET, RENDER_URL_TTL_SECONDS } from "../src/lib/supabase/private-storage.ts";
+import { isOwnPrivatePath, isRenderPath, RENDERS_BUCKET, RENDER_URL_TTL_SECONDS } from "../src/lib/supabase/private-storage.ts";
 
 let failures = 0;
 function check(label: string, got: unknown, want: unknown) {
@@ -23,9 +23,11 @@ function check(label: string, got: unknown, want: unknown) {
   }
 }
 
-// A realistic path, built the way uploadPrivateRender builds one.
+// A realistic path, built the way uploadPrivateImage builds one.
 const userId = "4cea3e46-1f1b-4457-b57f-a02c2b6d5e1e";
 const good = `${userId}/${crypto.randomUUID()}.jpg`;
+/** A different signed-in user, for the ownership checks. */
+const other = "9f1e2d3c-4b5a-6978-8a9b-0c1d2e3f4a5b";
 
 console.log("accepts a real path");
 check("flat <uid>/<uuid>.jpg", isRenderPath(good), true);
@@ -65,6 +67,25 @@ for (const [label, v] of [
 ] as const) {
   check(label, isRenderPath(v), false);
 }
+
+console.log("isOwnPrivatePath — ownership, not just shape (AJA-276)");
+// The "it works at all" anchor. Without this first, every rejection below would pass
+// on a function that returned false unconditionally.
+check("own folder", isOwnPrivatePath(good, userId), true);
+check("another user's folder", isOwnPrivatePath(`${other}/${crypto.randomUUID()}.jpg`, userId), false);
+// THE assertion this helper exists for. `path.startsWith(userId)` — the obvious
+// implementation — returns true here, handing one user a pointer into a folder that
+// merely shares a prefix.
+check("prefix collision <uid>x/…", isOwnPrivatePath(`${userId}x/render.jpg`, userId), false);
+check("empty userId matches nothing", isOwnPrivatePath(good, ""), false);
+// Delegates to isRenderPath, so a URL containing the uid is still rejected.
+check(
+  "signed URL containing the uid",
+  isOwnPrivatePath(`https://x.supabase.co/storage/v1/object/sign/${RENDERS_BUCKET}/${good}?token=e`, userId),
+  false,
+);
+check("nested path in own folder", isOwnPrivatePath(`${userId}/sub/render.jpg`, userId), false);
+check("non-string", isOwnPrivatePath(undefined, userId), false);
 
 console.log("module constants are sane");
 check("bucket name", RENDERS_BUCKET, "renders-private");

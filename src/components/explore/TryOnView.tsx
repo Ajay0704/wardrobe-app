@@ -2,25 +2,38 @@
 
 import { Capacitor } from "@capacitor/core";
 import { Check, ChevronLeft, ImagePlus, Loader2, RefreshCw, ScanFace, User } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
-import { pickNativePhoto } from "@/lib/native-camera";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { captureNativePhoto, pickNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
-import { deletePrivateRender, uploadPrivateRender } from "@/lib/supabase/private-storage";
-import { dataUrlToFile, toCompressedDataUrl } from "@/lib/supabase/storage";
+import {
+  deletePrivateImage,
+  privateImageDataUrl,
+  signedPrivateUrl,
+  uploadPrivateImage,
+} from "@/lib/supabase/private-storage";
+import { dataUrlToFile } from "@/lib/supabase/storage";
 import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
+import { useTryOnPhoto } from "../useTryOnPhoto";
 
 /**
- * "See it on you" (AJA-158 Phase 3; accuracy pass AJA-274; saving AJA-275).
+ * "See it on you" (AJA-158 Phase 3; accuracy pass AJA-274; render saving AJA-275;
+ * saved reference photo AJA-276).
  *
  * AJA-274 removed the render-on-mount: the screen used to spend a paid generation
  * on a stock model before you touched anything, so the first thing you saw on a
  * screen called "See it on you" was a stranger — and picking your own photo meant
- * paying twice for one answer. It now waits for a subject.
+ * paying twice for one answer.
  *
- * AJA-275 adds saving. Two things stay true and are worth not breaking:
- *  - the photo you pick is still never stored, only the RENDER is;
- *  - the render goes to a PRIVATE bucket, not the public one the garment images
- *    live in, and only a bucket path is persisted (see private-storage.ts).
+ * AJA-276 brings an auto-render back, but only under the conditions that made the
+ * old one wrong. It fires ONLY when we already hold the user's own photo, and NOT
+ * when the look already has a saved render — paying to reproduce something already
+ * stored is waste, so that render is shown instead and "Try again" is right there.
+ * It never renders a stranger unprompted.
+ *
+ * The reference photo IS now stored — same private bucket as the renders, as a PATH
+ * on the profile (see private-storage.ts). The disclaimer composes from the real
+ * state rather than asserting one blanket promise, because "your photo is never
+ * stored" stopped being true.
  */
 export function TryOnView({
   garments,
@@ -29,7 +42,8 @@ export function TryOnView({
 }: {
   garments: TryOnGarment[];
   /** Saved look to attach the render to. Absent for unsaved suggestions (Explore's
-   *  hero look is a raw item list), in which case saving isn't offered. */
+   *  hero look is a raw item list), in which case render saving isn't offered — the
+   *  reference photo still works there, because it lives on the profile. */
   outfitId?: string;
   onClose: () => void;
 }) {
@@ -38,8 +52,16 @@ export function TryOnView({
   const savedPath = useWardrobe((s) =>
     outfitId ? s.outfits.find((o) => o.id === outfitId)?.tryOnRenderPath : undefined,
   );
+  const { path: photoPath, save, remove, saveError } = useTryOnPhoto();
 
-  const [personSrc, setPersonSrc] = useState<string | null>(null);
+  /** Photo chosen in THIS session. */
+  const [picked, setPicked] = useState<string | null>(null);
+  /** The saved reference photo, decoded to bytes we can post. */
+  const [savedPhoto, setSavedPhoto] = useState<string | null>(null);
+  const [savedPhotoFailed, setSavedPhotoFailed] = useState(false);
+  /** Explicitly asked for a generic model. Kept separate from the photo so switching
+   *  back doesn't destroy it — it used to force a re-pick. */
+  const [onModel, setOnModel] = useState(false);
   const [scene, setScene] = useState<TryOnScene>("street");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -49,8 +71,13 @@ export function TryOnView({
   const [unavailable, setUnavailable] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  const havePhoto = !!(picked ?? savedPhoto);
+  const person = onModel ? null : (picked ?? savedPhoto);
+  // Derived, not stored — storing it would need a setState in an effect body.
+  const loadingPhoto = !!photoPath && !havePhoto && !savedPhotoFailed;
+
   const run = useCallback(
-    async (person: string | null, withScene: TryOnScene) => {
+    async (subject: string | null, withScene: TryOnScene) => {
       if (!garments.length) {
         setError("This look has no items to try on.");
         return;
@@ -60,7 +87,7 @@ export function TryOnView({
       // A new render is not the saved one — re-arm the button.
       setSaveState("idle");
       try {
-        setResult(await tryOnOutfit({ garments, personImage: person, scene: withScene }));
+        setResult(await tryOnOutfit({ garments, personImage: subject, scene: withScene }));
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Try-on failed. Try again.";
         setError(msg);
@@ -72,13 +99,64 @@ export function TryOnView({
     [garments],
   );
 
+  // Show the look's existing render rather than paying to make another. Signing is
+  // correct here (display only, bytes never re-posted), and `saveState: "saved"`
+  // keeps the button honest — it IS already saved.
+  const seededRender = useRef(false);
+  useEffect(() => {
+    if (!savedPath || seededRender.current) return;
+    seededRender.current = true;
+    let alive = true;
+    void signedPrivateUrl(savedPath).then((url) => {
+      if (!alive || !url) return;
+      setResult(url);
+      setSaveState("saved");
+    });
+    return () => {
+      alive = false;
+    };
+  }, [savedPath]);
+
+  // Decode the saved reference photo, then auto-render on it. Every setState sits in
+  // a promise callback, never the effect body — the repo's
+  // react-hooks/set-state-in-effect rule is a static check on the body.
+  const loadedPath = useRef<string | null>(null);
+  useEffect(() => {
+    if (!photoPath || loadedPath.current === photoPath) return;
+    loadedPath.current = photoPath;
+    // `savedPath` is a synchronous store read, so there is no race with the effect
+    // above: we already know whether a saved render will be shown.
+    const shouldRender = !savedPath;
+    let alive = true;
+    void privateImageDataUrl(photoPath).then(
+      (src) => {
+        if (!alive) return;
+        setSavedPhoto(src);
+        if (shouldRender) void run(src, scene);
+      },
+      () => {
+        if (alive) setSavedPhotoFailed(true);
+      },
+    );
+    return () => {
+      alive = false;
+    };
+    // Read once at open. Adding `scene`/`run` would re-download the photo and fire a
+    // second paid render every time the user changed scene.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoPath]);
+
   const applyPhoto = async (file?: File) => {
     if (!file) return;
     try {
-      // Compresses AND HEIC-decodes. The old bare FileReader did neither, so a
-      // full-res photo went into the JSON body and an iPhone HEIC failed outright.
-      const src = await toCompressedDataUrl(file);
-      setPersonSrc(src);
+      // Compresses, HEIC-decodes, uploads, repoints the profile. Resolves with the
+      // bytes even if the upload failed, so a storage outage still renders.
+      const { src } = await save(file);
+      // We already hold the bytes — stop the load effect re-downloading them.
+      loadedPath.current = photoPath ?? null;
+      setPicked(src);
+      setSavedPhotoFailed(false);
+      setOnModel(false);
       void run(src, scene);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't read that photo.");
@@ -100,9 +178,26 @@ export function TryOnView({
     }
   };
 
+  const takeSelfie = async () => {
+    try {
+      const file = await captureNativePhoto("front");
+      if (file) void applyPhoto(file);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't open the camera.");
+    }
+  };
+
+  const forgetPhoto = () => {
+    remove();
+    setPicked(null);
+    setSavedPhoto(null);
+    setSavedPhotoFailed(false);
+    loadedPath.current = null;
+  };
+
   const changeScene = (next: TryOnScene) => {
     setScene(next);
-    if (result || loading) void run(personSrc, next);
+    if (result || loading) void run(person, next);
   };
 
   const saveRender = async () => {
@@ -114,12 +209,12 @@ export function TryOnView({
       const blob = result.startsWith("data:")
         ? dataUrlToFile(result, "tryon")
         : await (await fetch(result)).blob();
-      const path = await uploadPrivateRender(blob, authUser.id);
+      const path = await uploadPrivateImage(blob, authUser.id);
       const previous = savedPath;
       setOutfitRender(outfitId, path);
       // Replacing: drop the old blob, or it lingers unreferenced until the account
       // is deleted. Best-effort — the look already points at the new render.
-      if (previous && previous !== path) void deletePrivateRender(previous);
+      if (previous && previous !== path) void deletePrivateImage(previous);
       setSaveState("saved");
     } catch (e) {
       setSaveState("idle");
@@ -153,21 +248,39 @@ export function TryOnView({
           {loading && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
               <Loader2 size={26} className="animate-spin text-accent" />
-              <p className="text-sm">Styling this on {personSrc ? "you" : "a model"}…</p>
+              <p className="text-sm">Styling this on {person ? "you" : "a model"}…</p>
               <p className="text-[11px]">Takes a few seconds</p>
             </div>
           )}
           {!loading && !result && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 px-6 text-center text-muted">
-              <ScanFace size={26} />
-              {error ? (
-                <p className="text-sm">{error}</p>
+              {loadingPhoto ? (
+                <>
+                  <Loader2 size={26} className="animate-spin text-accent" />
+                  <p className="text-sm">Getting your photo…</p>
+                </>
               ) : (
                 <>
-                  <p className="text-sm text-foreground">See this look on your body</p>
-                  <p className="text-[12px]">
-                    Add a photo of yourself — full length, facing the camera.
-                  </p>
+                  <ScanFace size={26} />
+                  {error ? (
+                    <p className="text-sm">{error}</p>
+                  ) : savedPhotoFailed ? (
+                    <p className="text-sm">
+                      {authUser
+                        ? "Couldn't load your saved photo — pick one for this render."
+                        : "Sign in to use your saved photo, or pick one for this render."}
+                    </p>
+                  ) : havePhoto ? (
+                    <p className="text-sm text-foreground">Ready when you are</p>
+                  ) : (
+                    <>
+                      <p className="text-sm text-foreground">See this look on your body</p>
+                      <p className="text-[12px]">
+                        Add a photo of yourself — full length works best. It&rsquo;s saved,
+                        so you only do this once.
+                      </p>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -175,6 +288,7 @@ export function TryOnView({
         </div>
 
         {error && result && <p className="text-center text-xs text-red-500">{error}</p>}
+        {saveError && <p className="text-center text-xs text-amber-600">{saveError}</p>}
 
         {/* Garment strip */}
         <div className="flex justify-center gap-2">
@@ -186,20 +300,22 @@ export function TryOnView({
           ))}
         </div>
 
-        {/* Subject. Your photo is the primary action — it's what the screen is for. */}
+        {/* Subject. Two buttons only — this row measured 343/343 and the scene chips
+            below already overflowed once, so extra verbs go in the text row. */}
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => void pickPhoto()}
-            disabled={loading || unavailable}
+            onClick={() => (havePhoto ? void run(picked ?? savedPhoto, scene) : void pickPhoto())}
+            disabled={loading || unavailable || loadingPhoto}
             className="flex flex-[1.4] items-center justify-center gap-1.5 rounded-xl bg-accent py-2.5 text-sm font-medium text-accent-foreground disabled:opacity-50"
           >
-            <ImagePlus size={15} /> {personSrc ? "Change photo" : "Use my photo"}
+            {havePhoto ? <ScanFace size={15} /> : <ImagePlus size={15} />}{" "}
+            {loadingPhoto ? "Loading photo…" : havePhoto ? "See it on me" : "Use my photo"}
           </button>
           <button
             type="button"
             onClick={() => {
-              setPersonSrc(null);
+              setOnModel(true);
               void run(null, scene);
             }}
             disabled={loading || unavailable}
@@ -207,6 +323,44 @@ export function TryOnView({
           >
             <User size={15} /> On a model
           </button>
+        </div>
+
+        {/* Photo actions as text, so the button row keeps its measured width. */}
+        <div className="flex items-center justify-center gap-3 text-xs text-muted">
+          <button
+            type="button"
+            onClick={() => void pickPhoto()}
+            disabled={loading}
+            className="active:scale-95 disabled:opacity-50"
+          >
+            {havePhoto ? "Change photo" : "Choose photo"}
+          </button>
+          {Capacitor.isNativePlatform() && (
+            <>
+              <span aria-hidden>·</span>
+              <button
+                type="button"
+                onClick={() => void takeSelfie()}
+                disabled={loading}
+                className="active:scale-95 disabled:opacity-50"
+              >
+                Take a selfie
+              </button>
+            </>
+          )}
+          {photoPath && (
+            <>
+              <span aria-hidden>·</span>
+              <button
+                type="button"
+                onClick={forgetPhoto}
+                disabled={loading}
+                className="active:scale-95 disabled:opacity-50"
+              >
+                Forget photo
+              </button>
+            </>
+          )}
         </div>
 
         {/* Scene. Presets, not free text — a dim or busy backdrop hides the clothes. */}
@@ -254,7 +408,7 @@ export function TryOnView({
         {started && !unavailable && (
           <button
             type="button"
-            onClick={() => void run(personSrc, scene)}
+            onClick={() => void run(person, scene)}
             disabled={loading}
             className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-line bg-surface py-2.5 text-sm font-medium disabled:opacity-50"
           >
@@ -262,11 +416,18 @@ export function TryOnView({
           </button>
         )}
 
+        {/* Composed from the real state. No single sentence is true across all of
+            them: the photo may be stored, held for one render, or absent. */}
         <p className="pb-2 text-center text-[11px] text-muted">
           AI try-on is experimental — the fit is an approximation, not a measurement.{" "}
+          {photoPath
+            ? "Your photo is saved privately to your account so try-on stops asking for it — only you can see it, and Forget photo deletes it. "
+            : havePhoto
+              ? "Your photo is used only for this render, not stored. "
+              : ""}
           {saveState === "saved" || savedPath
-            ? "Saved renders are private to your account — only you can see them. The photo you picked is never stored."
-            : "Your photo is used only for this render, not stored."}
+            ? "Saved renders are private to your account — only you can see them."
+            : ""}
         </p>
 
         <input

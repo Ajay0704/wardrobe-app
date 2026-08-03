@@ -64,6 +64,27 @@ export function scrubSnapshotImages<
   }
 
   /**
+   * AJA-276 — `profile.tryOnPhotoPath` gets the outfit treatment below, for the
+   * same reason: it must be a bucket path, never a URL or inline data.
+   *
+   * NOTE THE CHAINING. This reads the `profile` local, not `data.profile`, so it
+   * composes with the avatarUrl branch above. Written as an independent `if` over
+   * `data.profile` it would silently discard that fix whenever both were dirty.
+   *
+   * This is also the only validation `tryOnPhotoPath` gets on the way back in:
+   * `profile` has no normalizer, and `merge` spreads it wholesale.
+   */
+  if (
+    profile &&
+    profile.tryOnPhotoPath !== undefined &&
+    !isRenderPath(profile.tryOnPhotoPath)
+  ) {
+    const next = { ...profile };
+    delete next.tryOnPhotoPath;
+    profile = next;
+  }
+
+  /**
    * AJA-275 — `tryOnRenderPath` must be a bucket path, never a URL or inline data.
    *
    * `isBadInline` is the wrong test here and would let the dangerous case through:

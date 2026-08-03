@@ -15,7 +15,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { outfitPayload } from "@/lib/chat";
 import { wearSummary } from "@/lib/outfit-collections";
 import { useWardrobe } from "@/lib/store";
-import { deletePrivateRender } from "@/lib/supabase/private-storage";
+import { deletePrivateImage } from "@/lib/supabase/private-storage";
 import { toGarments } from "@/lib/tryon";
 import { formatDisplayDate, type WardrobeItem } from "@/lib/types";
 import { OutfitBoardThumb } from "./OutfitBoardThumb";
@@ -118,7 +118,7 @@ export function OutfitDetailView() {
     // blob (swept on account deletion) rather than a look still showing an image
     // the user asked to be rid of.
     setOutfitRender(outfit.id, null);
-    if (savedPath) void deletePrivateRender(savedPath);
+    if (savedPath) void deletePrivateImage(savedPath);
     flash("Render removed");
   };
 
@@ -288,7 +288,7 @@ export function OutfitDetailView() {
                 // other way a render stops being referenced, and without this the
                 // blob sits in the bucket until the account is deleted.
                 deleteOutfit(outfit.id);
-                if (savedPath) void deletePrivateRender(savedPath);
+                if (savedPath) void deletePrivateImage(savedPath);
                 back();
               }}
               className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white"

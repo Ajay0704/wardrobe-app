@@ -180,14 +180,25 @@ export async function pullSnapshot(
   return r.status === "found" ? r.snapshot : null;
 }
 
-/** Strip oversized / HEIC data-URLs so a poisoned local store can't re-bloat the DB. */
-function sanitizeSnapshotForPush(
+/**
+ * Strip oversized / HEIC data-URLs so a poisoned local store can't re-bloat the DB.
+ *
+ * AJA-276: also runs the path-shape scrubber. `flushPush` reads the store directly
+ * rather than going through `partialize`, so for the path-shaped fields
+ * (`profile.tryOnPhotoPath`, `outfits[].tryOnRenderPath`) this is the ONLY gate
+ * between memory and Postgres — and `updateProfile` can write the profile without
+ * any validation at all. Exported for the round-trip test.
+ */
+export function sanitizeSnapshotForPush(
   snapshot: Omit<WardrobeSnapshot, "updated_at">,
 ): {
   snapshot: Omit<WardrobeSnapshot, "updated_at">;
   stripped: number;
 } {
   let stripped = 0;
+  // Scrub FIRST, then the data-URL logic below, so `stripped` keeps meaning
+  // "inline images dropped" rather than counting path rejections too.
+  snapshot = scrubSnapshotImages(snapshot);
   const scrub = (url: string | undefined): string | undefined => {
     if (!isDataUrl(url)) return url;
     if (/image\/hei[cf]/i.test(url) || url.length > 200_000) {

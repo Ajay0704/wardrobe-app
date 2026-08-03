@@ -68,7 +68,9 @@ async function compressImage(
   return blob && blob.size < file.size ? blob : file;
 }
 
-function blobToDataUrl(blob: Blob): Promise<string> {
+/** Exported for `private-storage.ts`, which decodes a signed download into a data
+ *  URL. Pure and bucket-agnostic — a second FileReader there would be a copy. */
+export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
@@ -137,11 +139,15 @@ async function decodeHeic(file: File): Promise<File> {
  * Compress (and HEIC-decode) a picked photo into an inline data URL WITHOUT
  * uploading it (AJA-274).
  *
- * For session-only images — the try-on person photo — where `resolveImageSource`'s
- * Storage upload would persist something the UI promises not to keep. Before this,
- * TryOnView used a bare `FileReader`, which skipped compression (a full-res phone
- * photo went into the JSON body) AND skipped `decodeHeic`, so an iPhone HEIC photo
- * failed outright with an unhelpful error.
+ * For the try-on reference photo, where `resolveImageSource` is wrong twice over: it
+ * uploads to the PUBLIC `wardrobe-images` bucket, and it returns a URL when the
+ * caller needs bytes to post. Since AJA-276 that photo IS kept — but in the private
+ * bucket and as a path (see `private-storage.ts`), which is a separate decision from
+ * getting the file into a postable shape, and that is all this function does.
+ *
+ * Before this, TryOnView used a bare `FileReader`, which skipped compression (a
+ * full-res phone photo went into the JSON body) AND skipped `decodeHeic`, so an
+ * iPhone HEIC photo failed outright with an unhelpful error.
  *
  * The defaults are deliberately looser than `compressImage`'s 1200/0.82: at 1200px
  * a 1086x1448 reference is downscaled to 900x1200 and an already-tiny face loses

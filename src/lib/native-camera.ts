@@ -30,8 +30,14 @@ function dataUrlToFile(dataUrl: string): File {
  * `fetch()` of that path is cross-origin and WKWebView blocks it (that surfaced
  * as an error right after taking a photo). A data URL is delivered through the
  * plugin bridge, so it's origin-independent.
+ *
+ * `facing` defaults to "rear" so no existing caller changes. Pass "front" for a
+ * self-portrait (AJA-276) — every other caller here is photographing clothing, and
+ * opening the rear camera for a selfie means the user has to flip it themselves.
  */
-export async function captureNativePhoto(): Promise<File | null> {
+export async function captureNativePhoto(
+  facing: "rear" | "front" = "rear",
+): Promise<File | null> {
   // If the installed binary predates the Camera plugin, Capacitor would fall
   // back to the web `<input capture>` — which just flashes and exits in
   // WKWebView. Detect that and tell the user to update, rather than confuse them.
@@ -52,7 +58,7 @@ export async function captureNativePhoto(): Promise<File | null> {
       quality: 90,
       resultType: CameraResultType.DataUrl,
       source: CameraSource.Camera,
-      direction: CameraDirection.Rear,
+      direction: facing === "front" ? CameraDirection.Front : CameraDirection.Rear,
       correctOrientation: true,
       saveToGallery: false,
       allowEditing: false,
