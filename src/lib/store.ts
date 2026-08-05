@@ -366,6 +366,60 @@ export const uid = () =>
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
 /**
+ * The starter closet must vanish the moment the user owns one real piece (AJA-277).
+ *
+ * Before this, `clearSamples` was reachable from exactly ONE manual button in the Explore
+ * tab header, and `addItem` never called it — so people deleted the samples one at a time,
+ * and from the Closet there was no way to do it at all.
+ *
+ * A WISH does not count. Saving something you don't own yet shouldn't wipe your starter
+ * closet, so the trigger is a real *owned* garment.
+ */
+const isRealOwned = (it: { id: string; wishlist?: boolean }): boolean =>
+  !isSampleItem(it) && !it.wishlist;
+
+/** Cheap pre-check so the common case (no samples left) does no work at all. */
+const hasSamples = (items: { id: string }[]): boolean => items.some(isSampleItem);
+
+type SampleBearing = Pick<
+  WardrobeState,
+  "items" | "outfits" | "calendar" | "draft" | "canvasDraft"
+>;
+
+/**
+ * Every trace of the starter closet, removed in one pass: the items, the pre-saved sample
+ * outfits, and any reference to a sample left behind in a real outfit, the calendar, the
+ * builder draft or the canvas board.
+ *
+ * Shared by `clearSamples` and by every path a real item can arrive on, and always applied
+ * inside the SAME `set` as the arrival — so a half-cleared closet, or a board holding tiles
+ * whose items no longer exist, is not reachable.
+ *
+ * `canvasDraft` is new here: the old inline version missed it, and "Surprise me" on the
+ * starter closet puts sample tiles straight onto the board — which auto-clear now makes a
+ * routine thing to hit rather than a rare one.
+ */
+function stripSamples(s: SampleBearing): SampleBearing {
+  const gone = (iid: string) => isSampleItem({ id: iid });
+  return {
+    items: s.items.filter((it) => !isSampleItem(it)),
+    outfits: s.outfits
+      .filter((o) => !o.id.startsWith("demo-"))
+      .map((o) => ({ ...o, itemIds: o.itemIds.filter((iid) => !gone(iid)) })),
+    calendar: s.calendar.map((e) => ({
+      ...e,
+      itemIds: e.itemIds.filter((iid) => !gone(iid)),
+    })),
+    draft: Object.fromEntries(
+      Object.entries(s.draft).map(([k, ids]) => [k, ids.filter((iid) => !gone(iid))]),
+    ) as Record<SlotKey, string[]>,
+    canvasDraft: s.canvasDraft.filter(
+      (n) => (n.kind ?? "item") !== "item" || !gone(n.itemId ?? ""),
+    ),
+  };
+}
+
+/**
  * Coerce a possibly-malformed stored item into a valid WardrobeItem. Legacy or
  * partially-synced data (e.g. a missing `tags` array) must never crash the UI.
  */
@@ -565,15 +619,30 @@ export const useWardrobe = create<WardrobeState>()(
       canvasBg: null,
 
       addItem: (item) =>
-        set((s) => ({
-          items: [{ ...item, id: uid(), createdAt: Date.now() }, ...s.items],
-        })),
+        set((s) => {
+          const fresh = { ...item, id: uid(), createdAt: Date.now() };
+          // AJA-277. Every add route in the app funnels through here — ItemForm, Scan and
+          // Bulk (via import-queue), OutfitSplitImport, PhotoDetailView and the wishlist
+          // sheet — so this one place retires the starter closet on all of them.
+          if (!isRealOwned(fresh) || !hasSamples(s.items)) {
+            return { items: [fresh, ...s.items] };
+          }
+          const cleared = stripSamples(s);
+          return { ...cleared, items: [fresh, ...cleared.items] };
+        }),
 
       absorbItems: (incoming) =>
         set((s) => {
           const have = new Set(s.items.map((it) => it.id));
           const fresh = incoming.filter((it) => it?.id && !have.has(it.id));
-          return fresh.length ? { items: [...fresh, ...s.items] } : {};
+          if (!fresh.length) return {};
+          // Same rule for items arriving from the wishlist inbox / another device: only a
+          // real OWNED piece retires the samples. An inbox full of wishes leaves them.
+          if (!fresh.some(isRealOwned) || !hasSamples(s.items)) {
+            return { items: [...fresh, ...s.items] };
+          }
+          const cleared = stripSamples(s);
+          return { ...cleared, items: [...fresh, ...cleared.items] };
         }),
 
       updateItem: (id, patch) =>
@@ -615,27 +684,7 @@ export const useWardrobe = create<WardrobeState>()(
           ) as Record<SlotKey, string[]>,
         })),
 
-      clearSamples: () =>
-        set((s) => {
-          const gone = (iid: string) => isSampleItem({ id: iid });
-          return {
-            items: s.items.filter((it) => !isSampleItem(it)),
-            // Drop the pre-saved sample outfits entirely; strip sample ids from any real ones.
-            outfits: s.outfits
-              .filter((o) => !o.id.startsWith("demo-"))
-              .map((o) => ({ ...o, itemIds: o.itemIds.filter((iid) => !gone(iid)) })),
-            calendar: s.calendar.map((e) => ({
-              ...e,
-              itemIds: e.itemIds.filter((iid) => !gone(iid)),
-            })),
-            draft: Object.fromEntries(
-              Object.entries(s.draft).map(([k, ids]) => [
-                k,
-                ids.filter((iid) => !gone(iid)),
-              ]),
-            ) as Record<SlotKey, string[]>,
-          };
-        }),
+      clearSamples: () => set((s) => stripSamples(s)),
 
       seedSampleCloset: (gender) =>
         set((s) => {
@@ -1058,8 +1107,17 @@ export const useWardrobe = create<WardrobeState>()(
             draft: normalizeDraft(data.draft),
             canvasDraft: Array.isArray(data.canvasDraft) ? data.canvasDraft : get().canvasDraft,
           });
+          // AJA-277. A remote snapshot can legitimately carry BOTH — a device that still
+          // held samples merges its list with one that has real pieces (AuthProvider's
+          // wishlist-clip absorb does exactly this). Apply the same rule on the way in, so
+          // restoring on a second device can't resurrect a starter closet the user has
+          // already grown out of.
+          const merged =
+            hasSamples(scrubbed.items) && scrubbed.items.some(isRealOwned)
+              ? { ...scrubbed, ...stripSamples(scrubbed) }
+              : scrubbed;
           return {
-            ...scrubbed,
+            ...merged,
             // Cold start / sync: open to the user's preferred start screen.
             view: resolveStartView(profile),
           };
