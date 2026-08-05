@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { AUTO_BEAUTIFY_CATEGORIES, beautify, BEAUTIFY_PIPELINE } from "@/lib/beautify";
+import { isSampleItem } from "@/lib/demo-data";
 import {
   disableNativeOutfitReminders,
   enableNativeOutfitReminders,
@@ -174,6 +175,10 @@ export function YouView() {
       (it) =>
         !it.wishlist &&
         it.imageUrl &&
+        // AJA-277: starter pieces are line DRAWINGS, not photos. They carry no pipeline
+        // stamp, so without this guard they'd match and get shipped to the paid beautify
+        // route — spending credits to "standardize" an SVG sketch into a white blob.
+        !isSampleItem(it) &&
         !(it.beautifyModel ?? "").includes(BEAUTIFY_PIPELINE),
     );
     if (targets.length === 0) {

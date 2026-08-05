@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 130" fill="none">
+<style>
+.o,.t{stroke:#6f6862;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.o{stroke-width:2.1}
+.t{stroke-width:1.25;opacity:.42}
+@media (prefers-color-scheme:dark){.o,.t{stroke:#b9b1a7}}
+</style>
+<g class="o"><path d="M18 85 L19 61 C19 58 21 56 24 56 L35 56 C39 56 43 58 47 62 L52 67 C61 72 72 76 82 79 C88 81 92 83 95 86 Z"/> <path d="M14 85h86v5c0 3-2 5-5 5H19c-3 0-5-2-5-5z"/></g>
+<g class="t"><path d="M20 64C26 61 32 60 38 60"/><path d="M47 62 43 75"/> <path d="M53 68 50 77M61 72 58 81M69 76 67 84"/><path d="M82 85C82 82 84 80 87 79"/></g>
+</svg>
