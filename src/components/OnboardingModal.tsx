@@ -15,7 +15,7 @@ import {
   type StyleOccasion,
 } from "@/lib/style-quiz";
 import { useWardrobe } from "@/lib/store";
-import { profileHandle, resolveStartView } from "@/lib/profile";
+import { profileHandle, resolveStartView, validateHandle } from "@/lib/profile";
 import { HandleField } from "./HandleField";
 import FirstOutfit from "./onboarding/FirstOutfit";
 import FirstSixCapture from "./onboarding/FirstSixCapture";
@@ -25,11 +25,40 @@ type QuizStep = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot"
 /** First Six (AJA-277) continues after the quiz — capture, the payoff, then the morning ask. */
 type Step = QuizStep | "capture" | "outfit" | "morning";
 
-/** The quiz proper. Drives the "N of 6" label and the bar; the First Six steps are not part
+/** The quiz proper. Drives the "N of N" label and the bar; the First Six steps are not part
  *  of it, so the progress indicator does not grow and then stall. */
-const QUIZ_STEPS: QuizStep[] = ["handle", "gender", "goal", "occasions", "lean", "snapshot"];
+const ALL_QUIZ_STEPS: QuizStep[] = [
+  "handle",
+  "gender",
+  "goal",
+  "occasions",
+  "lean",
+  "snapshot",
+];
 
-const isQuizStep = (s: Step): s is QuizStep => (QUIZ_STEPS as Step[]).includes(s);
+const isQuizStep = (s: Step): s is QuizStep => (ALL_QUIZ_STEPS as Step[]).includes(s);
+
+/**
+ * Ask for the @handle only if we don't already have one.
+ *
+ * The sign-up sheet collects a username (ProfileFields → HandleField), so asking again as the
+ * first onboarding step made a new user pick a handle, submit, and immediately pick a handle —
+ * the same question twice in a row, which reads as the app having lost their answer.
+ *
+ * It is NOT safe to just delete the step, which is why this is a condition rather than a
+ * removal. Two live paths arrive here with no handle at all:
+ *   - Google / Apple (AJA-194) never render the sign-up form, so nothing ever asked.
+ *   - Email sign-up does not gate submit on handle validity, so the field can be left blank.
+ * For both, this step is the only place a handle gets claimed, and `profileHandle()`'s
+ * email-derived fallback is a DISPLAY default — it never persists a username, so skipping the
+ * ask outright would leave those accounts unfindable by the friend search that needs it.
+ */
+function quizStepsFor(username: string | undefined): QuizStep[] {
+  if (validateHandle(username ?? "").ok) {
+    return ALL_QUIZ_STEPS.filter((s) => s !== "handle");
+  }
+  return ALL_QUIZ_STEPS;
+}
 
 const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] = [
   { id: "female", label: "Women's", hint: "Show women's styles" },
@@ -43,7 +72,12 @@ const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] 
  */
 export function OnboardingModal() {
   const { profile, updateProfile, setView, authUser, seedSampleCloset } = useWardrobe();
-  const [step, setStep] = useState<Step>("handle");
+  /**
+   * Frozen at mount. Recomputing would shrink the list the moment the handle step saves a
+   * username, renumbering the steps underneath the user mid-flow.
+   */
+  const [quizSteps] = useState<QuizStep[]>(() => quizStepsFor(profile.username));
+  const [step, setStep] = useState<Step>(() => quizSteps[0]!);
   const [handle, setHandle] = useState(() =>
     profileHandle({
       username: profile.username,
@@ -62,8 +96,8 @@ export function OnboardingModal() {
   const [lean, setLean] = useState<StyleLean | undefined>(profile.styleLean);
 
   const quiz = isQuizStep(step);
-  const stepIndex = QUIZ_STEPS.indexOf(step as QuizStep);
-  const progress = `${stepIndex + 1} of ${QUIZ_STEPS.length}`;
+  const stepIndex = quizSteps.indexOf(step as QuizStep);
+  const progress = `${stepIndex + 1} of ${quizSteps.length}`;
 
   const snapshotTitle = styleSnapshotTitle(goal, occasions, lean);
   const snapshotBlurb = styleSnapshotBlurb(goal, occasions);
@@ -103,13 +137,13 @@ export function OnboardingModal() {
       setStep("capture");
       return;
     }
-    const i = QUIZ_STEPS.indexOf(step as QuizStep);
-    if (i >= 0 && i < QUIZ_STEPS.length - 1) setStep(QUIZ_STEPS[i + 1]!);
+    const i = quizSteps.indexOf(step as QuizStep);
+    if (i >= 0 && i < quizSteps.length - 1) setStep(quizSteps[i + 1]!);
   };
 
   const goBack = () => {
-    const i = QUIZ_STEPS.indexOf(step as QuizStep);
-    if (i > 0) setStep(QUIZ_STEPS[i - 1]!);
+    const i = quizSteps.indexOf(step as QuizStep);
+    if (i > 0) setStep(quizSteps[i - 1]!);
   };
 
   return (
@@ -125,7 +159,7 @@ export function OnboardingModal() {
           ${quiz ? "" : "h-[92vh] sm:h-[42rem]"}`}
       >
         {/* Quiz chrome only. The First Six screens are full-bleed and own their own CTAs —
-            keeping the "N of 6" header over them would imply the quiz had grown to nine. */}
+            keeping the step counter over them would imply the quiz had grown by three. */}
         {quiz && (
           <div className="flex items-center justify-between border-b border-line px-5 py-3">
             <p className="text-xs font-medium uppercase tracking-wide text-muted">
@@ -147,11 +181,11 @@ export function OnboardingModal() {
           role="progressbar"
           aria-valuenow={stepIndex + 1}
           aria-valuemin={1}
-          aria-valuemax={QUIZ_STEPS.length}
+          aria-valuemax={quizSteps.length}
         >
           <div
             className="h-full bg-accent transition-all"
-            style={{ width: `${((stepIndex + 1) / QUIZ_STEPS.length) * 100}%` }}
+            style={{ width: `${((stepIndex + 1) / quizSteps.length) * 100}%` }}
           />
         </div>
         )}
