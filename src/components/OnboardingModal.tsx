@@ -17,10 +17,19 @@ import {
 import { useWardrobe } from "@/lib/store";
 import { profileHandle, resolveStartView } from "@/lib/profile";
 import { HandleField } from "./HandleField";
+import FirstOutfit from "./onboarding/FirstOutfit";
+import FirstSixCapture from "./onboarding/FirstSixCapture";
+import MorningAsk from "./onboarding/MorningAsk";
 
-type Step = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
+type QuizStep = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
+/** First Six (AJA-277) continues after the quiz — capture, the payoff, then the morning ask. */
+type Step = QuizStep | "capture" | "outfit" | "morning";
 
-const STEPS: Step[] = ["handle", "gender", "goal", "occasions", "lean", "snapshot"];
+/** The quiz proper. Drives the "N of 6" label and the bar; the First Six steps are not part
+ *  of it, so the progress indicator does not grow and then stall. */
+const QUIZ_STEPS: QuizStep[] = ["handle", "gender", "goal", "occasions", "lean", "snapshot"];
+
+const isQuizStep = (s: Step): s is QuizStep => (QUIZ_STEPS as Step[]).includes(s);
 
 const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] = [
   { id: "female", label: "Women's", hint: "Show women's styles" },
@@ -52,8 +61,9 @@ export function OnboardingModal() {
   );
   const [lean, setLean] = useState<StyleLean | undefined>(profile.styleLean);
 
-  const stepIndex = STEPS.indexOf(step);
-  const progress = `${stepIndex + 1} of ${STEPS.length}`;
+  const quiz = isQuizStep(step);
+  const stepIndex = QUIZ_STEPS.indexOf(step as QuizStep);
+  const progress = `${stepIndex + 1} of ${QUIZ_STEPS.length}`;
 
   const snapshotTitle = styleSnapshotTitle(goal, occasions, lean);
   const snapshotBlurb = styleSnapshotBlurb(goal, occasions);
@@ -85,17 +95,21 @@ export function OnboardingModal() {
 
   const goNext = () => {
     if (step === "handle") updateProfile({ username: handle });
+    // The quiz used to END here. It now hands over to First Six, which is the point at which
+    // the user gets something back: their own six pieces and an outfit made of them. The quiz
+    // answers are persisted before capture starts, so abandoning mid-capture still keeps them.
     if (step === "snapshot") {
-      finish();
+      updateProfile(applyQuizToProfile({ goal, occasions, lean }));
+      setStep("capture");
       return;
     }
-    const i = STEPS.indexOf(step);
-    if (i < STEPS.length - 1) setStep(STEPS[i + 1]!);
+    const i = QUIZ_STEPS.indexOf(step as QuizStep);
+    if (i >= 0 && i < QUIZ_STEPS.length - 1) setStep(QUIZ_STEPS[i + 1]!);
   };
 
   const goBack = () => {
-    const i = STEPS.indexOf(step);
-    if (i > 0) setStep(STEPS[i - 1]!);
+    const i = QUIZ_STEPS.indexOf(step as QuizStep);
+    if (i > 0) setStep(QUIZ_STEPS[i - 1]!);
   };
 
   return (
@@ -105,34 +119,52 @@ export function OnboardingModal() {
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="native-modal-sheet animate-fade-up flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:max-w-md sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Style quiz · {progress}
-          </p>
-          <button
-            type="button"
-            onClick={skip}
-            className="text-sm text-muted hover:text-foreground"
-          >
-            Skip
-          </button>
-        </div>
+      <div
+        className={`native-modal-sheet animate-fade-up flex max-h-[92vh] w-full flex-col
+          overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:max-w-md sm:rounded-3xl
+          ${quiz ? "" : "h-[92vh] sm:h-[42rem]"}`}
+      >
+        {/* Quiz chrome only. The First Six screens are full-bleed and own their own CTAs —
+            keeping the "N of 6" header over them would imply the quiz had grown to nine. */}
+        {quiz && (
+          <div className="flex items-center justify-between border-b border-line px-5 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
+              Style quiz · {progress}
+            </p>
+            <button
+              type="button"
+              onClick={skip}
+              className="text-sm text-muted hover:text-foreground"
+            >
+              Skip
+            </button>
+          </div>
+        )}
 
+        {quiz && (
         <div
           className="h-1 w-full bg-surface-2"
           role="progressbar"
           aria-valuenow={stepIndex + 1}
           aria-valuemin={1}
-          aria-valuemax={STEPS.length}
+          aria-valuemax={QUIZ_STEPS.length}
         >
           <div
             className="h-full bg-accent transition-all"
-            style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }}
+            style={{ width: `${((stepIndex + 1) / QUIZ_STEPS.length) * 100}%` }}
           />
         </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-6">
+        <div
+          className={
+            quiz
+              ? "flex-1 overflow-y-auto px-5 py-6"
+              : // First Six manages its own scrolling and needs a definite height for the
+                // viewfinder to fill, so no overflow-auto and no vertical padding here.
+                "flex min-h-0 flex-1 flex-col px-5"
+          }
+        >
           {step === "handle" && (
             <div className="space-y-4">
               <h2 id="onboarding-title" className="heading text-2xl">
@@ -259,25 +291,44 @@ export function OnboardingModal() {
                 </p>
               </div>
               <p className="text-sm text-muted">
-                Next: we&apos;ve added a few sample pieces so you can look
-                around. Snap one photo of an outfit and we&apos;ll add each of
-                your own pieces — then clear the samples. Change your style
+                Next: six quick photos and you&apos;ll have an outfit of your own. The drawn
+                starter pieces disappear the moment you add a real one. Change your style
                 anytime in Settings → Preferences.
               </p>
             </div>
           )}
+          {/* ——— First Six (AJA-277) ——— */}
+          {step === "capture" && (
+            <FirstSixCapture
+              onDone={() => setStep("outfit")}
+              // "Finish later" still goes to the payoff: whatever they DID capture may already
+              // make an outfit, and if it doesn't, FirstOutfit names the missing slot. Dropping
+              // them straight into an empty app is the failure this whole flow exists to avoid.
+              onSkip={() => setStep("outfit")}
+            />
+          )}
+          {step === "outfit" && (
+            <FirstOutfit
+              onAccept={() => setStep("morning")}
+              onAddMore={() => setStep("capture")}
+              onSkip={finish}
+            />
+          )}
+          {step === "morning" && <MorningAsk onDone={finish} />}
         </div>
 
-        <div className="flex gap-2 border-t border-line px-5 py-4">
-          {stepIndex > 0 && (
-            <Button variant="outline" onClick={goBack}>
-              Back
+        {quiz && (
+          <div className="flex gap-2 border-t border-line px-5 py-4">
+            {stepIndex > 0 && (
+              <Button variant="outline" onClick={goBack}>
+                Back
+              </Button>
+            )}
+            <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
+              {step === "snapshot" ? "Add my first six" : "Next"}
             </Button>
-          )}
-          <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
-            {step === "snapshot" ? "Enter Wardrobe" : "Next"}
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -38,7 +38,34 @@ function setEnabledFlag(on: boolean): void {
   }
 }
 
-export async function enableNativeOutfitReminders(): Promise<
+/**
+ * Morning hour, chosen by the user during onboarding (AJA-277) and remembered so a later
+ * re-enable doesn't silently revert to the default.
+ *
+ * A fixed 07:00 was wrong for anyone who isn't up at seven. The one review in the whole
+ * category that describes this exact mechanic working also names its flaw: Stylebook ships a
+ * morning outfit reminder with a NON-configurable time, and a 4-star reviewer says "I get up
+ * really early... the notification comes when I'm already at work."
+ */
+const HOUR_KEY = "wardrobe:native-notifs-hour";
+const DEFAULT_HOUR = 7;
+const clampHour = (h: number) => (Number.isInteger(h) && h >= 0 && h <= 23 ? h : DEFAULT_HOUR);
+
+export function savedReminderHour(): number {
+  if (typeof window === "undefined") return DEFAULT_HOUR;
+  try {
+    const n = Number(localStorage.getItem(HOUR_KEY));
+    return Number.isInteger(n) && n >= 0 && n <= 23 ? n : DEFAULT_HOUR;
+  } catch {
+    return DEFAULT_HOUR;
+  }
+}
+
+export async function enableNativeOutfitReminders(
+  /** 0–23. Falls back to whatever the user last chose, then 07:00. */
+  hour: number = savedReminderHour(),
+  minute = 0,
+): Promise<
   { ok: true } | { ok: false; error: string }
 > {
   if (!Capacitor.isNativePlatform()) {
@@ -74,7 +101,11 @@ export async function enableNativeOutfitReminders(): Promise<
         title: "Here's today's outfit",
         body: "Open Wardrobe — weather-aware looks are ready on Today.",
         schedule: {
-          on: { hour: 7, minute: 0 },
+          // `on: { hour, minute }` maps to UNCalendarNotificationTrigger with repeats:true —
+          // a real wall-clock daily notification that survives reboot and app update, and
+          // counts as ONE against iOS's 64 pending-notification cap. Do NOT switch to `at`
+          // or `every`, which the plugin maps to interval triggers that drift.
+          on: { hour: clampHour(hour), minute },
           allowWhileIdle: true,
           repeats: true,
         },
@@ -95,6 +126,11 @@ export async function enableNativeOutfitReminders(): Promise<
   });
 
   setEnabledFlag(true);
+  try {
+    localStorage.setItem(HOUR_KEY, String(clampHour(hour)));
+  } catch {
+    /* private mode — the schedule is still set, we just can't remember the hour */
+  }
   return { ok: true };
 }
 
