@@ -23,6 +23,19 @@ import { join } from "node:path";
 
 /** Flat-sketch garments on a 120x130 canvas. `d` = outline (2.1), `dt` = detail (1.25, faded). */
 const GARMENTS = {
+  bag: {
+    name: "Tote bag",
+    d: "<path d=\"M30 58 L26 118c-.3 4 2 6 6 6h56c4 0 6.3-2 6-6L90 58Z\"/> <path d=\"M44 58V46c0-9 7-16 16-16s16 7 16 16v12\"/>",
+    dt: "<path d=\"M30 66h60\"/>",
+  },
+  scarf: {
+    name: "Scarf",
+    // Laid flat as a wavy band with fringed ends. Two earlier attempts drew it "worn" — a loop
+    // with two hanging ends — and both read as a lollipop and then a horseshoe. Flat is
+    // unambiguous, and it matches how every other garment here is drawn.
+    d: "<path d=\"M48 20c-4 22 6 36 2 58-3 18 2 26 0 34h22c-2-8 3-16 0-34-4-22 6-36 2-58z\"/>",
+    dt: "<path d=\"M52 112v8M58 112v8M64 112v8M68 112v8\"/> <path d=\"M50 40c7 3 13 3 20 0M52 76c6 3 10 3 16 0\"/>",
+  },
   chinos: {
     name: "Chinos",
     d: "<path d=\"M35 20h50v10H35z\"/> <path d=\"M35 30l3 94h18l4-62 4 62h18l3-94\"/>",
