@@ -10,6 +10,7 @@
  */
 import { useWardrobe } from "@/lib/store";
 import { isSampleItem, sampleCloset } from "@/lib/demo-data";
+import { distinctLookCount } from "@/lib/looks";
 import type { CanvasItem, WardrobeItem } from "@/lib/types";
 
 let fails = 0;
@@ -129,6 +130,37 @@ console.log("\n5. clearSamples still works on its own, and is idempotent");
   ok(S().items.length === 0, "manual clear empties a samples-only closet");
   S().clearSamples();
   ok(S().items.length === 0, "second call is a no-op");
+}
+
+console.log("\n6. AJA-279 — a brand-new closet is EMPTY, never pre-filled with samples");
+{
+  // The store's own initial state, before anything seeds or hydrates. Samples used to be filed
+  // here as if they were the user's clothes; the demo now lives inside onboarding instead.
+  const fresh = useWardrobe.getInitialState();
+  ok(fresh.items.length === 0, "no starter items", `${fresh.items.length}`);
+  ok(fresh.outfits.length === 0, "no starter outfits", `${fresh.outfits.length}`);
+  ok(
+    !("seedSampleCloset" in fresh),
+    "the seeding action is gone, so nothing can re-fill a closet",
+  );
+}
+
+console.log("\n7. AJA-279 — the look count stays honest, and both screens share it");
+{
+  const p = (category: string) => ({ category });
+  ok(
+    distinctLookCount([p("top"), p("top"), p("bottom"), p("bottom"), p("shoes"), p("shoes")]) === 4,
+    "2 tops x 2 bottoms = 4, and the 2 pairs of shoes do NOT make it 8",
+  );
+  ok(
+    distinctLookCount([p("top"), p("bottom"), p("shoes"), p("shoes"), p("shoes")]) === 1,
+    "extra shoes never add a look",
+  );
+  ok(distinctLookCount([p("top"), p("top"), p("shoes")]) === 0, "no bottom, no look");
+  ok(
+    distinctLookCount([p("dress"), p("top"), p("bottom")]) === 2,
+    "a dress is a complete look, so it adds rather than multiplies",
+  );
 }
 
 console.log(`\n${fails === 0 ? "ALL PASS" : `${fails} FAILURE(S)`}\n`);

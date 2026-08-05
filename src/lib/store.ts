@@ -21,7 +21,7 @@ import type {
 import { SLOT_CONFIG, slotForCategory, todayISO } from "./types";
 import { inferSubcategory, migrateSubcategory } from "./subcategory";
 import type { AnalyzedAttrs } from "./analyze-attrs";
-import { isSampleItem, sampleCloset } from "./demo-data";
+import { isSampleItem } from "./demo-data";
 import {
   DEFAULT_PROFILE,
   resolveStartView,
@@ -227,8 +227,6 @@ interface WardrobeState {
   clearSamples: () => void;
   /** Swap the starter closet to the gender-matched capsule — only while it's still the
    *  untouched sample set (so it never clobbers a real closet or re-seeds a cleared one). */
-  seedSampleCloset: (gender: UserProfile["shopGender"]) => void;
-
   saveOutfit: (
     name: string,
     notes: string,
@@ -570,10 +568,13 @@ function normalizeDraft(d: unknown): Record<SlotKey, string[]> {
 export const useWardrobe = create<WardrobeState>()(
   persist(
     (set, get) => ({
-      // Default (unset shopGender) → women's sample capsule + its pre-saved outfits.
-      // Signed-in seeding paths re-seed gender-matched via sampleCloset(profile.shopGender).
-      items: sampleCloset().items,
-      outfits: sampleCloset().outfits,
+      // A new closet starts EMPTY (AJA-279). Samples used to be seeded here so the app was
+      // "explorable" on first launch, but they were never actually shown during onboarding and
+      // the first real photo deleted them — their only effect was fake inventory posing as the
+      // user's clothes. The demo now lives inside onboarding (FirstLookGame) and touches no
+      // store state. `isSampleItem` / `clearSamples` stay for closets seeded before this.
+      items: [],
+      outfits: [],
       calendar: [],
       profile: { ...DEFAULT_PROFILE },
       authUser: null,
@@ -685,16 +686,6 @@ export const useWardrobe = create<WardrobeState>()(
         })),
 
       clearSamples: () => set((s) => stripSamples(s)),
-
-      seedSampleCloset: (gender) =>
-        set((s) => {
-          // Guard: only while the closet is still the untouched sample set (all items are
-          // samples AND at least one exists) — never clobber a real closet or re-seed after
-          // the user cleared samples. Outfits are all `demo-` in that state, so replace both.
-          if (s.items.length === 0 || !s.items.every(isSampleItem)) return s;
-          const sample = sampleCloset(gender);
-          return { items: sample.items, outfits: sample.outfits };
-        }),
 
       saveOutfit: (name, notes, itemIds, layout, canvasBg) => {
         recordOutfitCreated();

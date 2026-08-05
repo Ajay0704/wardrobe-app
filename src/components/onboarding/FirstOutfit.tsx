@@ -27,6 +27,8 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
+import { isSampleItem } from "@/lib/demo-data";
+import { distinctLookCount } from "@/lib/looks";
 import { bestLook, suggestLooks } from "@/lib/matching";
 import { useWardrobe } from "@/lib/store";
 import type { ScoredLook } from "@/lib/matching";
@@ -62,7 +64,19 @@ export default function FirstOutfit({
   const items = useWardrobe((s) => s.items);
   const [roll, setRoll] = useState(0);
 
-  const owned = useMemo(() => items.filter((i) => !i.wishlist && i.imageUrl), [items]);
+  /**
+   * Samples are excluded, not just wishlist items.
+   *
+   * Without the `isSampleItem` check this screen would build a board out of the starter pieces and
+   * title it "Wear this." — telling the user to go wear clothes they do not own. It was reachable
+   * by tapping "I don't have these to hand" on the first capture, since nothing real had cleared
+   * the samples yet. New accounts no longer receive samples (AJA-279), but closets seeded before
+   * that still hold them, so the guard has to stay.
+   */
+  const owned = useMemo(
+    () => items.filter((i) => !i.wishlist && i.imageUrl && !isSampleItem(i)),
+    [items],
+  );
 
   /**
    * A slate of three rather than one look, so "Show me another" is a genuine alternative
@@ -78,12 +92,14 @@ export default function FirstOutfit({
 
   const look = slate.length ? slate[roll % slate.length] : null;
 
-  const counts = useMemo(() => {
-    const by = (c: string) => owned.filter((i) => i.category === c).length;
-    // Dresses are a complete look on their own, so they add rather than multiply.
-    const combos = by("top") * by("bottom") + by("dress");
-    return { combos: Math.max(combos, look ? 1 : 0), pieces: owned.length };
-  }, [owned, look]);
+  const counts = useMemo(
+    () => ({
+      // Shared with the onboarding demo so the two screens can never quote different numbers.
+      combos: Math.max(distinctLookCount(owned), look ? 1 : 0),
+      pieces: owned.length,
+    }),
+    [owned, look],
+  );
 
   const placed = useMemo(() => {
     if (!look) return [] as { item: WardrobeItem; box: (typeof SLOT_BOX)[string] }[];

@@ -14,16 +14,22 @@ import {
   type StyleLean,
   type StyleOccasion,
 } from "@/lib/style-quiz";
+import { isSampleItem } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 import { profileHandle, resolveStartView, validateHandle } from "@/lib/profile";
 import { HandleField } from "./HandleField";
+import FirstLookGame from "./onboarding/FirstLookGame";
 import FirstOutfit from "./onboarding/FirstOutfit";
 import FirstSixCapture from "./onboarding/FirstSixCapture";
 import MorningAsk from "./onboarding/MorningAsk";
 
 type QuizStep = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
-/** First Six (AJA-277) continues after the quiz — capture, the payoff, then the morning ask. */
-type Step = QuizStep | "capture" | "outfit" | "morning";
+/**
+ * After the quiz: the sample demo (AJA-279), then First Six (AJA-277) — capture, the payoff, and
+ * the morning ask. The demo sits AFTER every question deliberately: it needs the department answer
+ * to choose which six pieces to offer, and the order was confirmed against a prototype.
+ */
+type Step = QuizStep | "game" | "capture" | "outfit" | "morning";
 
 /** The quiz proper. Drives the "N of N" label and the bar; the First Six steps are not part
  *  of it, so the progress indicator does not grow and then stall. */
@@ -71,7 +77,7 @@ const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] 
  * Activation lives on empty Today — not as another wizard step.
  */
 export function OnboardingModal() {
-  const { profile, updateProfile, setView, authUser, seedSampleCloset } = useWardrobe();
+  const { profile, updateProfile, setView, authUser, items } = useWardrobe();
   /**
    * Frozen at mount. Recomputing would shrink the list the moment the handle step saves a
    * username, renumbering the steps underneath the user mid-flow.
@@ -102,9 +108,26 @@ export function OnboardingModal() {
   const snapshotTitle = styleSnapshotTitle(goal, occasions, lean);
   const snapshotBlurb = styleSnapshotBlurb(goal, occasions);
 
+  /**
+   * Where onboarding lets go of the user.
+   *
+   * It used to hand off to `resolveStartView`, which defaults to Explore — a shopping feed. So
+   * someone who had just photographed six of their own garments and been shown an outfit made of
+   * them landed on a browsing surface, with their new closet one unmentioned tab away. If they
+   * own anything, we end where their clothes are.
+   *
+   * An EXPLICIT `startView` preference still wins: this only replaces the default, so a returning
+   * user who chose a start screen in Settings is not overridden.
+   */
+  const landing = () => {
+    if (profile.startView) return resolveStartView(profile);
+    const ownsSomething = items.some((i) => !i.wishlist && !isSampleItem(i));
+    return ownsSomething ? "wardrobe" : resolveStartView(profile);
+  };
+
   const finish = () => {
     updateProfile(applyQuizToProfile({ goal, occasions, lean }));
-    setView(resolveStartView(profile));
+    setView(landing());
   };
 
   const skip = () => {
@@ -134,7 +157,9 @@ export function OnboardingModal() {
     // answers are persisted before capture starts, so abandoning mid-capture still keeps them.
     if (step === "snapshot") {
       updateProfile(applyQuizToProfile({ goal, occasions, lean }));
-      setStep("capture");
+      // Hands over to the demo, which is where the user first sees what the app actually does.
+      // Quiz answers are persisted before it, so abandoning later still keeps them.
+      setStep("game");
       return;
     }
     const i = quizSteps.indexOf(step as QuizStep);
@@ -223,7 +248,8 @@ export function OnboardingModal() {
                 What should we show you?
               </h2>
               <p className="text-sm text-muted">
-                Sets your starter closet and Explore feed. You can change it anytime.
+                Sets the pieces you&apos;ll style in a moment, and your Explore feed. You can
+                change it anytime.
               </p>
               <div className="space-y-2">
                 {GENDERS.map((g) => (
@@ -234,10 +260,9 @@ export function OnboardingModal() {
                     hint={g.hint}
                     onClick={() => {
                       setShopGender(g.id);
+                      // Chooses which six pieces the demo offers a few steps later. It no longer
+                      // seeds a closet — nothing fake is filed as the user's (AJA-279).
                       updateProfile({ shopGender: g.id });
-                      // Match the sample closet to the choice before the user sees it (guarded
-                      // to the untouched sample set, so it won't disturb a real closet).
-                      seedSampleCloset(g.id);
                     }}
                   />
                 ))}
@@ -325,11 +350,18 @@ export function OnboardingModal() {
                 </p>
               </div>
               <p className="text-sm text-muted">
-                Next: six quick photos and you&apos;ll have an outfit of your own. The drawn
-                starter pieces disappear the moment you add a real one. Change your style
-                anytime in Settings → Preferences.
+                Before you photograph anything — here&apos;s what the app does with six pieces.
+                Have a go with ours, then we&apos;ll do yours. Change your style anytime in
+                Settings → Preferences.
               </p>
             </div>
+          )}
+          {/* ——— The demo (AJA-279) ——— */}
+          {step === "game" && (
+            <FirstLookGame
+              shopGender={shopGender}
+              onDone={() => setStep("capture")}
+            />
           )}
           {/* ——— First Six (AJA-277) ——— */}
           {step === "capture" && (
@@ -359,7 +391,7 @@ export function OnboardingModal() {
               </Button>
             )}
             <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
-              {step === "snapshot" ? "Add my first six" : "Next"}
+              {step === "snapshot" ? "Show me how it works" : "Next"}
             </Button>
           </div>
         )}
