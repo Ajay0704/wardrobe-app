@@ -13,6 +13,7 @@ import {
 } from "@/lib/supabase/private-storage";
 import { dataUrlToFile } from "@/lib/supabase/storage";
 import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
+import { TryOnLoading } from "./TryOnLoading";
 import { useTryOnPhoto } from "../useTryOnPhoto";
 
 /**
@@ -244,16 +245,16 @@ export function TryOnView({
             model's to choose, and cover silently sliced the head off a square one. */}
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl border border-line bg-surface-2">
           {result && !loading && (
+            // The reveal settles from very slightly large, so the render arrives after
+            // the wait rather than blinking into place (AJA-280).
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={result} alt="Try-on result" className="h-full w-full object-contain" />
+            <img
+              src={result}
+              alt="Try-on result"
+              className="animate-tryon-reveal h-full w-full object-contain"
+            />
           )}
-          {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
-              <Loader2 size={26} className="animate-spin text-accent" />
-              <p className="text-sm">Styling this on {person ? "you" : "a model"}…</p>
-              <p className="text-[11px]">Takes a few seconds</p>
-            </div>
-          )}
+          {loading && <TryOnLoading subject={person} garments={garments} />}
           {/* Your photo stands in until you ask for a render, so the screen shows what
               it's about to use instead of an empty box. Dimmed and captioned so it
               can't be mistaken for the finished render. */}
