@@ -597,52 +597,30 @@ html.native-app .smart-buy-sheet {
 }
 
 /* ───────────────────────────────────────────────────────────────────────────
- * Try-on loading (AJA-280). A render takes ~20s, which is far too long to sit
- * behind a spinner — a spinner says "something is happening somewhere", and says
- * it for twenty seconds. These states instead show the work: the user's own photo
- * as the base, their garments landing onto it, then a develop sweep.
- *
- * Everything animates transform/opacity only, so it stays on the compositor.
+ * Try-on loading (AJA-280). A render takes ~20-27s, far too long to sit behind a
+ * spinner. The canvas deliberately shows NOTHING while it runs — not the reference
+ * photo, which is an input rather than a preview of the result, and not the garments.
+ * See TryOnLoading.tsx for why. All that is left to animate is the drifting field
+ * behind the empty plate, and the handoff to the finished render.
  * ─────────────────────────────────────────────────────────────────────────── */
 
-/* A garment arriving on the body. Overshoots slightly — this is a thrown object
- * coming to rest, and momentum earns the bounce (apple-design §4: reserve
- * overshoot for motion that carried momentum). */
-@keyframes tryon-land {
-  from {
-    opacity: 0;
-    transform: translateY(22px) scale(0.7);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-.animate-tryon-land {
-  animation: tryon-land 520ms cubic-bezier(0.34, 1.46, 0.5, 1) both;
-}
-
-/* The develop sweep — a soft band travelling down the frame once the pieces are
- * in place, so the wait reads as "rendering" rather than "stalled". Slow and
- * low-contrast on purpose: it must not compete with the garments. */
-@keyframes tryon-sweep {
+/* The empty plate's only motion: soft accent fields drifting against each other, so
+ * the frame is alive without claiming to show anything. Three of them are layered at
+ * co-prime durations (set per-element in TryOnLoading.tsx), which is why this keyframe
+ * carries no duration of its own beyond a default. */
+@keyframes tryon-drift {
   0% {
-    transform: translateY(-130%);
-    opacity: 0;
+    transform: translate3d(-4%, -3%, 0) scale(1);
   }
-  18% {
-    opacity: 1;
-  }
-  82% {
-    opacity: 1;
+  50% {
+    transform: translate3d(5%, 4%, 0) scale(1.08);
   }
   100% {
-    transform: translateY(130%);
-    opacity: 0;
+    transform: translate3d(-4%, -3%, 0) scale(1);
   }
 }
-.animate-tryon-sweep {
-  animation: tryon-sweep 2600ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
+.animate-tryon-drift {
+  animation: tryon-drift 7000ms cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 
 /* The finished render replacing the loading canvas. Settles from very slightly
@@ -661,17 +639,9 @@ html.native-app .smart-buy-sheet {
   animation: tryon-reveal 460ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-/* Reduced motion: keep the sequence and its meaning — pieces still appear one by
- * one, so the screen still explains itself — but nothing travels or overshoots,
- * and the looping sweep stops entirely (a slow repeating band is exactly the
- * oscillation the setting exists to suppress). */
 @media (prefers-reduced-motion: reduce) {
-  .animate-tryon-land {
-    animation: fade-up 220ms ease both;
-  }
-  .animate-tryon-sweep {
+  .animate-tryon-drift {
     animation: none;
-    opacity: 0.5;
   }
   .animate-tryon-reveal {
     animation: fade-up 200ms ease both;

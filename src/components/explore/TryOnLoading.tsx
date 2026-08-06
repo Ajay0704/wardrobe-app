@@ -1,184 +1,102 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { TryOnGarment } from "@/lib/tryon";
+import type { TryOnProgress } from "./useTryOnProgress";
 
 /**
- * AJA-280 — the try-on wait, made worth watching.
+ * AJA-280 — the try-on wait.
  *
- * A render measures ~19-23s. The old state was a spinner and "Takes a few seconds",
- * which is a twenty-second stare at an abstract circle: it conveys nothing about
- * whose look is being made or how far along it is, and it makes a slow-but-normal
- * render feel broken.
+ * A render measures 19-27s. A spinner for that long says nothing about whose look is
+ * being made, and makes a slow-but-normal render feel broken.
  *
- * The idea: SHOW THE WORK, using assets already in memory. The user's own photo sits
- * behind, blurred and dimmed so it plainly reads as the input; their garments then
- * land onto anatomical positions one at a time; then a soft band sweeps the frame
- * while the model finishes. It mirrors what the request is actually doing, and it is
- * something only a wardrobe app can show — the content IS the loading state.
+ * THE MISTAKE THAT TOOK FOUR BUILDS TO SEE. Every earlier version showed the user's
+ * REFERENCE PHOTO resolving — dissolving, un-blurring, gathering out of grain. It looks
+ * like generation, and it is a lie: the reference is an INPUT and the render is a
+ * different picture. In the case that exposed it, the reference was a head-and-shoulders
+ * portrait in a blue shirt and the render a full-length street shot in a black tee.
+ * Twenty seconds watching the portrait sharpen, then a swap to something unrelated. No
+ * amount of restyling fixes that — the subject was wrong.
  *
- * HONESTY ABOUT PROGRESS. There is one HTTP request with no progress events, so a
- * server-truth percentage is impossible. Rather than invent one that stalls at 99%,
- * the bar is an explicit TIME estimate: it eases toward a ceiling and then holds,
- * never reverses, and after the median duration the copy stops implying imminence and
- * says so. The phase labels are the real signal, and each one is true when shown.
+ * SO THE CANVAS SHOWS NOTHING. Not the reference, and not the garments either — a
+ * flat-lay of the real pieces was built and rejected in favour of this. What is left is
+ * the wait itself on the app's own stone surface, with the phase and an accent hairline
+ * carrying all of the information, centred because there is no picture for a caption to
+ * sit under. It asserts nothing, which is the whole argument: there IS no partial
+ * result, because Gemini returns a single response with no intermediate frames, and
+ * inventing one would be the same lie with better manners.
+ *
+ * The per-piece story lives in the garment strip below the canvas (`TryOnView`), which
+ * is showing the real items anyway.
  */
 
-/** Where a piece belongs on the body, as a share of frame height. */
-const SLOTS: { re: RegExp; top: number; left?: number }[] = [
-  { re: /(hat|cap|beanie|sunglass|glasses)/i, top: 0.09 },
-  { re: /(jacket|coat|blazer|hoodie|cardigan|outerwear|vest|parka)/i, top: 0.33, left: 0.28 },
-  { re: /(shirt|tee|tshirt|t-shirt|top|blouse|sweater|knit|polo|tank|dress|jersey)/i, top: 0.33 },
-  { re: /(jean|trouser|pant|short|skirt|chino|legging|bottom|slack)/i, top: 0.58 },
-  { re: /(shoe|sneaker|boot|heel|sandal|loafer|trainer|footwear)/i, top: 0.83 },
-  { re: /(bag|tote|backpack|purse|clutch)/i, top: 0.52, left: 0.76 },
-  { re: /(belt|watch|scarf|jewel|necklace|ring|glove|tie)/i, top: 0.46, left: 0.24 },
+const prefersReducedMotion = () =>
+  typeof window !== "undefined" &&
+  window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * Three fields, built from `--accent` at low ELEMENT opacity rather than from
+ * `--accent-soft`. In the light theme `--accent-soft` is #e8efe2 against a #f3f1ed
+ * surface — a four-value difference, which rendered as a blank card on a phone. Opacity
+ * on the element avoids needing colour-mix inside the gradient stops.
+ *
+ * The durations are deliberately co-prime: 7.3 / 9.1 / 11.7 seconds only realign after
+ * minutes, so across a 27-second wait the composition never visibly repeats. That is
+ * what keeps a loop from reading as a loop.
+ */
+const FIELDS = [
+  { css: "radial-gradient(46% 34% at 30% 30%, var(--accent) 0%, transparent 68%)", op: 0.26, ms: 7300, rev: false },
+  { css: "radial-gradient(38% 30% at 72% 58%, var(--accent) 0%, transparent 70%)", op: 0.17, ms: 9100, rev: true },
+  { css: "radial-gradient(30% 24% at 52% 82%, var(--accent) 0%, transparent 72%)", op: 0.13, ms: 11700, rev: false },
 ];
 
-/**
- * Anatomical placement from the garment label, falling back to an even spread.
- *
- * A wrong slot here costs nothing — it is decorative, unlike the face crop, where a
- * wrong guess corrupts the render. So a cheap heuristic is the right trade, and the
- * fallback keeps unlabelled pieces evenly distributed rather than stacked.
- */
-function place(label: string | undefined, i: number, n: number): { top: number; left: number } {
-  const hit = label ? SLOTS.find((s) => s.re.test(label)) : undefined;
-  if (hit) return { top: hit.top, left: hit.left ?? 0.5 };
-  return { top: 0.3 + (n === 1 ? 0.2 : (i / Math.max(1, n - 1)) * 0.5), left: 0.5 };
-}
-
-const FIRST_LAND_MS = 1_200;
-/** Median measured render. Past this, stop implying it's nearly done. */
-const TYPICAL_MS = 21_000;
-/** The bar's ceiling — it must never read as finished while we're still waiting. */
-const CEILING = 0.93;
-
-/**
- * Pieces are paced ACROSS the wait, not rushed at the start.
- *
- * The first version landed all of them inside ~2s and then held one unchanging label
- * for the remaining nineteen — which is a spinner with extra steps. Spreading them out
- * keeps something genuinely new happening deep into the wait, and each landing is a
- * true statement: that piece is in the request.
- */
-function staggerFor(n: number): number {
-  if (n <= 1) return 0;
-  return Math.min(3_200, Math.max(1_100, (TYPICAL_MS * 0.6) / n));
-}
-
 export function TryOnLoading({
-  subject,
+  progress,
   garments,
 }: {
-  /** The user's photo, or null when rendering a generic model. */
-  subject: string | null;
+  progress: TryOnProgress;
   garments: TryOnGarment[];
 }) {
-  const [elapsed, setElapsed] = useState(0);
-
-  useEffect(() => {
-    const started = Date.now();
-    // setState from an interval callback, not the effect body — the repo's
-    // react-hooks/set-state-in-effect rule is a static check on the body.
-    const id = window.setInterval(() => setElapsed(Date.now() - started), 120);
-    return () => window.clearInterval(id);
-  }, []);
-
-  const shown = garments.slice(0, 5);
-  const stagger = staggerFor(shown.length);
-  const landedCount = shown.filter((_, i) => elapsed >= FIRST_LAND_MS + i * stagger).length;
-  const allLanded = landedCount >= shown.length;
-  const lastLandAt = FIRST_LAND_MS + Math.max(0, shown.length - 1) * stagger;
-
-  // Ease toward the ceiling, decelerating — fast early progress then a long tail is
-  // how waits actually feel, and it means the bar is still visibly moving at 15s.
-  const t = Math.min(1, elapsed / TYPICAL_MS);
-  const pct = Math.round((1 - Math.pow(1 - t, 2.2)) * CEILING * 100);
-
-  const phase = !subject
-    ? allLanded
-      ? "Lighting the scene"
-      : "Setting up the model"
-    : elapsed < FIRST_LAND_MS
-      ? "Reading your photo"
-      : elapsed > TYPICAL_MS + 9_000
-        ? "Still working — this one's slow"
-        : allLanded
-          ? "Lighting the scene"
-          : `Fitting the ${shown[Math.max(0, landedCount - 1)]?.label ?? "piece"}`;
+  const { phase, pct } = progress;
+  const still = prefersReducedMotion();
 
   return (
-    <div className="absolute inset-0 overflow-hidden">
-      {/* The input, plainly marked as such: blurred, desaturated and dark enough that
-          nobody could mistake it for the finished render. */}
-      {subject ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={subject}
-          alt=""
-          aria-hidden
-          className="absolute inset-0 h-full w-full scale-105 object-cover opacity-40 blur-[6px] saturate-[0.6]"
-        />
-      ) : (
-        <div className="absolute inset-0 bg-gradient-to-b from-surface-2 to-surface" />
-      )}
-
-      {/* Pieces landing on the body.
-          The closet's garment images are ghost-mannequin cutouts on OPAQUE WHITE
-          (`beautifiedImageUrl`), so laid over the photo they first rendered as a stack
-          of white cards — it looked like a bug.
-          `mix-blend-multiply` fixed that and was wrong: multiply darkens by luminance,
-          so it erases pale garments along with the background. A cream sneaker went
-          almost invisible in testing, and a white shirt would disappear completely.
-          A radial mask instead fades each image's edges, so the white background
-          dissolves into the blurred photo while every garment — pale ones included —
-          keeps its own colour. */}
-      {shown.map((g, i) => {
-        const { top, left } = place(g.label, i, shown.length);
-        if (elapsed < FIRST_LAND_MS + i * stagger) return null;
-        return (
+    <div className="absolute inset-0 overflow-hidden bg-surface-2">
+      {/* Blurred hard enough that no gradient edge is ever visible. */}
+      <div className="absolute inset-0" style={{ filter: "blur(18px)" }}>
+        {FIELDS.map((f, i) => (
           <div
             key={i}
-            className="absolute aspect-[4/5] w-[21%] -translate-x-1/2 -translate-y-1/2"
-            style={{ left: `${left * 100}%`, top: `${top * 100}%` }}
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={g.image}
-              alt=""
-              aria-hidden
-              className="animate-tryon-land h-full w-full object-contain [mask-image:radial-gradient(closest-side,#000_62%,transparent_90%)]"
-            />
-          </div>
-        );
-      })}
+            className={`absolute -inset-1/4 ${still ? "" : "animate-tryon-drift"}`}
+            style={{
+              background: f.css,
+              opacity: f.op,
+              animationDuration: `${f.ms}ms`,
+              animationDirection: f.rev ? "reverse" : "normal",
+            }}
+          />
+        ))}
+      </div>
 
-      {/* Develop sweep — only once the pieces are on, so the two motions never
-          compete for attention. */}
-      {elapsed > lastLandAt + 260 && (
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="animate-tryon-sweep h-1/3 w-full bg-gradient-to-b from-transparent via-white/25 to-transparent" />
-        </div>
-      )}
-
-      {/* Caption. Bottom-anchored over a scrim so it stays legible against any photo
-          (apple-design §12: vibrancy over changing backgrounds — put contrast on a
-          solid-ish layer rather than trusting grey text). */}
-      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/65 via-black/35 to-transparent px-4 pb-3 pt-10">
-        <p
-          aria-live="polite"
-          className="text-center text-[13px] font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]"
-        >
+      {/* Caption, CENTRED rather than bottom-anchored. A caption belongs at the foot of
+          a picture, and there is no picture here — bottom-anchored it left a tall empty
+          plate with a line of type fallen to the floor. No scrim: nothing sits behind
+          it, and a dark capsule on a stone ground would read as a foreign chip. */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center px-4">
+        <p aria-live="polite" className="text-center text-[12px] font-medium text-foreground">
           {phase}
         </p>
-        <div className="mx-auto mt-2 h-[3px] w-2/3 overflow-hidden rounded-full bg-white/25">
+        {/* Progress as a hairline in the accent — how the app already draws emphasis. */}
+        <div className="mt-2.5 h-px w-24 overflow-hidden rounded-full bg-line">
           <div
-            className="h-full rounded-full bg-white/90 transition-[width] duration-200 ease-linear"
+            className="h-full bg-accent transition-[width] duration-200 ease-linear"
             style={{ width: `${pct}%` }}
           />
         </div>
       </div>
+
+      <span className="sr-only">
+        Generating a try-on with {garments.length} piece{garments.length === 1 ? "" : "s"}.
+      </span>
     </div>
   );
 }
