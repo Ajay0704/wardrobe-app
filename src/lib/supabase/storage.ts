@@ -198,3 +198,101 @@ export async function resolveImageSource(
   }
   return blobToDataUrl(blob);
 }
+
+/** The four slots an item can hold an uploaded image in. */
+const IMAGE_FIELDS = [
+  "imageUrl",
+  "beautifiedImageUrl",
+  "beautifyWhiteUrl",
+  "cutoutImageUrl",
+] as const;
+
+/**
+ * The bucket path inside a public wardrobe-images URL, or null for anything else
+ * (a data: URL, a remote product image, a URL for a different bucket).
+ */
+export function bucketPathFromUrl(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  const marker = `/${BUCKET}/`;
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  const raw = url.slice(i + marker.length).split("?")[0];
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/** Every wardrobe-images path an item points at, deduped. */
+export function itemImagePaths(item: Record<string, unknown>): string[] {
+  const out = new Set<string>();
+  for (const f of IMAGE_FIELDS) {
+    const p = bucketPathFromUrl(item[f]);
+    if (p) out.add(p);
+  }
+  return [...out];
+}
+
+/**
+ * AJA-283 — remove an item's uploaded images when the item goes.
+ *
+ * `deleteItem` only ever touched the record, and no caller cleaned up after it, so every
+ * deleted piece left its blob behind: measured at 890 orphans / 509 MB on a real account
+ * against 547 live images. `wardrobe-images` is PUBLIC (share links serve from it), so an
+ * orphan stays fetchable by URL to anyone who had one — this is not only wasted storage.
+ *
+ * Best-effort and non-throwing, exactly like `deletePrivateImage`: losing a blob must
+ * never block the delete the user asked for.
+ *
+ * Two guards, both load-bearing:
+ *  - ownership — only paths inside `${userId}/`, compared SEGMENT-wise, so a bucket path
+ *    beginning `<uid>x/` can never be swept by user `<uid>`.
+ *  - sharing — a path still referenced by any surviving item is skipped. Duplicated items
+ *    and re-imports can point two records at one upload, and deleting one of them must
+ *    not blank the other.
+ */
+export async function deleteItemImages(
+  item: Record<string, unknown>,
+  userId: string | null,
+  survivingItems: ReadonlyArray<Record<string, unknown>>,
+): Promise<void> {
+  if (!userId) return;
+  const supabase = getSupabase();
+  if (!supabase) return;
+
+  const doomed = orphanedItemPaths(item, userId, survivingItems);
+  if (!doomed.length) return;
+  try {
+    await supabase.storage.from(BUCKET).remove(doomed);
+  } catch {
+    // Best effort — the record is already gone and a retry has nowhere to run.
+  }
+}
+
+/**
+ * Which of an item's image paths are safe to remove — the whole decision, pure and
+ * testable, so the two guards below are covered without a Storage client.
+ *
+ *  - OWNERSHIP: the first path segment must equal `userId`. Compared segment-wise, not
+ *    with startsWith, or a path under `<uid>x/` would be swept by user `<uid>`.
+ *  - SHARING: a path any surviving item still points at is kept. Duplicated items and
+ *    re-imports can point two records at one upload, and deleting one must not blank
+ *    the other.
+ */
+export function orphanedItemPaths(
+  item: Record<string, unknown>,
+  userId: string | null,
+  survivingItems: ReadonlyArray<Record<string, unknown>>,
+): string[] {
+  if (!userId) return [];
+  const stillUsed = new Set<string>();
+  for (const other of survivingItems) {
+    if (!other || other.id === item.id) continue;
+    for (const p of itemImagePaths(other)) stillUsed.add(p);
+  }
+  return itemImagePaths(item).filter(
+    (p) => p.slice(0, p.indexOf("/")) === userId && !stillUsed.has(p),
+  );
+}

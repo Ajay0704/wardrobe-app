@@ -16,7 +16,8 @@
     "test:storage": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-private-storage.mts",
     "test:render": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-outfit-render.mts",
     "test:tryon-photo": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-tryon-photo.mts",
-    "test:face": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-face-crop.mts"
+    "test:face": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-face-crop.mts",
+    "test:item-images": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-item-images.mts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
