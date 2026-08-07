@@ -404,7 +404,20 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     }, 0);
   };
 
+  /**
+   * Item ids the USER put on the board — not the ones the engine laid out.
+   *
+   * AJA-282: Surprise me pins the board so it stops destroying your work, but pinning
+   * EVERYTHING makes it a no-op in the one flow that matters. "Style it" leaves three
+   * pieces on the board: your wish piece plus a bottom and shoes the engine chose. Pin
+   * all three and there is nothing left to vary, so re-rolling returns the same look
+   * and the slate collapses to one entry (the chips disappear). Measured exactly that
+   * in the harness. Only deliberate placements anchor; engine picks stay free.
+   */
+  const anchorIdsRef = useRef<Set<string>>(new Set());
+
   const addPiece = (itemId: string) => {
+    anchorIdsRef.current.add(itemId);
     if (collab) setSelectedId(collab.add(itemId));
     else {
       addCanvasItem(itemId);
@@ -594,7 +607,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
      * Every placed piece is now pinned, so re-rolling varies what SUPPORTS it. To get
      * an unconstrained look, clear the board first — that path is unchanged.
      */
-    const anchors = boardItems();
+    const anchors = boardItems().filter((i) => anchorIdsRef.current.has(i.id));
     if (!buildLook(anchors)) {
       flash("Add clothes to your closet first");
       return;
@@ -610,28 +623,37 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
   // then consume it once. Never in a shared session: that board isn't yours.
   const pendingStyleItemId = useWardrobe((s) => s.pendingStyleItemId);
   const clearPendingStyleItem = useWardrobe((s) => s.clearPendingStyleItem);
+  // Which queued id this component has already acted on. Guards against scheduling
+  // twice if another dep changes in the same tick before the clear lands.
+  const styledRef = useRef<string | null>(null);
   useEffect(() => {
     if (collab || !pendingStyleItemId || !board.w) return;
+    if (styledRef.current === pendingStyleItemId) return;
+    styledRef.current = pendingStyleItemId;
     const anchor = trayItems.find((it) => it.id === pendingStyleItemId);
     clearPendingStyleItem();
     if (!anchor) return;
+    // The wish piece is the only thing pinned; everything the engine adds around it
+    // stays re-rollable, which is the whole point of "what else does it go with".
+    anchorIdsRef.current = new Set([anchor.id]);
     /**
      * AJA-282 — publish the slate, so the three looks around this piece are reachable.
+     * `buildAndPlace` sets `slateRef` but never `setSlate`, so Best match / Different /
+     * Wildcard were computed and then hidden. `buildLook` does both, but it reaches
+     * setState and `react-hooks/set-state-in-effect` is a STATIC rule — it flags any
+     * call site that can transitively reach setState, guards or not. A timer callback
+     * is not the effect body, so it is reachable from here.
      *
-     * This used to call `buildAndPlace` directly, which sets `slateRef` but never
-     * `setSlate`: the engine produced Best match / Elevated / Wildcard around your wish
-     * piece and the canvas showed one and hid the other two. "What else does it go
-     * with" was already computed and then thrown away.
-     *
-     * It called `buildAndPlace` to dodge `react-hooks/set-state-in-effect`, which is a
-     * STATIC rule — it flags any call site that can transitively reach setState, guards
-     * or not. A timer callback is not the effect body, so `buildLook` is reachable from
-     * here; the same escape the try-on clock uses.
+     * DELIBERATELY NO CLEANUP, and this is the whole reason "Style it" broke once:
+     * returning `() => clearTimeout(id)` is the tidy-looking thing and it cancels the
+     * work. `clearPendingStyleItem()` three lines up mutates a DEPENDENCY of this
+     * effect, so React re-runs it immediately — running the cleanup first — and the
+     * 0ms timer dies before it ever fires. The effect cancelled itself, and the board
+     * stayed empty. `styledRef` is what makes dropping the cleanup safe.
      */
-    const id = window.setTimeout(() => buildLook([anchor]), 0);
-    return () => window.clearTimeout(id);
+    window.setTimeout(() => buildLook([anchor]), 0);
     // buildLook is re-created every render; re-runs are harmless because the queue is
-    // cleared above, and the guard makes every later pass a no-op.
+    // cleared above and styledRef makes every later pass a no-op.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collab, pendingStyleItemId, board.w, trayItems, clearPendingStyleItem]);
   const addText = () => {
