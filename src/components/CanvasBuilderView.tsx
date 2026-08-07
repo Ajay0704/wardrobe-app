@@ -497,7 +497,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
    * already produced these; the canvas was discarding two of them along with
    * every "why this" line.
    */
-  const buildAndPlace = (anchor?: WardrobeItem): SlateEntry[] => {
+  const buildAndPlace = (anchors: WardrobeItem[] = []): SlateEntry[] => {
     const owned = trayItems.filter((it) => !it.wishlist && it.imageUrl);
     // AJA-258 — one resolver decides what "right now" means. In auto mode this is
     // exactly the old behaviour (cached weather + the quiz occasion); in manual mode
@@ -510,7 +510,7 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
       profile.styleOccasions?.[0],
     );
     const looks = suggestLooks(owned, {
-      ...(anchor ? { anchor } : {}),
+      ...(anchors.length ? { anchors } : {}),
       weather: ctx.weather,
       season: ctx.season,
       vibe: ctx.vibe ?? (primaryStyleVibe(profile) || undefined),
@@ -518,7 +518,10 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
       taste: readTaste(),
       count: 3,
     });
-    const pool = anchor ? [anchor, ...owned] : owned;
+    // Anchors are resolved from the pool too — a wishlist piece is a legitimate anchor
+    // but is deliberately absent from `owned`, so without this the look comes back
+    // missing the very item it was built around.
+    const pool = anchors.length ? [...anchors, ...owned] : owned;
     const resolved = looks
       .map((look) => ({
         picks: look.itemIds
@@ -555,8 +558,8 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
    * transitively reach setState regardless of runtime guards. The "Style it"
    * effect calls buildAndPlace directly for exactly that reason.
    */
-  const buildLook = (anchor?: WardrobeItem): boolean => {
-    const resolved = buildAndPlace(anchor);
+  const buildLook = (anchors: WardrobeItem[] = []): boolean => {
+    const resolved = buildAndPlace(anchors);
     if (!resolved.length) return false;
     setSlate(resolved);
     setSlateIdx(slateIdxRef.current);
@@ -581,7 +584,18 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // no longer worth interrupting anyone over (AJA-262). Must run BEFORE buildLook,
     // which replaces the slate this refers to.
     if (isUntouchedSlate()) rerolled();
-    if (!buildLook()) {
+    /**
+     * AJA-282 — build AROUND what is already on the board rather than replacing it.
+     *
+     * `placeLook` ends in `replaceNodes`, so Surprise me used to wipe the canvas. The
+     * worst version of that: "Style it" on a wish piece put it on the board, and the
+     * very next tap of Surprise me deleted the thing you were styling — with the piece
+     * unreachable afterwards, since `owned` filters wishlist items out of the pool.
+     * Every placed piece is now pinned, so re-rolling varies what SUPPORTS it. To get
+     * an unconstrained look, clear the board first — that path is unchanged.
+     */
+    const anchors = boardItems();
+    if (!buildLook(anchors)) {
       flash("Add clothes to your closet first");
       return;
     }
@@ -600,7 +614,22 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     if (collab || !pendingStyleItemId || !board.w) return;
     const anchor = trayItems.find((it) => it.id === pendingStyleItemId);
     clearPendingStyleItem();
-    if (anchor) buildAndPlace(anchor);
+    if (!anchor) return;
+    /**
+     * AJA-282 — publish the slate, so the three looks around this piece are reachable.
+     *
+     * This used to call `buildAndPlace` directly, which sets `slateRef` but never
+     * `setSlate`: the engine produced Best match / Elevated / Wildcard around your wish
+     * piece and the canvas showed one and hid the other two. "What else does it go
+     * with" was already computed and then thrown away.
+     *
+     * It called `buildAndPlace` to dodge `react-hooks/set-state-in-effect`, which is a
+     * STATIC rule — it flags any call site that can transitively reach setState, guards
+     * or not. A timer callback is not the effect body, so `buildLook` is reachable from
+     * here; the same escape the try-on clock uses.
+     */
+    const id = window.setTimeout(() => buildLook([anchor]), 0);
+    return () => window.clearTimeout(id);
     // buildLook is re-created every render; re-runs are harmless because the queue is
     // cleared above, and the guard makes every later pass a no-op.
     // eslint-disable-next-line react-hooks/exhaustive-deps

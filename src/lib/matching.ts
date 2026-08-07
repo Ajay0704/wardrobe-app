@@ -26,8 +26,15 @@ export interface WeatherContext {
 }
 
 export interface GenerateOptions {
-  /** Anchor the outfit around this item (always included). */
-  anchor?: WardrobeItem;
+  /**
+   * Pin these items into every look (always included, never re-drawn).
+   *
+   * Anchors bypass the `!wishlist` pool filter on purpose: that filter exists to stop
+   * the engine SUGGESTING something you don't own, not to stop you pinning a piece
+   * you're considering. "Style it" on a wish card and Surprise me around whatever is
+   * already on the canvas both depend on that (AJA-282).
+   */
+  anchors?: WardrobeItem[];
   /** Prefer items carrying this tag/vibe ("casual", "work", ...). */
   vibe?: string;
   /** Prefer items suitable for this season. */
@@ -163,7 +170,8 @@ function suggestLooksV2(
 ): ScoredLook[] {
   const random = opts.random ?? Math.random;
   const pool = items.filter((it) => !it.wishlist && it.imageUrl);
-  if (pool.length < 2 && !opts.anchor) return [];
+  const anchors = opts.anchors ?? [];
+  if (pool.length < 2 && !anchors.length) return [];
 
   const ctx: OutfitContext = {
     season: opts.weather?.season ?? opts.season,
@@ -206,14 +214,29 @@ function suggestLooksV2(
     const place = (it: WardrobeItem | null) => {
       if (it && !picked.some((p) => p.id === it.id)) picked.push(it);
     };
-    if (opts.anchor) place(opts.anchor);
-    const hasCore = picked.some((p) => p.category === "dress") ||
-      (picked.some((p) => p.category === "top") && picked.some((p) => p.category === "bottom"));
-    if (!hasCore) {
-      if ((byCat.get("dress")?.length ?? 0) > 0 && random() < 0.2) place(pick("dress"));
-      else { place(pick("top")); place(pick("bottom")); }
+    for (const a of anchors) place(a);
+    /**
+     * Fill only the core slots the anchors have left empty.
+     *
+     * AJA-282: this used to test `hasCore = dress || (top && bottom)` and, when false,
+     * draw BOTH a top and a bottom. Anchor a top and that is false — there is no
+     * bottom yet — so it drew a second top. `place()` dedupes by id, not by category,
+     * so the look was scored with two tops and `placeLook` then rendered only
+     * `bySlot.top[0]`, silently dropping a piece the outfit had been judged on. Same
+     * for a bottom anchor. Shoes anchors happened to escape it.
+     */
+    const has = (c: string) => picked.some((p) => p.category === c);
+    if (!has("dress")) {
+      // A dress can only be drawn when nothing already occupies the core — otherwise
+      // an anchored top would end up under a dress.
+      if (!has("top") && !has("bottom") && (byCat.get("dress")?.length ?? 0) > 0 && random() < 0.2) {
+        place(pick("dress"));
+      } else {
+        if (!has("top")) place(pick("top"));
+        if (!has("bottom")) place(pick("bottom"));
+      }
     }
-    if (!picked.some((p) => p.category === "shoes")) place(pick("shoes"));
+    if (!has("shoes")) place(pick("shoes"));
     // Outerwear only when the weather earns it (v1 fires on random() < 0.45).
     if (wantsCoat && !picked.some((p) => p.category === "outerwear") && random() < 0.6) {
       place(pick("outerwear"));

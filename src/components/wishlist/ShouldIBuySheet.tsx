@@ -5,6 +5,7 @@ import { useMemo } from "react";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { logDecision, type DecisionOutcome } from "@/lib/decisions";
 import { closetAvgCostPerWear } from "@/lib/insights";
+import { suggestLooks } from "@/lib/matching";
 import { analyzeSmartBuy } from "@/lib/smart-buy";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -59,6 +60,23 @@ function Body({
     [item, items, styleVibes],
   );
   const closetAvg = useMemo(() => closetAvgCostPerWear(items), [items]);
+  /**
+   * AJA-282 — real outfits, not a multiplication.
+   *
+   * `analysis.newOutfits` is `core * shoeMult`: every complementary piece that clears a
+   * COLOUR threshold, multiplied by every pair of shoes. Nothing in that ever asks
+   * whether the combination is wearable, so a knit that `rejectOutfit` would throw out
+   * of a July look still counted, and the sheet cheerfully promised "around 24 new
+   * outfits". Ask the engine that actually decides instead, anchored on this piece.
+   *
+   * Runs once per sheet open, on one item — the grid's per-card verdict deliberately
+   * keeps the cheap colour heuristic, because `wishVerdict` runs for every wish on
+   * every render and a sampler there would be felt.
+   */
+  const looks = useMemo(
+    () => suggestLooks(items, { anchors: [item], count: 3, candidates: 40 }),
+    [item, items],
+  );
   const totals = useMemo(
     () => planTotals(items.filter((it) => it.wishlist), plan?.budget ?? 0),
     [items, plan?.budget],
@@ -118,24 +136,42 @@ function Body({
               ))}
             </div>
           </Fact>
+        ) : looks.length === 0 ? (
+          <Fact
+            icon={<Sparkles size={16} />}
+            tone="warn"
+            title="Nothing you own completes an outfit with this yet"
+            detail={
+              analysis.pairsWith.length > 0
+                ? `${analysis.pairsWith.length} piece${analysis.pairsWith.length === 1 ? "" : "s"} match on colour, but none of them make a full look with it.`
+                : "You'd need something else to wear it with."
+            }
+          />
         ) : (
           <Fact
             icon={<Sparkles size={16} />}
-            title={
-              analysis.pairsWith.length === 0
-                ? "Nothing in your closet pairs with it yet"
-                : `Works with ${analysis.pairsWith.length} piece${
-                    analysis.pairsWith.length === 1 ? "" : "s"
-                  } you own`
-            }
-            detail={
-              analysis.pairsWith.length === 0
-                ? "You'd need something else to wear it with."
-                : `Around ${analysis.newOutfits} new outfit${
-                    analysis.newOutfits === 1 ? "" : "s"
-                  } out of pieces you already have.`
-            }
-          />
+            title={`Wears ${looks.length} way${looks.length === 1 ? "" : "s"} with what you own`}
+            detail="Built by the same engine as Surprise me, so these are looks it would actually put together."
+          >
+            <div className="mt-2 space-y-1.5">
+              {looks.map((look, i) => (
+                <div key={i} className="flex gap-1.5">
+                  {look.items.map((o) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={o.id}
+                      src={o.imageUrl}
+                      alt={o.name}
+                      title={o.name}
+                      className={`h-12 w-10 rounded-md border object-cover ${
+                        o.id === item.id ? "border-accent" : "border-line"
+                      }`}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </Fact>
         )}
 
         {plan && item.price !== undefined && (
