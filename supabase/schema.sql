@@ -82,6 +82,23 @@ create policy "Users upload own wardrobe images"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+-- AJA-283. Deleting an item used to leave its image behind forever, and the app-side
+-- sweep that was supposed to fix that could not work: there was no delete policy on
+-- this bucket at all, so every client `remove()` was refused. Silently — Supabase
+-- returns an error object rather than throwing, and best-effort cleanup ignored it.
+-- Measured 890 orphans / 509 MB on one account before the backlog was reclaimed.
+--
+-- Scoped exactly like the insert policy above: this bucket, the caller's own folder.
+-- Public READ stays public, which is the point of the bucket; only the owner may
+-- delete.
+drop policy if exists "Users delete own wardrobe images" on storage.objects;
+create policy "Users delete own wardrobe images"
+  on storage.objects for delete to authenticated
+  using (
+    bucket_id = 'wardrobe-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
 -- ---------------------------------------------------------------------------
 -- Share Closet — public ask-friends links + guest replies
 -- ---------------------------------------------------------------------------
@@ -163,9 +180,9 @@ create policy "Users upload own renders"
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
--- A new capability: `wardrobe-images` has NO delete policy, so clients cannot
--- remove their own objects there at all. Body imagery needs a user-driven wipe,
--- so grant delete — scoped to this bucket and the caller's own folder only.
+-- Body imagery needs a user-driven wipe, so grant delete — scoped to this bucket and
+-- the caller's own folder only. (`wardrobe-images` gained the equivalent policy in
+-- AJA-283; before that neither bucket allowed a client to delete anything.)
 drop policy if exists "Users delete own renders" on storage.objects;
 create policy "Users delete own renders"
   on storage.objects for delete to authenticated

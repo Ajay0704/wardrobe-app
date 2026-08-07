@@ -265,9 +265,16 @@ export async function deleteItemImages(
   const doomed = orphanedItemPaths(item, userId, survivingItems);
   if (!doomed.length) return;
   try {
-    await supabase.storage.from(BUCKET).remove(doomed);
-  } catch {
-    // Best effort — the record is already gone and a retry has nowhere to run.
+    const { error } = await supabase.storage.from(BUCKET).remove(doomed);
+    // NEVER swallow this. The first version of this function ignored the result and
+    // shipped against a bucket that had NO delete policy, so every call was refused by
+    // RLS and the sweep did nothing at all — invisibly, because supabase-js returns an
+    // error object here rather than throwing. Two deletions on device produced eight
+    // fresh orphans and a completely clean console. Still best-effort (the record is
+    // already gone and a retry has nowhere to run), but never silent again.
+    if (error) console.warn(`[storage] could not remove ${doomed.length} image(s):`, error.message);
+  } catch (err) {
+    console.warn("[storage] image cleanup threw:", err);
   }
 }
 
