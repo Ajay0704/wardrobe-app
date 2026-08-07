@@ -266,15 +266,20 @@ export async function deleteItemImages(
   if (!doomed.length) return;
   try {
     const { error } = await supabase.storage.from(BUCKET).remove(doomed);
-    // NEVER swallow this. The first version of this function ignored the result and
-    // shipped against a bucket that had NO delete policy, so every call was refused by
-    // RLS and the sweep did nothing at all — invisibly, because supabase-js returns an
-    // error object here rather than throwing. Two deletions on device produced eight
-    // fresh orphans and a completely clean console. Still best-effort (the record is
-    // already gone and a retry has nowhere to run), but never silent again.
-    if (error) console.warn(`[storage] could not remove ${doomed.length} image(s):`, error.message);
+    // NEVER swallow this. The first version ignored the result and shipped against a
+    // bucket that had NO delete policy, so every call was refused by RLS and the sweep
+    // did nothing at all — invisibly, because supabase-js returns an error object here
+    // rather than throwing. Two deletions on device produced eight fresh orphans and a
+    // clean console.
+    //
+    // console.ERROR, not warn: next.config.ts sets `removeConsole: { exclude: ["error"] }`,
+    // so warn/log are stripped from production bundles. The first attempt at this fix
+    // used warn and was therefore just as silent in production as the bug it replaced —
+    // caught by grepping the deployed chunks for the string, which was not there.
+    // Still best-effort (the record is already gone and a retry has nowhere to run).
+    if (error) console.error(`[storage] could not remove ${doomed.length} image(s):`, error.message);
   } catch (err) {
-    console.warn("[storage] image cleanup threw:", err);
+    console.error("[storage] image cleanup threw:", err);
   }
 }
 
