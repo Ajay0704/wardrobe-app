@@ -1,4 +1,4 @@
-import { getSupabase } from "./client";
+import { authHeaders, getSupabase } from "./client";
 
 const BUCKET = "wardrobe-images";
 
@@ -252,6 +252,14 @@ export function itemImagePaths(item: Record<string, unknown>): string[] {
  *  - sharing — a path still referenced by any surviving item is skipped. Duplicated items
  *    and re-imports can point two records at one upload, and deleting one of them must
  *    not blank the other.
+ *
+ * AJA-284: the deletion itself moved SERVER-side. `orphanedItemPaths` only ever asked
+ * "does another ITEM use this?", but `styling_session_items`, `shared_closet_items` and
+ * `messages.payload` deliberately snapshot the item's image URL so a friend can see it
+ * without reading the owner's private snapshot — 175 of ~550 live images on a real
+ * account. Removing the blob left a permanently broken image in someone else's chat.
+ * The client cannot check those tables (RLS hides other users' rows) so it proposes
+ * candidates and the route decides. This call is now a PRE-FILTER, not the deletion.
  */
 export async function deleteItemImages(
   item: Record<string, unknown>,
@@ -259,26 +267,41 @@ export async function deleteItemImages(
   survivingItems: ReadonlyArray<Record<string, unknown>>,
 ): Promise<void> {
   if (!userId) return;
-  const supabase = getSupabase();
-  if (!supabase) return;
 
-  const doomed = orphanedItemPaths(item, userId, survivingItems);
-  if (!doomed.length) return;
+  const candidates = orphanedItemPaths(item, userId, survivingItems);
+  if (!candidates.length) return;
   try {
-    const { error } = await supabase.storage.from(BUCKET).remove(doomed);
-    // NEVER swallow this. The first version ignored the result and shipped against a
-    // bucket that had NO delete policy, so every call was refused by RLS and the sweep
+    const res = await fetch("/api/items/sweep-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      // itemId matters: this fires before the snapshot push lands, so without it the
+      // server still sees this item owning these paths and keeps every one of them.
+      body: JSON.stringify({ itemId: item.id, paths: candidates }),
+    });
+    // NEVER swallow this. The first version of the sweep ignored the result and shipped
+    // against a bucket that had NO delete policy, so every call was refused by RLS and
     // did nothing at all — invisibly, because supabase-js returns an error object here
     // rather than throwing. Two deletions on device produced eight fresh orphans and a
     // clean console.
     //
     // console.ERROR, not warn: next.config.ts sets `removeConsole: { exclude: ["error"] }`,
-    // so warn/log are stripped from production bundles. The first attempt at this fix
-    // used warn and was therefore just as silent in production as the bug it replaced —
-    // caught by grepping the deployed chunks for the string, which was not there.
-    // Still best-effort (the record is already gone and a retry has nowhere to run).
-    if (error) console.error(`[storage] could not remove ${doomed.length} image(s):`, error.message);
+    // so warn/log are stripped from production bundles. An earlier attempt used warn and
+    // was therefore just as silent in production as the bug it replaced — caught by
+    // grepping the deployed chunks for the string, which was not there.
+    if (!res.ok) {
+      console.error(`[storage] image sweep failed (${res.status}) for ${candidates.length} path(s)`);
+      return;
+    }
+    const out = (await res.json()) as { ok?: boolean; removed?: number; notes?: string[] };
+    // ok:false means the server could not prove the blobs are unreferenced, so it kept
+    // them deliberately. Not a user-facing failure — the reclaim script collects later.
+    if (out.ok === false) {
+      console.error("[storage] image sweep incomplete, kept everything:", out.notes?.join("; "));
+    }
   } catch (err) {
+    // Offline or route unreachable. Deliberately do NOT fall back to a direct
+    // storage.remove(): that path is exactly what breaks a shared closet or a chat
+    // thread, and a lingering blob is the recoverable half of the trade.
     console.error("[storage] image cleanup threw:", err);
   }
 }
