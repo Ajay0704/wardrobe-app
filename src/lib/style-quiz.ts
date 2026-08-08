@@ -146,18 +146,35 @@ export function styleSnapshotBlurb(
   return [goalHint ? `${goalHint}.` : null, occ].filter(Boolean).join(" ");
 }
 
-export function applyQuizToProfile(input: {
+export interface QuizInput {
   goal?: StyleGoal;
   occasions: StyleOccasion[];
   lean?: StyleLean;
-}): {
+}
+
+export interface QuizProfilePatch {
   styleGoal?: StyleGoal;
   styleOccasions?: StyleOccasion[];
   styleLean?: StyleLean;
   styleVibes?: string[];
   styleSnapshot?: string;
-  onboardingComplete: true;
-} {
+}
+
+/**
+ * The quiz answers alone — deliberately WITHOUT `onboardingComplete`.
+ *
+ * This split exists because merging the two broke onboarding outright. The quiz used to end the
+ * flow, so `applyQuizToProfile` hard-coded `onboardingComplete: true`. AJA-279 then reused it to
+ * persist answers at the snapshot -> demo hand-off, so that a user abandoning mid-capture would
+ * keep them. But `AppShell` gates the whole modal on `!profile.onboardingComplete`, so writing the
+ * flag there unmounted onboarding mid-transition: tapping "Show me how it works" dropped the user
+ * on Explore, and FirstLookGame, FirstSixCapture, FirstOutfit and MorningAsk became unreachable —
+ * the entire payoff of AJA-277 and AJA-279, shipped and never running.
+ *
+ * So: saving answers and finishing onboarding are now two different things, and the type system
+ * says so. Anything that wants the user to STAY in the flow calls this.
+ */
+export function quizProfilePatch(input: QuizInput): QuizProfilePatch {
   const styleVibes = vibesFromQuiz(input.occasions, input.lean);
   return {
     styleGoal: input.goal,
@@ -169,6 +186,15 @@ export function applyQuizToProfile(input: {
       input.occasions,
       input.lean,
     ),
-    onboardingComplete: true,
   };
+}
+
+/**
+ * The quiz answers AND the end of onboarding. Only for the last step of the flow — calling this
+ * anywhere the user is meant to keep going closes the modal out from under them.
+ */
+export function applyQuizToProfile(
+  input: QuizInput,
+): QuizProfilePatch & { onboardingComplete: true } {
+  return { ...quizProfilePatch(input), onboardingComplete: true };
 }

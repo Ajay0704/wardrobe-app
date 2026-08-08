@@ -19,7 +19,8 @@
     "test:samples": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-sample-clear.mts",
     "test:face": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-face-crop.mts",
     "test:item-images": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-item-images.mts",
-    "test:image-refs": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-image-refs.mts"
+    "test:image-refs": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-image-refs.mts",
+    "test:onboarding": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-onboarding-flow.mts"
   },
   "dependencies": {
     "@capacitor/app": "^8.1.1",
