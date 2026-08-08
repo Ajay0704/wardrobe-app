@@ -1,5 +1,6 @@
 import { safeFetch } from "@/lib/net";
 import { requireUser } from "@/lib/auth-server";
+import { detectFaceCrop } from "@/lib/face-detect-server";
 import type { TryOnScene } from "@/lib/tryon";
 import { buildTryOnPrompt } from "@/lib/tryon-prompt";
 
@@ -137,7 +138,50 @@ export async function POST(request: Request) {
   }
 
   const person = body.personImage ? await toBase64(body.personImage) : null;
-  const face = person && body.faceImage ? await toBase64(body.faceImage) : null;
+
+  /**
+   * AJA-278 — fill the `faceImage` slot.
+   *
+   * It has been wired through this route and `ID_WITH_FACE` since AJA-274 with no
+   * caller, so `ID_PHOTO_ONLY` always ran. The measured limiter on likeness is facial
+   * pixel DENSITY — a full-length reference gives the model a face at ~0.85% of frame
+   * against 30-50% guidance — and cropping the head to a square fixed that with no new
+   * pixels. So the crop is derived here from the photo we already have, rather than
+   * asking the user for a second one.
+   *
+   * Server-side and per-render rather than stored: it needs no new persistence, no new
+   * consent surface, and it works for a photo picked ad-hoc as well as a saved one.
+   * The detection result is cached per image, so changing scene doesn't pay for it again.
+   *
+   * An explicit `faceImage` from the client still wins — nothing sends one today, but
+   * it keeps the door open for a saved selfie, which is the only way to add real facial
+   * pixels rather than redistribute them.
+   */
+  let face: InlineImage | null = body.faceImage ? await toBase64(body.faceImage) : null;
+  let faceMetrics: { areaBefore: number; areaAfter: number; cropPx: number } | null = null;
+  if (person && !face) {
+    const detected = await detectFaceCrop(person, key);
+    if (detected) {
+      face = detected.crop;
+      faceMetrics = {
+        areaBefore: detected.areaBefore,
+        areaAfter: detected.areaAfter,
+        cropPx: detected.cropPx,
+      };
+    }
+  }
+  // `face` is only meaningful alongside the body reference: ID_WITH_FACE names IMAGE 2
+  // as the authority on build, and the prompt's index manifest assumes both.
+  if (!person) face = null;
+
+  if (faceMetrics) {
+    // The metric that can DISPROVE this whole approach: if likeness doesn't improve
+    // while this moves ~30x, the limiter isn't pixel density and the next suspect is
+    // prompt weighting. Logged rather than returned — it's diagnostic, not client state.
+    console.log(
+      `[tryon] face crop ${faceMetrics.cropPx}px — face area ${(faceMetrics.areaBefore * 100).toFixed(2)}% -> ${(faceMetrics.areaAfter * 100).toFixed(1)}%`,
+    );
+  }
 
   const prompt = buildTryOnPrompt({
     hasFace: Boolean(face),

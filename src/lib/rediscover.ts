@@ -72,7 +72,7 @@ export function styleWays(
   void random;
   const owned = allItems.filter((it) => !it.wishlist);
   return suggestLooks(owned, {
-    anchor,
+    anchors: [anchor],
     count,
     candidates: count * 10,
     mood: anchor.tags[0] || "everyday",

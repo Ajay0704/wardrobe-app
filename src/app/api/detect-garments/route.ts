@@ -8,6 +8,7 @@
  * Mirrors /api/analyze (raw Gemini REST, x-goog-api-key, thought-part filtering).
  */
 import { requireUser } from "@/lib/auth-server";
+import { toBox } from "@/lib/gemini-box";
 import { parseModelJson } from "@/lib/model-json";
 import { inferSubcategory } from "@/lib/subcategory";
 import { FIT_VALUES, type Category } from "@/lib/types";
@@ -59,23 +60,8 @@ function extractText(data: unknown): string {
   return parts.filter((p) => !p.thought).map((p) => p.text ?? "").join("");
 }
 
-/** Gemini box_2d is [ymin,xmin,ymax,xmax] normalized 0-1000 → {x,y,w,h} in 0-1. */
-function toBox(raw: unknown): { x: number; y: number; w: number; h: number } | null {
-  if (!Array.isArray(raw) || raw.length !== 4) return null;
-  const [ymin, xmin, ymax, xmax] = raw.map((n) => Number(n));
-  if ([ymin, xmin, ymax, xmax].some((n) => !Number.isFinite(n))) return null;
-  const x = Math.min(xmin, xmax) / 1000;
-  const y = Math.min(ymin, ymax) / 1000;
-  const w = Math.abs(xmax - xmin) / 1000;
-  const h = Math.abs(ymax - ymin) / 1000;
-  if (w <= 0.01 || h <= 0.01) return null;
-  return {
-    x: Math.max(0, Math.min(1, x)),
-    y: Math.max(0, Math.min(1, y)),
-    w: Math.max(0, Math.min(1, w)),
-    h: Math.max(0, Math.min(1, h)),
-  };
-}
+// `toBox` moved to @/lib/gemini-box when face detection needed the same conversion
+// (AJA-278). y-first, 0-1000 — two copies of that would eventually disagree.
 
 export async function POST(request: Request) {
   if (!(await requireUser(request))) {

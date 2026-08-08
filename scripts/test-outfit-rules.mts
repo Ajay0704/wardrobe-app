@@ -460,5 +460,144 @@ console.log("\n=== accessory appearance rate (AJA-256) ===");
   ok(wi.knitPct > 0, "a knit scarf IS allowed in winter (the filter is seasonal, not a ban)", `${(wi.knitPct * 100).toFixed(1)}%`);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────────
+ * AJA-282 — ANCHORED LOOKS.
+ *
+ * The bug: `hasCore` tested `dress || (top && bottom)`, so anchoring a top made it
+ * false — no bottom yet — and the fill branch drew BOTH a top and a bottom. `place()`
+ * dedupes by id, not category, so the look was scored with two tops and `placeLook`
+ * rendered only the first, silently dropping a piece the outfit had been judged on.
+ *
+ * NON-VACUITY: every "no duplicate slot" assertion is preceded by one proving looks
+ * were produced AND the anchor survived. Without that, an empty result passes all of
+ * these trivially — which is exactly how a broken anchor looks. That guard earned its
+ * keep on the first run: the fixtures had no `imageUrl`, the pool filter dropped
+ * everything, and all twelve duplicate-slot assertions "passed" against zero looks.
+ *
+ * WHICH ASSERTION ACTUALLY CATCHES THE BUG — measured by reverting the fix:
+ * only "wishlist anchor produces looks" fails. The duplicate-slot assertions pass
+ * pre-fix because `rejectOutfit` throws out a two-top look, so the duplicate never
+ * reaches the RESULTS — it just burns candidates. With a wishlist anchor it is fatal
+ * instead of wasteful: the wish piece is absent from the pool, so the redraw always
+ * lands on a DIFFERENT owned top, every candidate has two tops, every one is rejected,
+ * and the engine returns nothing at all. That is "Style it" on a wish top or bottom
+ * placing an empty board. Keep that assertion; the slot-count ones document the
+ * contract but are not the regression detector.
+ * ───────────────────────────────────────────────────────────────────────────── */
+{
+  console.log("\nAJA-282 anchored looks");
+  // imageUrl is mandatory: suggestLooksV2's pool filter drops anything without one,
+  // which is what made the first run of this block return zero looks everywhere.
+  const g = (p: Partial<WardrobeItem> & { category: Category }): WardrobeItem =>
+    ({ ...it(p), imageUrl: "x.png", seasons: [] as Season[] }) as WardrobeItem;
+  const closet: WardrobeItem[] = [
+    g({ name: "tee-a", category: "top", color: "#222222" }),
+    g({ name: "tee-b", category: "top", color: "#f0efe9" }),
+    g({ name: "shirt-c", category: "top", color: "#3a5a8c" }),
+    g({ name: "jeans-a", category: "bottom", color: "#6b8ec4" }),
+    g({ name: "chino-b", category: "bottom", color: "#c9bfa8" }),
+    g({ name: "trouser-c", category: "bottom", color: "#2b2b2b" }),
+    g({ name: "sneaker-a", category: "shoes", color: "#f5f5f0" }),
+    g({ name: "boot-b", category: "shoes", color: "#4a3b2a" }),
+    g({ name: "coat-a", category: "outerwear", color: "#3d3a35" }),
+    g({ name: "shades", category: "accessory", color: "#1a1a1a" }),
+  ];
+  const count = (l: { items: WardrobeItem[] }, c: Category) =>
+    l.items.filter((x) => x.category === c).length;
+  const run = (anchors: WardrobeItem[], extra: WardrobeItem[] = []) =>
+    suggestLooks([...closet, ...extra], { anchors, count: 6, candidates: 40, season: "all" });
+
+  // --- anchor a TOP ---
+  const topAnchor = closet[0];
+  const topLooks = run([topAnchor]);
+  ok(topLooks.length > 0, "top anchor produces looks", String(topLooks.length));
+  ok(
+    topLooks.every((l) => l.itemIds.includes(topAnchor.id)),
+    "…and the anchor is in every one of them",
+  );
+  ok(
+    topLooks.every((l) => count(l, "top") === 1),
+    "…with exactly one top (the pre-fix engine drew a second)",
+    topLooks.map((l) => count(l, "top")).join(","),
+  );
+  ok(
+    topLooks.every((l) => count(l, "bottom") >= 1),
+    "…and still completes the core with a bottom",
+  );
+
+  // --- anchor a BOTTOM ---
+  const botAnchor = closet[3];
+  const botLooks = run([botAnchor]);
+  ok(botLooks.length > 0, "bottom anchor produces looks", String(botLooks.length));
+  ok(botLooks.every((l) => l.itemIds.includes(botAnchor.id)), "…anchor present in every look");
+  ok(
+    botLooks.every((l) => count(l, "bottom") === 1),
+    "…exactly one bottom",
+    botLooks.map((l) => count(l, "bottom")).join(","),
+  );
+  ok(botLooks.every((l) => count(l, "top") >= 1), "…completed with a top");
+
+  // --- anchor SHOES: the core must still be built around them ---
+  const shoeAnchor = closet[6];
+  const shoeLooks = run([shoeAnchor]);
+  ok(shoeLooks.length > 0, "shoes anchor produces looks", String(shoeLooks.length));
+  ok(shoeLooks.every((l) => l.itemIds.includes(shoeAnchor.id)), "…anchor present in every look");
+  ok(
+    shoeLooks.every((l) => count(l, "shoes") === 1),
+    "…exactly one pair of shoes",
+    shoeLooks.map((l) => count(l, "shoes")).join(","),
+  );
+  ok(
+    shoeLooks.every((l) => count(l, "top") >= 1 && count(l, "bottom") >= 1),
+    "…and a full top+bottom core is built around them",
+  );
+
+  // --- anchor a DRESS: no top/bottom should be added under it ---
+  const dress = g({ name: "dress-a", category: "dress", color: "#7a3b52" });
+  const dressLooks = run([dress], [dress]);
+  ok(dressLooks.length > 0, "dress anchor produces looks", String(dressLooks.length));
+  ok(dressLooks.every((l) => l.itemIds.includes(dress.id)), "…anchor present in every look");
+  ok(
+    dressLooks.every((l) => count(l, "top") === 0 && count(l, "bottom") === 0),
+    "…and nothing is layered under it",
+    dressLooks.map((l) => `${count(l, "top")}/${count(l, "bottom")}`).join(","),
+  );
+
+  // --- TWO anchors, both honoured (the Surprise-me-around-the-board case) ---
+  const pair = [closet[2], closet[5]]; // shirt-c + trouser-c
+  const pairLooks = run(pair);
+  ok(pairLooks.length > 0, "two anchors produce looks", String(pairLooks.length));
+  ok(
+    pairLooks.every((l) => pair.every((a) => l.itemIds.includes(a.id))),
+    "…both anchors survive in every look",
+  );
+  ok(
+    pairLooks.every((l) => count(l, "top") === 1 && count(l, "bottom") === 1),
+    "…and neither slot is drawn twice",
+  );
+
+  // --- a WISHLIST anchor must survive the pool filter ---
+  const wish = g({ name: "wish-top", category: "top", color: "#8c3a3a" });
+  wish.wishlist = true;
+  const wishLooks = run([wish], [wish]);
+  ok(wishLooks.length > 0, "wishlist anchor produces looks", String(wishLooks.length));
+  ok(
+    wishLooks.every((l) => l.itemIds.includes(wish.id)),
+    "…the wish piece is IN the look despite being filtered out of the pool",
+  );
+  ok(
+    wishLooks.every((l) => l.items.filter((x) => x.wishlist).length === 1),
+    "…and no OTHER wishlist item is suggested alongside it",
+  );
+
+  // --- unanchored Surprise me is unchanged ---
+  const plain = suggestLooks(closet, { count: 6, candidates: 40, season: "all" });
+  ok(plain.length > 0, "unanchored generation still works", String(plain.length));
+  ok(
+    plain.every((l) => count(l, "top") <= 1 && count(l, "bottom") <= 1),
+    "…and never doubles a core slot either",
+  );
+}
+
 console.log(`\n${fails === 0 ? "ALL OUTFIT-RULE CHECKS PASSED" : fails + " CHECK(S) FAILED"}`);
 process.exit(fails ? 1 : 0);

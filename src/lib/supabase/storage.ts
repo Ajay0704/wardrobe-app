@@ -1,4 +1,4 @@
-import { getSupabase } from "./client";
+import { authHeaders, getSupabase } from "./client";
 
 const BUCKET = "wardrobe-images";
 
@@ -197,4 +197,137 @@ export async function resolveImageSource(
     }
   }
   return blobToDataUrl(blob);
+}
+
+/** The four slots an item can hold an uploaded image in. */
+const IMAGE_FIELDS = [
+  "imageUrl",
+  "beautifiedImageUrl",
+  "beautifyWhiteUrl",
+  "cutoutImageUrl",
+] as const;
+
+/**
+ * The bucket path inside a public wardrobe-images URL, or null for anything else
+ * (a data: URL, a remote product image, a URL for a different bucket).
+ */
+export function bucketPathFromUrl(url: unknown): string | null {
+  if (typeof url !== "string") return null;
+  const marker = `/${BUCKET}/`;
+  const i = url.indexOf(marker);
+  if (i === -1) return null;
+  const raw = url.slice(i + marker.length).split("?")[0];
+  if (!raw) return null;
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return raw;
+  }
+}
+
+/** Every wardrobe-images path an item points at, deduped. */
+export function itemImagePaths(item: Record<string, unknown>): string[] {
+  const out = new Set<string>();
+  for (const f of IMAGE_FIELDS) {
+    const p = bucketPathFromUrl(item[f]);
+    if (p) out.add(p);
+  }
+  return [...out];
+}
+
+/**
+ * AJA-283 — remove an item's uploaded images when the item goes.
+ *
+ * `deleteItem` only ever touched the record, and no caller cleaned up after it, so every
+ * deleted piece left its blob behind: measured at 890 orphans / 509 MB on a real account
+ * against 547 live images. `wardrobe-images` is PUBLIC (share links serve from it), so an
+ * orphan stays fetchable by URL to anyone who had one — this is not only wasted storage.
+ *
+ * Best-effort and non-throwing, exactly like `deletePrivateImage`: losing a blob must
+ * never block the delete the user asked for.
+ *
+ * Two guards, both load-bearing:
+ *  - ownership — only paths inside `${userId}/`, compared SEGMENT-wise, so a bucket path
+ *    beginning `<uid>x/` can never be swept by user `<uid>`.
+ *  - sharing — a path still referenced by any surviving item is skipped. Duplicated items
+ *    and re-imports can point two records at one upload, and deleting one of them must
+ *    not blank the other.
+ *
+ * AJA-284: the deletion itself moved SERVER-side. `orphanedItemPaths` only ever asked
+ * "does another ITEM use this?", but `styling_session_items`, `shared_closet_items` and
+ * `messages.payload` deliberately snapshot the item's image URL so a friend can see it
+ * without reading the owner's private snapshot — 175 of ~550 live images on a real
+ * account. Removing the blob left a permanently broken image in someone else's chat.
+ * The client cannot check those tables (RLS hides other users' rows) so it proposes
+ * candidates and the route decides. This call is now a PRE-FILTER, not the deletion.
+ */
+export async function deleteItemImages(
+  item: Record<string, unknown>,
+  userId: string | null,
+  survivingItems: ReadonlyArray<Record<string, unknown>>,
+): Promise<void> {
+  if (!userId) return;
+
+  const candidates = orphanedItemPaths(item, userId, survivingItems);
+  if (!candidates.length) return;
+  try {
+    const res = await fetch("/api/items/sweep-images", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...(await authHeaders()) },
+      // itemId matters: this fires before the snapshot push lands, so without it the
+      // server still sees this item owning these paths and keeps every one of them.
+      body: JSON.stringify({ itemId: item.id, paths: candidates }),
+    });
+    // NEVER swallow this. The first version of the sweep ignored the result and shipped
+    // against a bucket that had NO delete policy, so every call was refused by RLS and
+    // did nothing at all — invisibly, because supabase-js returns an error object here
+    // rather than throwing. Two deletions on device produced eight fresh orphans and a
+    // clean console.
+    //
+    // console.ERROR, not warn: next.config.ts sets `removeConsole: { exclude: ["error"] }`,
+    // so warn/log are stripped from production bundles. An earlier attempt used warn and
+    // was therefore just as silent in production as the bug it replaced — caught by
+    // grepping the deployed chunks for the string, which was not there.
+    if (!res.ok) {
+      console.error(`[storage] image sweep failed (${res.status}) for ${candidates.length} path(s)`);
+      return;
+    }
+    const out = (await res.json()) as { ok?: boolean; removed?: number; notes?: string[] };
+    // ok:false means the server could not prove the blobs are unreferenced, so it kept
+    // them deliberately. Not a user-facing failure — the reclaim script collects later.
+    if (out.ok === false) {
+      console.error("[storage] image sweep incomplete, kept everything:", out.notes?.join("; "));
+    }
+  } catch (err) {
+    // Offline or route unreachable. Deliberately do NOT fall back to a direct
+    // storage.remove(): that path is exactly what breaks a shared closet or a chat
+    // thread, and a lingering blob is the recoverable half of the trade.
+    console.error("[storage] image cleanup threw:", err);
+  }
+}
+
+/**
+ * Which of an item's image paths are safe to remove — the whole decision, pure and
+ * testable, so the two guards below are covered without a Storage client.
+ *
+ *  - OWNERSHIP: the first path segment must equal `userId`. Compared segment-wise, not
+ *    with startsWith, or a path under `<uid>x/` would be swept by user `<uid>`.
+ *  - SHARING: a path any surviving item still points at is kept. Duplicated items and
+ *    re-imports can point two records at one upload, and deleting one must not blank
+ *    the other.
+ */
+export function orphanedItemPaths(
+  item: Record<string, unknown>,
+  userId: string | null,
+  survivingItems: ReadonlyArray<Record<string, unknown>>,
+): string[] {
+  if (!userId) return [];
+  const stillUsed = new Set<string>();
+  for (const other of survivingItems) {
+    if (!other || other.id === item.id) continue;
+    for (const p of itemImagePaths(other)) stillUsed.add(p);
+  }
+  return itemImagePaths(item).filter(
+    (p) => p.slice(0, p.indexOf("/")) === userId && !stillUsed.has(p),
+  );
 }

@@ -149,7 +149,7 @@ function bestOutfit(
   const look = bestLook(own, {
     vibe: opts.vibe,
     season: opts.season,
-    anchor: opts.anchor,
+    ...(opts.anchor ? { anchors: [opts.anchor] } : {}),
     occasion: opts.occasion,
     mood: opts.mood ?? opts.occasion ?? opts.vibe,
     formality: opts.formality,

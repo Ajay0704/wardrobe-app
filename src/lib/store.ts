@@ -32,6 +32,7 @@ import {
 import type { SyncStatus } from "./supabase/sync";
 import { scrubSnapshotImages } from "./heal";
 import { isRenderPath } from "./supabase/private-storage";
+import { deleteItemImages } from "./supabase/storage";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
 import { DEFAULT_STYLE_CONTEXT, normalizeStyleContext, type StyleContext } from "./style-context";
 import { lookWorn } from "./engine-feedback";
@@ -665,7 +666,32 @@ export const useWardrobe = create<WardrobeState>()(
           return { items };
         }),
 
-      deleteItem: (id) =>
+      deleteItem: (id) => {
+        /**
+         * AJA-283 — sweep the item's uploaded images too.
+         *
+         * This lived nowhere: the action only ever dropped the record, and none of the
+         * three call sites cleaned up after it, so every deleted piece left its blob in
+         * Storage. Measured at 890 orphans / 509 MB against 547 live images on a real
+         * account. `wardrobe-images` is PUBLIC, so an orphan stays fetchable by URL to
+         * anyone who had one.
+         *
+         * Deliberately HERE rather than at the call sites, which is where the render
+         * cleanup lives: "no caller remembered" is the exact bug, and a fourth caller
+         * would reintroduce it. Fire-and-forget before the state change — the helper
+         * never throws, so losing a blob can't block the delete the user asked for.
+         * Read through `get()` and run outside the updater, because a `set` updater can
+         * be invoked more than once and must stay pure.
+         */
+        const prev = get();
+        const gone = prev.items.find((it) => it.id === id);
+        if (gone) {
+          void deleteItemImages(
+            gone as unknown as Record<string, unknown>,
+            prev.authUser?.id ?? null,
+            prev.items.filter((it) => it.id !== id) as unknown as Record<string, unknown>[],
+          );
+        }
         set((s) => ({
           items: s.items.filter((it) => it.id !== id),
           outfits: s.outfits.map((o) => ({
@@ -683,7 +709,8 @@ export const useWardrobe = create<WardrobeState>()(
               ids.filter((iid) => iid !== id),
             ]),
           ) as Record<SlotKey, string[]>,
-        })),
+        }));
+      },
 
       clearSamples: () => set((s) => stripSamples(s)),
 

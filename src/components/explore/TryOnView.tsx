@@ -13,6 +13,8 @@ import {
 } from "@/lib/supabase/private-storage";
 import { dataUrlToFile } from "@/lib/supabase/storage";
 import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
+import { TryOnLoading } from "./TryOnLoading";
+import { useTryOnProgress } from "./useTryOnProgress";
 import { useTryOnPhoto } from "../useTryOnPhoto";
 
 /**
@@ -70,6 +72,8 @@ export function TryOnView({
   const [scene, setScene] = useState<TryOnScene>("street");
   const [result, setResult] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  /** When the in-flight render began — drives the wait's clock (AJA-280). */
+  const [startedAt, setStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
   /** 501 = provider not configured; a retry can never succeed, so stop offering one. */
@@ -77,6 +81,7 @@ export function TryOnView({
   const fileRef = useRef<HTMLInputElement>(null);
 
   const havePhoto = !!(picked ?? savedPhoto);
+  const progress = useTryOnProgress(garments, !onModel && !!(picked ?? savedPhoto), startedAt);
   const person = onModel ? null : (picked ?? savedPhoto);
   // Derived, not stored — storing it would need a setState in an effect body.
   const loadingPhoto = !!photoPath && !havePhoto && !savedPhotoFailed;
@@ -87,6 +92,7 @@ export function TryOnView({
         setError("This look has no items to try on.");
         return;
       }
+      setStartedAt(Date.now());
       setLoading(true);
       setError(null);
       // A new render is not the saved one — re-arm the button.
@@ -99,6 +105,7 @@ export function TryOnView({
         if (/isn't configured/i.test(msg)) setUnavailable(true);
       } finally {
         setLoading(false);
+        setStartedAt(null);
       }
     },
     [garments],
@@ -244,15 +251,17 @@ export function TryOnView({
             model's to choose, and cover silently sliced the head off a square one. */}
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl border border-line bg-surface-2">
           {result && !loading && (
+            // The reveal settles from very slightly large, so the render arrives after
+            // the wait rather than blinking into place (AJA-280).
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={result} alt="Try-on result" className="h-full w-full object-contain" />
+            <img
+              src={result}
+              alt="Try-on result"
+              className="animate-tryon-reveal h-full w-full object-contain"
+            />
           )}
           {loading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted">
-              <Loader2 size={26} className="animate-spin text-accent" />
-              <p className="text-sm">Styling this on {person ? "you" : "a model"}…</p>
-              <p className="text-[11px]">Takes a few seconds</p>
-            </div>
+            <TryOnLoading progress={progress} garments={garments} />
           )}
           {/* Your photo stands in until you ask for a render, so the screen shows what
               it's about to use instead of an empty box. Dimmed and captioned so it
@@ -308,14 +317,26 @@ export function TryOnView({
         {error && result && <p className="text-center text-xs text-red-500">{error}</p>}
         {saveError && <p className="text-center text-xs text-amber-600">{saveError}</p>}
 
-        {/* Garment strip */}
+        {/* Garment strip. The loading canvas deliberately shows nothing, so while a
+            render is running this is the only place the per-piece story is told: each
+            tile lifts as its piece is taken up and the ones still to come sit back
+            (AJA-280). */}
         <div className="flex justify-center gap-2">
-          {garments.slice(0, 5).map((g, i) => (
-            <div key={i} className="h-12 w-10 overflow-hidden rounded-lg border border-line bg-surface">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={g.image} alt={g.label ?? "item"} className="h-full w-full object-contain" />
-            </div>
-          ))}
+          {garments.slice(0, 5).map((g, i) => {
+            return (
+              <div
+                key={i}
+                className={`h-12 w-10 overflow-hidden rounded-lg border bg-surface transition-all duration-500 ${
+                  !loading || i < progress.taken
+                    ? "border-accent/70 opacity-100 shadow-[0_2px_8px_rgba(0,0,0,0.10)]"
+                    : "border-line opacity-35"
+                } ${loading && i === progress.taken - 1 ? "animate-pop" : ""}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={g.image} alt={g.label ?? "item"} className="h-full w-full object-contain" />
+              </div>
+            );
+          })}
         </div>
 
         {/* Subject. Two buttons only — this row measured 343/343 and the scene chips
