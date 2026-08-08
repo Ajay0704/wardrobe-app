@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wardrobe — the first-run journey (AJA-290)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --background:#faf9f7; --surface:#fff; --surface-2:#f3f1ed; --border:#e7e4de;
+    --foreground:#1c1917; --muted:#79716b; --accent:#567a4a; --accent-soft:#e8efe2;
+    --ease:cubic-bezier(.32,.72,0,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
+  body{margin:0;background:#26241f;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    gap:36px;padding:26px 20px;color:var(--foreground);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  .heading{font-family:"Libre Baskerville",Georgia,serif;letter-spacing:-.01em;line-height:1.12}
+
+  .phone{width:402px;height:874px;background:var(--background);border-radius:44px;
+    box-shadow:0 0 0 11px #0e0d0b,0 26px 60px rgba(0,0,0,.55);overflow:hidden;position:relative;
+    display:flex;flex-direction:column;flex:none}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#0e0d0b;border-radius:19px;z-index:60}
+  .statusbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;position:relative;z-index:5}
+  .batt{width:24px;height:12px;border:1.5px solid var(--foreground);border-radius:3px;position:relative}
+  .batt::after{content:"";position:absolute;inset:2px;background:var(--foreground);border-radius:1px}
+  .statusbar.onvid{color:#fff}.statusbar.onvid .batt{border-color:#fff}.statusbar.onvid .batt::after{background:#fff}
+
+  .screen{position:absolute;inset:52px 0 0;display:none;flex-direction:column;padding:0 22px}
+  .screen.on{display:flex;animation:fade .3s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .screen.full{inset:0;padding:0}
+
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.19em;text-transform:uppercase;color:var(--muted)}
+  h2.q{font-size:25px;margin:8px 0 0}
+  .hint{font-size:14.5px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+  .spacer{flex:1;min-height:0}
+
+  .btn{display:block;width:100%;border:0;border-radius:999px;padding:15px 20px;font-size:16px;font-weight:600;
+    font-family:inherit;background:var(--accent);color:#fff;cursor:pointer;transition:transform .1s ease-out,opacity .15s}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:transparent;color:var(--foreground)}
+  .btn.wtext{background:#fff;color:#141310}
+  .btn[disabled]{opacity:.42;cursor:default}
+  .footer{flex:none;padding:12px 0 24px;display:flex;flex-direction:column;gap:8px}
+
+  .prog{flex:none;display:flex;gap:5px;padding:12px 0 4px}
+  .prog i{flex:1;height:3px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+  .prog i b{display:block;height:100%;width:0;background:var(--accent)}
+  .prog i.done b,.prog i.now b{width:100%}
+
+  /* 1 welcome */
+  #s-welcome{background:#141310}
+  .hero{position:absolute;inset:0;overflow:hidden}
+  .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62}
+  .hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,19,16,.2),rgba(20,19,16,.85))}
+  .hero .inner{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 26px 30px;color:#fff}
+  .hero .wm-k{font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+  .hero h1{font-family:"Libre Baskerville",Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 0;font-weight:400}
+  .hero p{color:rgba(255,255,255,.75);font-size:15px;margin:12px 0 22px;max-width:300px}
+  .hero .tiny{color:rgba(255,255,255,.55);font-size:12.5px;text-align:center;margin-top:12px}
+  .hero .tiny b{color:#fff;cursor:pointer}
+
+  .card{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:14px 16px;font:inherit;cursor:pointer;margin-top:10px;display:flex;align-items:center;gap:13px;
+    transition:border-color .15s,background .15s,transform .1s}
+  .card:active{transform:scale(.99)}
+  .card.on{border-color:var(--accent);background:var(--accent-soft)}
+  .card .tx b{display:block;font-size:15px;font-weight:600}
+  .card .tx i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .card .emoji{font-size:22px;width:30px;text-align:center;flex:none}
+  .card .thumbs{display:flex;gap:4px;flex:none}
+  .card .thumbs img{width:30px;height:30px;object-fit:contain}
+
+  .statwrap{flex:1;display:flex;flex-direction:column;justify-content:center;text-align:center}
+  .bignum{font-family:"Libre Baskerville",Georgia,serif;font-size:60px;color:var(--accent);line-height:1}
+  .statwrap p{font-size:17px;color:var(--foreground);margin:16px auto 0;max-width:280px;line-height:1.4}
+  .statwrap .src{font-size:12px;color:var(--muted);margin-top:14px}
+
+  /* board */
+  .boardwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 0}
+  .board{position:relative;aspect-ratio:3/4;height:100%;max-width:100%;background:#fff;border:1px solid var(--border);border-radius:18px;overflow:hidden}
+  .slot{position:absolute;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+  .slot .ph{position:absolute;inset:8%;border:1.5px dashed var(--border);border-radius:16px}
+  .slot.need .ph{border-color:var(--accent);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+  .slot span{position:relative;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .slot img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.18));animation:pop .34s var(--ease)}
+  @keyframes pop{from{transform:scale(.86);opacity:0}to{transform:none;opacity:1}}
+  .win{position:absolute;inset:0;border-radius:18px;pointer-events:none;background:radial-gradient(circle at 50% 55%,rgba(86,122,74,.2),transparent 62%);animation:winf .75s ease-out}
+  @keyframes winf{from{opacity:0}35%{opacity:1}to{opacity:0}}
+  .meter{flex:none;display:flex;align-items:center;gap:10px;min-height:28px}
+  .dots{display:flex;gap:6px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--border);transition:transform .2s}
+  .dots i.on{background:var(--accent);transform:scale(1.25)}
+  .count{background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600;border-radius:999px;padding:4px 12px}
+  .tray{flex:none;display:flex;gap:7px;padding:2px 0 4px}
+  .tray button{flex:1;min-width:0;aspect-ratio:1;border:1px solid var(--border);background:var(--surface);border-radius:16px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .12s,opacity .15s,border-color .15s,background .15s}
+  .tray button:active{transform:scale(.95)}.tray button.on{border-color:var(--accent);background:var(--accent-soft)}.tray button.dim{opacity:.4}
+  .tray img{max-width:100%;max-height:100%;object-fit:contain}
+  .flyer{position:fixed;z-index:90;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .flyer img{max-width:100%;max-height:100%;object-fit:contain}
+
+  .chead{flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding-top:8px}
+  .chead .wm-k{display:block}.chead h1{font-family:"Libre Baskerville",Georgia,serif;font-size:24px;margin:3px 0 0;font-weight:400}
+  .tally{background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap}
+
+  /* ── UPLOAD ── */
+  .uploadzone{flex:1;min-height:0;margin-top:14px;border-radius:22px;border:2px dashed var(--border);
+    background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;
+    text-align:center;padding:0 30px;cursor:pointer;transition:border-color .15s,background .15s}
+  .uploadzone:active{border-color:var(--accent);background:var(--accent-soft)}
+  .uploadzone .ic{width:60px;height:60px;border-radius:18px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:28px}
+  .uploadzone b{font-family:"Libre Baskerville",Georgia,serif;font-size:19px;font-weight:400}
+  .uploadzone p{color:var(--muted);font-size:13.5px;margin:0;line-height:1.4}
+  .exrow{display:flex;gap:6px;justify-content:center;margin-top:4px}
+  .exrow span{font-size:11px;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:4px 10px}
+  .reassure{flex:none;text-align:center;font-size:12.5px;color:var(--muted);padding:12px 6px 0}
+
+  /* ── EXTRACT ── */
+  .exwrap{flex:1;min-height:0;display:flex;flex-direction:column}
+  .photo{position:relative;flex:1;min-height:0;margin-top:12px;border-radius:20px;overflow:hidden;
+    background:radial-gradient(circle at 30% 20%,#e4dccf,transparent 55%),radial-gradient(circle at 75% 85%,#b8ad9c,transparent 60%),linear-gradient(160deg,#d8cebd,#a99f8d)}
+  .photo .g{position:absolute;display:flex;align-items:center;justify-content:center;transition:transform .55s var(--ease),opacity .55s var(--ease)}
+  .photo .g img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22))}
+  .photo.lifted .g{opacity:0;transform:translateY(-24px) scale(.9)}
+  .scan{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);
+    box-shadow:0 0 16px 3px rgba(255,255,255,.5);top:0;opacity:0}
+  .scan.run{animation:scan 1.15s var(--ease) forwards}
+  @keyframes scan{0%{top:0;opacity:1}100%{top:100%;opacity:0}}
+  .dbox{position:absolute;border:2px solid var(--accent);border-radius:10px;opacity:0;transform:scale(1.06);
+    box-shadow:0 0 0 3px rgba(86,122,74,.18)}
+  .dbox.on{opacity:1;transform:none;transition:opacity .3s,transform .3s var(--ease)}
+  .dbox b{position:absolute;top:-11px;left:8px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:600;
+    letter-spacing:.04em;border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .exresult{flex:none;display:flex;gap:8px;margin-top:12px;min-height:0}
+  .exresult .chip2{flex:1;background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:8px 6px 9px;text-align:center;
+    opacity:0;transform:translateY(8px);animation:rise .34s var(--ease) forwards}
+  .exresult .chip2:nth-child(2){animation-delay:.08s}.exresult .chip2:nth-child(3){animation-delay:.16s}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .exresult .chip2 img{height:44px;object-fit:contain}
+  .exresult .chip2 span{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+  .exstatus{flex:none;text-align:center;font-size:13.5px;font-weight:600;color:var(--accent);min-height:20px;margin-top:12px}
+
+  /* closet */
+  .promise{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .pcell{aspect-ratio:1;border-radius:16px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .3s}
+  .pcell.filled{border-style:solid;border-color:var(--accent)}
+  .pcell.next{border-color:var(--accent);animation:pulse 1.6s infinite}
+  .pcell img{max-width:78%;max-height:78%;object-fit:contain;animation:pop .36s var(--ease)}
+  .pcell .ghost{max-width:64%;max-height:64%;object-fit:contain;opacity:.12;filter:grayscale(1)}
+  .pnum{position:absolute;top:7px;left:9px;font-size:10.5px;font-weight:700;color:var(--border)}
+  .maths{margin-top:16px;text-align:center}
+  .maths b{font-family:"Libre Baskerville",Georgia,serif;font-size:18px;display:block}
+  .maths span{display:block;font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .keepbar{flex:none;margin:0 -22px;padding:13px 22px 22px;background:var(--accent-soft);border-top:1px solid #cfe0c6;display:flex;align-items:center;gap:12px}
+  .keepbar p{margin:0;flex:1;font-size:13px;line-height:1.35;color:var(--muted)}
+  .keepbar p b{display:block;color:var(--foreground);font-size:13.5px}
+  .keepbar button{flex:none;border:0;border-radius:999px;background:var(--accent);color:#fff;font:inherit;font-size:13.5px;font-weight:600;padding:10px 16px;cursor:pointer}
+
+  #s-building{background:#141310;color:#fff}
+  .build{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;padding:0 30px}
+  .ring{width:70px;height:70px;border-radius:50%;border:3px solid rgba(255,255,255,.16);border-top-color:var(--accent);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .build h2{font-family:"Libre Baskerville",Georgia,serif;font-size:23px;margin:0;font-weight:400}
+  .build p{color:rgba(255,255,255,.6);font-size:14px;margin:0;min-height:20px}
+
+  .oHead{text-align:center;padding-top:6px}
+  .styleChip{display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:5px 13px;margin-top:4px}
+
+  .weather{flex:none;display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:13px 15px;margin-top:14px}
+  .weather b{font-size:22px;font-family:"Libre Baskerville",Georgia,serif}
+  .hold{position:relative;flex:none;margin:22px auto 0;width:100%;max-width:280px}
+  .holdbtn{position:relative;width:100%;border:0;border-radius:999px;padding:16px;font:inherit;font-size:16px;font-weight:600;color:#fff;background:var(--accent);overflow:hidden;cursor:pointer}
+  .holdbtn .fill{position:absolute;inset:0;background:rgba(0,0,0,.18);width:0}
+  .holdbtn span{position:relative}
+  .holdhint{text-align:center;font-size:12.5px;color:var(--muted);margin-top:10px}
+
+  .recap{display:flex;gap:8px;margin-top:14px}
+  .recap div{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 10px;text-align:center}
+  .recap b{font-family:"Libre Baskerville",Georgia,serif;font-size:22px;display:block}
+  .recap span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .field{margin-top:9px}
+  .field label{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .field div{margin-top:5px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;font-size:14.5px;color:var(--muted)}
+
+  .rail{width:320px;color:#e7e3da;font-size:13px;line-height:1.5;flex:none}
+  .rail h1{font-family:"Libre Baskerville",Georgia,serif;font-size:22px;margin:0 0 4px;color:#fff;line-height:1.2}
+  .rail .sub{color:#a49d92;margin:0 0 16px}
+  .rail h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#8d8578;margin:16px 0 8px;font-weight:700}
+  .jsteps{list-style:none;margin:0;padding:0}
+  .jsteps li{padding:8px 10px;border-radius:9px;cursor:pointer;display:flex;gap:10px;align-items:flex-start}
+  .jsteps li:hover{background:#2f2c26}.jsteps li.on{background:#333029}
+  .jsteps li s{width:20px;height:20px;border-radius:50%;background:#3f3b33;color:#cfc8bb;font-size:10.5px;display:flex;align-items:center;justify-content:center;text-decoration:none;flex:none;font-weight:700;margin-top:1px}
+  .jsteps li.on s{background:var(--accent);color:#fff}
+  .jsteps .lab{color:#e7e3da;font-weight:600;font-size:13px}
+  .jsteps .why{color:#8d8578;font-size:11.5px;display:block;margin-top:1px}
+  .jsteps li.on .why{color:#a49d92}
+  .rail .restart{margin-top:14px;width:100%;border:1px solid #3a362f;background:transparent;color:#cfc8bb;border-radius:10px;padding:10px;font:inherit;font-size:13px;cursor:pointer}
+  @media (max-width:1140px){body{flex-direction:column;gap:22px}.rail{width:402px}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar" id="sbar"><span>9:41</span><span class="batt"></span></div>
+
+  <!-- 1 welcome -->
+  <section class="screen full" id="s-welcome">
+    <div class="hero">
+      <video autoplay muted loop playsinline poster="../hero-poster.jpg"><source src="../bg-video-v2.mp4" type="video/mp4"></video>
+      <div class="scrim"></div>
+      <div class="inner">
+        <span class="wm-k">Your Personal Wardrobe</span>
+        <h1>Get dressed in seconds.<br>Buy less. Wear more.</h1>
+        <p>Two minutes to set up. No account until you want to keep it.</p>
+        <button class="btn wtext" onclick="next()">Let's build your closet</button>
+        <p class="tiny">Already have an account? <b onclick="jump('signup')">Log in</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 who -->
+  <section class="screen" id="s-who">
+    <div class="prog" id="prog"></div>
+    <h2 class="q heading" style="margin-top:14px">First — who are we dressing?</h2>
+    <p class="hint">Sets the pieces you'll see in a moment.</p>
+    <button class="card" data-g="women" onclick="pickWho('women')"><span class="emoji">👗</span><span class="tx"><b>Women's</b><i>Show women's styles</i></span></button>
+    <button class="card" data-g="men" onclick="pickWho('men')"><span class="emoji">👔</span><span class="tx"><b>Men's</b><i>Show men's styles</i></span></button>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" id="whoCta" disabled onclick="next()">Continue</button></div>
+  </section>
+
+  <!-- 3 goal -->
+  <section class="screen" id="s-goal">
+    <div class="prog"></div>
+    <h2 class="q heading" style="margin-top:14px">What's the win for you?</h2>
+    <p class="hint">One tap. We shape everything around it.</p>
+    <button class="card" onclick="pickGoal(this)"><span class="emoji">♻️</span><span class="tx"><b>Wear more of what I own</b><i>Stop the 1-in-4 that never gets worn</i></span></button>
+    <button class="card" onclick="pickGoal(this)"><span class="emoji">🛑</span><span class="tx"><b>Stop over-buying</b><i>Check the closet before I check out</i></span></button>
+    <button class="card" onclick="pickGoal(this)"><span class="emoji">⚡️</span><span class="tx"><b>Get dressed faster</b><i>An outfit ready every morning</i></span></button>
+  </section>
+
+  <!-- 4 vibe -->
+  <section class="screen" id="s-vibe">
+    <div class="prog"></div>
+    <h2 class="q heading" style="margin-top:14px">Which feels most like you?</h2>
+    <p class="hint">Just a starting point — it learns as you go.</p>
+    <div id="vibeList"></div>
+  </section>
+
+  <!-- 5 stat -->
+  <section class="screen" id="s-stat">
+    <div class="prog"></div>
+    <div class="statwrap">
+      <div class="bignum">£1,200</div>
+      <p>The average wardrobe holds <b>£1,200</b> of clothes that never get worn. Let's build the opposite — a closet where everything earns its place.</p>
+      <div class="src">ThredUp / WRAP, 2026</div>
+    </div>
+    <div class="footer"><button class="btn" onclick="next()">Show me how it works</button></div>
+  </section>
+
+  <!-- 6 board -->
+  <section class="screen" id="s-board">
+    <div class="prog"></div>
+    <p class="kicker" id="bKick" style="margin-top:12px">Try it — 10 seconds</p>
+    <h2 class="q heading" id="bTitle">Make an outfit</h2>
+    <p class="hint" id="bHint">Tap a top, then a bottom, then shoes. These are sample pieces — yours come next.</p>
+    <div class="boardwrap"><div class="board" id="board"></div></div>
+    <div class="meter"><div class="dots"><i data-d="top"></i><i data-d="bottom"></i><i data-d="shoes"></i></div><span class="count" id="bCount" hidden><b id="bFound">0</b> of <b id="bTotal">4</b> looks</span></div>
+    <div class="tray" id="tray"></div>
+    <div class="footer">
+      <button class="btn" id="bCta" disabled onclick="next()">Make an outfit to continue</button>
+      <button class="btn ghost" id="bAnother" hidden onclick="another()">Try another look</button>
+    </div>
+  </section>
+
+  <!-- 7 bridge -->
+  <section class="screen" id="s-bridge">
+    <div class="prog"></div>
+    <div class="statwrap">
+      <div style="font-size:44px">📸</div>
+      <p style="font-size:20px" class="heading">Now the real thing — with <span style="color:var(--accent)">your</span> clothes.</p>
+      <span class="hint" style="max-width:290px;margin:10px auto 0">Don't photograph each piece. Just <b>upload one photo</b> — an outfit selfie, a flat-lay, a pile on the bed — and we pull every garment out of it.</span>
+    </div>
+    <div class="footer"><button class="btn" onclick="next()">Upload a photo</button></div>
+  </section>
+
+  <!-- 8 UPLOAD -->
+  <section class="screen" id="s-upload">
+    <div class="chead"><div><span class="wm-k kicker" id="upKick">Add your clothes</span><h1 id="upTitle">Upload a photo</h1></div></div>
+    <div class="uploadzone" onclick="chooseUpload()">
+      <div class="ic">⬆️</div>
+      <b>Tap to choose a photo</b>
+      <p>Any photo with clothes in it works — even an old selfie. We find each piece, cut out the background, and tag it.</p>
+      <div class="exrow"><span>👗 Outfit selfie</span><span>🛏️ Flat-lay</span><span>🧺 A pile</span></div>
+    </div>
+    <div class="reassure" id="upReassure">No clean product shots needed — one messy photo becomes several catalogued pieces.</div>
+    <div class="footer" style="padding-top:8px"><button class="btn ghost" id="upBack" onclick="jump('closet')" hidden>Back to closet</button></div>
+  </section>
+
+  <!-- 9 EXTRACT -->
+  <section class="screen" id="s-extract">
+    <div class="chead"><div><span class="wm-k kicker" id="exKick">Reading your photo</span><h1 id="exTitle">Finding the pieces…</h1></div></div>
+    <div class="exwrap">
+      <div class="photo" id="photo"></div>
+      <div class="exresult" id="exResult" hidden></div>
+      <div class="exstatus" id="exStatus"></div>
+    </div>
+    <div class="footer"><button class="btn" id="exCta" disabled>Scanning…</button></div>
+  </section>
+
+  <!-- 10 closet -->
+  <section class="screen" id="s-closet">
+    <div class="chead"><div><span class="wm-k kicker">Your closet</span><h1 id="clTitle">1 piece</h1></div><span class="tally" id="clTally"></span></div>
+    <div class="promise"><div class="pgrid" id="clGrid"></div><div class="maths"><b id="clB"></b><span id="clS"></span></div></div>
+    <div class="footer">
+      <button class="btn" id="clCta" onclick="jump('upload')">Add another photo</button>
+      <button class="btn ghost" id="clSee" hidden onclick="styleMe()">Style me from these →</button>
+    </div>
+    <div class="keepbar" id="keepClo"><p><b>Nothing saved yet.</b>Add a couple more, then keep them.</p><button onclick="jump('signup')">Save</button></div>
+  </section>
+
+  <!-- 11 building -->
+  <section class="screen full" id="s-building">
+    <div class="build"><div class="ring"></div><h2 id="buildH">Styling you…</h2><p id="buildP"></p></div>
+  </section>
+
+  <!-- 12 outfit -->
+  <section class="screen" id="s-outfit">
+    <div class="oHead"><span class="wm-k kicker">Your first outfit</span><div><span class="styleChip" id="styleChip">Quiet Classic</span></div></div>
+    <div class="boardwrap"><div class="board" id="oBoard"></div></div>
+    <p class="hint" id="oHint" style="text-align:center">Made from what you just uploaded — nothing borrowed.</p>
+    <div class="footer"><button class="btn" onclick="next()">Love it — keep going</button><button class="btn ghost" onclick="shuffleOutfit()">Show me another</button></div>
+  </section>
+
+  <!-- 13 commit -->
+  <section class="screen" id="s-commit">
+    <div class="chead"><div><span class="wm-k kicker">One habit</span><h1>An outfit every morning?</h1></div></div>
+    <p class="hint">Picked from your closet for the weather. No feed, no badges — one gentle nudge.</p>
+    <div class="weather"><b>14°</b><div><div style="font-weight:600;font-size:14px">Light rain later</div><div style="font-size:12.5px;color:var(--muted)">London · today</div></div></div>
+    <div class="spacer"></div>
+    <div class="hold"><button class="holdbtn" id="holdBtn"><span class="fill" id="holdFill"></span><span id="holdLabel">Hold to turn on · 7:30am</span></button><div class="holdhint">Press and hold to confirm</div></div>
+    <div class="footer"><button class="btn ghost" onclick="next()">Not now</button></div>
+  </section>
+
+  <!-- 14 signup -->
+  <section class="screen" id="s-signup">
+    <div class="chead"><div><span class="wm-k kicker">Last step</span><h1>Keep your closet</h1></div></div>
+    <div class="recap"><div><b id="rcPieces">6</b><span>pieces</span></div><div><b id="rcOutfits">4</b><span>outfits</span></div><div><b>7:30</b><span>morning</span></div></div>
+    <p class="hint">All of it is already in here. An account just keeps it — nothing is re-uploaded, this session becomes yours.</p>
+    <div class="field"><label>Email</label><div>maya@example.com</div></div>
+    <div class="field"><label>Password</label><div>••••••••••</div></div>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="jump('done')">Create account &amp; keep it</button><button class="btn ghost" onclick="jump('done')">Continue with Apple</button></div>
+  </section>
+
+  <!-- 15 done -->
+  <section class="screen" id="s-done">
+    <div class="chead"><div><span class="wm-k kicker">Your closet</span><h1>Saved ✓</h1></div><span class="tally" id="dTally"></span></div>
+    <div class="promise"><div class="pgrid" id="dGrid"></div><div class="maths"><b>Same closet, same photos.</b><span>The guest session became a real account — nothing was copied or re-uploaded. Add more anytime.</span></div></div>
+    <div class="footer"><button class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--foreground)" onclick="restart()">Run the journey again</button></div>
+  </section>
+</div>
+
+<div class="rail">
+  <h1>The first-run journey</h1>
+  <p class="sub">AJA-290 — the two good moments (board + <b>upload&amp;extract</b>), wrapped in the sequence the best consumer apps use. Each step notes who it's borrowed from.</p>
+  <h3>Journey</h3>
+  <ul class="jsteps" id="stepList"></ul>
+  <button class="restart" onclick="restart()">Restart</button>
+</div>
+
+<script>
+const SETS={
+  women:{dir:"../samples/women",pieces:[
+    {slot:"top",slug:"white-shirt",name:"White shirt",tag:"Shirt"},
+    {slot:"top",slug:"camel-sweater",name:"Camel sweater",tag:"Sweater"},
+    {slot:"bottom",slug:"blue-jeans",name:"Blue jeans",tag:"Jeans"},
+    {slot:"bottom",slug:"trousers",name:"Trousers",tag:"Trousers"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers",tag:"Trainers"},
+    {slot:"shoes",slug:"loafers",name:"Loafers",tag:"Loafers"}]},
+  men:{dir:"../samples/men",pieces:[
+    {slot:"top",slug:"white-oxford",name:"White oxford",tag:"Shirt"},
+    {slot:"top",slug:"navy-sweater",name:"Navy sweater",tag:"Sweater"},
+    {slot:"bottom",slug:"dark-jeans",name:"Dark jeans",tag:"Jeans"},
+    {slot:"bottom",slug:"chinos",name:"Chinos",tag:"Chinos"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers",tag:"Trainers"},
+    {slot:"shoes",slug:"loafers",name:"Loafers",tag:"Loafers"}]}
+};
+const ORDER=["top","bottom","shoes"], LABEL={top:"Top",bottom:"Bottom",shoes:"Shoes"};
+const BOX={top:{left:"3%",top:"6%",width:"52%"},bottom:{left:"0",top:"50%",width:"58.24%"},shoes:{left:"56%",top:"70%",width:"36%"}};
+const VIBES={
+  women:[["Quiet Classic","white-shirt","trousers","Clean lines, few colours"],["Relaxed","camel-sweater","blue-jeans","Soft, easy, layered"],["Statement","white-shirt","blue-jeans","Colour and contrast"]],
+  men:[["Quiet Classic","white-oxford","chinos","Clean lines, few colours"],["Relaxed","navy-sweater","dark-jeans","Soft, easy, layered"],["Statement","white-oxford","dark-jeans","Colour and contrast"]]
+};
+/* each "upload" yields three garments — one photo → three catalogued pieces.
+   positions are where each garment sits in the mock flat-lay, and where its detection box draws. */
+const UPLOADS={
+  women:[
+    {name:"IMG_4821.jpg",items:[["white-shirt",{left:"14%",top:"8%",width:"46%"}],["blue-jeans",{left:"50%",top:"30%",width:"40%"}],["white-sneakers",{left:"20%",top:"62%",width:"38%"}]]},
+    {name:"IMG_5093.jpg",items:[["camel-sweater",{left:"16%",top:"9%",width:"46%"}],["trousers",{left:"48%",top:"32%",width:"42%"}],["loafers",{left:"22%",top:"64%",width:"36%"}]]}
+  ],
+  men:[
+    {name:"IMG_4821.jpg",items:[["white-oxford",{left:"14%",top:"8%",width:"46%"}],["dark-jeans",{left:"50%",top:"30%",width:"40%"}],["white-sneakers",{left:"20%",top:"62%",width:"38%"}]]},
+    {name:"IMG_5093.jpg",items:[["navy-sweater",{left:"16%",top:"9%",width:"46%"}],["chinos",{left:"48%",top:"32%",width:"42%"}],["loafers",{left:"22%",top:"64%",width:"36%"}]]}
+  ]
+};
+
+const STEPS=[
+  ["welcome","Warm welcome","Cal AI · emotional hook, not a form"],
+  ["who","Who are we dressing","Duolingo · commit before you build"],
+  ["goal","Your goal","Duolingo · a mission raises follow-through"],
+  ["vibe","Your vibe","Cal AI · personalization that shapes what's next"],
+  ["stat","One honest stat","Cal AI · a research beat between questions"],
+  ["board","Play the board","the good idea — a warm, personalized demo"],
+  ["bridge","Now with yours","the hand-off the old flow skipped"],
+  ["upload","Upload one photo","the fix — a photo you already have, not 6 shoots"],
+  ["extract","We pull the pieces out","your detect-garments (AJA-162) — 1 photo → 3 items"],
+  ["closet","Momentum","Duolingo · visible progress after each action"],
+  ["building","Styling you…","VOS · anticipation makes the result feel earned"],
+  ["outfit","Your first outfit","the payoff — from HER clothes + a style card"],
+  ["commit","Set the morning","Yazio · press-and-hold micro-commitment"],
+  ["signup","Keep your closet","DoorDash/Duolingo · account LAST, at peak value"],
+  ["done","Saved","guest session → real account, nothing re-uploaded"]
+];
+
+let gender="women", owned=[], placed={}, found=new Set(), oVariant=0, vibe="Quiet Classic", idx=0, uploadIdx=0, whoTouched=false;
+const $=s=>document.querySelector(s);
+const set=()=>SETS[gender];
+const cut=s=>`${set().dir}/${s}-sticker.png`;
+const meta=slug=>set().pieces.find(p=>p.slug===slug);
+const outfits=()=>{const t=owned.filter(p=>p.slot==="top").length,b=owned.filter(p=>p.slot==="bottom").length;return t*b;};
+const boardTotal=()=>{const t=set().pieces.filter(p=>p.slot==="top").length,b=set().pieces.filter(p=>p.slot==="bottom").length;return t*b;};
+
+function renderSteps(){$("#stepList").innerHTML=STEPS.map(([id,lab,why],i)=>`<li class="${i===idx?'on':''}" onclick="jump('${id}')"><s>${i+1}</s><span><span class="lab">${lab}</span><span class="why">${why}</span></span></li>`).join("");}
+function renderProg(){document.querySelectorAll(".prog").forEach(p=>p.innerHTML=STEPS.map((_,i)=>`<i class="${i<idx?'done':''} ${i===idx?'now':''}"><b></b></i>`).join(""));}
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  $("#s-"+id).classList.add("on");
+  $("#sbar").classList.toggle("onvid",id==="welcome"||id==="building");
+  idx=STEPS.findIndex(s=>s[0]===id);renderSteps();renderProg();
+  ({who:renderWho,vibe:renderVibe,board:renderBoard,upload:renderUpload,extract:runExtract,closet:renderCloset,building:runBuilding,outfit:renderOutfit,commit:resetHold,signup:renderSignup,done:renderDone}[id]||(()=>{}))();
+}
+function jump(id){show(id);}
+function next(){show(STEPS[Math.min(idx+1,STEPS.length-1)][0]);}
+
+function renderWho(){document.querySelectorAll('#s-who .card').forEach(c=>c.classList.toggle('on',c.dataset.g===gender&&whoTouched));}
+function pickWho(g){gender=g;whoTouched=true;document.querySelectorAll('#s-who .card').forEach(c=>c.classList.toggle('on',c.dataset.g===g));$("#whoCta").disabled=false;}
+function pickGoal(el){[...el.parentElement.querySelectorAll('.card')].forEach(c=>c.classList.remove('on'));el.classList.add('on');setTimeout(next,200);}
+function renderVibe(){$("#vibeList").innerHTML=VIBES[gender].map(([name,a,b,desc])=>`<button class="card" onclick="pickVibe('${name}')"><span class="thumbs"><img src="${cut(a)}"><img src="${cut(b)}"></span><span class="tx"><b>${name}</b><i>${desc}</i></span></button>`).join("");}
+function pickVibe(name){vibe=name;document.querySelectorAll('#s-vibe .card').forEach(c=>c.classList.toggle('on',c.querySelector('b').textContent===name));setTimeout(next,220);}
+
+/* board */
+function renderBoard(){
+  const b=$("#board");b.innerHTML="";
+  ORDER.forEach(slot=>{const need=ORDER.find(s=>!placed[s]);const d=document.createElement("div");d.className="slot"+(need===slot?" need":"");Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});d.dataset.slot=slot;d.innerHTML=placed[slot]?`<img src="${cut(placed[slot].slug)}">`:`<span class="ph"></span><span>${LABEL[slot]}</span>`;b.appendChild(d);});
+  const need=ORDER.find(s=>!placed[s])??null,complete=!need;
+  $("#tray").innerHTML=set().pieces.map(p=>{const on=placed[p.slot]&&placed[p.slot].slug===p.slug,dim=need&&p.slot!==need;return `<button class="${on?'on':''} ${dim?'dim':''}" data-slug="${p.slug}" aria-label="${p.name}"><img src="${cut(p.slug)}"></button>`;}).join("");
+  $("#tray").querySelectorAll("button").forEach(btn=>btn.onpointerdown=e=>place(set().pieces.find(p=>p.slug===btn.dataset.slug),e.currentTarget));
+  ORDER.forEach(s=>$(`.dots i[data-d="${s}"]`).classList.toggle("on",!!placed[s]));
+  const n=found.size,tot=boardTotal();
+  $("#bCount").hidden=!complete;$("#bFound").textContent=n;$("#bTotal").textContent=tot;
+  $("#bCta").disabled=!complete;$("#bCta").textContent=complete?"Now with my clothes":"Make an outfit to continue";
+  $("#bAnother").hidden=!(complete&&n<tot);
+  const h=headline(n,tot,complete);$("#bKick").textContent=h.k;$("#bTitle").textContent=h.t;$("#bHint").textContent=h.h;
+}
+function headline(n,tot,complete){
+  if(!complete)return{k:"Try it — 10 seconds",t:"Make an outfit",h:"Tap a top, then a bottom, then shoes. Sample pieces — yours come next."};
+  if(n<=1)return{k:"Nice",t:"That's a look.",h:`Now swap a piece — these six hold ${tot} different outfits.`};
+  if(n<tot)return{k:"Keep going",t:"Another one.",h:`${tot-n} more hiding in the same six pieces.`};
+  return{k:`All ${tot}`,t:`Six pieces. ${tot} outfits.`,h:"That's why we ask for a photo, not sixty. Now let's do yours."};
+}
+function place(piece,fromEl){
+  const target=$(`.slot[data-slot="${piece.slot}"]`),a=fromEl.getBoundingClientRect(),bx=target.getBoundingClientRect();
+  const commit=()=>{placed[piece.slot]=piece;if(placed.top&&placed.bottom){const k=placed.top.slug+"|"+placed.bottom.slug;if(!found.has(k)){found.add(k);setTimeout(celebrate,80);}}renderBoard();};
+  if(matchMedia("(prefers-reduced-motion: reduce)").matches)return commit();
+  const fly=document.createElement("div");fly.className="flyer";Object.assign(fly.style,{left:a.left+"px",top:a.top+"px",width:a.width+"px",height:a.height+"px"});fly.innerHTML=`<img src="${cut(piece.slug)}">`;document.body.appendChild(fly);
+  const k=Math.min(bx.width*.82/a.width,bx.height*.82/a.height),dx=bx.left+bx.width/2-(a.left+a.width/2),dy=bx.top+bx.height/2-(a.top+a.height/2);
+  requestAnimationFrame(()=>{fly.style.transition="transform .42s var(--ease),opacity .42s var(--ease)";fly.style.transform=`translate(${dx}px,${dy}px) scale(${k})`;fly.style.opacity=".9";});
+  setTimeout(()=>{fly.remove();commit();},400);
+}
+function celebrate(){const b=$("#board");if(!b)return;const w=document.createElement("div");w.className="win";b.appendChild(w);setTimeout(()=>w.remove(),760);}
+function another(){const tops=set().pieces.filter(p=>p.slot==="top"),bots=set().pieces.filter(p=>p.slot==="bottom");for(const t of tops)for(const b of bots){if(found.has(t.slug+"|"+b.slug))continue;placed.top=t;placed.bottom=b;found.add(t.slug+"|"+b.slug);renderBoard();celebrate();return;}}
+
+/* 8 upload */
+function renderUpload(){
+  const has=owned.length>0;
+  $("#upBack").hidden=!has;
+  $("#upKick").textContent=has?"Add more":"Add your clothes";
+  $("#upTitle").textContent=has?"Another photo":"Upload a photo";
+  $("#upReassure").textContent=has?"Each photo adds a few more pieces — two or three is plenty to start.":"No clean product shots needed — one messy photo becomes several catalogued pieces.";
+}
+function chooseUpload(){show("extract");}
+
+/* 9 extract — THE FIX: one photo → the detector pulls out every garment */
+let extracted=[];
+function runExtract(){
+  const up=UPLOADS[gender][uploadIdx%UPLOADS[gender].length];
+  extracted=up.items.map(([slug])=>slug);
+  const photo=$("#photo");photo.className="photo";
+  // lay the garments into the mock photo, plus a hidden detection box over each
+  photo.innerHTML=up.items.map(([slug,pos])=>`<div class="g" style="left:${pos.left};top:${pos.top};width:${pos.width}"><img src="${cut(slug)}"></div>`).join("")
+    + up.items.map(([slug,pos])=>{const m=meta(slug);return `<div class="dbox" data-slug="${slug}" style="left:${pos.left};top:${pos.top};width:${pos.width};aspect-ratio:1"><b>${m.tag}</b></div>`;}).join("")
+    + `<div class="scan" id="scanline"></div>`;
+  $("#exKick").textContent=up.name;
+  $("#exTitle").textContent="Finding the pieces…";
+  $("#exResult").hidden=true;$("#exResult").innerHTML="";
+  $("#exStatus").textContent="";
+  $("#exCta").disabled=true;$("#exCta").textContent="Scanning…";$("#exCta").onclick=null;
+
+  setTimeout(()=>$("#scanline").classList.add("run"),300);
+  const boxes=[...photo.querySelectorAll(".dbox")];
+  boxes.forEach((b,i)=>setTimeout(()=>{b.classList.add("on");$("#exStatus").textContent=`Found ${i+1} of ${boxes.length}…`;},1150+i*380));
+  setTimeout(()=>{
+    // keep the garments visible under their boxes — the photo IS the proof; the chips below
+    // are what we pulled out of it. (An earlier version faded the clothes and left bare boxes.)
+    const res=$("#exResult");res.hidden=false;
+    res.innerHTML=up.items.map(([slug])=>{const m=meta(slug);return `<div class="chip2"><img src="${cut(slug)}"><span>${m.name}</span></div>`;}).join("");
+    $("#exTitle").textContent=`${boxes.length} pieces found`;
+    $("#exStatus").textContent="Background removed · tagged · ready";
+    $("#exCta").disabled=false;$("#exCta").textContent=`Add ${boxes.length} to my closet`;
+    $("#exCta").onclick=acceptExtract;
+  },1150+boxes.length*380+500);
+}
+function acceptExtract(){
+  extracted.forEach(slug=>{if(!owned.find(p=>p.slug===slug))owned.push(meta(slug));});
+  uploadIdx++;
+  show("closet");
+}
+
+/* 10 closet */
+function renderCloset(){
+  const g=$("#clGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){const p=owned[i];const d=document.createElement("div");d.className="pcell"+(p?" filled":(i===owned.length?" next":""));d.innerHTML=p?`<img src="${cut(p.slug)}">`:`<span class="pnum">${i+1}</span><img class="ghost" src="${cut(set().pieces[i].slug)}">`;g.appendChild(d);}
+  const n=owned.length,o=outfits();
+  $("#clTitle").textContent=`${n} piece${n===1?"":"s"}`;
+  $("#clTally").textContent=o?`${o} outfit${o===1?"":"s"}`:"keep going";
+  $("#clB").textContent=o?`${n} pieces. ${o} outfit${o===1?"":"s"}.`:"One top and one bottom starts it.";
+  $("#clS").textContent=o?"That's from one photo. Add another and it multiplies — six is the sweet spot.":"Add one more photo and the outfits begin.";
+  $("#clSee").hidden=o<1;
+  $("#clCta").textContent=n>=6?"Add more later":"Add another photo";
+  const k=$("#keepClo");k.hidden=n<2;k.querySelector("b").textContent=`${n} pieces, not saved.`;
+}
+function styleMe(){show("building");}
+
+/* 11 building */
+function runBuilding(){
+  const lines=["Reading colours and cuts…","Matching what goes together…","Checking today's weather…","Laying out your first look…"];
+  let i=0;$("#buildH").textContent="Styling you…";$("#buildP").textContent=lines[0];
+  const t=setInterval(()=>{i++;if(i>=lines.length){clearInterval(t);show("outfit");return;}$("#buildP").textContent=lines[i];},700);
+}
+
+/* 12 outfit */
+function renderOutfit(){
+  const tops=owned.filter(p=>p.slot==="top"),bots=owned.filter(p=>p.slot==="bottom"),sh=owned.filter(p=>p.slot==="shoes");
+  const combos=[];tops.forEach(t=>bots.forEach(b=>combos.push([t,b])));
+  if(!combos.length)return show("closet");
+  const [t,b]=combos[oVariant%combos.length],s=sh.length?sh[oVariant%sh.length]:null;
+  $("#styleChip").textContent=vibe;
+  const board=$("#oBoard");board.innerHTML="";
+  [["top",t],["bottom",b],["shoes",s]].forEach(([slot,p])=>{if(!p)return;const d=document.createElement("div");d.className="slot";Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});d.innerHTML=`<img src="${cut(p.slug)}">`;board.appendChild(d);});
+  $("#oHint").textContent=`${owned.length} pieces already make ${combos.length} outfit${combos.length===1?"":"s"} — all yours.`;
+}
+function shuffleOutfit(){oVariant++;renderOutfit();}
+
+/* 13 press & hold */
+let holdTimer=null,holdStart=0;
+function resetHold(){$("#holdFill").style.width="0";$("#holdLabel").textContent="Hold to turn on · 7:30am";}
+function bindHold(){
+  const btn=$("#holdBtn"),fill=$("#holdFill"),label=$("#holdLabel");
+  const start=()=>{holdStart=Date.now();holdTimer=setInterval(()=>{const p=Math.min((Date.now()-holdStart)/900,1);fill.style.width=(p*100)+"%";if(p>=1){clearInterval(holdTimer);holdTimer=null;label.textContent="On ✓ — see you at 7:30";setTimeout(next,520);}},16);};
+  const stop=()=>{if(holdTimer){clearInterval(holdTimer);holdTimer=null;if($("#holdLabel").textContent[0]!=="O")fill.style.width="0";}};
+  btn.onpointerdown=start;btn.onpointerup=stop;btn.onpointerleave=stop;
+}
+
+/* 14/15 */
+function renderSignup(){$("#rcPieces").textContent=owned.length;$("#rcOutfits").textContent=outfits();}
+function renderDone(){const g=$("#dGrid");g.innerHTML="";for(let i=0;i<6;i++){const p=owned[i];const d=document.createElement("div");d.className="pcell"+(p?" filled":"");d.innerHTML=p?`<img src="${cut(p.slug)}">`:`<span class="pnum">${i+1}</span>`;g.appendChild(d);}$("#dTally").textContent=`${owned.length} pieces · ${outfits()} outfits`;}
+
+function restart(){gender="women";owned=[];placed={};found=new Set();oVariant=0;vibe="Quiet Classic";uploadIdx=0;whoTouched=false;$("#whoCta").disabled=true;show("welcome");}
+bindHold();restart();
+</script>
+</body>
+</html>

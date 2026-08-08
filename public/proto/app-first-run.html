@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wardrobe — app first run (AJA-290)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --background:#faf9f7; --surface:#fff; --surface-2:#f3f1ed; --border:#e7e4de;
+    --foreground:#1c1917; --muted:#79716b; --accent:#567a4a; --accent-soft:#e8efe2;
+    --ease:cubic-bezier(.32,.72,0,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  /* `.btn{display:block}` and `.carried{display:inline-block}` outrank the UA rule for [hidden],
+     so anything toggled with the attribute needs this or it never hides. */
+  [hidden]{display:none!important}
+  body{
+    margin:0;background:#26241f;min-height:100vh;display:flex;align-items:center;
+    justify-content:center;gap:38px;padding:26px 20px;
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    color:var(--foreground);
+  }
+  .heading{font-family:"Libre Baskerville",Georgia,serif;letter-spacing:-.01em;line-height:1.12}
+
+  /* ---------- device ---------- */
+  .phone{
+    width:402px;height:874px;background:var(--background);border-radius:44px;
+    box-shadow:0 0 0 11px #0e0d0b,0 26px 60px rgba(0,0,0,.55);
+    overflow:hidden;position:relative;display:flex;flex-direction:column;flex:none;
+  }
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#0e0d0b;border-radius:19px;z-index:60}
+  .statusbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;position:relative;z-index:5}
+  .sbicons{display:flex;align-items:center;gap:6px}
+  .batt{width:24px;height:12px;border:1.5px solid var(--foreground);border-radius:3px;position:relative}
+  .batt::after{content:"";position:absolute;inset:2px;background:var(--foreground);border-radius:1px}
+  .screen{position:absolute;inset:52px 0 0;display:none;flex-direction:column;padding:0 20px}
+  .screen.on{display:flex;animation:fade .28s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.19em;text-transform:uppercase;color:var(--muted)}
+  h2.q{font-size:26px;margin:8px 0 0}
+  .hint{font-size:14.5px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+  .spacer{flex:1;min-height:0}
+
+  .btn{display:block;width:100%;border:0;border-radius:999px;padding:15px 20px;font-size:16px;
+    font-weight:600;font-family:inherit;background:var(--accent);color:#fff;cursor:pointer;
+    transition:transform .1s ease-out,opacity .15s}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:transparent;color:var(--foreground)}
+  .btn.outline{background:var(--surface);border:1px solid var(--border);color:var(--foreground)}
+  .btn[disabled]{opacity:.42;cursor:default}
+  .footer{flex:none;padding:12px 0 24px;display:flex;flex-direction:column;gap:4px}
+  .loginrow{flex:none;text-align:center;font-size:14px;color:var(--muted);padding-bottom:22px}
+  .loginrow b{color:var(--foreground);cursor:pointer}
+
+  /* ---------- gate header ---------- */
+  .gatetop{flex:none;display:flex;align-items:center;justify-content:space-between;padding-top:10px}
+  .wm-k{font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);display:block}
+  .wm-n{font-family:"Libre Baskerville",Georgia,serif;font-size:23px;display:block;margin-top:2px}
+  .seg{display:inline-flex;border:1px solid var(--border);background:var(--surface-2);border-radius:999px;padding:2px}
+  .seg button{border:0;background:transparent;font:inherit;font-size:12px;font-weight:600;color:var(--muted);
+    padding:6px 12px;border-radius:999px;cursor:pointer}
+  .seg button.on{background:var(--surface);color:var(--foreground);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+
+  /* ---------- board ---------- */
+  .boardwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px 0}
+  .board{position:relative;aspect-ratio:3/4;height:100%;max-width:100%;background:#fff;
+    border:1px solid var(--border);border-radius:18px;overflow:hidden}
+  .slot{position:absolute;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+  .slot .ph{position:absolute;inset:8%;border:1.5px dashed var(--border);border-radius:16px}
+  .slot.need .ph{border-color:var(--accent);animation:pulse 1.5s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+  .slot span{position:relative;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .slot img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.18));
+    animation:pop .34s var(--ease)}
+  @keyframes pop{from{transform:scale(.86);opacity:0}to{transform:none;opacity:1}}
+  .win{position:absolute;inset:0;border-radius:18px;pointer-events:none;
+    background:radial-gradient(circle at 50% 55%,rgba(86,122,74,.20),transparent 62%);animation:winf .75s ease-out}
+  @keyframes winf{from{opacity:0}35%{opacity:1}to{opacity:0}}
+
+  .meter{flex:none;display:flex;align-items:center;gap:10px;min-height:30px}
+  .dots{display:flex;gap:6px}
+  .dots i{width:7px;height:7px;border-radius:50%;background:var(--border);transition:transform .2s}
+  .dots i.on{background:var(--accent);transform:scale(1.25)}
+  .count{background:var(--accent-soft);color:var(--accent);font-size:13px;font-weight:600;
+    border-radius:999px;padding:4px 12px}
+  .count b{font-variant-numeric:tabular-nums}
+
+  .tray{flex:none;display:flex;gap:7px;padding:2px 0 4px}
+  .tray button{flex:1;min-width:0;aspect-ratio:1;border:1px solid var(--border);background:var(--surface);
+    border-radius:16px;padding:6px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    transition:transform .12s,opacity .15s,border-color .15s,background .15s}
+  .tray button:active{transform:scale(.95)}
+  .tray button.on{border-color:var(--accent);background:var(--accent-soft)}
+  .tray button.dim{opacity:.4}
+  .tray img{max-width:100%;max-height:100%;object-fit:contain}
+
+  /* flying piece */
+  .flyer{position:fixed;z-index:90;pointer-events:none;display:flex;align-items:center;justify-content:center}
+  .flyer img{max-width:100%;max-height:100%;object-fit:contain}
+
+  /* ---------- generic cards ---------- */
+  .card{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);
+    border-radius:16px;padding:13px 15px;font:inherit;cursor:pointer;margin-top:8px;display:block}
+  .card.on{border-color:var(--accent);background:var(--accent-soft)}
+  .card b{display:block;font-size:14.5px;font-weight:600}
+  .card i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .carried{display:inline-block;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+    color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:3px 9px;margin-top:10px}
+
+  .bar{flex:none;display:flex;align-items:center;justify-content:space-between;padding-top:12px;font-size:11px;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:600}
+  .prog{height:3px;background:var(--surface-2);border-radius:2px;margin-top:8px;flex:none}
+  .prog i{display:block;height:100%;background:var(--accent);border-radius:2px;transition:width .3s var(--ease)}
+
+  /* capture grid */
+  .capgrid{flex:none;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .capcell{aspect-ratio:1;border:1.5px dashed var(--border);border-radius:14px;display:flex;align-items:center;
+    justify-content:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;
+    background:var(--surface);overflow:hidden}
+  .capcell.filled{border-style:solid;border-color:var(--accent)}
+  .capcell img{max-width:82%;max-height:82%;object-fit:contain;animation:pop .3s var(--ease)}
+  .viewfinder{flex:1;min-height:0;margin-top:12px;border-radius:20px;background:#141310;position:relative;
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .viewfinder p{color:rgba(255,255,255,.62);font-size:13px;text-align:center;padding:0 30px}
+  .shutter{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);width:62px;height:62px;border-radius:50%;
+    background:#fff;border:4px solid rgba(255,255,255,.4);cursor:pointer}
+  .shutter:active{transform:translateX(-50%) scale(.93)}
+
+  /* signup */
+  .field{margin-top:10px}
+  .field label{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .field div{margin-top:5px;background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    padding:12px 13px;font-size:14.5px;color:var(--muted)}
+
+  /* old gate */
+  .oldgate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center}
+  .oldgate .wm-n{font-size:34px}
+
+  /* morning */
+  .weather{flex:none;display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);
+    border-radius:16px;padding:13px 15px;margin-top:12px}
+  .weather b{font-size:22px;font-family:"Libre Baskerville",Georgia,serif}
+  .timerow{display:flex;gap:8px;margin-top:10px}
+  .timerow button{flex:1;border:1px solid var(--border);background:var(--surface);border-radius:12px;padding:11px 0;
+    font:inherit;font-size:14px;cursor:pointer}
+  .timerow button.on{border-color:var(--accent);background:var(--accent-soft);font-weight:600}
+
+  /* closet */
+  .clgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+  .clgrid div{aspect-ratio:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    display:flex;align-items:center;justify-content:center;padding:8px}
+  .clgrid img{max-width:100%;max-height:100%;object-fit:contain}
+
+  /* ---------- side rail ---------- */
+  .rail{width:290px;color:#e7e3da;font-size:13.5px;line-height:1.55;flex:none}
+  .rail h1{font-family:"Libre Baskerville",Georgia,serif;font-size:23px;margin:0 0 4px;color:#fff;line-height:1.2}
+  .rail .sub{color:#a49d92;margin:0 0 20px}
+  .rail h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#8d8578;margin:22px 0 9px;font-weight:700}
+  .switch{display:flex;background:#161511;border:1px solid #3a362f;border-radius:12px;padding:3px;gap:3px}
+  .switch button{flex:1;border:0;background:transparent;color:#a49d92;font:inherit;font-size:12.5px;font-weight:600;
+    padding:9px 6px;border-radius:9px;cursor:pointer}
+  .switch button.on{background:var(--accent);color:#fff}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{padding:7px 10px;border-radius:9px;cursor:pointer;color:#a49d92;display:flex;gap:9px;align-items:center}
+  .steps li:hover{background:#2f2c26}
+  .steps li.on{background:#333029;color:#fff}
+  .steps li s{width:19px;height:19px;border-radius:50%;background:#3f3b33;color:#cfc8bb;font-size:10.5px;
+    display:flex;align-items:center;justify-content:center;text-decoration:none;flex:none;font-weight:700}
+  .steps li.on s{background:var(--accent);color:#fff}
+  .note{background:#161511;border:1px solid #3a362f;border-radius:12px;padding:12px 14px;color:#a49d92;font-size:12.5px;margin-top:14px}
+  .note b{color:#e7e3da}
+  .rail .restart{margin-top:16px;width:100%;border:1px solid #3a362f;background:transparent;color:#cfc8bb;
+    border-radius:10px;padding:10px;font:inherit;font-size:13px;cursor:pointer}
+  @media (max-width:1100px){body{flex-direction:column;gap:22px}.rail{width:402px}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>9:41</span><span class="sbicons"><span class="batt"></span></span></div>
+
+  <!-- ══════════ OLD GATE (before) ══════════ -->
+  <section class="screen" id="s-gateOld">
+    <div class="oldgate">
+      <div>
+        <span class="wm-k">Your Personal</span>
+        <span class="wm-n heading">Wardrobe</span>
+      </div>
+      <p class="hint" style="max-width:250px">Sign in to open your closet, outfits, and wishlist.</p>
+      <div style="width:100%;max-width:260px;display:flex;flex-direction:column;gap:10px">
+        <button class="btn" onclick="go('signup')">Log in</button>
+        <button class="btn outline" onclick="go('signup')">Create account</button>
+      </div>
+    </div>
+    <div class="loginrow" style="color:#b4483f">Nothing has been shown. Nothing has been earned.</div>
+  </section>
+
+  <!-- ══════════ NEW GATE — the board ══════════ -->
+  <section class="screen" id="s-gate">
+    <div class="gatetop">
+      <div><span class="wm-k">Your Personal</span><span class="wm-n heading">Wardrobe</span></div>
+      <div class="seg">
+        <button id="gW" class="on" onclick="setGender('women')">Women's</button>
+        <button id="gM" onclick="setGender('men')">Men's</button>
+      </div>
+    </div>
+
+    <p class="kicker" id="bKick" style="margin-top:14px">Try it</p>
+    <h2 class="q heading" id="bTitle">Make an outfit</h2>
+    <p class="hint" id="bHint">Tap a top, then a bottom, then shoes. These are our pieces — yours come next.</p>
+
+    <div class="boardwrap"><div class="board" id="board"></div></div>
+
+    <div class="meter">
+      <div class="dots"><i data-d="top"></i><i data-d="bottom"></i><i data-d="shoes"></i></div>
+      <span class="count" id="bCount" hidden><b id="bFound">0</b> of <b id="bTotal">4</b> looks found</span>
+    </div>
+
+    <div class="tray" id="tray"></div>
+
+    <div class="footer">
+      <button class="btn" id="bCta" disabled onclick="finishBoard()">Make an outfit to continue</button>
+      <button class="btn ghost" id="bAnother" hidden onclick="another()">Try another</button>
+    </div>
+    <div class="loginrow">Already have an account? <b onclick="go('signup')">Log in</b></div>
+  </section>
+
+  <!-- ══════════ SIGNUP ══════════ -->
+  <section class="screen" id="s-signup">
+    <p class="kicker" style="margin-top:16px">Step 1 of 2</p>
+    <h2 class="q heading">Create your account</h2>
+    <p class="hint">So your closet is there on every device.</p>
+    <div class="field"><label>Email</label><div>maya@example.com</div></div>
+    <div class="field"><label>Password</label><div>••••••••••</div></div>
+    <div class="field"><label>Username</label><div>@maya</div></div>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="go('quizGender')">Create account</button></div>
+  </section>
+
+  <!-- ══════════ QUIZ ══════════ -->
+  <section class="screen" id="s-quizGender">
+    <div class="bar"><span>Style quiz · 1 of 5</span><span>Skip</span></div>
+    <div class="prog"><i style="width:20%"></i></div>
+    <h2 class="q heading" style="margin-top:16px">What should we show you?</h2>
+    <p class="hint">Sets the pieces you'll style, and your Explore feed.</p>
+    <button class="card" id="qgW" onclick="pickGender('women')"><b>Women's</b><i>Show women's styles</i></button>
+    <button class="card" id="qgM" onclick="pickGender('men')"><b>Men's</b><i>Show men's styles</i></button>
+    <button class="card" onclick="pickGender(null)"><b>Everything</b><i>Show it all</i></button>
+    <span class="carried" id="carried">Carried over from the board</span>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="go('quizGoal')">Next</button></div>
+  </section>
+
+  <section class="screen" id="s-quizGoal">
+    <div class="bar"><span>Style quiz · 2 of 5</span><span>Skip</span></div>
+    <div class="prog"><i style="width:40%"></i></div>
+    <h2 class="q heading" style="margin-top:16px">What do you want help with?</h2>
+    <p class="hint">Pick one — we'll shape Today around this.</p>
+    <button class="card" onclick="pick(this,'quizWhere')"><b>Wear more of what I own</b></button>
+    <button class="card" onclick="pick(this,'quizWhere')"><b>Stop buying things I regret</b></button>
+    <button class="card" onclick="pick(this,'quizWhere')"><b>Get dressed faster</b></button>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="go('quizWhere')">Next</button></div>
+  </section>
+
+  <section class="screen" id="s-quizWhere">
+    <div class="bar"><span>Style quiz · 3 of 5</span><span>Skip</span></div>
+    <div class="prog"><i style="width:60%"></i></div>
+    <h2 class="q heading" style="margin-top:16px">Where do you dress most?</h2>
+    <p class="hint">Up to 3.</p>
+    <button class="card" onclick="this.classList.toggle('on')"><b>Work</b></button>
+    <button class="card" onclick="this.classList.toggle('on')"><b>Everyday</b></button>
+    <button class="card" onclick="this.classList.toggle('on')"><b>Going out</b></button>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="go('quizLean')">Next</button></div>
+  </section>
+
+  <section class="screen" id="s-quizLean">
+    <div class="bar"><span>Style quiz · 4 of 5</span><span>Skip</span></div>
+    <div class="prog"><i style="width:80%"></i></div>
+    <h2 class="q heading" style="margin-top:16px">Which feels more like you?</h2>
+    <p class="hint">One pick — easier than naming your whole aesthetic.</p>
+    <button class="card" onclick="pick(this,'snap')"><b>Classic</b><i>Clean lines, few colours</i></button>
+    <button class="card" onclick="pick(this,'snap')"><b>Relaxed</b><i>Soft, easy, layered</i></button>
+    <button class="card" onclick="pick(this,'snap')"><b>Statement</b><i>Colour and contrast</i></button>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" onclick="go('snap')">Next</button></div>
+  </section>
+
+  <!-- ══════════ SNAPSHOT ══════════ -->
+  <section class="screen" id="s-snap">
+    <div class="bar"><span>Style quiz · 5 of 5</span><span>Skip</span></div>
+    <div class="prog"><i style="width:100%"></i></div>
+    <h2 class="q heading" style="margin-top:16px">We get you</h2>
+    <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:18px;padding:16px;margin-top:12px">
+      <p class="kicker">Your style snapshot</p>
+      <p class="heading" style="font-size:20px;margin:8px 0 0">Quiet classic</p>
+      <p class="hint" style="margin-top:6px">Clean shapes you can repeat, with room for one good colour.</p>
+    </div>
+    <p class="hint" id="snapHint" style="margin-top:14px"></p>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" id="snapCta" onclick="go('cap')"></button></div>
+  </section>
+
+  <!-- ══════════ FIRST SIX CAPTURE ══════════ -->
+  <section class="screen" id="s-cap">
+    <p class="kicker" style="margin-top:16px" id="capKick">Piece one</p>
+    <h2 class="q heading" id="capTitle">The top you've worn most this week</h2>
+    <p class="hint">Lay it flat or hold it up. Wrinkles are fine.</p>
+    <div class="viewfinder">
+      <p>Tap the shutter — we'll cut it out and tag it for you.</p>
+      <button class="shutter" onclick="capture()"></button>
+    </div>
+    <div class="capgrid" id="capGrid"></div>
+    <div class="footer" style="padding-top:10px">
+      <button class="btn ghost" onclick="go('outfit')">I don't have these to hand</button>
+    </div>
+  </section>
+
+  <!-- ══════════ FIRST OUTFIT ══════════ -->
+  <section class="screen" id="s-outfit">
+    <p class="kicker" style="margin-top:16px">Your closet, day one</p>
+    <h2 class="q heading" id="oTitle">6 pieces. 4 outfits.</h2>
+    <p class="hint">Same arithmetic as the board — except these are yours.</p>
+    <div class="boardwrap"><div class="board" id="oBoard"></div></div>
+    <div class="footer">
+      <button class="btn" onclick="go('morning')">Wear this today</button>
+      <button class="btn ghost" onclick="shuffleOutfit()">Show me another</button>
+    </div>
+  </section>
+
+  <!-- ══════════ MORNING ASK ══════════ -->
+  <section class="screen" id="s-morning">
+    <p class="kicker" style="margin-top:16px">One last thing</p>
+    <h2 class="q heading">Want this each morning?</h2>
+    <p class="hint">An outfit from your closet, picked for the weather. No feed, no badge.</p>
+    <div class="weather">
+      <b>14°</b>
+      <div><div style="font-weight:600;font-size:14px">Light rain later</div>
+      <div style="font-size:12.5px;color:var(--muted)">London · today</div></div>
+    </div>
+    <div class="timerow">
+      <button onclick="pickTime(this)">7:00</button>
+      <button class="on" onclick="pickTime(this)">7:30</button>
+      <button onclick="pickTime(this)">8:00</button>
+    </div>
+    <div class="spacer"></div>
+    <div class="footer">
+      <button class="btn" onclick="go('done')">Turn it on</button>
+      <button class="btn ghost" onclick="go('done')">Not now</button>
+    </div>
+  </section>
+
+  <!-- ══════════ DONE ══════════ -->
+  <section class="screen" id="s-done">
+    <p class="kicker" style="margin-top:16px">Your closet</p>
+    <h2 class="q heading" id="dTitle">6 pieces</h2>
+    <p class="hint">Everything from here builds on this. Add more whenever.</p>
+    <div class="clgrid" id="clGrid"></div>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn outline" onclick="restart()">Run it again</button></div>
+  </section>
+</div>
+
+<!-- ══════════ SIDE RAIL ══════════ -->
+<div class="rail">
+  <h1>App first run</h1>
+  <p class="sub">AJA-290 — value before the account gate. This is the iOS flow, not the website.</p>
+
+  <h3>Compare</h3>
+  <div class="switch">
+    <button id="swOld" onclick="setMode('old')">Before</button>
+    <button id="swNew" class="on" onclick="setMode('new')">After</button>
+  </div>
+  <div class="note" id="modeNote"></div>
+
+  <h3>Steps</h3>
+  <ul class="steps" id="stepList"></ul>
+
+  <button class="restart" onclick="restart()">Restart</button>
+</div>
+
+<script>
+/* ─────────── data: the real cutouts from public/samples ─────────── */
+const SETS={
+  women:{dir:"../samples/women",pieces:[
+    {slot:"top",slug:"white-shirt",name:"White shirt"},
+    {slot:"top",slug:"camel-sweater",name:"Camel sweater"},
+    {slot:"bottom",slug:"blue-jeans",name:"Blue jeans"},
+    {slot:"bottom",slug:"trousers",name:"Trousers"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers"},
+    {slot:"shoes",slug:"loafers",name:"Loafers"}]},
+  men:{dir:"../samples/men",pieces:[
+    {slot:"top",slug:"white-oxford",name:"White oxford"},
+    {slot:"top",slug:"navy-sweater",name:"Navy sweater"},
+    {slot:"bottom",slug:"dark-jeans",name:"Dark jeans"},
+    {slot:"bottom",slug:"chinos",name:"Chinos"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers"},
+    {slot:"shoes",slug:"loafers",name:"Loafers"}]}
+};
+const ORDER=["top","bottom","shoes"];
+const LABEL={top:"Top",bottom:"Bottom",shoes:"Shoes"};
+/* mirrors CanvasBuilderView.placeLook, so the layout learned here is the real one */
+const BOX={top:{left:"3%",top:"6%",width:"52%"},bottom:{left:"0",top:"50%",width:"58.24%"},shoes:{left:"56%",top:"70%",width:"36%"}};
+
+let gender="women", placed={}, found=new Set(), captured=[], mode="new", oVariant=0;
+const $=s=>document.querySelector(s);
+const set=()=>SETS[gender];
+const src=slug=>`${set().dir}/${slug}-sticker.png`;
+const total=()=>{const t=set().pieces.filter(p=>p.slot==="top").length,b=set().pieces.filter(p=>p.slot==="bottom").length;return t*b;};
+
+/* ─────────── screens ─────────── */
+const FLOW_NEW=[["gate","Play the board"],["signup","Create account"],["quizGender","Department"],["quizGoal","Goal"],
+  ["quizWhere","Occasions"],["quizLean","Lean"],["snap","Snapshot"],["cap","First six"],["outfit","First outfit"],
+  ["morning","Morning ask"],["done","Closet"]];
+const FLOW_OLD=[["gateOld","Sign-in wall"],["signup","Create account"],["quizGender","Department"],["quizGoal","Goal"],
+  ["quizWhere","Occasions"],["quizLean","Lean"],["snap","Snapshot"],["gate","The demo — finally"],["cap","First six"],
+  ["outfit","First outfit"],["morning","Morning ask"],["done","Closet"]];
+const flow=()=>mode==="new"?FLOW_NEW:FLOW_OLD;
+let current="gate";
+
+function go(name){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  const el=$("#s-"+name); if(el)el.classList.add("on");
+  current=name;
+  if(name==="gate")renderBoard();
+  if(name==="snap")renderSnap();
+  if(name==="cap")renderCap();
+  if(name==="outfit")renderOutfit();
+  if(name==="done")renderCloset();
+  if(name==="quizGender")renderQuizGender();
+  renderSteps();
+}
+
+function renderSteps(){
+  $("#stepList").innerHTML=flow().map(([id,label],i)=>
+    `<li class="${id===current?'on':''}" onclick="go('${id}')"><s>${i+1}</s>${label}</li>`).join("");
+}
+
+function setMode(m){
+  mode=m;
+  $("#swOld").classList.toggle("on",m==="old");
+  $("#swNew").classList.toggle("on",m==="new");
+  $("#modeNote").innerHTML = m==="new"
+    ? "<b>After.</b> The board is the first screen. Three taps and they have used the core feature — before an email, a password or a photo is asked for."
+    : "<b>Before.</b> Sign-in wall first, then five questions, and the demo arrives at step 8. Everything is asked for before anything is given.";
+  restart();
+}
+
+/* ─────────── the board ─────────── */
+function setGender(g){
+  gender=g;
+  $("#gW").classList.toggle("on",g==="women");
+  $("#gM").classList.toggle("on",g==="men");
+  placed={};found=new Set();renderBoard();
+}
+
+function renderBoard(){
+  const b=$("#board");b.innerHTML="";
+  ORDER.forEach(slot=>{
+    const need=ORDER.find(s=>!placed[s]);
+    const d=document.createElement("div");
+    d.className="slot"+(need===slot?" need":"");
+    Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});
+    d.dataset.slot=slot;
+    d.innerHTML=placed[slot]
+      ? `<img src="${src(placed[slot].slug)}" alt="${placed[slot].name}">`
+      : `<span class="ph"></span><span>${LABEL[slot]}</span>`;
+    b.appendChild(d);
+  });
+
+  const need=ORDER.find(s=>!placed[s])??null, complete=!need;
+  $("#tray").innerHTML=set().pieces.map(p=>{
+    const on=placed[p.slot]&&placed[p.slot].slug===p.slug;
+    const dim=need&&p.slot!==need;
+    return `<button class="${on?'on':''} ${dim?'dim':''}" data-slug="${p.slug}" aria-label="${p.name}">
+      <img src="${src(p.slug)}" alt=""></button>`;
+  }).join("");
+  $("#tray").querySelectorAll("button").forEach(btn=>{
+    btn.onpointerdown=e=>place(set().pieces.find(p=>p.slug===btn.dataset.slug),e.currentTarget);
+  });
+
+  ORDER.forEach(s=>{const dot=$(`.dots i[data-d="${s}"]`);dot.classList.toggle("on",!!placed[s]);});
+
+  const n=found.size;
+  $("#bCount").hidden=!complete;
+  $("#bFound").textContent=n;$("#bTotal").textContent=total();
+  $("#bCta").disabled=!complete;
+  $("#bCta").textContent=complete?"Make it yours":"Make an outfit to continue";
+  $("#bAnother").hidden=!(complete&&n<total());
+
+  const h=headline(n,total(),complete,set().pieces.length);
+  $("#bKick").textContent=h.k;$("#bTitle").textContent=h.t;$("#bHint").textContent=h.h;
+}
+
+function headline(n,tot,complete,pieces){
+  if(!complete)return{k:"Try it",t:"Make an outfit",h:"Tap a top, then a bottom, then shoes. These are our pieces — yours come next."};
+  if(n<=1)return{k:"Nice",t:"That's a look.",h:`Three taps, and that is the whole product. Now swap a piece — these six hold ${tot} different outfits.`};
+  if(n<tot)return{k:"Keep going",t:"Another one.",h:`${tot-n} more hiding in the same six pieces.`};
+  return{k:`All ${tot}`,t:`${pieces} pieces. ${tot} outfits.`,h:"That is why we ask for six photos and not sixty. Two tops and two bottoms did all of this."};
+}
+
+/* FLIP: the piece travels from the tray to its slot */
+function place(piece,fromEl){
+  const target=$(`.slot[data-slot="${piece.slot}"]`);
+  const a=fromEl.getBoundingClientRect(), bx=target.getBoundingClientRect();
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const commit=()=>{
+    placed[piece.slot]=piece;
+    if(placed.top&&placed.bottom){
+      const key=placed.top.slug+"|"+placed.bottom.slug;
+      if(!found.has(key)){found.add(key);setTimeout(celebrate,80);}
+    }
+    renderBoard();
+  };
+  if(reduce)return commit();
+  const fly=document.createElement("div");
+  fly.className="flyer";
+  Object.assign(fly.style,{left:a.left+"px",top:a.top+"px",width:a.width+"px",height:a.height+"px"});
+  fly.innerHTML=`<img src="${src(piece.slug)}">`;
+  document.body.appendChild(fly);
+  const k=Math.min(bx.width*.82/a.width,bx.height*.82/a.height);
+  const dx=bx.left+bx.width/2-(a.left+a.width/2), dy=bx.top+bx.height/2-(a.top+a.height/2);
+  requestAnimationFrame(()=>{
+    fly.style.transition="transform .42s var(--ease),opacity .42s var(--ease)";
+    fly.style.transform=`translate(${dx}px,${dy}px) scale(${k})`;
+    fly.style.opacity=".9";
+  });
+  setTimeout(()=>{fly.remove();commit();},400);
+}
+
+function celebrate(){
+  const b=$("#board");if(!b)return;
+  const w=document.createElement("div");w.className="win";b.appendChild(w);
+  setTimeout(()=>w.remove(),760);
+}
+
+function another(){
+  const tops=set().pieces.filter(p=>p.slot==="top"), bottoms=set().pieces.filter(p=>p.slot==="bottom");
+  for(const t of tops)for(const b of bottoms){
+    if(found.has(t.slug+"|"+b.slug))continue;
+    placed.top=t;placed.bottom=b;found.add(t.slug+"|"+b.slug);
+    renderBoard();celebrate();return;
+  }
+}
+
+function finishBoard(){ go(mode==="new"?"signup":"cap"); }
+
+/* ─────────── quiz ─────────── */
+let quizGender=null;
+function renderQuizGender(){
+  const carried = mode==="new";           // only the new flow can carry an answer forward
+  quizGender = carried ? gender : null;
+  $("#qgW").classList.toggle("on",quizGender==="women");
+  $("#qgM").classList.toggle("on",quizGender==="men");
+  $("#carried").hidden=!carried;
+  $("#carried").textContent = carried ? `Carried over — you chose ${gender==="women"?"women's":"men's"} on the board` : "";
+}
+function pickGender(g){
+  quizGender=g;
+  $("#qgW").classList.toggle("on",g==="women");
+  $("#qgM").classList.toggle("on",g==="men");
+  $("#carried").hidden=true;
+  if(g)gender=g;
+}
+function pick(el,next){
+  [...el.parentElement.querySelectorAll(".card")].forEach(c=>c.classList.remove("on"));
+  el.classList.add("on");
+  setTimeout(()=>go(next),190);
+}
+
+function renderSnap(){
+  const seen = mode==="new";   // the board came before the account in the new flow
+  $("#snapHint").innerHTML = seen
+    ? "You already made an outfit from our six. Now the same thing with <b>yours</b> — six photos is all it takes."
+    : "Before you photograph anything — here's what the app does with six pieces. Have a go with ours, then we'll do yours.";
+  $("#snapCta").textContent = seen ? "Now with my clothes" : "Show me how it works";
+  $("#snapCta").onclick = ()=>go(seen?"cap":"gate");
+}
+
+/* ─────────── capture ─────────── */
+const CAP_PROMPTS=[["Piece one","The top you've worn most this week"],["Piece two","A second top"],
+  ["Piece three","The bottoms you reach for"],["Piece four","One more bottom"],
+  ["Piece five","Shoes you actually wear"],["Piece six","One more pair"]];
+function renderCap(){
+  const g=$("#capGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){
+    const c=document.createElement("div");
+    c.className="capcell"+(captured[i]?" filled":"");
+    c.innerHTML=captured[i]?`<img src="${src(captured[i].slug)}">`:`${i+1}`;
+    g.appendChild(c);
+  }
+  const i=captured.length;
+  if(i<6){$("#capKick").textContent=CAP_PROMPTS[i][0];$("#capTitle").textContent=CAP_PROMPTS[i][1];}
+  else{$("#capKick").textContent="All six";$("#capTitle").textContent="That's your closet started.";}
+}
+function capture(){
+  if(captured.length>=6)return go("outfit");
+  captured.push(set().pieces[captured.length]);
+  renderCap();
+  if(captured.length===6)setTimeout(()=>go("outfit"),520);
+}
+
+/* ─────────── first outfit ─────────── */
+function renderOutfit(){
+  if(!captured.length)captured=set().pieces.slice();
+  const tops=captured.filter(c=>c.slot==="top"),bots=captured.filter(c=>c.slot==="bottom"),shoes=captured.filter(c=>c.slot==="shoes");
+  const combos=[];tops.forEach(t=>bots.forEach(b=>combos.push([t,b])));
+  const [t,b]=combos[oVariant%Math.max(combos.length,1)]||[tops[0],bots[0]];
+  const s=shoes[oVariant%Math.max(shoes.length,1)]||shoes[0];
+  $("#oTitle").textContent=`${captured.length} pieces. ${Math.max(combos.length,1)} outfits.`;
+  const board=$("#oBoard");board.innerHTML="";
+  [["top",t],["bottom",b],["shoes",s]].forEach(([slot,p])=>{
+    if(!p)return;
+    const d=document.createElement("div");d.className="slot";
+    Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});
+    d.innerHTML=`<img src="${src(p.slug)}">`;board.appendChild(d);
+  });
+}
+function shuffleOutfit(){oVariant++;renderOutfit();}
+function pickTime(el){[...el.parentElement.children].forEach(b=>b.classList.remove("on"));el.classList.add("on");}
+
+function renderCloset(){
+  if(!captured.length)captured=set().pieces.slice();
+  $("#dTitle").textContent=`${captured.length} pieces`;
+  $("#clGrid").innerHTML=captured.map(c=>`<div><img src="${src(c.slug)}"></div>`).join("");
+}
+
+/* ─────────── boot ─────────── */
+function restart(){
+  placed={};found=new Set();captured=[];oVariant=0;quizGender=null;
+  go(flow()[0][0]);
+}
+setMode("new");
+</script>
+</body>
+</html>
