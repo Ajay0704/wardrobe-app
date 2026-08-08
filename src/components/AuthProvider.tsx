@@ -19,7 +19,6 @@ import {
   healBase64Snapshot,
   scrubBloatedInlineImages,
 } from "@/lib/heal";
-import { sampleCloset } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 
 /** Soft budget for the first cloud pull. Keep short — local data already works. */
@@ -103,14 +102,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           throw new Error(res.error);
         }
 
-        // status === "empty" → brand-new account. Seed the labeled sample
-        // closet deterministically (NOT whatever is local — that could leak a
-        // previous signed-out user's items into this account), then push it.
+        // status === "empty" → brand-new account. Push an EMPTY closet deterministically (NOT
+        // whatever is local — that could leak a previous signed-out user's items into this
+        // account). No sample seeding since AJA-279: the demo is a screen inside onboarding, so
+        // a new account never starts out holding clothes it does not own.
         const { profile, theme, draft } = useWardrobe.getState();
-        const sample = sampleCloset(profile.shopGender);
         const seeded = {
-          items: sample.items,
-          outfits: sample.outfits,
+          items: [],
+          outfits: [],
           calendar: [],
           profile,
           theme,

@@ -10,7 +10,6 @@ import {
 } from "@/lib/supabase/auth";
 import { isSupabaseConfigured } from "@/lib/supabase/sync";
 import { resolveImageSource } from "@/lib/supabase/storage";
-import { sampleCloset } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
 import { OAuthButtons } from "./OAuthButtons";
 import { ProfileAvatarEditor } from "./ProfileAvatar";
@@ -105,21 +104,19 @@ export function AuthModal({
     }
     setLoading(true);
     try {
-      // Gender-matched starter closet (onboarding may not have run yet → women's default).
-      const sample = sampleCloset(profile.shopGender);
       const user = await signUp(
         email.trim(),
         password,
         profile,
-        { items: sample.items, outfits: sample.outfits, calendar: [], theme, draft },
+        { items: [], outfits: [], calendar: [], theme, draft },
       );
       setAuthUser(user);
-      // New accounts start with the labeled sample closet (same as OAuth) so
-      // the app is explorable on first launch; the samples are badged and
-      // one-tap clearable. Keep local + cloud in sync.
+      // New accounts start EMPTY (AJA-279). The sample closet used to be seeded here to make the
+      // app explorable, but onboarding never displayed it and the first real photo deleted it.
+      // The demo is now a screen inside onboarding, so nothing fake is ever filed as the user's.
       hydrateFromRemote({
-        items: sample.items,
-        outfits: sample.outfits,
+        items: [],
+        outfits: [],
         calendar: [],
         profile: { ...profile, email: user.email },
         theme,

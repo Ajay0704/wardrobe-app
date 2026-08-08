@@ -22,6 +22,24 @@ export function HandleField({
   onValidChange?: (valid: boolean) => void;
   myId: string | null;
 }) {
+  /**
+   * An untouched EMPTY field shows no complaint.
+   *
+   * `validateHandle("")` fails, so rendering its reason unconditionally meant the sign-up sheet
+   * opened with a red ✕ and "At least 3 characters" against a field nobody had typed in yet —
+   * the first thing a new user saw was the form telling them they'd done something wrong.
+   * Feedback should report status, not assign blame before there's anything to report
+   * (apple-design §16).
+   *
+   * Validation itself is unchanged: `status` is still computed from the real value and
+   * `onValidChange` still reports false while empty, so any parent gating a "continue" button
+   * behaves exactly as before. Only the visible message and icon wait for interaction — the
+   * first keystroke, or leaving the field. A PREFILLED value is not pristine, so a handle
+   * carried in from elsewhere is still validated on sight.
+   */
+  const [touched, setTouched] = useState(false);
+  const pristine = !touched && value === "";
+
   const fmt = validateHandle(value);
   const okHandle = fmt.ok ? fmt.handle : "";
   // Availability result tagged with the handle it was computed for, so a stale
@@ -67,7 +85,11 @@ export function HandleField({
         <span className="text-muted">@</span>
         <input
           value={value}
-          onChange={(e) => onChange(sanitizeHandle(e.target.value))}
+          onChange={(e) => {
+            setTouched(true);
+            onChange(sanitizeHandle(e.target.value));
+          }}
+          onBlur={() => setTouched(true)}
           placeholder="yourname"
           autoCapitalize="none"
           autoCorrect="off"
@@ -76,15 +98,15 @@ export function HandleField({
           className="flex-1 bg-transparent text-sm outline-none"
           aria-label="Username"
         />
-        {status === "checking" && (
+        {status === "checking" && !pristine && (
           <Loader2 size={16} className="animate-spin text-muted" aria-hidden />
         )}
         {status === "ok" && <Check size={16} className="text-emerald-600" aria-hidden />}
-        {(status === "taken" || status === "invalid") && (
+        {(status === "taken" || status === "invalid") && !pristine && (
           <X size={16} className="text-red-500" aria-hidden />
         )}
       </div>
-      {msg && (
+      {msg && !pristine && (
         <p className={`mt-1.5 text-xs ${status === "ok" ? "text-emerald-600" : "text-red-500"}`}>
           {msg}
         </p>

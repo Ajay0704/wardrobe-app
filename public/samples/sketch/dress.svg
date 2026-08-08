@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 130" fill="none">
+<style>
+.o,.t{stroke:#6f6862;stroke-linecap:round;stroke-linejoin:round;fill:none}
+.o{stroke-width:2.1}
+.t{stroke-width:1.25;opacity:.42}
+@media (prefers-color-scheme:dark){.o,.t{stroke:#b9b1a7}}
+</style>
+<g class="o"><path d="M45 24c0 0 6-6 15-6s15 6 15 6l12 8-5 16-6-3v9l14 68c1 4-1 6-5 6H35c-4 0-6-2-5-6l14-68v-9l-6 3-5-16z"/> <path d="M45 24c5 8 25 8 30 0"/></g>
+<g class="t"><path d="M44 62c10 4 22 4 32 0"/></g>
+</svg>

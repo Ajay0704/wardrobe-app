@@ -14,13 +14,57 @@ import {
   type StyleLean,
   type StyleOccasion,
 } from "@/lib/style-quiz";
+import { isSampleItem } from "@/lib/demo-data";
 import { useWardrobe } from "@/lib/store";
-import { profileHandle, resolveStartView } from "@/lib/profile";
+import { profileHandle, resolveStartView, validateHandle } from "@/lib/profile";
 import { HandleField } from "./HandleField";
+import FirstLookGame from "./onboarding/FirstLookGame";
+import FirstOutfit from "./onboarding/FirstOutfit";
+import FirstSixCapture from "./onboarding/FirstSixCapture";
+import MorningAsk from "./onboarding/MorningAsk";
 
-type Step = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
+type QuizStep = "handle" | "gender" | "goal" | "occasions" | "lean" | "snapshot";
+/**
+ * After the quiz: the sample demo (AJA-279), then First Six (AJA-277) — capture, the payoff, and
+ * the morning ask. The demo sits AFTER every question deliberately: it needs the department answer
+ * to choose which six pieces to offer, and the order was confirmed against a prototype.
+ */
+type Step = QuizStep | "game" | "capture" | "outfit" | "morning";
 
-const STEPS: Step[] = ["handle", "gender", "goal", "occasions", "lean", "snapshot"];
+/** The quiz proper. Drives the "N of N" label and the bar; the First Six steps are not part
+ *  of it, so the progress indicator does not grow and then stall. */
+const ALL_QUIZ_STEPS: QuizStep[] = [
+  "handle",
+  "gender",
+  "goal",
+  "occasions",
+  "lean",
+  "snapshot",
+];
+
+const isQuizStep = (s: Step): s is QuizStep => (ALL_QUIZ_STEPS as Step[]).includes(s);
+
+/**
+ * Ask for the @handle only if we don't already have one.
+ *
+ * The sign-up sheet collects a username (ProfileFields → HandleField), so asking again as the
+ * first onboarding step made a new user pick a handle, submit, and immediately pick a handle —
+ * the same question twice in a row, which reads as the app having lost their answer.
+ *
+ * It is NOT safe to just delete the step, which is why this is a condition rather than a
+ * removal. Two live paths arrive here with no handle at all:
+ *   - Google / Apple (AJA-194) never render the sign-up form, so nothing ever asked.
+ *   - Email sign-up does not gate submit on handle validity, so the field can be left blank.
+ * For both, this step is the only place a handle gets claimed, and `profileHandle()`'s
+ * email-derived fallback is a DISPLAY default — it never persists a username, so skipping the
+ * ask outright would leave those accounts unfindable by the friend search that needs it.
+ */
+function quizStepsFor(username: string | undefined): QuizStep[] {
+  if (validateHandle(username ?? "").ok) {
+    return ALL_QUIZ_STEPS.filter((s) => s !== "handle");
+  }
+  return ALL_QUIZ_STEPS;
+}
 
 const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] = [
   { id: "female", label: "Women's", hint: "Show women's styles" },
@@ -33,8 +77,13 @@ const GENDERS: { id: "female" | "male" | "all"; label: string; hint: string }[] 
  * Activation lives on empty Today — not as another wizard step.
  */
 export function OnboardingModal() {
-  const { profile, updateProfile, setView, authUser, seedSampleCloset } = useWardrobe();
-  const [step, setStep] = useState<Step>("handle");
+  const { profile, updateProfile, setView, authUser, items } = useWardrobe();
+  /**
+   * Frozen at mount. Recomputing would shrink the list the moment the handle step saves a
+   * username, renumbering the steps underneath the user mid-flow.
+   */
+  const [quizSteps] = useState<QuizStep[]>(() => quizStepsFor(profile.username));
+  const [step, setStep] = useState<Step>(() => quizSteps[0]!);
   const [handle, setHandle] = useState(() =>
     profileHandle({
       username: profile.username,
@@ -52,15 +101,33 @@ export function OnboardingModal() {
   );
   const [lean, setLean] = useState<StyleLean | undefined>(profile.styleLean);
 
-  const stepIndex = STEPS.indexOf(step);
-  const progress = `${stepIndex + 1} of ${STEPS.length}`;
+  const quiz = isQuizStep(step);
+  const stepIndex = quizSteps.indexOf(step as QuizStep);
+  const progress = `${stepIndex + 1} of ${quizSteps.length}`;
 
   const snapshotTitle = styleSnapshotTitle(goal, occasions, lean);
   const snapshotBlurb = styleSnapshotBlurb(goal, occasions);
 
+  /**
+   * Where onboarding lets go of the user.
+   *
+   * It used to hand off to `resolveStartView`, which defaults to Explore — a shopping feed. So
+   * someone who had just photographed six of their own garments and been shown an outfit made of
+   * them landed on a browsing surface, with their new closet one unmentioned tab away. If they
+   * own anything, we end where their clothes are.
+   *
+   * An EXPLICIT `startView` preference still wins: this only replaces the default, so a returning
+   * user who chose a start screen in Settings is not overridden.
+   */
+  const landing = () => {
+    if (profile.startView) return resolveStartView(profile);
+    const ownsSomething = items.some((i) => !i.wishlist && !isSampleItem(i));
+    return ownsSomething ? "wardrobe" : resolveStartView(profile);
+  };
+
   const finish = () => {
     updateProfile(applyQuizToProfile({ goal, occasions, lean }));
-    setView(resolveStartView(profile));
+    setView(landing());
   };
 
   const skip = () => {
@@ -85,17 +152,23 @@ export function OnboardingModal() {
 
   const goNext = () => {
     if (step === "handle") updateProfile({ username: handle });
+    // The quiz used to END here. It now hands over to First Six, which is the point at which
+    // the user gets something back: their own six pieces and an outfit made of them. The quiz
+    // answers are persisted before capture starts, so abandoning mid-capture still keeps them.
     if (step === "snapshot") {
-      finish();
+      updateProfile(applyQuizToProfile({ goal, occasions, lean }));
+      // Hands over to the demo, which is where the user first sees what the app actually does.
+      // Quiz answers are persisted before it, so abandoning later still keeps them.
+      setStep("game");
       return;
     }
-    const i = STEPS.indexOf(step);
-    if (i < STEPS.length - 1) setStep(STEPS[i + 1]!);
+    const i = quizSteps.indexOf(step as QuizStep);
+    if (i >= 0 && i < quizSteps.length - 1) setStep(quizSteps[i + 1]!);
   };
 
   const goBack = () => {
-    const i = STEPS.indexOf(step);
-    if (i > 0) setStep(STEPS[i - 1]!);
+    const i = quizSteps.indexOf(step as QuizStep);
+    if (i > 0) setStep(quizSteps[i - 1]!);
   };
 
   return (
@@ -105,34 +178,52 @@ export function OnboardingModal() {
       aria-modal="true"
       aria-labelledby="onboarding-title"
     >
-      <div className="native-modal-sheet animate-fade-up flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:max-w-md sm:rounded-3xl">
-        <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted">
-            Style quiz · {progress}
-          </p>
-          <button
-            type="button"
-            onClick={skip}
-            className="text-sm text-muted hover:text-foreground"
-          >
-            Skip
-          </button>
-        </div>
+      <div
+        className={`native-modal-sheet animate-fade-up flex max-h-[92vh] w-full flex-col
+          overflow-hidden rounded-t-3xl bg-surface shadow-2xl sm:max-w-md sm:rounded-3xl
+          ${quiz ? "" : "h-[92vh] sm:h-[42rem]"}`}
+      >
+        {/* Quiz chrome only. The First Six screens are full-bleed and own their own CTAs —
+            keeping the step counter over them would imply the quiz had grown by three. */}
+        {quiz && (
+          <div className="flex items-center justify-between border-b border-line px-5 py-3">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">
+              Style quiz · {progress}
+            </p>
+            <button
+              type="button"
+              onClick={skip}
+              className="text-sm text-muted hover:text-foreground"
+            >
+              Skip
+            </button>
+          </div>
+        )}
 
+        {quiz && (
         <div
           className="h-1 w-full bg-surface-2"
           role="progressbar"
           aria-valuenow={stepIndex + 1}
           aria-valuemin={1}
-          aria-valuemax={STEPS.length}
+          aria-valuemax={quizSteps.length}
         >
           <div
             className="h-full bg-accent transition-all"
-            style={{ width: `${((stepIndex + 1) / STEPS.length) * 100}%` }}
+            style={{ width: `${((stepIndex + 1) / quizSteps.length) * 100}%` }}
           />
         </div>
+        )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-6">
+        <div
+          className={
+            quiz
+              ? "flex-1 overflow-y-auto px-5 py-6"
+              : // First Six manages its own scrolling and needs a definite height for the
+                // viewfinder to fill, so no overflow-auto and no vertical padding here.
+                "flex min-h-0 flex-1 flex-col px-5"
+          }
+        >
           {step === "handle" && (
             <div className="space-y-4">
               <h2 id="onboarding-title" className="heading text-2xl">
@@ -157,7 +248,8 @@ export function OnboardingModal() {
                 What should we show you?
               </h2>
               <p className="text-sm text-muted">
-                Sets your starter closet and Explore feed. You can change it anytime.
+                Sets the pieces you&apos;ll style in a moment, and your Explore feed. You can
+                change it anytime.
               </p>
               <div className="space-y-2">
                 {GENDERS.map((g) => (
@@ -168,10 +260,9 @@ export function OnboardingModal() {
                     hint={g.hint}
                     onClick={() => {
                       setShopGender(g.id);
+                      // Chooses which six pieces the demo offers a few steps later. It no longer
+                      // seeds a closet — nothing fake is filed as the user's (AJA-279).
                       updateProfile({ shopGender: g.id });
-                      // Match the sample closet to the choice before the user sees it (guarded
-                      // to the untouched sample set, so it won't disturb a real closet).
-                      seedSampleCloset(g.id);
                     }}
                   />
                 ))}
@@ -259,25 +350,51 @@ export function OnboardingModal() {
                 </p>
               </div>
               <p className="text-sm text-muted">
-                Next: we&apos;ve added a few sample pieces so you can look
-                around. Snap one photo of an outfit and we&apos;ll add each of
-                your own pieces — then clear the samples. Change your style
-                anytime in Settings → Preferences.
+                Before you photograph anything — here&apos;s what the app does with six pieces.
+                Have a go with ours, then we&apos;ll do yours. Change your style anytime in
+                Settings → Preferences.
               </p>
             </div>
           )}
+          {/* ——— The demo (AJA-279) ——— */}
+          {step === "game" && (
+            <FirstLookGame
+              shopGender={shopGender}
+              onDone={() => setStep("capture")}
+            />
+          )}
+          {/* ——— First Six (AJA-277) ——— */}
+          {step === "capture" && (
+            <FirstSixCapture
+              onDone={() => setStep("outfit")}
+              // "Finish later" still goes to the payoff: whatever they DID capture may already
+              // make an outfit, and if it doesn't, FirstOutfit names the missing slot. Dropping
+              // them straight into an empty app is the failure this whole flow exists to avoid.
+              onSkip={() => setStep("outfit")}
+            />
+          )}
+          {step === "outfit" && (
+            <FirstOutfit
+              onAccept={() => setStep("morning")}
+              onAddMore={() => setStep("capture")}
+              onSkip={finish}
+            />
+          )}
+          {step === "morning" && <MorningAsk onDone={finish} />}
         </div>
 
-        <div className="flex gap-2 border-t border-line px-5 py-4">
-          {stepIndex > 0 && (
-            <Button variant="outline" onClick={goBack}>
-              Back
+        {quiz && (
+          <div className="flex gap-2 border-t border-line px-5 py-4">
+            {stepIndex > 0 && (
+              <Button variant="outline" onClick={goBack}>
+                Back
+              </Button>
+            )}
+            <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
+              {step === "snapshot" ? "Show me how it works" : "Next"}
             </Button>
-          )}
-          <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
-            {step === "snapshot" ? "Enter Wardrobe" : "Next"}
-          </Button>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
