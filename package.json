@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "lint:baseline": "node scripts/lint-baseline.mjs",
     "cap:sync": "npx cap sync ios",
     "cap:open:ios": "npx cap open ios",
     "cap:sync:local": "CAPACITOR_SERVER_URL=http://127.0.0.1:3000 npx cap sync ios",

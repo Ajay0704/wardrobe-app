@@ -1,0 +1,60 @@
+name: CI
+
+# This repo had no CI. `npx eslint src/` had drifted to 18 errors and `tsc` was only ever run by
+# hand, because the sole PR check was Vercel's build — and `next build` runs neither. So a lint
+# regression could reach production with every check green.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Types
+        run: npx tsc --noEmit
+
+      # A ratchet, not a clean bill of health: 15 known react-hooks/set-state-in-effect errors are
+      # frozen in lint-baseline.json and tracked in AJA-295. This fails when the count goes UP.
+      # Fixing them blind is the risk it exists to avoid — that rule governs render timing, and two
+      # bugs shipped this week (AJA-282, AJA-294) were exactly that failure mode.
+      - name: Lint (no new errors)
+        run: node scripts/lint-baseline.mjs
+
+      # Every suite that runs without secrets. `test:image-refs` is deliberately absent: it scans
+      # the live database with the service-role key and fails loudly rather than skipping when the
+      # key is missing, which is correct for a safety check and wrong for CI. Run it locally.
+      - name: Tests
+        run: |
+          npm run test:rules
+          npm run test:feedback
+          npm run test:context
+          npm run test:storage
+          npm run test:render
+          npm run test:tryon-photo
+          npm run test:samples
+          npm run test:face
+          npm run test:item-images
+          npm run test:onboarding
+
+      - name: Build
+        run: npm run build
+        env:
+          # Build-time only; the app reads real values from Vercel at runtime. Present so the
+          # build doesn't take a "Supabase not configured" path that differs from production.
+          NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder
