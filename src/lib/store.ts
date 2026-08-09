@@ -177,6 +177,9 @@ interface WardrobeState {
   /** Item id to open in the closet editor — set by the `://item?id=` deep link
    *  from a shared link's "Open in Wardrobe". WardrobeView consumes + clears it. */
   pendingOpenItemId: string | null;
+  /** Item id whose wishlist "Should I buy?" verdict to open — set by the AJA-286 ageing-nudge
+   *  deep link (?item=<id>). WishlistView consumes + clears it. */
+  pendingDecideItemId: string | null;
   /** Wish piece queued by "Style it" — consumed once by the canvas builder (AJA-245). */
   pendingStyleItemId: string | null;
   /** Which look the outfit detail screen is showing (AJA-239). Transient. */
@@ -303,6 +306,7 @@ interface WardrobeState {
   /** Queue / clear a shared product URL for the wishlist quick-save (ClipLinkLoader). */
   setPendingClipUrl: (url: string | null) => void;
   setPendingOpenItemId: (id: string | null) => void;
+  setPendingDecideItemId: (id: string | null) => void;
   dismissItemEditor: () => void;
   jumpToSharedCloset: () => void;
   /** Land on Outfits with a styling session highlighted (from a notification). */
@@ -602,6 +606,7 @@ export const useWardrobe = create<WardrobeState>()(
       closetsOpen: false,
       pendingClipUrl: null,
       pendingOpenItemId: null,
+      pendingDecideItemId: null,
       pendingStyleItemId: null,
       selectedOutfitId: null,
       editorCloseNonce: 0,
@@ -983,6 +988,7 @@ export const useWardrobe = create<WardrobeState>()(
       setClosetsOpen: (closetsOpen) => set({ closetsOpen }),
       setPendingClipUrl: (pendingClipUrl) => set({ pendingClipUrl }),
       setPendingOpenItemId: (pendingOpenItemId) => set({ pendingOpenItemId }),
+      setPendingDecideItemId: (pendingDecideItemId) => set({ pendingDecideItemId }),
       dismissItemEditor: () =>
         set((s) => ({ editorCloseNonce: s.editorCloseNonce + 1 })),
       jumpToSharedCloset: () =>

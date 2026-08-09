@@ -122,8 +122,8 @@ export async function GET(request: Request) {
     const webPayload = JSON.stringify({
       title: cand.title,
       body: cand.body,
-      // TODO(delivery): confirm this opens the item's Smart-Buy verdict so the tap can log a
-      // buy/wait/skip (the kill-metric loop). Refined when the app-side deep-link is wired.
+      // Deep-link: AppShell reads ?item, WishlistView opens this piece's "Should I buy?" verdict,
+      // and the tap logs a buy/wait/skip — the loop the kill metric measures (AJA-286).
       url: `/?view=wishlist&item=${cand.item.id}`,
     });
     const web = vapidReady ? await sendWebPush(admin, userId, webPayload) : 0;

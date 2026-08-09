@@ -192,6 +192,10 @@ function AppShellInner() {
     ) {
       setView(v);
     }
+    // AJA-286: a wishlist nudge deep-links to ?item=<id> — queue it so WishlistView opens the
+    // "Should I buy?" verdict, where the tap logs a decision (the kill-metric loop).
+    const item = params.get("item");
+    if (item) useWardrobe.getState().setPendingDecideItemId(item);
   }, [setView]);
 
   // The app requires an account. Without Supabase configured, login is
