@@ -21,9 +21,9 @@ function serverClient(): SupabaseClient | null {
   return server;
 }
 
-export async function requireUser(
-  request: Request,
-): Promise<{ id: string } | null> {
+export type ApiUser = { id: string; isAnonymous: boolean };
+
+export async function requireUser(request: Request): Promise<ApiUser | null> {
   // Dev/local mode: when Supabase isn't configured the whole app runs ungated
   // (see AppShell `gated`), so don't block the API routes either. In production
   // Supabase IS configured, so the token check below is always enforced.
@@ -31,7 +31,7 @@ export async function requireUser(
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
-    return { id: "local-dev" };
+    return { id: "local-dev", isAnonymous: false };
   }
 
   const token = (request.headers.get("authorization") || "")
@@ -42,5 +42,10 @@ export async function requireUser(
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser(token);
   if (error || !data.user) return null;
-  return { id: data.user.id };
+  // AJA-290: guest-first onboarding runs on anonymous sessions, so callers can apply tighter
+  // rate limits to them. Supabase sets `is_anonymous` on the user; no email is the backstop.
+  const isAnonymous =
+    (data.user as { is_anonymous?: boolean }).is_anonymous === true ||
+    !data.user.email;
+  return { id: data.user.id, isAnonymous };
 }

@@ -8,6 +8,7 @@
  * Mirrors /api/analyze (raw Gemini REST, x-goog-api-key, thought-part filtering).
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkCaptureLimit, tooMany } from "@/lib/rate-limit";
 import { toBox } from "@/lib/gemini-box";
 import { parseModelJson } from "@/lib/model-json";
 import { inferSubcategory } from "@/lib/subcategory";
@@ -64,9 +65,12 @@ function extractText(data: unknown): string {
 // (AJA-278). y-first, 0-1000 — two copies of that would eventually disagree.
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = checkCaptureLimit(user);
+  if (!rl.ok) return tooMany(rl);
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
     return Response.json(

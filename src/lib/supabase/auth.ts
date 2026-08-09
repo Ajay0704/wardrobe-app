@@ -151,3 +151,94 @@ export async function updatePassword(newPassword: string): Promise<void> {
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) throw error;
 }
+
+// ───────────────────────── Guest-first onboarding (AJA-290) ─────────────────────────
+// The tight first-run journey runs BEFORE the account gate. To make that work with real
+// capture, the guest needs a real Supabase session: the API routes (detect-garments,
+// cutout — all `requireUser`) accept an anonymous user's JWT, and the pieces they add sync
+// under the anon user id. `convertGuest` later upgrades that SAME user in place, so nothing
+// is re-uploaded and no items are stranded.
+//
+// PREREQUISITE: the "Anonymous" provider must be enabled in Supabase (Auth → Providers →
+// Anonymous). Until then `startGuestSession` returns { ok:false, disabled:true } and callers
+// should fall back to the normal sign-up gate. Also needs (separately) rate-limiting on the
+// AI routes and a cleanup job for abandoned guests — anonymous sign-ins are free to mint.
+
+export type GuestStart =
+  | { ok: true; userId: string }
+  | { ok: false; disabled: boolean; error: string };
+
+/** Start (or reuse) an anonymous guest session. Safe no-op-ish when the provider is off. */
+export async function startGuestSession(): Promise<GuestStart> {
+  const supabase = getSupabase();
+  if (!supabase) return { ok: false, disabled: false, error: "Cloud sync is not configured." };
+
+  // Reuse an existing session (guest or real) rather than minting a second guest.
+  const existing = (await supabase.auth.getSession()).data.session?.user;
+  if (existing?.id) return { ok: true, userId: existing.id };
+
+  const { data, error } = await supabase.auth.signInAnonymously();
+  if (error) {
+    const disabled = /anonymous/i.test(error.message);
+    return { ok: false, disabled, error: error.message };
+  }
+  const id = data.user?.id;
+  return id ? { ok: true, userId: id } : { ok: false, disabled: false, error: "No guest user returned." };
+}
+
+/** True when the current session is an anonymous guest (signed in, but no email yet). */
+export async function isGuestSession(): Promise<boolean> {
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  const u = (await supabase.auth.getSession()).data.session?.user;
+  // supabase-js exposes `is_anonymous`; fall back to "signed in with no email" for safety.
+  return Boolean(u && ((u as { is_anonymous?: boolean }).is_anonymous || !u.email));
+}
+
+/**
+ * Upgrade the current anonymous guest into a real email/password account IN PLACE — same
+ * user id, so everything they added as a guest is kept. Mirrors {@link signUp}'s follow-up
+ * (safe profile + snapshot push). Use this instead of `signUp` when `isGuestSession()`.
+ *
+ * Caveat: if the project has email confirmations ON, Supabase may defer setting the email
+ * until the user confirms; with confirmations OFF (this project's likely setting — see the
+ * signUp note above) the session upgrades immediately.
+ */
+export async function convertGuest(
+  email: string,
+  password: string,
+  profile: Omit<UserProfile, "email">,
+  wardrobe: {
+    items: WardrobeItem[];
+    outfits: Outfit[];
+    calendar?: CalendarEntry[];
+    theme: ThemeMode;
+    draft: Record<SlotKey, string[]>;
+  },
+): Promise<AuthUser> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Cloud sync is not configured.");
+
+  const { data, error } = await supabase.auth.updateUser({ email, password });
+  if (error) throw error;
+  const user = data.user;
+  if (!user?.id) throw new Error("Guest conversion failed.");
+
+  const fullProfile: UserProfile = { ...profile, email };
+  const { avatarUrl, ...safeProfileFields } = fullProfile;
+  const profileForSync: UserProfile = isDataUrl(avatarUrl)
+    ? { ...safeProfileFields, email }
+    : fullProfile;
+
+  const ok = await pushSnapshot(user.id, {
+    items: wardrobe.items,
+    outfits: wardrobe.outfits,
+    calendar: wardrobe.calendar ?? [],
+    theme: wardrobe.theme,
+    draft: wardrobe.draft,
+    profile: profileForSync,
+  });
+  if (!ok.ok) throw new Error(ok.error || "Account created but wardrobe save failed.");
+
+  return { id: user.id, email };
+}
