@@ -370,7 +370,15 @@ export function FirstRunJourney({ live = false, onSignup, onLogin }: {
           <p className="flex-none px-1.5 pt-3 text-center text-[12.5px] text-muted">
             {owned.length ? "Each photo adds a few more pieces — two or three is plenty to start." : "No clean product shots, no photographing one at a time — one messy photo becomes several catalogued pieces."}
           </p>
-          <Footer>{owned.length > 0 && <Button variant="ghost" className="w-full" onClick={() => go("closet")}>Back to closet</Button>}</Footer>
+          <Footer>
+            {owned.length > 0 ? (
+              <Button variant="ghost" className="w-full" onClick={() => go("closet")}>Back to closet</Button>
+            ) : (
+              // No pieces yet, and maybe no photo handy — don't trap the flow on a step that needs
+              // one. Let them past the gate to make an account and add clothes whenever they're ready.
+              <Button variant="ghost" className="w-full" onClick={goSignup}>Skip for now</Button>
+            )}
+          </Footer>
         </StepBody>
       )}
 
@@ -520,7 +528,11 @@ export function FirstRunJourney({ live = false, onSignup, onLogin }: {
             <Recap b={`${outfits}`} label="outfits" />
             <Recap b={vibe.split(" ")[0]} label="vibe" />
           </div>
-          <p className="mt-2 text-[14.5px] text-muted">All of it is already in here. An account just keeps it — nothing is re-uploaded, this session becomes yours.</p>
+          <p className="mt-2 text-[14.5px] text-muted">
+            {owned.length
+              ? "All of it is already in here. An account just keeps it — nothing is re-uploaded, this session becomes yours."
+              : "Nothing saved yet — create your account and add your clothes whenever you're ready. It all syncs to every device."}
+          </p>
           <Field label="Email" value="maya@example.com" />
           <Field label="Password" value="••••••••••" />
           <div className="flex-1" />
