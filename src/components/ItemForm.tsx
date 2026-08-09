@@ -301,7 +301,19 @@ export function ItemForm({
       setOriginalImageUrl(src); // keep the pre-cutout image
       // Auto-tag first so the garment engine knows which clothing class to keep,
       // then cut out (the imgly engine ignores the category).
+      //
+      // `react-hooks/immutability` reports these two as "cannot access variable before it is
+      // declared". Both ARE declared below (runAnalyze ~l.366, autoCutout ~l.469) — but this
+      // body only ever runs from an event handler, long after the component function has
+      // finished evaluating, so neither is ever in its temporal dead zone. The rule is
+      // reasoning about source order, not reachability.
+      //
+      // Hoisting them instead of suppressing was tried and rejected: autoCutout calls
+      // autoStandardize, which sits between them, so the move cascades through three
+      // functions and ~150 lines to satisfy a check that is wrong about the runtime.
+      // eslint-disable-next-line react-hooks/immutability
       const cat = await runAnalyze(src);
+      // eslint-disable-next-line react-hooks/immutability
       void autoCutout(src, cat ?? category);
     } catch (err) {
       setAnalyzeMsg(

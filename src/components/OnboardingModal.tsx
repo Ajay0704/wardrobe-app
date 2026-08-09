@@ -7,6 +7,7 @@ import {
   STYLE_LEANS,
   STYLE_OCCASIONS,
   applyQuizToProfile,
+  quizProfilePatch,
   clampOccasions,
   styleSnapshotBlurb,
   styleSnapshotTitle,
@@ -156,7 +157,11 @@ export function OnboardingModal() {
     // the user gets something back: their own six pieces and an outfit made of them. The quiz
     // answers are persisted before capture starts, so abandoning mid-capture still keeps them.
     if (step === "snapshot") {
-      updateProfile(applyQuizToProfile({ goal, occasions, lean }));
+      // quizProfilePatch, NOT applyQuizToProfile. The latter sets onboardingComplete, and
+      // AppShell gates this entire modal on `!profile.onboardingComplete` — so writing it here
+      // unmounted onboarding on the very next render and the demo never appeared. Answers are
+      // still persisted, which was the point; finishing is `finish()`'s job alone.
+      updateProfile(quizProfilePatch({ goal, occasions, lean }));
       // Hands over to the demo, which is where the user first sees what the app actually does.
       // Quiz answers are persisted before it, so abandoning later still keeps them.
       setStep("game");
@@ -352,7 +357,7 @@ export function OnboardingModal() {
               <p className="text-sm text-muted">
                 Before you photograph anything — here&apos;s what the app does with six pieces.
                 Have a go with ours, then we&apos;ll do yours. Change your style anytime in
-                Settings → Preferences.
+                Settings → Style &amp; taste.
               </p>
             </div>
           )}

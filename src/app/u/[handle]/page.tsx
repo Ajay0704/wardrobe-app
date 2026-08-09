@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ProfileScreen, type ProfileScreenData } from "@/components/profile/ProfileScreen";
@@ -63,12 +64,12 @@ export default function PublicProfilePage() {
             data={data}
             loading={loading}
             actions={
-              <a
+              <Link
                 href="/"
                 className="flex-1 rounded-lg bg-accent py-2.5 text-center text-sm font-semibold text-accent-foreground"
               >
                 Get the app to follow
-              </a>
+              </Link>
             }
           />
         )}
