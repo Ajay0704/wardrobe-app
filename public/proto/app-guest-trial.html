@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wardrobe — guest trial (AJA-290)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --background:#faf9f7; --surface:#fff; --surface-2:#f3f1ed; --border:#e7e4de;
+    --foreground:#1c1917; --muted:#79716b; --accent:#567a4a; --accent-soft:#e8efe2;
+    --ease:cubic-bezier(.32,.72,0,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
+  body{margin:0;background:#26241f;min-height:100vh;display:flex;align-items:center;justify-content:center;
+    gap:38px;padding:26px 20px;color:var(--foreground);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  .heading{font-family:"Libre Baskerville",Georgia,serif;letter-spacing:-.01em;line-height:1.12}
+
+  .phone{width:402px;height:874px;background:var(--background);border-radius:44px;
+    box-shadow:0 0 0 11px #0e0d0b,0 26px 60px rgba(0,0,0,.55);overflow:hidden;position:relative;
+    display:flex;flex-direction:column;flex:none}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#0e0d0b;border-radius:19px;z-index:60}
+  .statusbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;position:relative;z-index:5}
+  .batt{width:24px;height:12px;border:1.5px solid var(--foreground);border-radius:3px;position:relative}
+  .batt::after{content:"";position:absolute;inset:2px;background:var(--foreground);border-radius:1px}
+  .screen{position:absolute;inset:52px 0 0;display:none;flex-direction:column;padding:0 20px}
+  .screen.on{display:flex;animation:fade .28s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.19em;text-transform:uppercase;color:var(--muted)}
+  h2.q{font-size:26px;margin:8px 0 0}
+  .hint{font-size:14.5px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+  .spacer{flex:1;min-height:0}
+
+  .btn{display:block;width:100%;border:0;border-radius:999px;padding:15px 20px;font-size:16px;font-weight:600;
+    font-family:inherit;background:var(--accent);color:#fff;cursor:pointer;transition:transform .1s ease-out}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:transparent;color:var(--foreground)}
+  .btn.outline{background:var(--surface);border:1px solid var(--border);color:var(--foreground)}
+  .btn[disabled]{opacity:.42;cursor:default}
+  .footer{flex:none;padding:12px 0 24px;display:flex;flex-direction:column;gap:4px}
+
+  /* ── closet header ── */
+  .chead{flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding-top:12px}
+  .chead .wm-k{font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--muted);display:block}
+  .chead h1{font-family:"Libre Baskerville",Georgia,serif;font-size:25px;margin:3px 0 0;font-weight:400}
+  .tally{background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap}
+
+  /* ── the promise grid (empty state) ── */
+  .promise{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .pcell{aspect-ratio:1;border-radius:16px;border:1.5px dashed var(--border);background:var(--surface);
+    display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .3s}
+  .pcell.filled{border-style:solid;border-color:var(--accent);background:var(--surface)}
+  .pcell.next{border-color:var(--accent);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  .pcell img{max-width:78%;max-height:78%;object-fit:contain;animation:pop .36s var(--ease)}
+  .pcell .ghost{max-width:64%;max-height:64%;object-fit:contain;opacity:.11;filter:grayscale(1)}
+  @keyframes pop{from{transform:scale(.82);opacity:0}to{transform:none;opacity:1}}
+  .pnum{position:absolute;top:7px;left:9px;font-size:10.5px;font-weight:700;color:var(--border)}
+
+  .maths{margin-top:16px;text-align:center}
+  .maths b{font-family:"Libre Baskerville",Georgia,serif;font-size:19px;display:block}
+  .maths span{display:block;font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+
+  /* ── keep bar ── */
+  .keepbar{flex:none;margin:0 -20px;padding:12px 20px 22px;background:var(--surface);border-top:1px solid var(--border);
+    display:flex;align-items:center;gap:12px}
+  .keepbar.warm{background:var(--accent-soft);border-top-color:#cfe0c6}
+  .keepbar p{margin:0;flex:1;font-size:13px;line-height:1.35;color:var(--muted)}
+  .keepbar p b{display:block;color:var(--foreground);font-size:13.5px}
+  .keepbar button{flex:none;border:0;border-radius:999px;background:var(--accent);color:#fff;font:inherit;
+    font-size:13.5px;font-weight:600;padding:10px 16px;cursor:pointer}
+
+  /* ── camera ── */
+  .viewfinder{flex:1;min-height:0;margin-top:12px;border-radius:22px;background:#141310;position:relative;
+    display:flex;align-items:center;justify-content:center;overflow:hidden}
+  .viewfinder .live{position:absolute;inset:0;background:
+    radial-gradient(circle at 50% 40%,#3a3630,#141310 70%);}
+  .reticle{position:absolute;inset:14% 12%;border:1.5px dashed rgba(255,255,255,.28);border-radius:18px}
+  .vf-copy{position:relative;color:rgba(255,255,255,.66);font-size:13px;text-align:center;padding:0 34px}
+  .shutter{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);width:64px;height:64px;border-radius:50%;
+    background:#fff;border:4px solid rgba(255,255,255,.4);cursor:pointer}
+  .shutter:active{transform:translateX(-50%) scale(.93)}
+
+  /* ── the magic moment ── */
+  .magic{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+  .mstage{width:224px;height:224px;position:relative;display:flex;align-items:center;justify-content:center}
+  /*
+   * The sample assets are BOTH shot on white, so a straight raw→cutout crossfade shows nothing
+   * happening — and background removal is the entire point of this screen. This stands in for the
+   * messy bedroom floor the real input has, so the removal is legible.
+   */
+  .mstage .room{position:absolute;inset:-4%;border-radius:22px;
+    background:
+      radial-gradient(circle at 28% 22%,#d3c7b6,transparent 55%),
+      radial-gradient(circle at 78% 74%,#8d8474,transparent 60%),
+      linear-gradient(158deg,#c3b8a8,#8a8272);
+    transition:opacity .5s var(--ease),transform .5s var(--ease)}
+  .magic.done .room{opacity:0;transform:scale(1.07)}
+  .mstage img{position:absolute;max-width:84%;max-height:84%;object-fit:contain;transition:opacity .55s var(--ease),transform .55s var(--ease)}
+  .mstage .raw{opacity:1}
+  .mstage .cut{opacity:0;transform:scale(.92)}
+  .magic.done .raw{opacity:0;transform:scale(1.04)}
+  .magic.done .cut{opacity:1;transform:none;filter:drop-shadow(0 10px 16px rgba(0,0,0,.16))}
+  .scan{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--accent),transparent);
+    animation:scan 1.05s var(--ease) 2;top:0}
+  @keyframes scan{from{top:2%}to{top:98%}}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;margin-top:14px;min-height:26px}
+  .tag{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:5px 11px;font-size:12.5px;
+    opacity:0;transform:translateY(5px);animation:rise .34s var(--ease) forwards}
+  .tag.a{animation-delay:.05s}.tag.b{animation-delay:.16s}.tag.c{animation-delay:.27s}
+  @keyframes rise{to{opacity:1;transform:none}}
+
+  /* ── outfit ── */
+  .board{position:relative;aspect-ratio:3/4;height:100%;max-width:100%;background:#fff;border:1px solid var(--border);
+    border-radius:18px;overflow:hidden}
+  .boardwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:10px 0}
+  .slot{position:absolute;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+  .slot img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.18));animation:pop .34s var(--ease)}
+
+  /* ── old gate ── */
+  .oldgate{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;text-align:center}
+  .oldgate .wm-n{font-family:"Libre Baskerville",Georgia,serif;font-size:34px;display:block;margin-top:3px}
+  .oldgate .wm-k{font-size:10.5px;font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+
+  .field{margin-top:10px}
+  .field label{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .field div{margin-top:5px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;font-size:14.5px;color:var(--muted)}
+
+  /* ── rail ── */
+  .rail{width:300px;color:#e7e3da;font-size:13.5px;line-height:1.55;flex:none}
+  .rail h1{font-family:"Libre Baskerville",Georgia,serif;font-size:23px;margin:0 0 4px;color:#fff;line-height:1.2}
+  .rail .sub{color:#a49d92;margin:0 0 18px}
+  .rail h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#8d8578;margin:20px 0 9px;font-weight:700}
+  .switch{display:flex;flex-direction:column;background:#161511;border:1px solid #3a362f;border-radius:12px;padding:3px;gap:3px}
+  .switch button{border:0;background:transparent;color:#a49d92;font:inherit;font-size:12.5px;font-weight:600;
+    padding:9px 11px;border-radius:9px;cursor:pointer;text-align:left}
+  .switch button.on{background:var(--accent);color:#fff}
+  .note{background:#161511;border:1px solid #3a362f;border-radius:12px;padding:12px 14px;color:#a49d92;font-size:12.5px;margin-top:12px}
+  .note b{color:#e7e3da}
+  .steps{list-style:none;margin:0;padding:0}
+  .steps li{padding:7px 10px;border-radius:9px;cursor:pointer;color:#a49d92;display:flex;gap:9px;align-items:center}
+  .steps li:hover{background:#2f2c26}
+  .steps li.on{background:#333029;color:#fff}
+  .steps li s{width:19px;height:19px;border-radius:50%;background:#3f3b33;color:#cfc8bb;font-size:10.5px;display:flex;
+    align-items:center;justify-content:center;text-decoration:none;flex:none;font-weight:700}
+  .steps li.on s{background:var(--accent);color:#fff}
+  .rail .restart{margin-top:14px;width:100%;border:1px solid #3a362f;background:transparent;color:#cfc8bb;border-radius:10px;padding:10px;font:inherit;font-size:13px;cursor:pointer}
+  @media (max-width:1120px){body{flex-direction:column;gap:22px}.rail{width:402px}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar"><span>9:41</span><span class="batt"></span></div>
+
+  <!-- ═══ OLD: sign-in wall ═══ -->
+  <section class="screen" id="s-wall">
+    <div class="oldgate">
+      <div><span class="wm-k">Your Personal</span><span class="wm-n">Wardrobe</span></div>
+      <p class="hint" style="max-width:250px">Sign in to open your closet, outfits, and wishlist.</p>
+      <div style="width:100%;max-width:260px;display:flex;flex-direction:column;gap:10px">
+        <button class="btn" onclick="go('signup')">Log in</button>
+        <button class="btn outline" onclick="go('signup')">Create account</button>
+      </div>
+    </div>
+    <div style="flex:none;text-align:center;padding-bottom:24px;font-size:13px;color:#b4483f">
+      An account before a single thing has been shown.
+    </div>
+  </section>
+
+  <!-- ═══ BOARD (mode 2) — stands in for the shipped gate, which lives in its own prototype ═══ -->
+  <section class="screen" id="s-board">
+    <div class="chead"><div><span class="wm-k">Try it</span><h1>Make an outfit</h1></div></div>
+    <p class="hint">Tap a top, then a bottom, then shoes. These are <b>our</b> pieces — yours come next.</p>
+    <div class="promise">
+      <div class="pgrid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="pcell filled"><img src="../samples/women/white-shirt-sticker.png"></div>
+        <div class="pcell filled"><img src="../samples/women/blue-jeans-sticker.png"></div>
+        <div class="pcell filled"><img src="../samples/women/white-sneakers-sticker.png"></div>
+      </div>
+      <div class="maths">
+        <b>Six pieces. Four outfits.</b>
+        <span>A puzzle, solved with clothes that are not theirs. It works — but it is still a task.</span>
+      </div>
+    </div>
+    <div class="footer">
+      <button class="btn" onclick="go('signup')">Make it yours</button>
+      <a class="btn ghost" style="text-decoration:none;text-align:center" href="app-first-run.html">Open the playable version →</a>
+    </div>
+  </section>
+
+  <!-- ═══ EMPTY CLOSET — the load-bearing screen ═══ -->
+  <section class="screen" id="s-empty">
+    <div class="chead">
+      <div><span class="wm-k">Your closet</span><h1 id="eTitle">Nothing in here yet</h1></div>
+      <span class="tally" id="eTally" hidden>0 pieces</span>
+    </div>
+
+    <div class="promise">
+      <div class="pgrid" id="pGrid"></div>
+      <div class="maths">
+        <b id="mathsB">Six pieces is all it takes.</b>
+        <span id="mathsS">Two tops and two bottoms already make four outfits. That is the whole trick.</span>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button class="btn" onclick="go('camera')" id="eCta">Add your first piece</button>
+    </div>
+
+    <div class="keepbar" id="keepEmpty">
+      <p>Nothing to save yet — have a go, no account needed.</p>
+    </div>
+  </section>
+
+  <!-- ═══ CAMERA ═══ -->
+  <section class="screen" id="s-camera">
+    <div class="chead">
+      <div><span class="wm-k" id="cKick">Piece one</span><h1 id="cTitle">Point at something you wear</h1></div>
+    </div>
+    <div class="viewfinder">
+      <div class="live"></div><div class="reticle"></div>
+      <p class="vf-copy">Lay it flat or hold it up. Wrinkles are fine — we cut the background out.</p>
+      <button class="shutter" onclick="shoot()"></button>
+    </div>
+    <div class="footer" style="padding-top:10px">
+      <button class="btn ghost" onclick="go('closet')">Back to closet</button>
+    </div>
+  </section>
+
+  <!-- ═══ THE MAGIC MOMENT ═══ -->
+  <section class="screen" id="s-magic">
+    <div class="chead"><div><span class="wm-k" id="gKick">Working…</span><h1 id="gTitle">Cutting it out</h1></div></div>
+    <div class="magic" id="magic">
+      <div class="mstage" id="mStage"></div>
+      <div class="tags" id="mTags"></div>
+    </div>
+    <div class="footer">
+      <button class="btn" id="mCta" onclick="acceptPiece()" disabled>…</button>
+    </div>
+  </section>
+
+  <!-- ═══ CLOSET (filling) ═══ -->
+  <section class="screen" id="s-closet">
+    <div class="chead">
+      <div><span class="wm-k">Your closet</span><h1 id="clTitle">3 pieces</h1></div>
+      <span class="tally" id="clTally">1 outfit</span>
+    </div>
+    <div class="promise">
+      <div class="pgrid" id="clGrid"></div>
+      <div class="maths"><b id="clB"></b><span id="clS"></span></div>
+    </div>
+    <div class="footer">
+      <button class="btn" id="clCta" onclick="go('camera')">Add another</button>
+      <button class="btn ghost" id="clSee" hidden onclick="go('outfit')">See my outfit</button>
+    </div>
+    <div class="keepbar warm" id="keepClo">
+      <p><b>4 pieces, not saved.</b>Create an account and they're yours on every device.</p>
+      <button onclick="go('signup')">Keep it</button>
+    </div>
+  </section>
+
+  <!-- ═══ FIRST OUTFIT ═══ -->
+  <section class="screen" id="s-outfit">
+    <div class="chead"><div><span class="wm-k">From your closet</span><h1 id="oTitle">Your first outfit</h1></div></div>
+    <p class="hint" id="oHint">Made from what you just photographed — nothing borrowed.</p>
+    <div class="boardwrap"><div class="board" id="oBoard"></div></div>
+    <div class="footer">
+      <button class="btn" onclick="go('signup')">Keep this closet</button>
+      <button class="btn ghost" onclick="shuffleOutfit()">Show me another</button>
+    </div>
+  </section>
+
+  <!-- ═══ SIGNUP ═══ -->
+  <section class="screen" id="s-signup">
+    <div class="chead"><div><span class="wm-k">Last step</span><h1 id="suTitle">Keep your closet</h1></div></div>
+    <p class="hint" id="suHint">Same closet, now on every device. Nothing is re-uploaded — it's already yours.</p>
+    <div class="field"><label>Email</label><div>maya@example.com</div></div>
+    <div class="field"><label>Password</label><div>••••••••••</div></div>
+    <div class="spacer"></div>
+    <div class="footer">
+      <button class="btn" onclick="go('done')">Create account</button>
+      <button class="btn ghost" onclick="go('done')">Continue with Apple</button>
+    </div>
+  </section>
+
+  <!-- ═══ DONE ═══ -->
+  <section class="screen" id="s-done">
+    <div class="chead">
+      <div><span class="wm-k">Your closet</span><h1 id="dTitle">Saved</h1></div>
+      <span class="tally" id="dTally"></span>
+    </div>
+    <div class="promise"><div class="pgrid" id="dGrid"></div>
+      <div class="maths"><b>Same closet, same photos.</b>
+      <span>The guest account became a real one — nothing was copied or re-uploaded.</span></div>
+    </div>
+    <div class="footer"><button class="btn outline" onclick="restart()">Run it again</button></div>
+  </section>
+</div>
+
+<!-- ═══ RAIL ═══ -->
+<div class="rail">
+  <h1>Guest trial</h1>
+  <p class="sub">AJA-290 — anonymous session on launch. The real app, before any account.</p>
+
+  <h3>Compare</h3>
+  <div class="switch">
+    <button id="m-wall" onclick="setMode('wall')">1 · Sign-in wall (today)</button>
+    <button id="m-board" onclick="setMode('board')">2 · Board first (built)</button>
+    <button id="m-trial" class="on" onclick="setMode('trial')">3 · Guest trial (this)</button>
+  </div>
+  <div class="note" id="modeNote"></div>
+
+  <h3>Steps</h3>
+  <ul class="steps" id="stepList"></ul>
+  <button class="restart" onclick="restart()">Restart</button>
+</div>
+
+<script>
+/* the real cutouts — "-white" is the shot, "-sticker" is the cut-out result */
+const PIECES=[
+  {slot:"top",slug:"white-shirt",name:"White shirt",tags:["Shirt","Cotton","White"]},
+  {slot:"bottom",slug:"blue-jeans",name:"Blue jeans",tags:["Jeans","Denim","Mid blue"]},
+  {slot:"shoes",slug:"white-sneakers",name:"White sneakers",tags:["Trainers","Leather","White"]},
+  {slot:"top",slug:"camel-sweater",name:"Camel sweater",tags:["Knitwear","Wool","Camel"]},
+  {slot:"bottom",slug:"trousers",name:"Trousers",tags:["Trousers","Wide leg","Stone"]},
+  {slot:"shoes",slug:"loafers",name:"Loafers",tags:["Loafers","Leather","Tan"]}
+];
+const DIR="../samples/women";
+const raw=s=>`${DIR}/${s}-white.png`, cut=s=>`${DIR}/${s}-sticker.png`;
+const PROMPTS=["Point at something you wear","A pair of trousers or jeans","Shoes you actually wear",
+  "One more top","One more bottom","One more pair"];
+
+let owned=[], mode="trial", current="empty", oVariant=0, pending=null;
+const $=s=>document.querySelector(s);
+const outfits=()=>{const t=owned.filter(p=>p.slot==="top").length,b=owned.filter(p=>p.slot==="bottom").length;return t*b;};
+
+const FLOWS={
+  wall:[["wall","Sign-in wall"],["signup","Create account"],["empty","Empty closet"],["camera","Camera"],
+        ["magic","Cut out + tag"],["closet","Closet fills"],["outfit","First outfit"],["done","Done"]],
+  board:[["board","Play our board"],["signup","Create account"],["camera","Camera"],["magic","Cut out + tag"],
+        ["closet","Closet fills"],["outfit","First outfit"],["done","Done"]],
+  trial:[["empty","Open → empty closet"],["camera","Camera"],["magic","Cut out + tag"],["closet","Closet fills"],
+        ["outfit","First outfit"],["signup","Keep it"],["done","Saved"]]
+};
+const flow=()=>FLOWS[mode];
+
+function go(name){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  const el=$("#s-"+name);
+  if(el)el.classList.add("on");
+  current=name;
+  if(name==="empty")renderEmpty();
+  if(name==="camera")renderCamera();
+  if(name==="magic")runMagic();
+  if(name==="closet")renderCloset();
+  if(name==="outfit")renderOutfit();
+  if(name==="signup")renderSignup();
+  if(name==="done")renderDone();
+  renderSteps();
+}
+function renderSteps(){
+  $("#stepList").innerHTML=flow().map(([id,label],i)=>
+    `<li class="${id===current?'on':''}" onclick="go('${id}')"><s>${i+1}</s>${label}</li>`).join("");
+}
+function setMode(m){
+  mode=m;
+  ["wall","board","trial"].forEach(k=>$("#m-"+k).classList.toggle("on",k===m));
+  $("#modeNote").innerHTML={
+    wall:"<b>Today.</b> An account is the first screen. Nothing has been shown, so there is nothing to want yet.",
+    board:"<b>What's built.</b> Our six pieces, as a puzzle. Better — but it is still a task, and they are not their clothes.",
+    trial:"<b>This.</b> An anonymous session is created silently on launch. They are inside the real app, adding <i>their own</i> clothes, and the account is only asked for once there is something worth losing."
+  }[m];
+  restart();
+}
+
+/* ── empty closet: a promise rendered, not a void ── */
+function renderEmpty(){
+  const g=$("#pGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){
+    const d=document.createElement("div");
+    d.className="pcell"+(i===0?" next":"");
+    d.innerHTML=`<span class="pnum">${i+1}</span><img class="ghost" src="${cut(PIECES[i].slug)}" alt="">`;
+    g.appendChild(d);
+  }
+  $("#eTally").hidden=true;
+  $("#eTitle").textContent="Nothing in here yet";
+}
+
+function renderCamera(){
+  const i=owned.length;
+  $("#cKick").textContent=`Piece ${["one","two","three","four","five","six"][Math.min(i,5)]}`;
+  $("#cTitle").textContent=PROMPTS[Math.min(i,5)];
+}
+function shoot(){ pending=PIECES[owned.length%PIECES.length]; go("magic"); }
+
+/* ── the magic moment: their photo becomes a catalogued item ── */
+function runMagic(){
+  const p=pending;
+  const m=$("#magic");m.classList.remove("done");
+  $("#mStage").innerHTML=`<div class="room"></div><img class="raw" src="${raw(p.slug)}"><img class="cut" src="${cut(p.slug)}"><div class="scan"></div>`;
+  $("#mTags").innerHTML="";
+  $("#gKick").textContent="Working…";$("#gTitle").textContent="Cutting it out";
+  $("#mCta").disabled=true;$("#mCta").textContent="One moment…";
+  setTimeout(()=>{
+    m.classList.add("done");
+    const s=$("#mStage .scan");if(s)s.remove();
+    $("#gKick").textContent="Done";$("#gTitle").textContent=p.name;
+    $("#mTags").innerHTML=p.tags.map((t,i)=>`<span class="tag ${"abc"[i]}">${t}</span>`).join("");
+    $("#mCta").disabled=false;
+    $("#mCta").textContent=owned.length+1>=4?"Add to my closet":"Nice — keep going";
+  },2150);
+}
+function acceptPiece(){ owned.push(pending); pending=null; go("closet"); }
+
+/* ── closet filling ── */
+function renderCloset(){
+  const g=$("#clGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){
+    const p=owned[i];
+    const d=document.createElement("div");
+    d.className="pcell"+(p?" filled":(i===owned.length?" next":""));
+    d.innerHTML=p?`<img src="${cut(p.slug)}" alt="${p.name}">`
+                 :`<span class="pnum">${i+1}</span><img class="ghost" src="${cut(PIECES[i].slug)}" alt="">`;
+    g.appendChild(d);
+  }
+  const n=owned.length,o=outfits();
+  $("#clTitle").textContent=`${n} piece${n===1?"":"s"}`;
+  $("#clTally").textContent=o?`${o} outfit${o===1?"":"s"}`:"keep going";
+  $("#clB").textContent = o ? `${n} pieces. ${o} outfit${o===1?"":"s"}.` : "One more and it starts working.";
+  $("#clS").textContent = o
+    ? "Every piece you add multiplies this — that is why we ask for six and not sixty."
+    : "A top and a bottom is the smallest thing that makes an outfit.";
+  $("#clSee").hidden = o<1;
+  $("#clCta").textContent = n>=6 ? "Add more later" : "Add another";
+  const keep=$("#keepClo");
+  keep.hidden = n===0;
+  keep.querySelector("b").textContent = `${n} piece${n===1?"":"s"}, not saved.`;
+}
+
+/* ── first outfit ── */
+function renderOutfit(){
+  const BOX={top:{left:"3%",top:"6%",width:"52%"},bottom:{left:"0",top:"50%",width:"58.24%"},shoes:{left:"56%",top:"70%",width:"36%"}};
+  const tops=owned.filter(p=>p.slot==="top"),bots=owned.filter(p=>p.slot==="bottom"),sh=owned.filter(p=>p.slot==="shoes");
+  const combos=[];tops.forEach(t=>bots.forEach(b=>combos.push([t,b])));
+  if(!combos.length)return go("closet");
+  const [t,b]=combos[oVariant%combos.length];
+  const s=sh.length?sh[oVariant%sh.length]:null;
+  $("#oTitle").textContent=`${owned.length} pieces. ${combos.length} outfit${combos.length===1?"":"s"}.`;
+  const board=$("#oBoard");board.innerHTML="";
+  [["top",t],["bottom",b],["shoes",s]].forEach(([slot,p])=>{
+    if(!p)return;
+    const d=document.createElement("div");d.className="slot";
+    Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});
+    d.innerHTML=`<img src="${cut(p.slug)}">`;board.appendChild(d);
+  });
+}
+function shuffleOutfit(){oVariant++;renderOutfit();}
+
+function renderSignup(){
+  const guest = mode==="trial";
+  $("#suTitle").textContent = guest ? "Keep your closet" : "Create your account";
+  $("#suHint").textContent = guest
+    ? `${owned.length} pieces are already in here. Creating an account keeps them — nothing is re-uploaded, the guest session just becomes yours.`
+    : "So your closet is there on every device.";
+}
+function renderDone(){
+  const g=$("#dGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){
+    const p=owned[i];const d=document.createElement("div");
+    d.className="pcell"+(p?" filled":"");
+    d.innerHTML=p?`<img src="${cut(p.slug)}">`:`<span class="pnum">${i+1}</span>`;
+    g.appendChild(d);
+  }
+  $("#dTally").textContent=`${owned.length} pieces · ${outfits()} outfits`;
+}
+
+function restart(){ owned=[];oVariant=0;pending=null; go(flow()[0][0]); }
+setMode("trial");
+</script>
+</body>
+</html>

@@ -4,6 +4,8 @@ import { useState } from "react";
 import { DEFAULT_PROFILE, type UserProfile } from "@/lib/profile";
 import {
   authErrorMessage,
+  convertGuest,
+  isGuestSession,
   sendPasswordReset,
   signIn,
   signUp,
@@ -104,6 +106,29 @@ export function AuthModal({
     }
     setLoading(true);
     try {
+      // AJA-290 (guest-first): if the person came through the first-run journey they already have
+      // an anonymous session with real pieces in it. Upgrade that SAME user in place and keep the
+      // closet, rather than minting a fresh empty account and stranding what they captured.
+      const store = useWardrobe.getState();
+      if (await isGuestSession()) {
+        const kept = {
+          items: store.items,
+          outfits: store.outfits,
+          calendar: store.calendar,
+          theme,
+          draft,
+        };
+        // The guest already onboarded via the first-run journey, so mark it complete — otherwise
+        // the legacy OnboardingModal (`showOnboarding = authUser && !onboardingComplete`) fires
+        // again and makes them redo the quiz. The @handle came from this signup form's username.
+        const doneProfile = { ...profile, onboardingComplete: true };
+        const user = await convertGuest(email.trim(), password, doneProfile, kept);
+        setAuthUser(user);
+        hydrateFromRemote({ ...kept, profile: { ...doneProfile, email: user.email } });
+        onClose();
+        return;
+      }
+
       const user = await signUp(
         email.trim(),
         password,

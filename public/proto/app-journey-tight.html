@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Wardrobe — first run, tight cut (AJA-290)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:wght@400;700&display=swap" rel="stylesheet" />
+<style>
+  :root{--background:#faf9f7;--surface:#fff;--surface-2:#f3f1ed;--border:#e7e4de;--foreground:#1c1917;--muted:#79716b;--accent:#567a4a;--accent-soft:#e8efe2;--ease:cubic-bezier(.32,.72,0,1)}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  [hidden]{display:none!important}
+  body{margin:0;background:#26241f;min-height:100vh;display:flex;align-items:center;justify-content:center;gap:36px;padding:26px 20px;color:var(--foreground);font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif}
+  .heading{font-family:"Libre Baskerville",Georgia,serif;letter-spacing:-.01em;line-height:1.12}
+  .phone{width:402px;height:874px;background:var(--background);border-radius:44px;box-shadow:0 0 0 11px #0e0d0b,0 26px 60px rgba(0,0,0,.55);overflow:hidden;position:relative;display:flex;flex-direction:column;flex:none}
+  .notch{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:118px;height:33px;background:#0e0d0b;border-radius:19px;z-index:60}
+  .statusbar{height:52px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 26px;font-size:14px;font-weight:600;position:relative;z-index:5}
+  .batt{width:24px;height:12px;border:1.5px solid var(--foreground);border-radius:3px;position:relative}
+  .batt::after{content:"";position:absolute;inset:2px;background:var(--foreground);border-radius:1px}
+  .statusbar.onvid{color:#fff}.statusbar.onvid .batt{border-color:#fff}.statusbar.onvid .batt::after{background:#fff}
+  .screen{position:absolute;inset:52px 0 0;display:none;flex-direction:column;padding:0 22px}
+  .screen.on{display:flex;animation:fade .3s var(--ease)}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .screen.full{inset:0;padding:0}
+  .kicker{font-size:11px;font-weight:600;letter-spacing:.19em;text-transform:uppercase;color:var(--muted)}
+  h2.q{font-size:25px;margin:8px 0 0}
+  .hint{font-size:14.5px;line-height:1.45;color:var(--muted);margin:8px 0 0}
+  .spacer{flex:1;min-height:0}
+  .btn{display:block;width:100%;border:0;border-radius:999px;padding:15px 20px;font-size:16px;font-weight:600;font-family:inherit;background:var(--accent);color:#fff;cursor:pointer;transition:transform .1s ease-out,opacity .15s}
+  .btn:active{transform:scale(.975)}
+  .btn.ghost{background:transparent;color:var(--foreground)}
+  .btn.wtext{background:#fff;color:#141310}
+  .btn[disabled]{opacity:.42;cursor:default}
+  .footer{flex:none;padding:12px 0 24px;display:flex;flex-direction:column;gap:8px}
+  .prog{flex:none;display:flex;gap:5px;padding:12px 0 4px}
+  .prog i{flex:1;height:3px;border-radius:2px;background:var(--surface-2);overflow:hidden}
+  .prog i b{display:block;height:100%;width:0;background:var(--accent)}
+  .prog i.done b,.prog i.now b{width:100%}
+  /* welcome */
+  #s-welcome{background:#141310}
+  .hero{position:absolute;inset:0;overflow:hidden}
+  .hero video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.62}
+  .hero .scrim{position:absolute;inset:0;background:linear-gradient(180deg,rgba(20,19,16,.2),rgba(20,19,16,.85))}
+  .hero .inner{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:flex-end;padding:0 26px 30px;color:#fff}
+  .hero .wm-k{font-size:11px;font-weight:700;letter-spacing:.24em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+  .hero h1{font-family:"Libre Baskerville",Georgia,serif;font-size:34px;line-height:1.1;margin:8px 0 0;font-weight:400}
+  .hero p{color:rgba(255,255,255,.75);font-size:15px;margin:12px 0 22px;max-width:300px}
+  .hero .tiny{color:rgba(255,255,255,.55);font-size:12.5px;text-align:center;margin-top:12px}
+  .hero .tiny b{color:#fff;cursor:pointer}
+  /* cards */
+  .card{width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:14px 16px;font:inherit;cursor:pointer;margin-top:10px;display:flex;align-items:center;gap:13px;transition:border-color .15s,background .15s,transform .1s}
+  .card:active{transform:scale(.99)}.card.on{border-color:var(--accent);background:var(--accent-soft)}
+  .card .tx b{display:block;font-size:15px;font-weight:600}.card .tx i{display:block;font-style:normal;font-size:12.5px;color:var(--muted);margin-top:2px}
+  .card .emoji{font-size:22px;width:30px;text-align:center;flex:none}
+  .card .thumbs{display:flex;gap:4px;flex:none}.card .thumbs img{width:30px;height:30px;object-fit:contain}
+  .chead{flex:none;display:flex;align-items:flex-end;justify-content:space-between;padding-top:8px}
+  .chead .wm-k{display:block}.chead h1{font-family:"Libre Baskerville",Georgia,serif;font-size:24px;margin:3px 0 0;font-weight:400}
+  .tally{background:var(--accent-soft);color:var(--accent);font-size:12.5px;font-weight:600;border-radius:999px;padding:5px 11px;white-space:nowrap}
+  /* upload */
+  .uploadzone{flex:1;min-height:0;margin-top:14px;border-radius:22px;border:2px dashed var(--border);background:var(--surface);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:0 30px;cursor:pointer;transition:border-color .15s,background .15s}
+  .uploadzone:active{border-color:var(--accent);background:var(--accent-soft)}
+  .uploadzone .ic{width:60px;height:60px;border-radius:18px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-size:28px}
+  .uploadzone b{font-family:"Libre Baskerville",Georgia,serif;font-size:19px;font-weight:400}
+  .uploadzone p{color:var(--muted);font-size:13.5px;margin:0;line-height:1.4}
+  .exrow{display:flex;gap:6px;justify-content:center;margin-top:4px}
+  .exrow span{font-size:11px;color:var(--muted);background:var(--surface-2);border-radius:999px;padding:4px 10px}
+  .reassure{flex:none;text-align:center;font-size:12.5px;color:var(--muted);padding:12px 6px 0}
+  /* extract */
+  .exwrap{flex:1;min-height:0;display:flex;flex-direction:column}
+  .photo{position:relative;flex:1;min-height:0;margin-top:12px;border-radius:20px;overflow:hidden;background:radial-gradient(circle at 30% 20%,#e4dccf,transparent 55%),radial-gradient(circle at 75% 85%,#b8ad9c,transparent 60%),linear-gradient(160deg,#d8cebd,#a99f8d)}
+  .photo .g{position:absolute;display:flex;align-items:center;justify-content:center}
+  .photo .g img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 8px 14px rgba(0,0,0,.22))}
+  .scan{position:absolute;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.85),transparent);box-shadow:0 0 16px 3px rgba(255,255,255,.5);top:0;opacity:0}
+  .scan.run{animation:scan 1.15s var(--ease) forwards}
+  @keyframes scan{0%{top:0;opacity:1}100%{top:100%;opacity:0}}
+  .dbox{position:absolute;border:2px solid var(--accent);border-radius:10px;opacity:0;transform:scale(1.06);box-shadow:0 0 0 3px rgba(86,122,74,.18)}
+  .dbox.on{opacity:1;transform:none;transition:opacity .3s,transform .3s var(--ease)}
+  .dbox b{position:absolute;top:-11px;left:8px;background:var(--accent);color:#fff;font-size:10.5px;font-weight:600;border-radius:6px;padding:2px 7px;white-space:nowrap}
+  .exresult{flex:none;display:flex;gap:8px;margin-top:12px}
+  .exresult .chip2{flex:1;background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:8px 6px 9px;text-align:center;opacity:0;transform:translateY(8px);animation:rise .34s var(--ease) forwards}
+  .exresult .chip2:nth-child(2){animation-delay:.08s}.exresult .chip2:nth-child(3){animation-delay:.16s}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .exresult .chip2 img{height:44px;object-fit:contain}
+  .exresult .chip2 span{display:block;font-size:11px;color:var(--muted);margin-top:4px}
+  .exstatus{flex:none;text-align:center;font-size:13.5px;font-weight:600;color:var(--accent);min-height:20px;margin-top:12px}
+  /* closet / grids */
+  .promise{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:center}
+  .pgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+  .pcell{aspect-ratio:1;border-radius:16px;border:1.5px dashed var(--border);background:var(--surface);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;transition:border-color .3s}
+  .pcell.filled{border-style:solid;border-color:var(--accent)}
+  .pcell.next{border-color:var(--accent);animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.42}}
+  .pcell img{max-width:78%;max-height:78%;object-fit:contain;animation:pop .36s var(--ease)}
+  .pcell .ghost{max-width:64%;max-height:64%;object-fit:contain;opacity:.12;filter:grayscale(1)}
+  @keyframes pop{from{transform:scale(.86);opacity:0}to{transform:none;opacity:1}}
+  .pnum{position:absolute;top:7px;left:9px;font-size:10.5px;font-weight:700;color:var(--border)}
+  .maths{margin-top:16px;text-align:center}
+  .maths b{font-family:"Libre Baskerville",Georgia,serif;font-size:18px;display:block}
+  .maths span{display:block;font-size:13.5px;color:var(--muted);margin-top:5px;line-height:1.45}
+  .keepbar{flex:none;margin:0 -22px;padding:13px 22px 22px;background:var(--accent-soft);border-top:1px solid #cfe0c6;display:flex;align-items:center;gap:12px}
+  .keepbar p{margin:0;flex:1;font-size:13px;line-height:1.35;color:var(--muted)}
+  .keepbar p b{display:block;color:var(--foreground);font-size:13.5px}
+  .keepbar button{flex:none;border:0;border-radius:999px;background:var(--accent);color:#fff;font:inherit;font-size:13.5px;font-weight:600;padding:10px 16px;cursor:pointer}
+  /* outfit */
+  .oHead{text-align:center;padding-top:6px}
+  .styleChip{display:inline-block;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;border-radius:999px;padding:5px 13px;margin-top:4px}
+  .boardwrap{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:8px 0}
+  .board{position:relative;aspect-ratio:3/4;height:100%;max-width:100%;background:#fff;border:1px solid var(--border);border-radius:18px;overflow:hidden}
+  .slot{position:absolute;aspect-ratio:1;display:flex;align-items:center;justify-content:center}
+  .slot img{max-width:100%;max-height:100%;object-fit:contain;filter:drop-shadow(0 6px 10px rgba(0,0,0,.18));animation:pop .34s var(--ease)}
+  /* signup */
+  .recap{display:flex;gap:8px;margin-top:14px}
+  .recap div{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 10px;text-align:center}
+  .recap b{font-family:"Libre Baskerville",Georgia,serif;font-size:22px;display:block}
+  .recap span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+  .field{margin-top:9px}
+  .field label{font-size:10.5px;font-weight:700;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+  .field div{margin-top:5px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 13px;font-size:14.5px;color:var(--muted)}
+  /* rail */
+  .rail{width:322px;color:#e7e3da;font-size:13px;line-height:1.5;flex:none}
+  .rail h1{font-family:"Libre Baskerville",Georgia,serif;font-size:22px;margin:0 0 4px;color:#fff;line-height:1.2}
+  .rail .sub{color:#a49d92;margin:0 0 14px}
+  .rail .sub a{color:#cbb98f}
+  .rail h3{font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:#8d8578;margin:16px 0 8px;font-weight:700}
+  .jsteps{list-style:none;margin:0;padding:0}
+  .jsteps li{padding:8px 10px;border-radius:9px;cursor:pointer;display:flex;gap:10px;align-items:flex-start}
+  .jsteps li:hover{background:#2f2c26}.jsteps li.on{background:#333029}
+  .jsteps li s{width:20px;height:20px;border-radius:50%;background:#3f3b33;color:#cfc8bb;font-size:10.5px;display:flex;align-items:center;justify-content:center;text-decoration:none;flex:none;font-weight:700;margin-top:1px}
+  .jsteps li.on s{background:var(--accent);color:#fff}
+  .jsteps .lab{color:#e7e3da;font-weight:600;font-size:13px}
+  .jsteps .why{color:#8d8578;font-size:11.5px;display:block;margin-top:1px}
+  .jsteps li.on .why{color:#a49d92}
+  .cut{list-style:none;margin:0;padding:0}
+  .cut li{display:flex;gap:8px;align-items:baseline;color:#7c756a;font-size:12px;padding:3px 10px}
+  .cut li s{color:#6b645b;text-decoration:line-through;flex:none;min-width:74px;font-weight:600}
+  .cut li em{font-style:normal;color:#8d8578}
+  .rail .restart{margin-top:14px;width:100%;border:1px solid #3a362f;background:transparent;color:#cfc8bb;border-radius:10px;padding:10px;font:inherit;font-size:13px;cursor:pointer}
+  @media (max-width:1140px){body{flex-direction:column;gap:22px}.rail{width:402px}}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="statusbar" id="sbar"><span>9:41</span><span class="batt"></span></div>
+
+  <!-- 1 welcome -->
+  <section class="screen full" id="s-welcome">
+    <div class="hero">
+      <video autoplay muted loop playsinline poster="../hero-poster.jpg"><source src="../bg-video-v2.mp4" type="video/mp4"></video>
+      <div class="scrim"></div>
+      <div class="inner">
+        <span class="wm-k">Your Personal Wardrobe</span>
+        <h1>Get dressed in seconds.<br>Buy less. Wear more.</h1>
+        <p>A minute to set up. No account until you want to keep it.</p>
+        <button class="btn wtext" onclick="next()">Let's build your closet</button>
+        <p class="tiny">Already have an account? <b onclick="jump('signup')">Log in</b></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 who -->
+  <section class="screen" id="s-who">
+    <div class="prog"></div>
+    <h2 class="q heading" style="margin-top:14px">First — who are we dressing?</h2>
+    <p class="hint">Sets the pieces you'll see in a moment.</p>
+    <button class="card" data-g="women" onclick="pickWho('women')"><span class="emoji">👗</span><span class="tx"><b>Women's</b><i>Show women's styles</i></span></button>
+    <button class="card" data-g="men" onclick="pickWho('men')"><span class="emoji">👔</span><span class="tx"><b>Men's</b><i>Show men's styles</i></span></button>
+    <div class="spacer"></div>
+    <div class="footer"><button class="btn" id="whoCta" disabled onclick="next()">Continue</button></div>
+  </section>
+
+  <!-- 3 vibe -->
+  <section class="screen" id="s-vibe">
+    <div class="prog"></div>
+    <h2 class="q heading" style="margin-top:14px">Which feels most like you?</h2>
+    <p class="hint">Just a starting point — it learns as you go.</p>
+    <div id="vibeList"></div>
+  </section>
+
+  <!-- 4 upload (bridge folded into the header) -->
+  <section class="screen" id="s-upload">
+    <div class="chead"><div><span class="wm-k kicker" id="upKick">Now the real thing</span><h1 id="upTitle">Fill it with your clothes</h1></div></div>
+    <div class="uploadzone" onclick="chooseUpload()">
+      <div class="ic">⬆️</div>
+      <b>Upload a photo</b>
+      <p>Any photo with clothes in it works — even an old selfie. We find each piece, cut out the background, and tag it.</p>
+      <div class="exrow"><span>👗 Outfit selfie</span><span>🛏️ Flat-lay</span><span>🧺 A pile</span></div>
+    </div>
+    <div class="reassure" id="upReassure">No clean product shots, no photographing one at a time — one messy photo becomes several catalogued pieces.</div>
+    <div class="footer" style="padding-top:8px"><button class="btn ghost" id="upBack" onclick="jump('closet')" hidden>Back to closet</button></div>
+  </section>
+
+  <!-- 5 extract -->
+  <section class="screen" id="s-extract">
+    <div class="chead"><div><span class="wm-k kicker" id="exKick">Reading your photo</span><h1 id="exTitle">Finding the pieces…</h1></div></div>
+    <div class="exwrap">
+      <div class="photo" id="photo"></div>
+      <div class="exresult" id="exResult" hidden></div>
+      <div class="exstatus" id="exStatus"></div>
+    </div>
+    <div class="footer"><button class="btn" id="exCta" disabled>Scanning…</button></div>
+  </section>
+
+  <!-- 6 closet -->
+  <section class="screen" id="s-closet">
+    <div class="chead"><div><span class="wm-k kicker">Your closet</span><h1 id="clTitle">1 piece</h1></div><span class="tally" id="clTally"></span></div>
+    <div class="promise"><div class="pgrid" id="clGrid"></div><div class="maths"><b id="clB"></b><span id="clS"></span></div></div>
+    <div class="footer">
+      <button class="btn" id="clCta" onclick="jump('upload')">Add another photo</button>
+      <button class="btn ghost" id="clSee" hidden onclick="styleMe()">Style me from these →</button>
+    </div>
+    <div class="keepbar" id="keepClo"><p><b>Nothing saved yet.</b>Add a couple more, then keep them.</p><button onclick="jump('signup')">Save</button></div>
+  </section>
+
+  <!-- 7 outfit -->
+  <section class="screen" id="s-outfit">
+    <div class="oHead"><span class="wm-k kicker" id="oKick">Your first outfit</span><div><span class="styleChip" id="styleChip">Quiet Classic</span></div></div>
+    <div class="boardwrap"><div class="board" id="oBoard"></div></div>
+    <p class="hint" id="oHint" style="text-align:center">Made from what you just uploaded — nothing borrowed.</p>
+    <div class="footer"><button class="btn" onclick="jump('signup')">Love it — keep it</button><button class="btn ghost" onclick="shuffleOutfit()">Show me another</button></div>
+  </section>
+
+  <!-- 8 signup (Done folded in as a saved state) -->
+  <section class="screen" id="s-signup">
+    <div id="suForm">
+      <div class="chead"><div><span class="wm-k kicker">Last step</span><h1>Keep your closet</h1></div></div>
+      <div class="recap"><div><b id="rcPieces">6</b><span>pieces</span></div><div><b id="rcOutfits">4</b><span>outfits</span></div><div><b id="rcVibe">—</b><span>vibe</span></div></div>
+      <p class="hint">All of it is already in here. An account just keeps it — nothing is re-uploaded, this session becomes yours.</p>
+      <div class="field"><label>Email</label><div>maya@example.com</div></div>
+      <div class="field"><label>Password</label><div>••••••••••</div></div>
+      <div class="spacer"></div>
+      <div class="footer"><button class="btn" onclick="saveIt()">Create account &amp; keep it</button><button class="btn ghost" onclick="saveIt()">Continue with Apple</button></div>
+    </div>
+    <div id="suSaved" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+      <div class="chead"><div><span class="wm-k kicker">Your closet</span><h1>Saved ✓</h1></div><span class="tally" id="dTally"></span></div>
+      <div class="promise"><div class="pgrid" id="dGrid"></div><div class="maths"><b>Same closet, same photos.</b><span>The guest session became a real account — nothing was copied or re-uploaded.</span></div></div>
+      <div class="footer"><button class="btn" style="background:var(--surface);border:1px solid var(--border);color:var(--foreground)" onclick="restart()">Run it again</button></div>
+    </div>
+  </section>
+</div>
+
+<div class="rail">
+  <h1>First run — tight cut</h1>
+  <p class="sub">AJA-290 · <b>8 steps</b>, trimmed from 15. Every 5-rated step kept; the padding cut. <a href="app-journey.html">See the 15-step version →</a></p>
+  <h3>Kept — the spine</h3>
+  <ul class="jsteps" id="stepList"></ul>
+  <h3>Cut for length</h3>
+  <ul class="cut">
+    <li><s>Goal</s><em>changed nothing downstream</em></li>
+    <li><s>Stat</s><em>a "read a fact" screen, no action</em></li>
+    <li><s>Board</s><em>Extract + Outfit teach it with real clothes</em></li>
+    <li><s>Bridge</s><em>folded into the Upload header</em></li>
+    <li><s>Styling…</s><em>fake loading padding</em></li>
+    <li><s>Done</s><em>folded into Signup as "Saved ✓"</em></li>
+    <li><s>Morning</s><em>moved to day 2 — premature at first run</em></li>
+  </ul>
+  <button class="restart" onclick="restart()">Restart</button>
+</div>
+
+<script>
+const SETS={
+  women:{dir:"../samples/women",pieces:[
+    {slot:"top",slug:"white-shirt",name:"White shirt",tag:"Shirt"},{slot:"top",slug:"camel-sweater",name:"Camel sweater",tag:"Sweater"},
+    {slot:"bottom",slug:"blue-jeans",name:"Blue jeans",tag:"Jeans"},{slot:"bottom",slug:"trousers",name:"Trousers",tag:"Trousers"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers",tag:"Trainers"},{slot:"shoes",slug:"loafers",name:"Loafers",tag:"Loafers"}]},
+  men:{dir:"../samples/men",pieces:[
+    {slot:"top",slug:"white-oxford",name:"White oxford",tag:"Shirt"},{slot:"top",slug:"navy-sweater",name:"Navy sweater",tag:"Sweater"},
+    {slot:"bottom",slug:"dark-jeans",name:"Dark jeans",tag:"Jeans"},{slot:"bottom",slug:"chinos",name:"Chinos",tag:"Chinos"},
+    {slot:"shoes",slug:"white-sneakers",name:"White sneakers",tag:"Trainers"},{slot:"shoes",slug:"loafers",name:"Loafers",tag:"Loafers"}]}
+};
+const BOX={top:{left:"3%",top:"6%",width:"52%"},bottom:{left:"0",top:"50%",width:"58.24%"},shoes:{left:"56%",top:"70%",width:"36%"}};
+const VIBES={
+  women:[["Quiet Classic","white-shirt","trousers","Clean lines, few colours"],["Relaxed","camel-sweater","blue-jeans","Soft, easy, layered"],["Statement","white-shirt","blue-jeans","Colour and contrast"]],
+  men:[["Quiet Classic","white-oxford","chinos","Clean lines, few colours"],["Relaxed","navy-sweater","dark-jeans","Soft, easy, layered"],["Statement","white-oxford","dark-jeans","Colour and contrast"]]
+};
+const UPLOADS={
+  women:[
+    {name:"IMG_4821.jpg",items:[["white-shirt",{left:"14%",top:"8%",width:"46%"}],["blue-jeans",{left:"50%",top:"30%",width:"40%"}],["white-sneakers",{left:"20%",top:"62%",width:"38%"}]]},
+    {name:"IMG_5093.jpg",items:[["camel-sweater",{left:"16%",top:"9%",width:"46%"}],["trousers",{left:"48%",top:"32%",width:"42%"}],["loafers",{left:"22%",top:"64%",width:"36%"}]]}],
+  men:[
+    {name:"IMG_4821.jpg",items:[["white-oxford",{left:"14%",top:"8%",width:"46%"}],["dark-jeans",{left:"50%",top:"30%",width:"40%"}],["white-sneakers",{left:"20%",top:"62%",width:"38%"}]]},
+    {name:"IMG_5093.jpg",items:[["navy-sweater",{left:"16%",top:"9%",width:"46%"}],["chinos",{left:"48%",top:"32%",width:"42%"}],["loafers",{left:"22%",top:"64%",width:"36%"}]]}]
+};
+const STEPS=[
+  ["welcome","Warm welcome","Cal AI · hook + defer account"],
+  ["who","Who are we dressing","Duolingo · the only step that changes the clothes"],
+  ["vibe","Your vibe","Cal AI · feeds taste, sets the style card"],
+  ["upload","Upload one photo","the fix — a photo you already have"],
+  ["extract","We pull the pieces out","your detect-garments — 1 photo → 3 items"],
+  ["closet","Momentum","Duolingo · the count climbing = it works"],
+  ["outfit","Your first outfit","the payoff — HER clothes + a style card"],
+  ["signup","Keep your closet","DoorDash · account LAST, at peak value"]
+];
+
+let gender="women",owned=[],oVariant=0,vibe="Quiet Classic",idx=0,uploadIdx=0,whoTouched=false,extracted=[];
+const $=s=>document.querySelector(s);
+const set=()=>SETS[gender];
+const cut=s=>`${set().dir}/${s}-sticker.png`;
+const meta=slug=>set().pieces.find(p=>p.slug===slug);
+const outfits=()=>{const t=owned.filter(p=>p.slot==="top").length,b=owned.filter(p=>p.slot==="bottom").length;return t*b;};
+
+function renderSteps(){$("#stepList").innerHTML=STEPS.map(([id,lab,why],i)=>`<li class="${i===idx?'on':''}" onclick="jump('${id}')"><s>${i+1}</s><span><span class="lab">${lab}</span><span class="why">${why}</span></span></li>`).join("");}
+function renderProg(){document.querySelectorAll(".prog").forEach(p=>p.innerHTML=STEPS.map((_,i)=>`<i class="${i<idx?'done':''} ${i===idx?'now':''}"><b></b></i>`).join(""));}
+function show(id){
+  document.querySelectorAll(".screen").forEach(s=>s.classList.remove("on"));
+  $("#s-"+id).classList.add("on");
+  $("#sbar").classList.toggle("onvid",id==="welcome");
+  idx=STEPS.findIndex(s=>s[0]===id);renderSteps();renderProg();
+  ({vibe:renderVibe,upload:renderUpload,extract:runExtract,closet:renderCloset,outfit:renderOutfit,signup:renderSignup}[id]||(()=>{}))();
+  if(id==="who")document.querySelectorAll('#s-who .card').forEach(c=>c.classList.toggle('on',c.dataset.g===gender&&whoTouched));
+}
+function jump(id){show(id);}
+function next(){show(STEPS[Math.min(idx+1,STEPS.length-1)][0]);}
+
+function pickWho(g){gender=g;whoTouched=true;document.querySelectorAll('#s-who .card').forEach(c=>c.classList.toggle('on',c.dataset.g===g));$("#whoCta").disabled=false;}
+function renderVibe(){$("#vibeList").innerHTML=VIBES[gender].map(([name,a,b,desc])=>`<button class="card" onclick="pickVibe('${name}')"><span class="thumbs"><img src="${cut(a)}"><img src="${cut(b)}"></span><span class="tx"><b>${name}</b><i>${desc}</i></span></button>`).join("");}
+function pickVibe(name){vibe=name;document.querySelectorAll('#s-vibe .card').forEach(c=>c.classList.toggle('on',c.querySelector('b').textContent===name));setTimeout(next,220);}
+
+function renderUpload(){
+  const has=owned.length>0;$("#upBack").hidden=!has;
+  $("#upKick").textContent=has?"Add more":"Now the real thing";
+  $("#upTitle").textContent=has?"Another photo":"Fill it with your clothes";
+  $("#upReassure").textContent=has?"Each photo adds a few more pieces — two or three is plenty to start.":"No clean product shots, no photographing one at a time — one messy photo becomes several catalogued pieces.";
+}
+function chooseUpload(){show("extract");}
+function runExtract(){
+  const up=UPLOADS[gender][uploadIdx%UPLOADS[gender].length];
+  extracted=up.items.map(([slug])=>slug);
+  const photo=$("#photo");
+  photo.innerHTML=up.items.map(([slug,pos])=>`<div class="g" style="left:${pos.left};top:${pos.top};width:${pos.width}"><img src="${cut(slug)}"></div>`).join("")
+    +up.items.map(([slug,pos])=>{const m=meta(slug);return `<div class="dbox" style="left:${pos.left};top:${pos.top};width:${pos.width};aspect-ratio:1"><b>${m.tag}</b></div>`;}).join("")
+    +`<div class="scan" id="scanline"></div>`;
+  $("#exKick").textContent=up.name;$("#exTitle").textContent="Finding the pieces…";
+  $("#exResult").hidden=true;$("#exResult").innerHTML="";$("#exStatus").textContent="";
+  $("#exCta").disabled=true;$("#exCta").textContent="Scanning…";$("#exCta").onclick=null;
+  setTimeout(()=>$("#scanline").classList.add("run"),300);
+  const boxes=[...photo.querySelectorAll(".dbox")];
+  boxes.forEach((b,i)=>setTimeout(()=>{b.classList.add("on");$("#exStatus").textContent=`Found ${i+1} of ${boxes.length}…`;},1150+i*380));
+  setTimeout(()=>{
+    const res=$("#exResult");res.hidden=false;
+    res.innerHTML=up.items.map(([slug])=>{const m=meta(slug);return `<div class="chip2"><img src="${cut(slug)}"><span>${m.name}</span></div>`;}).join("");
+    $("#exTitle").textContent=`${boxes.length} pieces found`;$("#exStatus").textContent="Background removed · tagged · ready";
+    $("#exCta").disabled=false;$("#exCta").textContent=`Add ${boxes.length} to my closet`;$("#exCta").onclick=acceptExtract;
+  },1150+boxes.length*380+500);
+}
+function acceptExtract(){extracted.forEach(slug=>{if(!owned.find(p=>p.slug===slug))owned.push(meta(slug));});uploadIdx++;show("closet");}
+
+function renderCloset(){
+  const g=$("#clGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){const p=owned[i];const d=document.createElement("div");d.className="pcell"+(p?" filled":(i===owned.length?" next":""));d.innerHTML=p?`<img src="${cut(p.slug)}">`:`<span class="pnum">${i+1}</span><img class="ghost" src="${cut(set().pieces[i].slug)}">`;g.appendChild(d);}
+  const n=owned.length,o=outfits();
+  $("#clTitle").textContent=`${n} piece${n===1?"":"s"}`;
+  $("#clTally").textContent=o?`${o} outfit${o===1?"":"s"}`:"keep going";
+  $("#clB").textContent=o?`${n} pieces. ${o} outfit${o===1?"":"s"}.`:"One top and one bottom starts it.";
+  $("#clS").textContent=o?"That's from one photo. Add another and it multiplies — six is the sweet spot.":"Add one more photo and the outfits begin.";
+  $("#clSee").hidden=o<1;
+  $("#clCta").textContent=n>=6?"Add more later":"Add another photo";
+  const k=$("#keepClo");k.hidden=n<2;k.querySelector("b").textContent=`${n} pieces, not saved.`;
+}
+/* Board + Bridge + Building all cut — "Style me" goes straight to the outfit. */
+function styleMe(){show("outfit");}
+
+function renderOutfit(){
+  const tops=owned.filter(p=>p.slot==="top"),bots=owned.filter(p=>p.slot==="bottom"),sh=owned.filter(p=>p.slot==="shoes");
+  const combos=[];tops.forEach(t=>bots.forEach(b=>combos.push([t,b])));
+  if(!combos.length)return show("closet");
+  const [t,b]=combos[oVariant%combos.length],s=sh.length?sh[oVariant%sh.length]:null;
+  $("#styleChip").textContent=vibe;
+  const board=$("#oBoard");board.innerHTML="";
+  [["top",t],["bottom",b],["shoes",s]].forEach(([slot,p])=>{if(!p)return;const d=document.createElement("div");d.className="slot";Object.assign(d.style,{left:BOX[slot].left,top:BOX[slot].top,width:BOX[slot].width});d.innerHTML=`<img src="${cut(p.slug)}">`;board.appendChild(d);});
+  $("#oHint").textContent=`${owned.length} pieces already make ${combos.length} outfit${combos.length===1?"":"s"} — all yours.`;
+}
+function shuffleOutfit(){oVariant++;renderOutfit();}
+
+function renderSignup(){$("#suForm").hidden=false;$("#suSaved").hidden=true;$("#rcPieces").textContent=owned.length;$("#rcOutfits").textContent=outfits();$("#rcVibe").textContent=vibe.split(" ")[0];}
+function saveIt(){
+  $("#suForm").hidden=true;$("#suSaved").hidden=false;
+  const g=$("#dGrid");g.innerHTML="";
+  for(let i=0;i<6;i++){const p=owned[i];const d=document.createElement("div");d.className="pcell"+(p?" filled":"");d.innerHTML=p?`<img src="${cut(p.slug)}">`:`<span class="pnum">${i+1}</span>`;g.appendChild(d);}
+  $("#dTally").textContent=`${owned.length} pieces · ${outfits()} outfits`;
+}
+
+function restart(){gender="women";owned=[];oVariant=0;vibe="Quiet Classic";uploadIdx=0;whoTouched=false;$("#whoCta").disabled=true;$("#suForm").hidden=false;$("#suSaved").hidden=true;show("welcome");}
+restart();
+</script>
+</body>
+</html>

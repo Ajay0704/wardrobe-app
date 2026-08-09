@@ -11,7 +11,6 @@ import { AuthProvider } from "./AuthProvider";
 import { ClipLinkLoader } from "./ClipLinkLoader";
 import { ImportProgress } from "./ImportProgress";
 import { ImportReviewSheet } from "./ImportReviewSheet";
-import { OAuthButtons } from "./OAuthButtons";
 import { OnboardingModal } from "./OnboardingModal";
 import { ProfileMenu } from "./ProfileMenu";
 import { PushBootstrap } from "./PushBootstrap";
@@ -23,6 +22,7 @@ import { VideoPanel } from "./VideoPanel";
 import { LandingNav } from "./landing/LandingNav";
 import { AppViews } from "./AppViews";
 import { useIsNativeApp } from "./NativeAppClass";
+import { FirstRunJourney } from "./proto/FirstRunJourney";
 import { NativeShell } from "./native/NativeShell";
 
 const NAV: { view: View; label: string }[] = [
@@ -153,55 +153,6 @@ function AuthLanding({
   );
 }
 
-/**
- * Sign-in screen shown inside the Capacitor app when logged out — replaces the
- * website marketing landing so the native shell never shows web chrome.
- */
-function NativeAuthGate({
-  mode,
-  onMode,
-  sharedOutfit,
-}: {
-  mode: AuthMode | null;
-  onMode: (mode: AuthMode | null) => void;
-  sharedOutfit?: boolean;
-}) {
-  return (
-    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 bg-background px-8 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] text-center">
-      <div>
-        <span className="brand-wordmark-kicker block">Your Personal</span>
-        <span className="brand-wordmark-name text-4xl">Wardrobe</span>
-      </div>
-      {sharedOutfit && (
-        <p className="rounded-full border border-line bg-surface px-4 py-1.5 text-xs text-muted">
-          Someone shared an outfit with you — log in to view it.
-        </p>
-      )}
-      <p className="max-w-xs text-sm text-muted">
-        Sign in to open your closet, outfits, and wishlist.
-      </p>
-      <div className="flex w-full max-w-xs flex-col gap-3">
-        <OAuthButtons />
-        <button
-          type="button"
-          onClick={() => onMode("login")}
-          className="rounded-full bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
-        >
-          Log in
-        </button>
-        <button
-          type="button"
-          onClick={() => onMode("signup")}
-          className="rounded-full border border-line px-6 py-3 text-sm font-medium transition-colors hover:bg-surface-2"
-        >
-          Create account
-        </button>
-      </div>
-      {mode && <AuthModal mode={mode} onClose={() => onMode(null)} />}
-    </div>
-  );
-}
-
 function AppShellInner() {
   const {
     view,
@@ -300,11 +251,17 @@ function AppShellInner() {
       return (
         <>
           <ThemeEffect />
-          <NativeAuthGate
-            mode={authModal}
-            onMode={setAuthModal}
-            sharedOutfit={sharedOutfit}
+          {/* AJA-290 guest-first: the signed-out native surface IS the first-run journey. It mints
+              an anonymous guest session and hands "keep it" / "log in" to the AuthModal, which
+              converts the guest into a real account with the captured pieces kept. */}
+          <FirstRunJourney
+            live
+            onSignup={() => setAuthModal("signup")}
+            onLogin={() => setAuthModal("login")}
           />
+          {authModal && (
+            <AuthModal mode={authModal} onClose={() => setAuthModal(null)} />
+          )}
         </>
       );
     }

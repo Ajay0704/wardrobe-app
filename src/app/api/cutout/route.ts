@@ -9,6 +9,7 @@
  * (missing key, provider error, empty mask) returns a non-2xx so the client falls back to @imgly.
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkCaptureLimit, tooMany } from "@/lib/rate-limit";
 import { safeFetch } from "@/lib/net";
 import sharp from "sharp";
 
@@ -129,6 +130,8 @@ const MASK_MIN_MEAN = 2;
 export async function POST(request: Request): Promise<Response> {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
+  const rl = checkCaptureLimit(user);
+  if (!rl.ok) return tooMany(rl);
 
   if (!HF_KEY()) {
     return Response.json({ error: "Garment cutout not configured." }, { status: 501 });

@@ -11,6 +11,7 @@
  */
 import sharp from "sharp";
 import { requireUser } from "@/lib/auth-server";
+import { checkCaptureLimit, tooMany } from "@/lib/rate-limit";
 import { safeFetch } from "@/lib/net";
 import type { Category } from "@/lib/types";
 
@@ -111,9 +112,12 @@ interface Detection {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = checkCaptureLimit(user);
+  if (!rl.ok) return tooMany(rl);
   const token = process.env.REPLICATE_API_TOKEN;
   if (!token) {
     return Response.json(
