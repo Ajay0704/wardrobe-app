@@ -92,10 +92,21 @@ const prefersReducedMotion = () =>
 export default function FirstLookGame({
   shopGender,
   onDone,
+  ctaLabel = "Now with my clothes",
+  pendingLabel = "Make an outfit to continue",
 }: {
   /** Decides which six pieces are offered. "all" and undefined fall back to women's. */
   shopGender?: "male" | "female" | "all";
   onDone: () => void;
+  /**
+   * The board is played in two places now (AJA-290): inside onboarding, where the next step is
+   * photographing your own six, and on the signed-out landing, where it is the hero and the next
+   * step is creating an account. Only the button copy differs, so it is a prop rather than a fork
+   * of the component — the game itself must stay one implementation, because it is the thing the
+   * landing promises and onboarding has to keep.
+   */
+  ctaLabel?: string;
+  pendingLabel?: string;
 }) {
   const set = SETS[shopGender === "male" ? "men" : "women"];
   const src = useCallback((slug: string) => `${set.dir}/${slug}-sticker.png`, [set.dir]);
@@ -344,7 +355,7 @@ export default function FirstLookGame({
 
       <div className="flex-none pb-6 pt-2">
         <Button className="w-full" onClick={onDone} disabled={!complete}>
-          {complete ? "Now with my clothes" : "Make an outfit to continue"}
+          {complete ? ctaLabel : pendingLabel}
         </Button>
         {complete && !allFound && (
           <Button variant="ghost" className="mt-1 w-full" onClick={suggestAnother}>

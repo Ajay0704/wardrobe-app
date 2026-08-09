@@ -32,6 +32,27 @@
   --accent-foreground: #17240f;
 }
 
+/*
+ * Pin an island to the light palette regardless of the user's theme (AJA-290).
+ *
+ * The signed-out landing is its own dark art-directed page, and the first-look board sits on it
+ * as a light card — a rendering of the app, not a part of the landing's chrome. Without this the
+ * card inherits `.dark` for anyone whose theme is dark and disappears into the background.
+ * Re-declares the `:root` values rather than hardcoding colours inside the component, so the card
+ * keeps tracking the design tokens.
+ */
+.theme-light {
+  --background: #faf9f7;
+  --surface: #ffffff;
+  --surface-2: #f3f1ed;
+  --border: #e7e4de;
+  --foreground: #1c1917;
+  --muted: #79716b;
+  --accent: #567a4a;
+  --accent-soft: #e8efe2;
+  --accent-foreground: #ffffff;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
