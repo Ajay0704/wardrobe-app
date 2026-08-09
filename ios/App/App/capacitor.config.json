@@ -35,6 +35,7 @@
 		"FilesystemPlugin",
 		"GeolocationPlugin",
 		"LocalNotificationsPlugin",
+		"PushNotificationsPlugin",
 		"SharePlugin",
 		"SplashScreenPlugin",
 		"StatusBarPlugin"

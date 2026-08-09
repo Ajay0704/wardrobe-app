@@ -34,6 +34,8 @@ export function WishlistView() {
   const styleVibes = useWardrobe((s) => s.profile.styleVibes);
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const isNative = useIsNativeApp();
+  const pendingDecideItemId = useWardrobe((s) => s.pendingDecideItemId);
+  const setPendingDecideItemId = useWardrobe((s) => s.setPendingDecideItemId);
 
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
   const [filter, setFilter] = useState<WishFilter>("all");
@@ -45,6 +47,19 @@ export function WishlistView() {
     const t = window.setTimeout(() => setToast(null), 2600);
     return () => window.clearTimeout(t);
   }, [toast]);
+
+  // AJA-286: the ageing-wishlist nudge deep-links here (?item=<id>). Open that item's
+  // "Should I buy?" verdict so the tap can log a buy/wait/skip — the loop the kill metric
+  // measures. Consume once, even if the piece is already gone (bought/removed).
+  useEffect(() => {
+    if (!pendingDecideItemId) return;
+    const target = items.find((it) => it.id === pendingDecideItemId && it.wishlist);
+    setPendingDecideItemId(null);
+    // Opening the verdict from an external deep-link (a push tap) is the sanctioned "sync from an
+    // outside system" use of an effect; this runs once per delivered nudge, not in a render loop.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (target) setDeciding(target);
+  }, [pendingDecideItemId, items, setPendingDecideItemId]);
 
   // The sheet has already committed the change; this only closes it and says what
   // happened, because a piece leaving the grid is otherwise silent.
