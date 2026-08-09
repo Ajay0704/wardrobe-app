@@ -16,6 +16,7 @@ import {
   type StyleOccasion,
 } from "@/lib/style-quiz";
 import { isSampleItem } from "@/lib/demo-data";
+import { readFirstLook } from "@/lib/first-look";
 import { useWardrobe } from "@/lib/store";
 import { profileHandle, resolveStartView, validateHandle } from "@/lib/profile";
 import { HandleField } from "./HandleField";
@@ -85,6 +86,13 @@ export function OnboardingModal() {
    */
   const [quizSteps] = useState<QuizStep[]>(() => quizStepsFor(profile.username));
   const [step, setStep] = useState<Step>(() => quizSteps[0]!);
+  /**
+   * Whether they already played the board on the signed-out landing (AJA-290). Read once at mount
+   * for the same reason `quizSteps` is frozen — the flow must not reshape itself underneath the
+   * user. When true the demo step is skipped: replaying it would spend a screen on something they
+   * finished sixty seconds ago, and the honest next move is their own clothes.
+   */
+  const [firstLook] = useState(readFirstLook);
   const [handle, setHandle] = useState(() =>
     profileHandle({
       username: profile.username,
@@ -94,7 +102,9 @@ export function OnboardingModal() {
   );
   const [handleValid, setHandleValid] = useState(false);
   const [shopGender, setShopGender] = useState<"male" | "female" | "all" | undefined>(
-    profile.shopGender,
+    // The landing's toggle already answered this. Carrying it over means the department step
+    // arrives pre-answered rather than asking a question the visitor has visibly already settled.
+    profile.shopGender ?? firstLook.gender,
   );
   const [goal, setGoal] = useState<StyleGoal | undefined>(profile.styleGoal);
   const [occasions, setOccasions] = useState<StyleOccasion[]>(
@@ -153,6 +163,12 @@ export function OnboardingModal() {
 
   const goNext = () => {
     if (step === "handle") updateProfile({ username: handle });
+    /**
+     * The department cards write on tap, so an answer carried over from the landing (AJA-290)
+     * arrives pre-selected and would never reach the profile if the user simply nexts past it.
+     * `shopGender` drives Explore, not just which six pieces the demo offered, so commit it here.
+     */
+    if (step === "gender" && shopGender) updateProfile({ shopGender });
     // The quiz used to END here. It now hands over to First Six, which is the point at which
     // the user gets something back: their own six pieces and an outfit made of them. The quiz
     // answers are persisted before capture starts, so abandoning mid-capture still keeps them.
@@ -162,9 +178,10 @@ export function OnboardingModal() {
       // unmounted onboarding on the very next render and the demo never appeared. Answers are
       // still persisted, which was the point; finishing is `finish()`'s job alone.
       updateProfile(quizProfilePatch({ goal, occasions, lean }));
-      // Hands over to the demo, which is where the user first sees what the app actually does.
-      // Quiz answers are persisted before it, so abandoning later still keeps them.
-      setStep("game");
+      // Hands over to the demo, where the user first sees what the app actually does — unless the
+      // landing already showed them (AJA-290), in which case the next honest step is their own
+      // clothes. Quiz answers are persisted before either, so abandoning still keeps them.
+      setStep(firstLook.played ? "capture" : "game");
       return;
     }
     const i = quizSteps.indexOf(step as QuizStep);
@@ -355,9 +372,9 @@ export function OnboardingModal() {
                 </p>
               </div>
               <p className="text-sm text-muted">
-                Before you photograph anything — here&apos;s what the app does with six pieces.
-                Have a go with ours, then we&apos;ll do yours. Change your style anytime in
-                Settings → Style &amp; taste.
+                {firstLook.played
+                  ? "You already made an outfit from our six. Now the same thing with yours — six photos is all it takes. Change your style anytime in Settings → Style & taste."
+                  : "Before you photograph anything — here's what the app does with six pieces. Have a go with ours, then we'll do yours. Change your style anytime in Settings → Style & taste."}
               </p>
             </div>
           )}
@@ -396,7 +413,11 @@ export function OnboardingModal() {
               </Button>
             )}
             <Button className="flex-1" disabled={!canContinue} onClick={goNext}>
-              {step === "snapshot" ? "Show me how it works" : "Next"}
+              {step === "snapshot"
+                ? firstLook.played
+                  ? "Now with my clothes"
+                  : "Show me how it works"
+                : "Next"}
             </Button>
           </div>
         )}

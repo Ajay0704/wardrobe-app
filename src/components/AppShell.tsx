@@ -1,7 +1,6 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
-import Link from "next/link";
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import { isNativeApp, NATIVE_LOCK_KEY } from "@/lib/platform";
 import { useWardrobe, type View } from "@/lib/store";
@@ -19,6 +18,7 @@ import { ShareLinkLoader } from "./ShareLinkLoader";
 import { SyncBadge } from "./SyncBadge";
 import { ThemeEffect } from "./ThemeEffect";
 import { VideoPanel } from "./VideoPanel";
+import { FirstLookHero } from "./landing/FirstLookHero";
 import { LandingNav } from "./landing/LandingNav";
 import { AppViews } from "./AppViews";
 import { useIsNativeApp } from "./NativeAppClass";
@@ -70,46 +70,12 @@ function AuthLanding({
     <div className="web-auth-landing relative bg-[#0b0d11] text-white">
       <LandingNav onAuth={onAuth} />
 
-      <VideoPanel overlay={0.5} eager poster="/hero-poster.jpg">
-        <div className="mx-auto max-w-2xl">
-          {sharedOutfit && (
-            <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-sm text-white backdrop-blur">
-              Someone shared an outfit with you — log in to view it.
-            </div>
-          )}
-          <h1 className="text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
-            The home for everything you wear
-          </h1>
-          <p className="mx-auto mt-5 max-w-md text-white/70">
-            Digitize your closet, build outfits, and get color-matched
-            suggestions — synced across every device.
-          </p>
-          <div className="mt-8 flex justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => onAuth("signup")}
-              className="rounded-lg bg-accent px-6 py-3 text-sm font-medium text-accent-foreground transition-opacity hover:opacity-90"
-            >
-              Create account
-            </button>
-            <button
-              type="button"
-              onClick={() => onAuth("login")}
-              className="rounded-lg border border-white/25 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-white/10"
-            >
-              Log in
-            </button>
-          </div>
-          <div className="mt-14 text-sm text-white/60">
-            <Link
-              href="/how-it-works"
-              className="transition-colors hover:text-white"
-            >
-              See how it works →
-            </Link>
-          </div>
-        </div>
-      </VideoPanel>
+      {/*
+       * The hero is the product, not a pitch (AJA-290). "Create account" no longer sits at the top
+       * of the page: the visitor plays first, and the board's own CTA is what opens sign-up. The
+       * video panels below still carry the marketing copy.
+       */}
+      <FirstLookHero onAuth={onAuth} sharedOutfit={sharedOutfit} />
 
       <VideoPanel src="/bg-onitsuka.mp4" overlay={0.62} align="start">
         <div className="max-w-lg">

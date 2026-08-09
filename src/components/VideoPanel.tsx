@@ -15,6 +15,7 @@ export function VideoPanel({
   id,
   eager = false,
   poster,
+  compact = false,
 }: {
   children: ReactNode;
   /** 0–1 darkness of the scrim over the video. */
@@ -26,6 +27,12 @@ export function VideoPanel({
   eager?: boolean;
   /** Still image shown instantly while the video streams in. */
   poster?: string;
+  /**
+   * Trade the generous marketing padding for a tight one. The copy panels want `py-24` to breathe;
+   * the first-look hero (AJA-290) puts a fixed-height interactive card in here instead, and 12rem
+   * of vertical padding is the difference between the board having room and being a strip.
+   */
+  compact?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
 
@@ -69,9 +76,11 @@ export function VideoPanel({
         style={{ background: `rgba(11,13,17,${overlay})` }}
       />
       <div
-        className={`relative z-10 mx-auto w-full max-w-6xl px-6 py-24 ${
-          align === "center" ? "text-center" : "text-left"
-        }`}
+        className={`relative z-10 mx-auto w-full max-w-6xl px-6 ${
+          // The top padding is load-bearing: LandingNav is `fixed`, so anything less than the nav's
+          // height tucks the first line of copy underneath it. Compact trims the BOTTOM only.
+          compact ? "pb-8 pt-24" : "py-24"
+        } ${align === "center" ? "text-center" : "text-left"}`}
       >
         {children}
       </div>
