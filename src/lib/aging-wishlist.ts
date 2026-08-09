@@ -20,10 +20,13 @@ export interface AgingConfig {
   minDays: number;
   /** Stop nudging once it's this stale — an ancient save reads as clutter, not a decision. */
   maxDays: number;
+  /** Minimum owned look-alikes to justify a nudge. 1 in production (only the truthful "you
+   *  already own N" case); the test path passes 0 to force a candidate from any saved piece. */
+  minRedundant: number;
 }
 
 /** ~30 days is the reflection window (see the research doc); tune, don't hardcode at call sites. */
-export const AGING_DEFAULTS: AgingConfig = { minDays: 30, maxDays: 90 };
+export const AGING_DEFAULTS: AgingConfig = { minDays: 30, maxDays: 90, minRedundant: 1 };
 
 export interface AgingCandidate {
   item: WardrobeItem;
@@ -47,6 +50,13 @@ function copyFor(item: WardrobeItem, ageDays: number, redundantCount: number): {
   body: string;
 } {
   const name = item.name?.trim() || "that piece";
+  if (redundantCount < 1) {
+    // Only reachable via the test path (minRedundant=0). Neutral prompt — still no urgency.
+    return {
+      title: "Still want it?",
+      body: `You saved ${name} ${agePhrase(ageDays)} — still on your list, or shall we let it go?`,
+    };
+  }
   const does = redundantCount === 1 ? "does" : "do";
   return {
     title: "Still want it?",
@@ -80,7 +90,7 @@ export function pickAgingNudge(
     if (ageDays < cfg.minDays || ageDays > cfg.maxDays) continue;
 
     const { redundantCount } = wishVerdict(it, items);
-    if (redundantCount < 1) continue; // v1: only the truthful "you already own N like it" case
+    if (redundantCount < cfg.minRedundant) continue; // prod: only the truthful "you already own N"
 
     // Most overdue a decision wins (oldest first); ties don't matter.
     if (!best || ageDays > best.ageDays) {

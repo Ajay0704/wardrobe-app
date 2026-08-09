@@ -70,5 +70,16 @@ ok(!!c6 && c6.item.id === "w6", "picks the most-overdue (oldest) candidate", `go
 // 7 — an owned (non-wishlist) aged item is never a candidate.
 ok(pickAgingNudge([owned1, owned2], new Set(), NOW) === null, "never nudges an owned (non-wishlist) item");
 
+// 8 — the test path (minRedundant=0, relaxed age) forces a candidate from any saved piece, with
+// neutral copy (no false "you already own N").
+const soloBag = it({ id: "w7", name: "Clutch", category: "bag", tags: ["evening"], wishlist: true, createdAt: daysAgo(40) });
+const cTest = pickAgingNudge([owned1, owned2, soloBag], new Set(), NOW, { minDays: 0, maxDays: 365, minRedundant: 0 });
+ok(!!cTest && cTest.item.id === "w7", "test path (minRedundant=0) forces a candidate", `got ${cTest?.item.id}`);
+ok(
+  !!cTest && cTest.redundantCount === 0 && /still on your list/.test(cTest.body) && !/already own/.test(cTest.body),
+  "neutral copy when there's no look-alike",
+  cTest?.body,
+);
+
 console.log(fails === 0 ? "\nAll aging-wishlist checks passed." : `\n${fails} FAILED.`);
 process.exit(fails ? 1 : 0);

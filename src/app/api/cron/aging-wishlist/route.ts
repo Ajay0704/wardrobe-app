@@ -37,15 +37,31 @@ export async function GET(request: Request) {
   const admin = adminClient();
   if (!admin) return Response.json({ error: "Service role not configured" }, { status: 503 });
 
-  const dry = new URL(request.url).searchParams.get("dry") === "1";
+  const params = new URL(request.url).searchParams;
+  const dry = params.get("dry") === "1";
+  // Test overrides — the daily Vercel cron passes NONE, so production keeps AGING_DEFAULTS. All
+  // sit behind the CRON_SECRET already: relax the age window, allow 0 look-alikes, scope to one
+  // user, and skip the cooldown, so the loop can be exercised without a real 30-day-old save.
+  const force = params.get("force") === "1";
+  const scopeUser = params.get("user")?.trim() || null;
+  const num = (k: string, d: number) => {
+    const raw = params.get(k);
+    const v = Number(raw);
+    return raw !== null && Number.isFinite(v) ? v : d;
+  };
+  const cfg = {
+    minDays: num("minDays", AGING_DEFAULTS.minDays),
+    maxDays: num("maxDays", AGING_DEFAULTS.maxDays),
+    minRedundant: num("minRedundant", AGING_DEFAULTS.minRedundant),
+  };
   const now = Date.now();
   const cooldownCutoff = now - COOLDOWN_DAYS * 86_400_000;
 
   // One row per user; the wishlist AND owned items (for the "you already own N" check) are both
   // in `items`, so no join is needed. Not indexable by item age — a blob scan, fine at this scale.
-  const { data: snaps, error } = await admin
-    .from("wardrobe_snapshots")
-    .select("user_id, items");
+  let snapQuery = admin.from("wardrobe_snapshots").select("user_id, items");
+  if (scopeUser) snapQuery = snapQuery.eq("user_id", scopeUser);
+  const { data: snaps, error } = await snapQuery;
   if (error) return Response.json({ error: error.message }, { status: 500 });
 
   const chosen: Candidate[] = [];
@@ -70,7 +86,7 @@ export async function GET(request: Request) {
       if (ref) decidedRefs.add(ref);
     }
 
-    const cand = pickAgingNudge(items, decidedRefs, now, AGING_DEFAULTS);
+    const cand = pickAgingNudge(items, decidedRefs, now, cfg);
     if (!cand) continue;
 
     // Fatigue guardrail: skip if we nudged this user within the cooldown.
@@ -82,7 +98,7 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .limit(1);
     const lastAt = lastNudge?.[0] ? new Date((lastNudge[0] as { created_at: string }).created_at).getTime() : 0;
-    if (lastAt > cooldownCutoff) continue;
+    if (!force && lastAt > cooldownCutoff) continue;
 
     chosen.push({ userId, cand });
   }
@@ -91,6 +107,7 @@ export async function GET(request: Request) {
     return Response.json({
       ok: true,
       dryRun: true,
+      config: { ...cfg, scopeUser, force },
       scanned,
       candidates: chosen.length,
       sample: chosen.slice(0, 10).map((c) => ({
