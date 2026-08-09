@@ -1,6 +1,7 @@
 import webpush from "web-push";
 import { adminClient } from "@/lib/supabase/admin";
 import { pickAgingNudge, AGING_DEFAULTS, type AgingCandidate } from "@/lib/aging-wishlist";
+import { getApnsClient, sendApns } from "@/lib/apns";
 import type { WardrobeItem } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -111,22 +112,49 @@ export async function GET(request: Request) {
     webpush.setVapidDetails(process.env.VAPID_SUBJECT || "mailto:hello@example.com", vapidPublic!, vapidPrivate!);
   }
 
+  const apns = getApnsClient(); // null unless APNS_* env is set — then iOS is simply skipped
+
   let nudged = 0;
   let sentWeb = 0;
+  let sentIos = 0;
   for (const { userId, cand } of chosen) {
-    const payload = JSON.stringify({
+    // Web (browser / PWA) — the existing channel.
+    const webPayload = JSON.stringify({
       title: cand.title,
       body: cand.body,
       // TODO(delivery): confirm this opens the item's Smart-Buy verdict so the tap can log a
-      // buy/wait/skip (the kill-metric loop). Placeholder until the deep-link is wired.
+      // buy/wait/skip (the kill-metric loop). Refined when the app-side deep-link is wired.
       url: `/?view=wishlist&item=${cand.item.id}`,
     });
-
-    const web = vapidReady ? await sendWebPush(admin, userId, payload) : 0;
+    const web = vapidReady ? await sendWebPush(admin, userId, webPayload) : 0;
     sentWeb += web;
 
-    // Instrument even if delivery was a no-op — the denominator of the kill metric is "nudges
-    // we decided to send", and we only mark a person nudged once per run (the cooldown anchor).
+    // iOS (APNs) — the SAME computed nudge, additive. Defensive: the token table may not exist
+    // until the migration is applied, and `apns` is null until the key is configured.
+    let ios = 0;
+    if (apns) {
+      const { data: tokens, error: tErr } = await admin
+        .from("device_push_tokens")
+        .select("token")
+        .eq("user_id", userId);
+      if (!tErr) {
+        for (const t of tokens ?? []) {
+          const token = (t as { token: string }).token;
+          const res = await sendApns(apns, token, {
+            title: cand.title,
+            body: cand.body,
+            url: `/n?view=wishlist&item=${cand.item.id}`,
+            itemRef: cand.item.id,
+          });
+          if (res === "sent") ios++;
+          else if (res === "prune") await admin.from("device_push_tokens").delete().eq("token", token);
+        }
+      }
+    }
+    sentIos += ios;
+
+    // Instrument even if delivery was a no-op — the kill metric's denominator is "nudges we
+    // decided to send", and each person is marked nudged once per run (the cooldown anchor).
     await admin.from("events").insert({
       user_id: userId,
       type: "nudge_sent",
@@ -135,13 +163,13 @@ export async function GET(request: Request) {
         itemName: cand.item.name,
         redundantCount: cand.redundantCount,
         ageDays: cand.ageDays,
-        channels: { web },
+        channels: { web, ios },
       },
     });
     nudged++;
   }
 
-  return Response.json({ ok: true, scanned, nudged, sentWeb, vapidReady });
+  return Response.json({ ok: true, scanned, nudged, sentWeb, sentIos, vapidReady, apnsReady: Boolean(apns) });
 }
 
 /** Send one payload to a single user's web-push subscriptions; prune dead endpoints. */
