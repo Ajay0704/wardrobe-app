@@ -6,6 +6,7 @@
  * the client keeps the top heuristic look.
  */
 import { requireUser } from "@/lib/auth-server";
+import { parseModelJson } from "@/lib/model-json";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -108,13 +109,10 @@ export async function POST(request: Request) {
   }
 
   const text = extractText(await resp.json()).trim();
-  let parsed: { key?: string; reason?: string };
-  try {
-    parsed = JSON.parse(text.replace(/^```json\s*|\s*```$/g, "").trim()) as {
-      key?: string;
-      reason?: string;
-    };
-  } catch {
+  // AJA-253/251: tolerate the ways Gemini malforms JSON (trailing junk, truncation, stray quote)
+  // instead of a strict parse that silently drops a perfectly good pick.
+  const parsed = parseModelJson(text);
+  if (!parsed) {
     return Response.json({ error: "Bad assemble JSON." }, { status: 502 });
   }
 

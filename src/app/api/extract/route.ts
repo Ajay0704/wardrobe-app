@@ -1,6 +1,7 @@
 import { safeFetch } from "@/lib/net";
 import { requireUser } from "@/lib/auth-server";
 import { brandFromHost, splitTitleAndBrand } from "@/lib/extract-product";
+import { parseModelJson } from "@/lib/model-json";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -283,10 +284,9 @@ async function geminiEnrich(
       .filter((p) => !p.thought)
       .map((p) => p.text ?? "")
       .join("");
-    const parsed = JSON.parse(text.replace(/^```json\s*|\s*```$/g, "").trim()) as Record<
-      string,
-      unknown
-    >;
+    // AJA-253/251: repair the common Gemini JSON malformations instead of failing the whole extract.
+    const parsed = parseModelJson(text);
+    if (!parsed) return {};
     const out: Partial<Extracted> = {};
     if (typeof parsed.name === "string" && parsed.name.trim())
       out.name = parsed.name.trim();

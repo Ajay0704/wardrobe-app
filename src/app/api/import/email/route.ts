@@ -8,6 +8,7 @@
  */
 
 import { adminClient, dedupeKey, guessCategory, storeImage } from "@/lib/import-item";
+import { parseModelJson } from "@/lib/model-json";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -99,8 +100,10 @@ async function parseReceipt(subject: string, html: string, text: string): Promis
       .filter((p) => !p.thought)
       .map((p) => p.text ?? "")
       .join("");
-    const parsed = JSON.parse(raw.replace(/^```json\s*|\s*```$/g, "").trim()) as { items?: ParsedItem[] };
-    return Array.isArray(parsed.items) ? parsed.items.slice(0, MAX_ITEMS) : [];
+    // AJA-253/251: repair malformed model JSON so a stray brace doesn't drop the whole email's items.
+    const parsed = parseModelJson(raw);
+    const items = parsed?.items;
+    return Array.isArray(items) ? (items as ParsedItem[]).slice(0, MAX_ITEMS) : [];
   } catch {
     return [];
   }
