@@ -310,7 +310,7 @@ export function FirstRunJourney({ live = false, onSignup, onLogin }: {
 
       {/* ── 2 · WHO ── */}
       {step === "who" && (
-        <StepBody>
+        <StepBody underProgress>
           <h2 className="heading mt-3.5 text-[25px]">First — who are we dressing?</h2>
           <p className="mt-2 text-[14.5px] text-muted">Sets the pieces you&apos;ll see in a moment.</p>
           <div className="mt-3 space-y-2.5">
@@ -331,7 +331,7 @@ export function FirstRunJourney({ live = false, onSignup, onLogin }: {
 
       {/* ── 3 · VIBE ── */}
       {step === "vibe" && (
-        <StepBody>
+        <StepBody underProgress>
           <h2 className="heading mt-3.5 text-[25px]">Which feels most like you?</h2>
           <p className="mt-2 text-[14.5px] text-muted">Just a starting point — it learns as you go.</p>
           <div className="mt-3 space-y-2.5">
@@ -564,8 +564,14 @@ export function FirstRunJourney({ live = false, onSignup, onLogin }: {
 
 /* ── small building blocks, all on the app's tokens ── */
 
-function StepBody({ children }: { children: React.ReactNode }) {
-  return <div className="flex min-h-0 flex-1 flex-col px-6 pb-[max(24px,env(safe-area-inset-bottom))]">{children}</div>;
+/* Clears the status bar / Dynamic Island itself — except on who/vibe, where the progress bar above
+   already pads env(safe-area-inset-top). The inset is 0 on the web, so this is native-only. */
+function StepBody({ children, underProgress }: { children: React.ReactNode; underProgress?: boolean }) {
+  return (
+    <div className={`flex min-h-0 flex-1 flex-col px-6 pb-[max(24px,env(safe-area-inset-bottom))] ${underProgress ? "" : "pt-[env(safe-area-inset-top)]"}`}>
+      {children}
+    </div>
+  );
 }
 function Footer({ children }: { children: React.ReactNode }) {
   return <div className="flex flex-none flex-col gap-2 pt-3">{children}</div>;
