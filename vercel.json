@@ -15,6 +15,10 @@
     {
       "path": "/api/cron/cleanup-guests",
       "schedule": "15 3 * * *"
+    },
+    {
+      "path": "/api/cron/aging-wishlist",
+      "schedule": "30 16 * * *"
     }
   ]
 }

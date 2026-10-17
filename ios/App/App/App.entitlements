@@ -6,5 +6,9 @@
 	<array>
 		<string>group.app.wardrobe.personal</string>
 	</array>
+	<!-- AJA-286: remote push. "development" = APNs sandbox (dev / TestFlight); switch to
+	     "production" for App Store builds so tokens match api.push.apple.com. -->
+	<key>aps-environment</key>
+	<string>development</string>
 </dict>
 </plist>
