@@ -12,6 +12,7 @@
  * cutout. All 2D: the output is a flat transparent PNG that depicts ghost-mannequin volume.
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { safeFetch } from "@/lib/net";
 import sharp from "sharp";
 
@@ -78,6 +79,8 @@ async function rgba(buf: Buffer): Promise<Buffer> {
 export async function POST(request: Request): Promise<Response> {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
+  const rl = await checkLimit(user, "enhance");
+  if (!rl.ok) return tooMany(rl);
 
   let body: { whiteData?: string; whiteUrl?: string; cutData?: string; cutUrl?: string };
   try {

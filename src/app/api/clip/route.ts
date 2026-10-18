@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit } from "@/lib/rate-limit";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Category, WardrobeItem } from "@/lib/types";
 import { nameColor, toneToHex } from "@/lib/color";
@@ -121,6 +122,11 @@ export async function POST(request: Request) {
   const user = await requireUser(request);
   if (!user || user.id === "local-dev") {
     return json({ error: "Sign in required." }, 401);
+  }
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) {
+    // Same 429 as tooMany(), but through json() so the extension still gets the CORS headers.
+    return json({ error: "You're going a bit fast — give it a moment and try again." }, 429);
   }
 
   const admin = adminClient();

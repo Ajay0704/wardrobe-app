@@ -1,4 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
+import { checkKeyLimit, tooMany } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -39,6 +40,16 @@ export async function POST(request: Request) {
 
   if (!shareId || !message) {
     return Response.json({ error: "Share id and a message are required." }, { status: 400 });
+  }
+
+  // AJA-298: this is a deliberately open, no-account write, so bound it — per sender IP (Vercel
+  // sets x-forwarded-for) and per share, so one link can't be flooded.
+  const ip = (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
+  for (const rl of await Promise.all([
+    checkKeyLimit(`reply-ip:${ip}`, 10, 10 * 60_000),
+    checkKeyLimit(`reply-share:${shareId}`, 60, 60 * 60_000),
+  ])) {
+    if (!rl.ok) return tooMany(rl);
   }
 
   const { data: share } = await admin

@@ -1,5 +1,6 @@
 import { safeFetch } from "@/lib/net";
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { detectFaceCrop } from "@/lib/face-detect-server";
 import type { TryOnScene } from "@/lib/tryon";
 import { buildTryOnPrompt } from "@/lib/tryon-prompt";
@@ -89,9 +90,12 @@ function extractImage(data: unknown): InlineImage | null {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = await checkLimit(user, "tryon");
+  if (!rl.ok) return tooMany(rl);
 
   const key = process.env.GEMINI_API_KEY;
   if (!key) {

@@ -15,12 +15,27 @@ const nextConfig: NextConfig = {
     const immutable = [
       { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
     ];
+    // AJA-298: baseline browser hardening on every response. Deliberately not a full CSP yet —
+    // the app loads Supabase storage, Gemini output, retailer images and on-device WASM models, and
+    // a wrong script/img policy would break capture. frame-ancestors is the part that matters
+    // (stops other sites framing account settings / delete for clickjacking); nothing embeds us,
+    // and the iOS shell loads the site top-level, not in a frame.
+    const security = [
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "X-Frame-Options", value: "SAMEORIGIN" },
+      { key: "Content-Security-Policy", value: "frame-ancestors 'self'" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      { key: "Permissions-Policy", value: "camera=(self), geolocation=(self), microphone=(), payment=()" },
+    ];
     return [
-      "/bg-video-v2.mp4",
-      "/bg-onitsuka.mp4",
-      "/bg-goldengoose.mp4",
-      "/hero-poster.jpg",
-    ].map((source) => ({ source, headers: immutable }));
+      { source: "/(.*)", headers: security },
+      ...[
+        "/bg-video-v2.mp4",
+        "/bg-onitsuka.mp4",
+        "/bg-goldengoose.mp4",
+        "/hero-poster.jpg",
+      ].map((source) => ({ source, headers: immutable })),
+    ];
   },
 };
 

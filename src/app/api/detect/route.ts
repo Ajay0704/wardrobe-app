@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 import { embedImageBytes, toVectorLiteral } from "@/lib/embed";
 import sharp from "sharp";
@@ -34,6 +35,8 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export async function POST(request: Request) {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) return tooMany(rl);
 
   let body: { imageUrl?: string; postId?: string; box?: Box };
   try {
