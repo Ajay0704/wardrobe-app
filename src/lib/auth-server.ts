@@ -46,8 +46,8 @@ export async function requireUser(request: Request): Promise<ApiUser | null> {
   if (error || !data.user) return null;
   // AJA-290: guest-first onboarding runs on anonymous sessions, so callers can apply tighter
   // rate limits to them. Supabase sets `is_anonymous` on the user; no email is the backstop.
-  const isAnonymous =
-    (data.user as { is_anonymous?: boolean }).is_anonymous === true ||
-    !data.user.email;
+  // Missing email alone isn't proof (phone sign-in has none) — trust the flag when it's present.
+  const flag = (data.user as { is_anonymous?: boolean }).is_anonymous;
+  const isAnonymous = flag === true || (flag === undefined && !data.user.email);
   return { id: data.user.id, isAnonymous };
 }
