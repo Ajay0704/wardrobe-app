@@ -28,6 +28,14 @@ export async function GET(
   const { handle } = await params;
   const clean = (handle || "").replace(/^@/, "").trim();
   if (!clean) return Response.json({ error: "Handle required." }, { status: 400 });
+  // AJA-298: ilike is only here for case-insensitivity. Unescaped, `%`/`_` (and PostgREST's `*`
+  // alias for `%`) turned this into a wildcard search — `/api/profile/%25` returned an arbitrary
+  // user, so every handle could be enumerated. Escape the LIKE metacharacters; `*` can't be
+  // escaped through PostgREST, and no real handle contains it.
+  if (clean.length > 64 || clean.includes("*")) {
+    return Response.json({ error: "Profile not found." }, { status: 404 });
+  }
+  const pattern = clean.replace(/[\\%_]/g, (c) => `\\${c}`);
 
   const sb = readClient();
   if (!sb) return Response.json({ error: "Server storage not configured." }, { status: 503 });
@@ -35,7 +43,7 @@ export async function GET(
   const { data: prof } = await sb
     .from("profiles")
     .select("id,username,display_name,avatar_url,bio")
-    .ilike("username", clean)
+    .ilike("username", pattern)
     .limit(1)
     .maybeSingle();
   if (!prof) return Response.json({ error: "Profile not found." }, { status: 404 });
