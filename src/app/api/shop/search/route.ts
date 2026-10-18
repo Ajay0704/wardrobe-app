@@ -12,6 +12,7 @@
  * full-text search over the (DummyJSON-seeded) catalog. Never throws to the client.
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 import { buildCompatIndex, closetSignal, type CompatIndex } from "@/lib/closet-fit";
 import {
@@ -112,6 +113,7 @@ async function webSearch(
   q: string,
   start: number,
   query: string,
+  mayCallSerp: () => Promise<boolean>,
 ): Promise<ProductRow[]> {
   const cachedIds = await readCache(admin, query, start);
   if (cachedIds && cachedIds.length) {
@@ -120,6 +122,8 @@ async function webSearch(
     if (rows.length) return rows;
   }
 
+  // Cache miss: the next line spends SerpAPI quota, so the caller decides whether this request may.
+  if (!(await mayCallSerp())) return [];
   const results = await serpShopping(apiKey, q, start, PAGE_SIZE);
   const usable = results.filter((r) => r.thumbnail && r.buyUrl);
   if (!usable.length) return [];
@@ -195,7 +199,7 @@ async function handle(
   request: Request,
   params: { q: string; cursor: string | null; limit: unknown },
 ): Promise<Response> {
-  const user = await requireUser(request); // catalog is public; user only scopes the closet read
+  const user = await requireUser(request); // catalog is public; user scopes the closet read + web budget
   const admin = adminClient();
   if (!admin) return Response.json({ items: [], nextCursor: null });
 
@@ -221,11 +225,17 @@ async function handle(
   const keep = <T extends { title: string }>(items: T[]): T[] =>
     items.filter((it) => matchesDepartment(it.title, dept));
 
+  // AJA-298: a fresh SerpAPI search costs real quota (the plan is 250/month), so only signed-in
+  // accounts may trigger one, within their search budget. Logged-out callers and guest sessions
+  // (which anyone can mint) still get cached web results and the catalog — just never a new call.
+  const mayCallSerp = async () =>
+    !!user && !user.isAnonymous && (await checkLimit(user, "search")).ok;
+
   // Primary: live web search. Cursor encodes the SerpAPI `start` offset.
   if (apiKey) {
     const start = Number(cursor) || 0;
     try {
-      const rows = await webSearch(admin, apiKey, q, start, query);
+      const rows = await webSearch(admin, apiKey, q, start, query, mayCallSerp);
       if (rows.length) {
         const nextCursor =
           rows.length >= 15 && start + PAGE_SIZE < PAGE_CAP_START ? String(start + PAGE_SIZE) : null;
