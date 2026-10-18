@@ -16,6 +16,7 @@
 import sharp from "sharp";
 import { toBox, type NormBox } from "./gemini-box";
 import { faceAreaFraction, faceCropBox, subjectHead } from "./face-crop";
+import { parseModelJson } from "./model-json";
 
 /** Base64 inline image, matching the try-on route's part shape. */
 export interface InlineImage {
@@ -115,7 +116,9 @@ async function detectHeadBoxes(img: InlineImage, key: string): Promise<NormBox[]
       .filter((p: { thought?: boolean }) => !p.thought)
       .map((p: { text?: string }) => p.text ?? "")
       .join("");
-    const parsed = JSON.parse(text);
+    // AJA-298: same repairs as the routes (trailing junk, truncation) — a strict parse silently
+    // dropped every face box whenever Gemini appended garbage after a valid object.
+    const parsed = parseModelJson(text);
     const heads = Array.isArray(parsed?.heads) ? parsed.heads : [];
     return heads
       .map((h: { box_2d?: unknown }) => toBox(h?.box_2d))
