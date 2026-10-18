@@ -110,6 +110,11 @@ export function checkLimit(user: { id: string; isAnonymous: boolean }, tier: Lim
   return sharedRateLimit(`${t.ns}:${user.id}`, limit, t.windowMs);
 }
 
+/** A shared budget for routes with no user to key on (e.g. guest replies keyed by IP/share). */
+export function checkKeyLimit(key: string, limit: number, windowMs: number): Promise<RateResult> {
+  return sharedRateLimit(key, limit, windowMs);
+}
+
 /** Cap for the paid capture routes; anonymous guests get the tighter budget. */
 export function checkCaptureLimit(user: { id: string; isAnonymous: boolean }): Promise<RateResult> {
   return checkLimit(user, "capture");
