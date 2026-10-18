@@ -25,6 +25,11 @@ jobs:
 
       - run: npm ci
 
+      # AJA-298: next@16.2.10 and @capacitor/ios@8.4.1 sat on critical advisories with every check
+      # green, because nothing here looked. Production deps only; high and above fails the run.
+      - name: Dependency audit
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Types
         run: npx tsc --noEmit
 
