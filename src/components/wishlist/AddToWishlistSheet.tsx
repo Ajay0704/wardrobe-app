@@ -11,7 +11,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useRef, useState, type ReactNode } from "react";
-import { guessCategory } from "@/lib/import-item";
+import { guessCategory } from "@/lib/guess-category";
 import { getSupabase } from "@/lib/supabase/client";
 import { dataUrlToFile, resolveImageSource } from "@/lib/supabase/storage";
 import { useWardrobe } from "@/lib/store";

@@ -7,6 +7,7 @@
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Category, WardrobeItem } from "./types";
+import { safeFetch } from "./net";
 
 export const BUCKET = "wardrobe-images";
 
@@ -20,18 +21,7 @@ export function adminClient(): SupabaseClient | null {
   });
 }
 
-/** Best-effort category from a product title. */
-export function guessCategory(name: string): Category {
-  const n = name.toLowerCase();
-  if (/\b(dress|gown|romper|jumpsuit|overall)\b/.test(n)) return "dress";
-  if (/\b(jean|pant|trouser|skirt|short|legging|chino)\b/.test(n)) return "bottom";
-  if (/\b(shoe|sneaker|boot|heel|sandal|loafer|slipper)\b/.test(n)) return "shoes";
-  if (/\b(jacket|coat|blazer|parka|puffer|cardigan|hoodie)\b/.test(n)) return "outerwear";
-  if (/\b(bag|tote|purse|backpack|clutch|crossbody)\b/.test(n)) return "bag";
-  if (/\b(hat|belt|scarf|jewelry|earring|necklace|bracelet|watch|sunglass)\b/.test(n))
-    return "accessory";
-  return "top";
-}
+export { guessCategory } from "./guess-category";
 
 export function normalizeUrl(u: string | null | undefined): string {
   return (u || "").trim().replace(/[?#].*$/, "").replace(/\/$/, "").toLowerCase();
@@ -80,7 +70,8 @@ export async function storeImage(
 
   if (!bytes && src.imageUrl) {
     try {
-      const res = await fetch(src.imageUrl, {
+      // AJA-298: user/email-supplied URL — never let it reach a private address.
+      const res = await safeFetch(src.imageUrl, {
         headers: { Accept: "image/*" },
         signal: AbortSignal.timeout(timeoutMs),
       });
