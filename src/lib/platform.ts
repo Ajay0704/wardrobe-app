@@ -180,62 +180,14 @@ export async function openExternalUrl(raw: string): Promise<void> {
   }
   if (!/^https?:\/\//i.test(url)) return;
 
-  const forceExternal = mustUseExternalBrowser();
-  // #region agent log
-  try {
-    const { agentLog } = await import("@/lib/agent-log");
-    agentLog("C", "platform.ts:openExternalUrl", "opening external url", {
-      forceExternal,
-      isNative: isNativeApp(),
-      hasCap: hasCapacitorBridge(),
-      host: new URL(url).hostname,
-    });
-  } catch {
-    /* ignore */
-  }
-  // #endregion
-
-  if (forceExternal) {
+  if (mustUseExternalBrowser()) {
     try {
       await Browser.open({ url });
-      // #region agent log
-      try {
-        const { agentLog } = await import("@/lib/agent-log");
-        agentLog("C", "platform.ts:Browser.open", "Browser.open ok", {
-          host: new URL(url).hostname,
-        });
-      } catch {
-        /* ignore */
-      }
-      // #endregion
-      return;
-    } catch (err) {
-      // #region agent log
-      try {
-        const { agentLog } = await import("@/lib/agent-log");
-        agentLog("C", "platform.ts:Browser.open", "Browser.open FAILED", {
-          host: new URL(url).hostname,
-          err: err instanceof Error ? err.message : String(err),
-        });
-      } catch {
-        /* ignore */
-      }
-      // #endregion
-      return;
+    } catch {
+      // Never fall back to window.open inside the native WebView — it would navigate the app away.
     }
+    return;
   }
-  // #region agent log — hypothesis C (WebView-dangerous path)
-  try {
-    const { agentLog } = await import("@/lib/agent-log");
-    agentLog("C", "platform.ts:openExternalUrl", "window.open fallback", {
-      forceExternal,
-      host: new URL(url).hostname,
-      via: "window.open",
-    });
-  } catch {
-    /* ignore */
-  }
-  // #endregion
   window.open(url, "_blank", "noopener,noreferrer");
 }
 
@@ -253,19 +205,6 @@ export function installNativeWindowOpenGuard(): void {
   window.open = ((url?: string | URL, target?: string, features?: string) => {
     const href = typeof url === "string" ? url : url?.toString();
     if (href && /^https?:\/\//i.test(href)) {
-      // #region agent log
-      void import("@/lib/agent-log").then(({ agentLog }) => {
-        agentLog("C", "platform.ts:window.open.guard", "intercepted window.open", {
-          host: (() => {
-            try {
-              return new URL(href).hostname;
-            } catch {
-              return "";
-            }
-          })(),
-        });
-      });
-      // #endregion
       void openExternalUrl(href);
       return null;
     }
