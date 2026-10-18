@@ -25,6 +25,11 @@ export async function GET(
 ): Promise<Response> {
   const { id } = await params;
   if (!id) return Response.json({ error: "id required." }, { status: 400 });
+  // AJA-298: shop_products.id is a uuid; anything else made Postgres throw and the raw error
+  // reached the caller as a 500. Not-a-uuid can't exist, so it's simply not found.
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+    return Response.json({ error: "product not found" }, { status: 404 });
+  }
 
   const user = await requireUser(request); // scopes the closet read only
   const admin = adminClient();
@@ -35,7 +40,10 @@ export async function GET(
     .select(PRODUCT_COLS)
     .eq("id", id)
     .maybeSingle();
-  if (error) return Response.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("shop/product lookup failed", error.message);
+    return Response.json({ error: "Couldn't load that product." }, { status: 500 });
+  }
   if (!row) return Response.json({ error: "product not found" }, { status: 404 });
 
   const r = row as ProductRow;
