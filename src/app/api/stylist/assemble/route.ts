@@ -6,6 +6,7 @@
  * the client keeps the top heuristic look.
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -42,9 +43,12 @@ function extractText(data: unknown): string {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) return tooMany(rl);
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
     return Response.json({ error: "Missing GEMINI_API_KEY." }, { status: 500 });

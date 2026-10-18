@@ -76,7 +76,7 @@ export async function POST(request: Request) {
   if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
-  const rl = checkCaptureLimit(user);
+  const rl = await checkCaptureLimit(user);
   if (!rl.ok) return tooMany(rl);
   const key = process.env.GEMINI_API_KEY;
   if (!key) {

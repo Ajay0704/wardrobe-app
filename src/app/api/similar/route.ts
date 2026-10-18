@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { runMatch } from "@/lib/shop-server";
 
 export const runtime = "nodejs";
@@ -6,6 +7,8 @@ export const runtime = "nodejs";
 export async function POST(request: Request) {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) return tooMany(rl);
   const { detectionId, cursor, limit } = await request.json().catch(() => ({}));
   if (!detectionId) return Response.json({ error: "detectionId required." }, { status: 400 });
   const r = await runMatch(

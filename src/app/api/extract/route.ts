@@ -1,5 +1,6 @@
 import { safeFetch } from "@/lib/net";
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { brandFromHost, splitTitleAndBrand } from "@/lib/extract-product";
 
 export const runtime = "nodejs";
@@ -391,9 +392,12 @@ async function botFetchHtml(target: URL): Promise<string | null> {
 }
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) return tooMany(rl);
 
   let body: { url?: string };
   try {

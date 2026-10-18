@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -163,9 +164,17 @@ async function serpLens(
  * Client then runs /api/extract on the URL the user picks.
  */
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  // AJA-298: live web search spends the (small) SerpAPI quota, so it's for accounts only — guest
+  // sessions can be minted by anyone.
+  if (user.isAnonymous) {
+    return Response.json({ error: "Create an account to search the web for this item." }, { status: 403 });
+  }
+  const rl = await checkLimit(user, "search");
+  if (!rl.ok) return tooMany(rl);
 
   const apiKey = process.env.SERPAPI_API_KEY?.trim();
   if (!apiKey) {

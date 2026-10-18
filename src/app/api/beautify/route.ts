@@ -7,6 +7,7 @@
  * safeFetch for remote URLs, binary PNG out so the client re-hosts via resolveImageSource).
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { safeFetch } from "@/lib/net";
 import type { Category } from "@/lib/types";
 import sharp from "sharp";
@@ -165,6 +166,8 @@ function extractImage(data: unknown): string | null {
 export async function POST(request: Request): Promise<Response> {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
+  const rl = await checkLimit(user, "enhance");
+  if (!rl.ok) return tooMany(rl);
 
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
