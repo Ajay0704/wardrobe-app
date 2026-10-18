@@ -69,7 +69,7 @@ async function readCache(
   admin: SupabaseClient,
   query: string,
   start: number,
-): Promise<string[] | null> {
+): Promise<{ ids: string[]; fresh: boolean } | null> {
   try {
     const { data, error } = await admin
       .from("shop_search_cache")
@@ -78,8 +78,8 @@ async function readCache(
       .eq("start", start)
       .maybeSingle();
     if (error || !data) return null;
-    if (Date.now() - new Date(data.fetched_at).getTime() > CACHE_TTL_MS) return null;
-    return (data.product_ids ?? []) as string[];
+    const fresh = Date.now() - new Date(data.fetched_at).getTime() <= CACHE_TTL_MS;
+    return { ids: (data.product_ids ?? []) as string[], fresh };
   } catch {
     return null;
   }
@@ -115,15 +115,21 @@ async function webSearch(
   query: string,
   mayCallSerp: () => Promise<boolean>,
 ): Promise<ProductRow[]> {
-  const cachedIds = await readCache(admin, query, start);
-  if (cachedIds && cachedIds.length) {
-    const { data } = await admin.from("shop_products").select(PRODUCT_COLS).in("id", cachedIds);
-    const rows = orderByIds((data ?? []) as ProductRow[], cachedIds);
+  const cached = await readCache(admin, query, start);
+  const loadCached = async (): Promise<ProductRow[]> => {
+    if (!cached?.ids.length) return [];
+    const { data } = await admin.from("shop_products").select(PRODUCT_COLS).in("id", cached.ids);
+    return orderByIds((data ?? []) as ProductRow[], cached.ids);
+  };
+  if (cached?.fresh) {
+    const rows = await loadCached();
     if (rows.length) return rows;
   }
 
-  // Cache miss: the next line spends SerpAPI quota, so the caller decides whether this request may.
-  if (!(await mayCallSerp())) return [];
+  // Miss or stale: the next call spends SerpAPI quota, so the caller decides whether this request
+  // may. A caller who may not (logged out / guest / over budget) still gets the stale page — older
+  // web results beat none (AJA-298 follow-up).
+  if (!(await mayCallSerp())) return cached && !cached.fresh ? loadCached() : [];
   const results = await serpShopping(apiKey, q, start, PAGE_SIZE);
   const usable = results.filter((r) => r.thumbnail && r.buyUrl);
   if (!usable.length) return [];
