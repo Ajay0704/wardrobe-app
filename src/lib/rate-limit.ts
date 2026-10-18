@@ -89,13 +89,18 @@ type Tier = { ns: string; windowMs: number; anon: number; user: number };
 const TIERS = {
   // detect-garments / segment-outfit / analyze / cutout. 20 is enough to onboard ~6–12 pieces
   // incl. retries; not enough to farm.
-  capture: { ns: "cap", windowMs: 5 * 60_000, anon: 20, user: 60 },
+  // Accounts get room for a bulk import (~30–50 photos, 2–3 capture calls each) now that the cap is
+  // global rather than per instance.
+  capture: { ns: "cap", windowMs: 5 * 60_000, anon: 20, user: 150 },
   // beautify + beautify/refine run per captured piece, so they get the capture budget again.
-  enhance: { ns: "enh", windowMs: 5 * 60_000, anon: 20, user: 60 },
+  enhance: { ns: "enh", windowMs: 5 * 60_000, anon: 20, user: 150 },
   // Gemini image generation — the costliest call in the app.
   tryon: { ns: "tryon", windowMs: 60 * 60_000, anon: 3, user: 30 },
-  // Stylist chat/assemble, link extract/clip, detect, similar, goes-with.
+  // Stylist chat/assemble, link extract/clip.
   ai: { ns: "ai", windowMs: 10 * 60_000, anon: 30, user: 120 },
+  // Photo-detail browsing (detect, similar, goes-with) — cheap DB/embedding calls, its own bucket so
+  // tapping around photos never eats the stylist budget.
+  browse: { ns: "browse", windowMs: 10 * 60_000, anon: 60, user: 240 },
   // Live SerpAPI searches (find-product, shop/search web leg). Guests never reach this tier.
   search: { ns: "search", windowMs: 60 * 60_000, anon: 0, user: 40 },
 } satisfies Record<string, Tier>;

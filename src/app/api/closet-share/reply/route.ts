@@ -45,12 +45,8 @@ export async function POST(request: Request) {
   // AJA-298: this is a deliberately open, no-account write, so bound it — per sender IP (Vercel
   // sets x-forwarded-for) and per share, so one link can't be flooded.
   const ip = (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
-  for (const rl of await Promise.all([
-    checkKeyLimit(`reply-ip:${ip}`, 10, 10 * 60_000),
-    checkKeyLimit(`reply-share:${shareId}`, 60, 60 * 60_000),
-  ])) {
-    if (!rl.ok) return tooMany(rl);
-  }
+  const perIp = await checkKeyLimit(`reply-ip:${ip}`, 10, 10 * 60_000);
+  if (!perIp.ok) return tooMany(perIp);
 
   const { data: share } = await admin
     .from("closet_shares")
@@ -60,6 +56,9 @@ export async function POST(request: Request) {
   if (!share) {
     return Response.json({ error: "This share link wasn’t found." }, { status: 404 });
   }
+  // Only real shares get a per-share counter, so random ids can't grow the limiter table.
+  const perShare = await checkKeyLimit(`reply-share:${shareId}`, 60, 60 * 60_000);
+  if (!perShare.ok) return tooMany(perShare);
 
   const { data, error } = await admin
     .from("closet_share_replies")
