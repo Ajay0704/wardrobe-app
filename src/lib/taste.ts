@@ -89,11 +89,29 @@ export function recordOutfitFeedback(
   } else {
     t.disliked = blend(t.disliked, t.dislikedCount, sample);
     t.dislikedCount += 1;
-    if (mismatchedPair) {
-      const key = [...mismatchedPair].sort().join("|");
-      if (!t.badPairs.includes(key)) t.badPairs = [...t.badPairs, key].slice(-80);
-    }
+    if (mismatchedPair) t.badPairs = withBadPair(t.badPairs, mismatchedPair);
   }
+  writeTaste(t);
+  return t;
+}
+
+/** Sorted "idA|idB", the form `badPairs` stores and the engine reads. */
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join("|");
+}
+
+function withBadPair(pairs: string[], [a, b]: [string, string]): string[] {
+  const key = pairKey(a, b);
+  return pairs.includes(key) ? pairs : [...pairs, key].slice(-80);
+}
+
+/**
+ * "These two don't go" on its own, without disliking the whole look (AJA-299). A
+ * swap that fixes one pairing is engagement with the look, not a rejection of it.
+ */
+export function recordBadPair(a: string, b: string): TasteState {
+  const t = readTaste();
+  t.badPairs = withBadPair(t.badPairs, [a, b]);
   writeTaste(t);
   return t;
 }

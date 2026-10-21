@@ -7,6 +7,7 @@
 
 import { scorePair } from "./color";
 import { suggestLooks } from "./matching";
+import { readTaste } from "./taste";
 import type { ResolvedContext } from "./style-context";
 import type { WardrobeItem } from "./types";
 
@@ -76,6 +77,9 @@ export function styleWays(
     count,
     candidates: count * 10,
     mood: anchor.tags[0] || "everyday",
+    // Unlike ctx, taste is never the caller's to override: it is the person, not the
+    // moment. readTaste() is empty server-side and for anyone with no feedback.
+    taste: readTaste(),
     ...(ctx ? { weather: ctx.weather, season: ctx.season, occasion: ctx.occasion, vibe: ctx.vibe } : {}),
   })
     .filter((look) => look.itemIds.includes(anchor.id) && look.items.length >= 3)

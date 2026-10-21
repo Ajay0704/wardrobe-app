@@ -12,6 +12,7 @@
 
 import { hexToHsl, hueDistance, isNeutral, nameColor } from "./color";
 import { suggestLooks } from "./matching";
+import { readTaste } from "./taste";
 import type { Category, SlotKey, WardrobeItem } from "./types";
 import { slotForCategory } from "./types";
 
@@ -191,6 +192,7 @@ export function buildClosetLooks(
     occasion: vibe,
     count: count * 2,
     candidates: count * 8,
+    taste: readTaste(),
   });
   const cands: { id: string; ids: string[]; chosen: WardrobeItem[]; score: number }[] = [];
   for (const look of looks) {

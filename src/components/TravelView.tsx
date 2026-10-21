@@ -4,6 +4,7 @@ import { Luggage, Plus, Sparkles, Trash2, UserPlus } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchFollowingUsers, type FollowUser } from "@/lib/community";
 import { suggestLooks } from "@/lib/matching";
+import { readTaste } from "@/lib/taste";
 import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { formatDisplayDate, matchesSubcategory, presentSubcategories } from "@/lib/types";
@@ -337,6 +338,7 @@ export function TravelView() {
       occasion: "trip",
       count: 4,
       candidates: 20,
+      taste: readTaste(),
     });
     setCapsules(looks.map((l) => l.itemIds));
   };
