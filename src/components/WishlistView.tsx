@@ -6,6 +6,8 @@ import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import type { DecisionOutcome } from "@/lib/decisions";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
+import { ensureVisualVectors, useVisualIndex } from "@/lib/visual-index";
+import { makeVisualLookup } from "@/lib/visual-similarity";
 import {
   filterWishlist,
   planTotals,
@@ -33,6 +35,7 @@ export function WishlistView() {
   const plan = useWardrobe((s) => s.profile.shoppingPlan);
   const styleVibes = useWardrobe((s) => s.profile.styleVibes);
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
+  const visualEntries = useVisualIndex((s) => s.entries);
   const isNative = useIsNativeApp();
 
   const [editing, setEditing] = useState<WardrobeItem | null>(null);
@@ -62,13 +65,23 @@ export function WishlistView() {
 
   const wishlist = useMemo(() => items.filter((it) => it.wishlist), [items]);
 
+  // AJA-301 — "you already own one of these" by what the pieces look like. Embed what
+  // the wishlist needs on arrival, keyed on WHICH wishes exist rather than on `items`,
+  // so a wear log or an edit elsewhere never sets off another round of calls.
+  const visual = useMemo(() => makeVisualLookup(visualEntries), [visualEntries]);
+  const wishKey = useMemo(() => wishlist.map((it) => `${it.id}:${it.category}`).sort().join(","), [wishlist]);
+  useEffect(() => {
+    if (wishKey) void ensureVisualVectors(useWardrobe.getState().items);
+  }, [wishKey]);
+
   // One pass over the wishlist against the owned closet. Keyed on `items` so it only
-  // recomputes when the closet actually changes, not on every filter tap.
+  // recomputes when the closet actually changes, not on every filter tap — and on the
+  // vectors, so a verdict updates as soon as its pictures land.
   const verdicts = useMemo(() => {
     const m = new Map<string, WishVerdict>();
-    for (const it of wishlist) m.set(it.id, wishVerdict(it, items, styleVibes));
+    for (const it of wishlist) m.set(it.id, wishVerdict(it, items, styleVibes, visual));
     return m;
-  }, [wishlist, items, styleVibes]);
+  }, [wishlist, items, styleVibes, visual]);
 
   const totals = useMemo(
     () => planTotals(wishlist, plan?.budget ?? 0),

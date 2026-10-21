@@ -15,6 +15,8 @@ export async function logDecision(
   item: Pick<WardrobeItem, "id" | "name" | "price">,
   verdict: string,
   outcome: DecisionOutcome,
+  /** AJA-301 — what decided "you own something similar": pictures or the colour heuristic. */
+  meta?: { redundantBasis?: string },
 ): Promise<void> {
   try {
     await fetch("/api/events", {
@@ -28,6 +30,7 @@ export async function logDecision(
           price: typeof item.price === "number" ? item.price : null,
           itemName: item.name,
           itemRef: item.id,
+          ...(meta?.redundantBasis ? { redundantBasis: meta.redundantBasis } : {}),
         },
       }),
       keepalive: true,

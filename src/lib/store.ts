@@ -37,6 +37,7 @@ import { recordOutfitCreated, recordWearLogged } from "./habit";
 import { DEFAULT_STYLE_CONTEXT, normalizeStyleContext, type StyleContext } from "./style-context";
 import { lookWorn } from "./engine-feedback";
 import { learnFromSave, learnFromWear } from "./taste-feed";
+import { clearVisualIndex } from "./visual-index";
 
 export type ThemeMode = "light" | "dark";
 
@@ -941,7 +942,9 @@ export const useWardrobe = create<WardrobeState>()(
           return { profile };
         }),
 
-      resetAll: () =>
+      resetAll: () => {
+        // AJA-301 — the image vectors live beside the store; a reset forgets them too.
+        clearVisualIndex();
         set({
           items: [],
           outfits: [],
@@ -951,7 +954,8 @@ export const useWardrobe = create<WardrobeState>()(
           canvasDraft: [],
           canvasBg: null,
           theme: "light",
-        }),
+        });
+      },
 
       setAuthUser: (authUser) => set({ authUser }),
       setAuthChecked: (authChecked) => set({ authChecked }),
