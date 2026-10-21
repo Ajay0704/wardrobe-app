@@ -1,7 +1,7 @@
 "use client";
 
 import { Copy, ShoppingBag, Sparkles, Timer, Wallet } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { logDecision, type DecisionOutcome } from "@/lib/decisions";
 import { closetAvgCostPerWear } from "@/lib/insights";
@@ -10,6 +10,8 @@ import { readTaste } from "@/lib/taste";
 import { analyzeSmartBuy } from "@/lib/smart-buy";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
+import { ensureVisualVectors, needsVectors, useVisualIndex } from "@/lib/visual-index";
+import { makeVisualLookup } from "@/lib/visual-similarity";
 import { planTotals } from "@/lib/wishlist-plan";
 import { BottomSheet } from "../BottomSheet";
 
@@ -55,10 +57,39 @@ function Body({
   const currency = useWardrobe((s) => s.profile.currency ?? DEFAULT_CURRENCY);
   const updateItem = useWardrobe((s) => s.updateItem);
   const deleteItem = useWardrobe((s) => s.deleteItem);
+  const visualEntries = useVisualIndex((s) => s.entries);
 
+  /**
+   * AJA-301 — this piece and its same-category closet jump the embedding queue. Until
+   * their pictures land (4s at most) the duplicate row says "Checking", so the verdict
+   * never flips from colour-based to picture-based while someone is reading it.
+   */
+  const priorityIds = useMemo(
+    () => [item.id, ...items.filter((o) => !o.wishlist && o.category === item.category).map((o) => o.id)],
+    [item.id, item.category, items],
+  );
+  const [patient, setPatient] = useState(true);
+  useEffect(() => {
+    let live = true;
+    const done = () => {
+      if (live) setPatient(false);
+    };
+    const timer = window.setTimeout(done, 4000);
+    void ensureVisualVectors(useWardrobe.getState().items, { priorityIds }).finally(done);
+    return () => {
+      live = false;
+      window.clearTimeout(timer);
+    };
+    // Once per opened piece — a wear log mid-read must not restart the wait.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+  // Recomputed as vectors land, so the row resolves the moment its pictures arrive.
+  const checking = patient && needsVectors(items, priorityIds);
+
+  const visual = useMemo(() => makeVisualLookup(visualEntries), [visualEntries]);
   const analysis = useMemo(
-    () => analyzeSmartBuy(item, items, { styleVibes }),
-    [item, items, styleVibes],
+    () => analyzeSmartBuy(item, items, { styleVibes, visual }),
+    [item, items, styleVibes, visual],
   );
   const closetAvg = useMemo(() => closetAvgCostPerWear(items), [items]);
   /**
@@ -90,7 +121,7 @@ function Body({
   const dupes = analysis.redundant;
 
   const decide = (decision: DecisionOutcome) => {
-    void logDecision(item, analysis.verdict, decision);
+    void logDecision(item, analysis.verdict, decision, { redundantBasis: analysis.redundantBasis });
     if (decision === "bought") {
       // Straight into the closet, dated. The commit happens before the sheet closes
       // so a purchase is never left riding on an animation timer.
@@ -116,7 +147,13 @@ function Body({
       </p>
 
       <div className="space-y-2">
-        {dupes.length > 0 ? (
+        {checking ? (
+          <Fact
+            icon={<Copy size={16} />}
+            title="Checking your closet…"
+            detail="Comparing it with what you already own."
+          />
+        ) : dupes.length > 0 ? (
           <Fact
             icon={<Copy size={16} />}
             tone="warn"

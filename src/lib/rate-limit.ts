@@ -98,6 +98,10 @@ const TIERS = {
   ai: { ns: "ai", windowMs: 10 * 60_000, anon: 30, user: 120 },
   // Live SerpAPI searches (find-product, shop/search web leg). Guests never reach this tier.
   search: { ns: "search", windowMs: 60 * 60_000, anon: 0, user: 40 },
+  // Image embeddings for Should-I-Buy's "you own something like this" (AJA-301). Up to 16
+  // images per call, fired when the wishlist opens — its own bucket so a first fill can
+  // never eat the stylist's budget.
+  embed: { ns: "emb", windowMs: 10 * 60_000, anon: 6, user: 30 },
 } satisfies Record<string, Tier>;
 
 export type LimitTier = keyof typeof TIERS;

@@ -12,6 +12,7 @@
  */
 
 import { hexToHsl, hueDistance, isNeutral, scorePair } from "./color";
+import { cosine, VISUAL_DUP_COS } from "./visual-similarity";
 import type { Category, Season, WardrobeItem } from "./types";
 import { CATEGORY_LABEL } from "./types";
 
@@ -50,6 +51,11 @@ export interface PairMatch {
 export interface SmartBuyOptions {
   /** From onboarding / profile — boosts items that match how you dress. */
   styleVibes?: string[];
+  /**
+   * AJA-301 — image vectors (src/lib/visual-index.ts). When both pieces have one,
+   * "very similar" means they look alike; otherwise the colour/tag heuristic decides.
+   */
+  visual?: (it: WardrobeItem) => Int8Array | null;
 }
 
 export interface SmartBuyResult {
@@ -66,6 +72,8 @@ export interface SmartBuyResult {
   cpwBasis: "closet-history" | "category-average";
   /** Owned pieces that look redundant with this buy. */
   redundant: WardrobeItem[];
+  /** What decided `redundant`: pictures, the colour/tag heuristic, a mix, or nothing to compare. */
+  redundantBasis: "visual" | "heuristic" | "mixed" | "none";
   reasons: { tone: "good" | "warn" | "info"; text: string }[];
 }
 
@@ -76,7 +84,7 @@ export interface SmartBuyResult {
 const UNKNOWN_COLOR = "#a8a29e";
 
 /** Two colors close enough that owning both is likely redundant. */
-function similarColor(a: string, b: string): boolean {
+export function similarColor(a: string, b: string): boolean {
   // An unknown colour must not imply redundancy. It's a mid-tone neutral, so the
   // neutral branch below matched it against half of a typical closet and produced
   // confident "you already own one of these" claims from a colour the user never set
@@ -90,6 +98,19 @@ function similarColor(a: string, b: string): boolean {
   } catch {
     return false;
   }
+}
+
+/** Both colours are known and plainly different. An unknown colour makes no claim either way. */
+function clearlyDifferentColor(a: string, b: string): boolean {
+  const known = (c: string) => !!c && c !== UNKNOWN_COLOR;
+  return known(a) && known(b) && !similarColor(a, b);
+}
+
+/** Both pieces name a garment type, and the types differ (tshirt vs hoodie). */
+function differentGarment(a: WardrobeItem, b: WardrobeItem): boolean {
+  const sa = String(a.subcategory ?? "").trim().toLowerCase();
+  const sb = String(b.subcategory ?? "").trim().toLowerCase();
+  return !!sa && !!sb && sa !== sb;
 }
 
 function normTags(tags: string[] | undefined | null): string[] {
@@ -229,11 +250,27 @@ export function analyzeSmartBuy(
       ? Math.round((item.price / annualWears) * 100) / 100
       : null;
 
+  const itemVec = opts.visual?.(item) ?? null;
+  let byPicture = 0;
+  let byHeuristic = 0;
   const redundant = ownedSameCat.filter((o) => {
+    // AJA-301: two different garment types are never "very similar", however close the
+    // colour — a black hoodie is not a second black tee. Only when both name a type.
+    if (differentGarment(o, item)) return false;
+    const ownedVec = itemVec ? opts.visual!(o) : null;
+    if (itemVec && ownedVec) {
+      // What they look like decides — except that the model is weak on colour, so two
+      // KNOWN, clearly different colours veto it (taupe vs olive trousers otherwise match).
+      byPicture++;
+      return cosine(itemVec, ownedVec) >= VISUAL_DUP_COS && !clearlyDifferentColor(o.color, item.color);
+    }
+    byHeuristic++;
     if (similarColor(o.color, item.color)) return true;
     // Same category + several shared occasion/style tags ≈ same role
     return sharedTags(o.tags, item.tags).length >= 2;
   });
+  const redundantBasis: SmartBuyResult["redundantBasis"] =
+    byPicture && byHeuristic ? "mixed" : byPicture ? "visual" : byHeuristic ? "heuristic" : "none";
 
   const redundantIds = new Set<string>();
   const redundantUnique = redundant.filter((o) => {
@@ -328,6 +365,7 @@ export function analyzeSmartBuy(
     annualWears,
     cpwBasis,
     redundant: redundantUnique,
+    redundantBasis,
     reasons,
   };
 }

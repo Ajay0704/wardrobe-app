@@ -8,6 +8,7 @@ import type { ThemeMode } from "../store";
 import type { CalendarEntry, Outfit, SlotKey, WardrobeItem } from "../types";
 import { APP_SHARE_URL } from "../support";
 import { getSupabase } from "./client";
+import { clearVisualIndex } from "../visual-index";
 import { pullSnapshot, pushSnapshot } from "./sync";
 
 export function authErrorMessage(error: unknown): string {
@@ -106,6 +107,8 @@ export async function signIn(email: string, password: string): Promise<{
 }
 
 export async function signOut(): Promise<void> {
+  // AJA-301 — the device-local image vectors belong to this account's closet.
+  clearVisualIndex();
   const supabase = getSupabase();
   if (!supabase) return;
   // Local scope clears the stored session immediately without a network

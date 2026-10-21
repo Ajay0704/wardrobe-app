@@ -50,6 +50,10 @@ jobs:
           npm run test:taste
           npm run test:taste-feed
           npm run test:taste-undo
+          npm run test:smart-buy
+          npm run test:visual-dupes
+          npm run test:visual-embed-server
+          npm run test:visual-index
           npm run test:context
           npm run test:storage
           npm run test:render
