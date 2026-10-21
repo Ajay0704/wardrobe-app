@@ -81,6 +81,12 @@ export default function FirstOutfit({
   /**
    * A slate of three rather than one look, so "Show me another" is a genuine alternative
    * (diversified by garment TYPE inside the engine) instead of a reshuffle of the same pieces.
+   *
+   * Deliberately NO `taste` — the one engine surface without it (AJA-299). For the new
+   * user this screen exists for, taste is empty and passing it changes nothing. For
+   * anyone else it can only hurt: `badPairs` is a hard filter, a six-piece closet has
+   * only a handful of looks to lose, and the coverage figures above (94% warm / ~52%
+   * cold) were measured taste-free. This screen's job is to never come up empty.
    */
   const slate = useMemo<ScoredLook[]>(() => {
     if (owned.length < 2) return [];

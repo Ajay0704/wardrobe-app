@@ -6,6 +6,7 @@ import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { logDecision, type DecisionOutcome } from "@/lib/decisions";
 import { closetAvgCostPerWear } from "@/lib/insights";
 import { suggestLooks } from "@/lib/matching";
+import { readTaste } from "@/lib/taste";
 import { analyzeSmartBuy } from "@/lib/smart-buy";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
@@ -72,9 +73,12 @@ function Body({
    * Runs once per sheet open, on one item — the grid's per-card verdict deliberately
    * keeps the cheap colour heuristic, because `wishVerdict` runs for every wish on
    * every render and a sampler there would be felt.
+   *
+   * AJA-299 — with taste: a look built on a pair you've said doesn't go is not a look
+   * this piece would actually give you, so it shouldn't count toward buying it.
    */
   const looks = useMemo(
-    () => suggestLooks(items, { anchors: [item], count: 3, candidates: 40 }),
+    () => suggestLooks(items, { anchors: [item], count: 3, candidates: 40, taste: readTaste() }),
     [item, items],
   );
   const totals = useMemo(

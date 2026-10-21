@@ -36,6 +36,7 @@ import { deleteItemImages } from "./supabase/storage";
 import { recordOutfitCreated, recordWearLogged } from "./habit";
 import { DEFAULT_STYLE_CONTEXT, normalizeStyleContext, type StyleContext } from "./style-context";
 import { lookWorn } from "./engine-feedback";
+import { learnFromSave, learnFromWear } from "./taste-feed";
 
 export type ThemeMode = "light" | "dark";
 
@@ -720,6 +721,9 @@ export const useWardrobe = create<WardrobeState>()(
         // whatever produced the look (AJA-255). Returning the id also matches
         // duplicateOutfit, which already does this.
         const id = uid();
+        // AJA-299 — a saved look is a like, from every surface that saves one. Hooked
+        // here for the same reason lookWorn sits in logWear: one place, all callers.
+        learnFromSave(itemIds, get().items);
         set((s) => ({
           outfits: [
             {
@@ -809,6 +813,9 @@ export const useWardrobe = create<WardrobeState>()(
         // rather than at the call sites because there are several and a wear logged
         // from Calendar counts exactly as much as one logged from a look's detail.
         lookWorn({ outfitId, itemIds });
+        // AJA-299 — and the strongest like the taste loop can get. Pieces resolve from
+        // the closet here, since every caller passes ids.
+        learnFromWear(itemIds, get().items);
         set((s) => {
           const ids = [...new Set(itemIds)];
           // A piece you don't own can't have been worn. Without this, styling a wish

@@ -47,6 +47,9 @@ jobs:
         run: |
           npm run test:rules
           npm run test:feedback
+          npm run test:taste
+          npm run test:taste-feed
+          npm run test:taste-undo
           npm run test:context
           npm run test:storage
           npm run test:render

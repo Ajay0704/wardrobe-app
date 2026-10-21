@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { bestLook } from "@/lib/matching";
+import { readTaste } from "@/lib/taste";
 import { useWardrobe } from "@/lib/store";
 import { BottomSheet } from "./BottomSheet";
 import {
@@ -171,6 +172,7 @@ export function CalendarView() {
         : null,
       occasion: "day",
       candidates: 18,
+      taste: readTaste(),
     });
     return look?.itemIds ?? [];
   };
