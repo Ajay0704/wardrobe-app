@@ -9,19 +9,22 @@
  * "Sign in to plan a trip", and the trip list read as "No trips yet". This suite is the
  * contract for both halves:
  *
- *  1. tripFailure() sorts any error into unconfigured / signed-out / network /
+ *  1. cloudFailure() — the classifier Travel shares with Shared Closets (AJA-303) — sorts
+ *     any error into unconfigured / signed-out / network /
  *     forbidden / unknown, including the browser-specific "can't reach it" strings
  *     (Chrome "Failed to fetch", Safari and the iOS WebView "Load failed", Firefox
  *     "NetworkError…", Node "fetch failed").
  *  2. tripErrorMessage() turns each one into a sentence that names the action, and never
- *     leaks Supabase text (row-level security, TypeError, a bare "Offline").
+ *     leaks Supabase text (row-level security, TypeError, a bare "Offline"). Every
+ *     sentence stays word for word what AJA-302 shipped.
  *  3. The REAL trips.ts, against a stubbed Supabase (fetch is replaced, nothing leaves the
  *     machine): not configured, signed out, auth unreachable, insert unreachable, RLS
  *     refusal, and the success path each land in the right bucket.
  */
 
-const { tripFailure, tripErrorMessage, TripsError } = await import("@/lib/trip-errors");
-type TripAction = import("@/lib/trip-errors").TripAction;
+const { cloudFailure, CloudError } = await import("@/lib/cloud-errors");
+const { tripErrorMessage } = await import("@/lib/trips");
+type TripAction = import("@/lib/trips").TripAction;
 
 let fails = 0;
 const ok = (cond: boolean, label: string, detail = "") => {
@@ -42,10 +45,10 @@ const RESOLVED = Symbol("resolved");
 
 /* ------------------------------------------------------------ 1. classification */
 
-console.log("\n1. tripFailure sorts errors into what the user can do about them");
+console.log("\n1. cloudFailure sorts errors into what the user can do about them");
 
-ok(tripFailure(new TripsError("unconfigured")) === "unconfigured", "TripsError(unconfigured)");
-ok(tripFailure(new TripsError("signed-out")) === "signed-out", "TripsError(signed-out)");
+ok(cloudFailure(new CloudError("unconfigured")) === "unconfigured", "CloudError(unconfigured)");
+ok(cloudFailure(new CloudError("signed-out")) === "signed-out", "CloudError(signed-out)");
 
 const network = [
   "TypeError: Failed to fetch", // Chrome, wrapped by postgrest-js
@@ -54,26 +57,26 @@ const network = [
   "TypeError: fetch failed", // Node / undici
   "Failed to fetch",
 ];
-for (const m of network) ok(tripFailure(new Error(m)) === "network", `network: "${m}"`);
+for (const m of network) ok(cloudFailure(new Error(m)) === "network", `network: "${m}"`);
 
 // auth-js wraps an unreachable auth server in AuthRetryableFetchError (status 0, or 502-504).
 const retryable = Object.assign(new Error("fetch failed"), { name: "AuthRetryableFetchError", status: 0 });
-ok(tripFailure(retryable) === "network", "AuthRetryableFetchError → network");
+ok(cloudFailure(retryable) === "network", "AuthRetryableFetchError → network");
 const gateway = Object.assign(new Error("Bad Gateway"), { name: "AuthRetryableFetchError", status: 502 });
-ok(tripFailure(gateway) === "network", "AuthRetryableFetchError 502 → network");
+ok(cloudFailure(gateway) === "network", "AuthRetryableFetchError 502 → network");
 
 ok(
-  tripFailure(new Error('new row violates row-level security policy for table "trips"')) === "forbidden",
+  cloudFailure(new Error('new row violates row-level security policy for table "trips"')) === "forbidden",
   "RLS refusal → forbidden",
 );
-ok(tripFailure(Object.assign(new Error("permission denied"), { code: "42501" })) === "forbidden", "code 42501 → forbidden");
+ok(cloudFailure(Object.assign(new Error("permission denied"), { code: "42501" })) === "forbidden", "code 42501 → forbidden");
 
-ok(tripFailure(new Error("boom")) === "unknown", "anything else → unknown");
-ok(tripFailure("a string") === "unknown", "a thrown string → unknown");
-ok(tripFailure(undefined) === "unknown", "undefined → unknown");
-ok(tripFailure(new Error("boom"), false) === "network", "the browser says it's offline → network, whatever the error");
+ok(cloudFailure(new Error("boom")) === "unknown", "anything else → unknown");
+ok(cloudFailure("a string") === "unknown", "a thrown string → unknown");
+ok(cloudFailure(undefined) === "unknown", "undefined → unknown");
+ok(cloudFailure(new Error("boom"), false) === "network", "the browser says it's offline → network, whatever the error");
 ok(
-  tripFailure(new TripsError("signed-out"), false) === "signed-out",
+  cloudFailure(new CloudError("signed-out"), false) === "signed-out",
   "…but a known cause still wins over the offline flag",
 );
 
@@ -85,8 +88,8 @@ const actions: TripAction[] = [
   "create", "details", "delete", "pack", "unpack", "invite", "accept", "decline", "load", "loadTrip", "following",
 ];
 const samples: [string, unknown][] = [
-  ["unconfigured", new TripsError("unconfigured")],
-  ["signed-out", new TripsError("signed-out")],
+  ["unconfigured", new CloudError("unconfigured")],
+  ["signed-out", new CloudError("signed-out")],
   ["network", new Error("TypeError: Load failed")],
   ["forbidden", new Error('new row violates row-level security policy for table "trip_items"')],
   ["unknown", new Error('duplicate key value violates unique constraint "trips_pkey"')],
@@ -110,11 +113,51 @@ ok(allClean, "no message leaks Supabase text or comes out empty", `${actions.len
 ok(allEnd, "every message is a finished sentence");
 ok(seen.size >= actions.length * 3, "messages differ by action, not one generic string", `${seen.size} distinct`);
 
+// The sentences exactly as AJA-302 shipped them. Moving Travel onto the shared classifier
+// must not change a word — Ajay chose to keep "Your session has ended — sign in again to …".
+const SHIPPED_WHAT: Record<TripAction, string> = {
+  create: "start a new trip",
+  details: "save the trip details",
+  delete: "delete the trip",
+  pack: "pack that piece",
+  unpack: "take that piece out",
+  invite: "send the invite",
+  accept: "join the trip",
+  decline: "decline the invite",
+  load: "load your trips",
+  loadTrip: "load this trip",
+  following: "load the people you follow",
+};
+const shipped = (kind: string, what: string) =>
+  ({
+    unconfigured: "Trips need cloud sync, and it isn't set up here.",
+    "signed-out": `Your session has ended — sign in again to ${what}.`,
+    network: `Couldn't ${what} — check your connection and try again.`,
+    forbidden: `Couldn't ${what} — you no longer have access to this trip.`,
+    unknown: `Couldn't ${what}. Please try again.`,
+  })[kind];
+let drifted = 0;
+for (const a of actions) {
+  for (const [kind, err] of samples) {
+    const m = tripErrorMessage(a, err, true);
+    if (m !== shipped(kind, SHIPPED_WHAT[a])) {
+      drifted++;
+      console.log(`      drifted: ${a}/${kind} → "${m}"`);
+    }
+  }
+}
+ok(drifted === 0, "every message is word for word what AJA-302 shipped", `${actions.length * samples.length} combinations`);
+ok(
+  tripErrorMessage("create", new CloudError("signed-out"), true) ===
+    "Your session has ended — sign in again to start a new trip.",
+  "the kept sign-in sentence, verbatim",
+);
+
 const create = (err: unknown) => tripErrorMessage("create", err, true);
-ok(/sign in/i.test(create(new TripsError("signed-out"))), "signed out → tells you to sign in", create(new TripsError("signed-out")));
+ok(/sign in/i.test(create(new CloudError("signed-out"))), "signed out → tells you to sign in", create(new CloudError("signed-out")));
 ok(/connection/i.test(create(new Error("Failed to fetch"))), "network → points at the connection", create(new Error("Failed to fetch")));
 ok(!/sign in/i.test(create(new Error("Failed to fetch"))), "network → does NOT tell a signed-in user to sign in");
-ok(/cloud sync/i.test(create(new TripsError("unconfigured"))), "unconfigured → says cloud sync is off", create(new TripsError("unconfigured")));
+ok(/cloud sync/i.test(create(new CloudError("unconfigured"))), "unconfigured → says cloud sync is off", create(new CloudError("unconfigured")));
 ok(/access/i.test(create(new Error("new row violates row-level security policy"))), "forbidden → says you lack access");
 ok(/try again/i.test(create(new Error("boom"))), "unknown → invites a retry", create(new Error("boom")));
 ok(/trip/i.test(create(new Error("boom"))), "the message names the thing that failed");
@@ -137,7 +180,7 @@ const Trips = await import("@/lib/trips");
 const { getSupabase } = await import("@/lib/supabase/client");
 
 const unconfigured = await rejection(Trips.createTrip({ name: "New trip" }));
-ok(tripFailure(unconfigured) === "unconfigured", "no Supabase → createTrip rejects as unconfigured", String(unconfigured));
+ok(cloudFailure(unconfigured) === "unconfigured", "no Supabase → createTrip rejects as unconfigured", String(unconfigured));
 
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://stub.supabase.co";
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "stub-anon-key";
@@ -192,7 +235,7 @@ for (const [label, p] of [
   ["leaveTrip", Trips.leaveTrip("trip-1")],
 ] as const) {
   const e = await rejection(p);
-  ok(tripFailure(e) === "signed-out", `no session → ${label} rejects as signed-out`, e === RESOLVED ? "it resolved: a silent no-op" : String(e));
+  ok(cloudFailure(e) === "signed-out", `no session → ${label} rejects as signed-out`, e === RESOLVED ? "it resolved: a silent no-op" : String(e));
 }
 ok((await Trips.listTrips()).length === 0, "no session → listTrips is still just empty");
 
@@ -208,23 +251,23 @@ const logError = console.error;
 console.error = () => {};
 mode.auth = "down";
 const authDown = await rejection(Trips.createTrip({ name: "New trip" }));
-ok(tripFailure(authDown) === "network", "auth unreachable → createTrip is network, not signed-out", String(authDown));
+ok(cloudFailure(authDown) === "network", "auth unreachable → createTrip is network, not signed-out", String(authDown));
 ok(!/sign in/i.test(tripErrorMessage("create", authDown, true)), "…so it no longer says 'sign in'", tripErrorMessage("create", authDown, true));
 const listDown = await rejection(Trips.listTrips());
-ok(tripFailure(listDown) === "network", "auth unreachable → listTrips rejects instead of claiming no trips", listDown === RESOLVED ? "resolved" : String(listDown));
+ok(cloudFailure(listDown) === "network", "auth unreachable → listTrips rejects instead of claiming no trips", listDown === RESOLVED ? "resolved" : String(listDown));
 ok((await sb.auth.getSession()).data.session?.user.id === USER.id, "a dropped connection does not sign you out");
 console.error = logError;
 
 mode.auth = "ok";
 mode.rest = "down";
 const insertDown = await rejection(Trips.createTrip({ name: "New trip" }));
-ok(tripFailure(insertDown) === "network", "insert unreachable → network", String(insertDown));
+ok(cloudFailure(insertDown) === "network", "insert unreachable → network", String(insertDown));
 
 mode.rest = "rls";
 const refused = await rejection(Trips.createTrip({ name: "New trip" }));
-ok(tripFailure(refused) === "forbidden", "RLS refusal → forbidden", String(refused));
+ok(cloudFailure(refused) === "forbidden", "RLS refusal → forbidden", String(refused));
 const packRefused = await rejection(Trips.packItem("trip-1", { id: "i1", name: "Tee", imageUrl: "", category: "top" } as never));
-ok(tripFailure(packRefused) === "forbidden", "packing into a trip you left → forbidden", String(packRefused));
+ok(cloudFailure(packRefused) === "forbidden", "packing into a trip you left → forbidden", String(packRefused));
 
 mode.rest = "ok";
 calls.length = 0;

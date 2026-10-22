@@ -10,8 +10,55 @@
  * Members & invites (inviteMember/respondInvite/…) arrive in Phase 2 alongside the
  * notification migration; Phase 1 covers the closet + its items + live sync.
  */
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+import { CloudError, cloudErrorMessage } from "./cloud-errors";
 import { getSupabase } from "./supabase/client";
 import type { WardrobeItem } from "./types";
+
+export type SharedClosetAction =
+  | "create"
+  | "rename"
+  | "delete"
+  | "add"
+  | "remove"
+  | "edit"
+  | "invite"
+  | "accept"
+  | "decline"
+  | "leave"
+  | "load"
+  | "loadCloset"
+  | "following";
+
+// Each reads after "Couldn't …" and after "sign in again to …".
+const WHAT: Record<SharedClosetAction, string> = {
+  create: "start a shared closet",
+  rename: "rename the closet",
+  delete: "delete the closet",
+  add: "add those pieces",
+  remove: "remove that piece",
+  edit: "save your changes to that piece",
+  invite: "send the invite",
+  accept: "join the closet",
+  decline: "decline the invite",
+  leave: "leave the closet",
+  load: "load your shared closets",
+  loadCloset: "load this closet",
+  following: "load the people you follow",
+};
+
+/** What to tell the user when a Shared Closet action fails (AJA-303). */
+export function sharedClosetErrorMessage(
+  action: SharedClosetAction,
+  err: unknown,
+  online?: boolean,
+): string {
+  return cloudErrorMessage(
+    err,
+    { what: WHAT[action], feature: "Shared closets", scope: "this closet" },
+    online,
+  );
+}
 
 export interface SharedCloset {
   id: string;
@@ -75,7 +122,10 @@ interface ItemRow {
 export async function currentUserId(): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data } = await sb.auth.getUser();
+  const { data, error } = await sb.auth.getUser();
+  // getUser asks the auth server, so a dropped connection also comes back as "no user".
+  // That isn't signed out: rethrow it, or the UI tells someone offline to sign in (AJA-303).
+  if (error && isAuthRetryableFetchError(error)) throw error;
   return data.user?.id ?? null;
 }
 
@@ -135,9 +185,9 @@ export async function createSharedCloset(
   me?: Identity,
 ): Promise<SharedCloset> {
   const sb = getSupabase();
-  if (!sb) throw new Error("Offline");
+  if (!sb) throw new CloudError("unconfigured");
   const owner = await currentUserId();
-  if (!owner) throw new Error("Sign in to create a shared closet");
+  if (!owner) throw new CloudError("signed-out");
   const { data, error } = await sb
     .from("shared_closets")
     .insert({ owner_id: owner, name: name.trim() || "Shared closet" })
@@ -213,7 +263,7 @@ export async function addItemsFromMyCloset(
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) throw new Error("Sign in to add items");
+  if (!me) throw new CloudError("signed-out");
   const rows = items
     .filter((it) => it.imageUrl)
     .map((it) => ({
@@ -331,7 +381,7 @@ export async function inviteMember(
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) throw new Error("Sign in");
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb.from("shared_closet_members").insert({
     closet_id: closetId,
     user_id: invitee.id,
@@ -354,7 +404,7 @@ export async function respondInvite(closetId: string, accept: boolean): Promise<
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) return;
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb
     .from("shared_closet_members")
     .update({ status: "joined" })
@@ -368,7 +418,7 @@ export async function leaveSharedCloset(closetId: string): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) return;
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb
     .from("shared_closet_members")
     .delete()

@@ -9,7 +9,7 @@ import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { formatDisplayDate, matchesSubcategory, presentSubcategories } from "@/lib/types";
 import * as Trips from "@/lib/trips";
-import { tripErrorMessage, type TripAction } from "@/lib/trip-errors";
+import { tripErrorMessage, type TripAction } from "@/lib/trips";
 import { Button, Chip, EmptyState, Field, inputClass } from "./ui";
 
 // One tab per category — mirrors WardrobeView so packing feels exactly like browsing the closet,

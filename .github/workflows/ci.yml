@@ -63,6 +63,7 @@ jobs:
           npm run test:item-images
           npm run test:onboarding
           npm run test:trip-errors
+          npm run test:shared-closet-errors
 
       - name: Build
         run: npm run build
