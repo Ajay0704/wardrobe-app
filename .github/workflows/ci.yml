@@ -65,6 +65,7 @@ jobs:
           npm run test:trip-errors
           npm run test:shared-closet-errors
           npm run test:follow-errors
+          npm run test:aging
 
       - name: Build
         run: npm run build
