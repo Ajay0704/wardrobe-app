@@ -1,10 +1,10 @@
 /**
- * What to tell the user when an action on a cloud-backed feature fails (Shared Closets,
- * AJA-303; generalised from Travel's AJA-302 classifier so each feature doesn't carry its
- * own copy). The data layers throw whatever Supabase hands back — a TypeError from fetch,
- * a Postgres RLS message, their own CloudError — and none of that is fit to show. This
- * sorts a failure into what the user can do about it and says so, naming the action that
- * didn't happen.
+ * What to tell the user when an action on a cloud-backed feature fails — Travel (AJA-302)
+ * and Shared Closets (AJA-303) share this one classifier rather than each carrying a copy;
+ * each feature supplies only its own words. The data layers throw whatever Supabase hands
+ * back — a TypeError from fetch, a Postgres RLS message, their own CloudError — and none
+ * of that is fit to show. This sorts a failure into what the user can do about it and says
+ * so, naming the action that didn't happen.
  *
  * Pure: no Supabase import, so test suites can exercise it directly.
  */
