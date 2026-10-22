@@ -111,13 +111,17 @@ export function NotificationsView() {
     };
   }, []);
 
-  // Who I already follow — drives "Follow back" vs "Following" on follow rows.
+  // Who I already follow — drives "Follow back" vs "Following" on follow rows. If that
+  // can't be read, every row offers "Follow back", as before.
   useEffect(() => {
     if (!myId) return;
     let alive = true;
-    fetchFollowing(myId).then((ids) => {
-      if (alive) setFollowing(new Set(ids));
-    });
+    fetchFollowing(myId).then(
+      (ids) => {
+        if (alive) setFollowing(new Set(ids));
+      },
+      () => {},
+    );
     return () => {
       alive = false;
     };

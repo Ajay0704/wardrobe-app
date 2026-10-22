@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, Search } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchFollowers,
   fetchFollowing,
@@ -45,6 +45,8 @@ export function ConnectionsPage({
   const [tab, setTab] = useState<ConnTab>(initialTab);
   const [followers, setFollowers] = useState<FollowUser[] | null>(null);
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
+  // A list whose read failed says so (with Try again) instead of "No followers yet."
+  const [failed, setFailed] = useState<{ followers?: boolean; following?: boolean }>({});
   const [myFollowing, setMyFollowing] = useState<Set<string>>(new Set());
 
   const openUserProfile = useWardrobe((s) => s.openUserProfile);
@@ -60,17 +62,24 @@ export function ConnectionsPage({
     onClose();
   };
 
-  // Who the viewer already follows — drives every Follow/Following button.
-  useEffect(() => {
+  // Who the viewer already follows — drives every Follow/Following button. If that
+  // can't be read the buttons start as "Follow"; Try again reads it again.
+  const loadMyFollowing = useCallback(() => {
     if (!myId) return;
-    fetchFollowing(myId).then((ids) => setMyFollowing(new Set(ids)));
+    fetchFollowing(myId).then(
+      (ids) => setMyFollowing(new Set(ids)),
+      () => {},
+    );
   }, [myId]);
+  useEffect(loadMyFollowing, [loadMyFollowing]);
 
-  // Lazy-load each list the first time its tab is opened.
+  // Lazy-load each list the first time its tab is opened, and again after Try again.
   useEffect(() => {
-    if (tab === "followers" && followers === null) fetchFollowers(userId).then(setFollowers);
-    if (tab === "following" && following === null) fetchFollowingUsers(userId).then(setFollowing);
-  }, [tab, userId, followers, following]);
+    if (tab === "followers" && followers === null && !failed.followers)
+      fetchFollowers(userId).then(setFollowers, () => setFailed((f) => ({ ...f, followers: true })));
+    if (tab === "following" && following === null && !failed.following)
+      fetchFollowingUsers(userId).then(setFollowing, () => setFailed((f) => ({ ...f, following: true })));
+  }, [tab, userId, followers, following, failed]);
 
   useEffect(() => {
     if (tab !== "find") return;
@@ -115,9 +124,10 @@ export function ConnectionsPage({
             avatar: u.avatarUrl ?? undefined,
           }));
 
+  const listFailed = tab !== "find" && Boolean(failed[tab]);
   const loading =
-    (tab === "followers" && followers === null) ||
-    (tab === "following" && following === null) ||
+    (tab === "followers" && followers === null && !failed.followers) ||
+    (tab === "following" && following === null && !failed.following) ||
     (tab === "find" && searching);
 
   const emptyText =
@@ -175,6 +185,20 @@ export function ConnectionsPage({
         <div className="space-y-1">
           {loading ? (
             <p className="py-6 text-center text-sm text-muted">Loading…</p>
+          ) : listFailed ? (
+            <div className="py-6 text-center">
+              <p className="text-sm text-muted">This list didn&apos;t load.</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setFailed((f) => ({ ...f, [tab]: false }));
+                  loadMyFollowing();
+                }}
+                className="mt-3 rounded-full border border-line px-3 py-1 text-xs font-medium"
+              >
+                Try again
+              </button>
+            </div>
           ) : rows.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted">{emptyText}</p>
           ) : (
