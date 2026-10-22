@@ -9,6 +9,7 @@ import { profileHandle } from "@/lib/profile";
 import { useWardrobe } from "@/lib/store";
 import { formatDisplayDate, matchesSubcategory, presentSubcategories } from "@/lib/types";
 import * as Trips from "@/lib/trips";
+import { tripErrorMessage, type TripAction } from "@/lib/trip-errors";
 import { Button, Chip, EmptyState, Field, inputClass } from "./ui";
 
 // One tab per category — mirrors WardrobeView so packing feels exactly like browsing the closet,
@@ -96,6 +97,30 @@ export function TravelView() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  // Trips are server state, so every action here can fail (AJA-302). Loads that fail say so
+  // in place, with a retry; actions that fail are undone on screen and explained in a toast.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadTick, setLoadTick] = useState(0);
+  const [tripLoadError, setTripLoadError] = useState<string | null>(null);
+  const [tripTick, setTripTick] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; key: number } | null>(null);
+  // Which trip is on screen when a request settles — a late failure mustn't undo into another trip.
+  const selectedRef = useRef(selectedId);
+
+  useEffect(() => {
+    selectedRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
+  const fail = useCallback((action: TripAction, err: unknown) => {
+    setNotice({ text: tripErrorMessage(action, err), key: Date.now() });
+  }, []);
 
   const trip = trips.find((t) => t.id === selectedId) ?? null;
   const myRefs = useMemo(
@@ -159,14 +184,36 @@ export function TravelView() {
     [members, meId],
   );
 
+  // Undo an optimistic pack/unpack after the server refused it: put back `add`, drop
+  // `removeIds`. Done locally, not by refetching — offline, a refetch fails too and the
+  // screen would keep showing a change that never happened.
+  const revertItems = (tripId: string, add: Trips.TripItem[], removeIds: string[]) => {
+    setCounts((c) => ({
+      ...c,
+      [tripId]: Math.max(0, (c[tripId] ?? 0) + add.length - removeIds.length),
+    }));
+    if (selectedRef.current !== tripId) return;
+    setTripItems((tis) => [
+      ...tis.filter((ti) => !removeIds.includes(ti.id)),
+      ...add.filter((a) => !tis.some((ti) => ti.id === a.id)),
+    ]);
+  };
+
   const dropDuplicate = async (refs: string[]) => {
     if (!trip) return;
+    const tripId = trip.id;
+    const dropped = tripItems.filter((ti) => ti.packerId === meId && refs.includes(ti.itemRef));
     setTripItems((tis) => tis.filter((ti) => !(ti.packerId === meId && refs.includes(ti.itemRef))));
-    setCounts((c) => ({ ...c, [trip.id]: Math.max(0, (c[trip.id] ?? refs.length) - refs.length) }));
+    setCounts((c) => ({ ...c, [tripId]: Math.max(0, (c[tripId] ?? refs.length) - refs.length) }));
+    const done: string[] = [];
     try {
-      for (const r of refs) await Trips.unpackItem(trip.id, r);
-    } catch {
-      setTripItems(await Trips.listTripItems(trip.id));
+      for (const r of refs) {
+        await Trips.unpackItem(tripId, r);
+        done.push(r);
+      }
+    } catch (err) {
+      fail("unpack", err);
+      revertItems(tripId, dropped.filter((ti) => !done.includes(ti.itemRef)), []);
     }
   };
 
@@ -199,6 +246,9 @@ export function TravelView() {
         setCounts(cs);
         setInvites(inv);
         setSelectedId((prev) => prev ?? list[0]?.id ?? null);
+      } catch (err) {
+        // Offline used to land on "No trips yet", which reads as if your trips were gone.
+        if (alive) setLoadError(tripErrorMessage("load", err));
       } finally {
         if (alive) setLoading(false);
       }
@@ -206,7 +256,12 @@ export function TravelView() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [loadTick]);
+
+  const retryLoad = () => {
+    setLoadError(null);
+    setLoadTick((n) => n + 1);
+  };
 
   // Load items + roster for the selected trip.
   useEffect(() => {
@@ -217,30 +272,46 @@ export function TravelView() {
         setMembers([]);
         return;
       }
-      const [its, mem] = await Promise.all([
-        Trips.listTripItems(selectedId),
-        Trips.listMembers(selectedId),
-      ]);
-      if (alive) {
-        setTripItems(its);
-        setMembers(mem);
+      try {
+        const [its, mem] = await Promise.all([
+          Trips.listTripItems(selectedId),
+          Trips.listMembers(selectedId),
+        ]);
+        if (alive) {
+          setTripItems(its);
+          setMembers(mem);
+          setTripLoadError(null);
+        }
+      } catch (err) {
+        // Clear what's there: it's the previously selected trip's bag, not this one's.
+        if (alive) {
+          setTripItems([]);
+          setMembers([]);
+          setTripLoadError(tripErrorMessage("loadTrip", err));
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [selectedId]);
+  }, [selectedId, tripTick]);
 
   // Live sync: refetch this trip's items + roster whenever the server changes,
   // so co-packers see each other's updates without reselecting the trip.
   const refetchSelected = useCallback(async () => {
     if (!selectedId) return;
-    const [its, mem] = await Promise.all([
-      Trips.listTripItems(selectedId),
-      Trips.listMembers(selectedId),
-    ]);
-    setTripItems(its);
-    setMembers(mem);
+    try {
+      const [its, mem] = await Promise.all([
+        Trips.listTripItems(selectedId),
+        Trips.listMembers(selectedId),
+      ]);
+      setTripItems(its);
+      setMembers(mem);
+      setTripLoadError(null);
+    } catch {
+      // Background refresh, not something the user did: keep what's on screen and let the
+      // next change event try again, rather than toasting on every blip.
+    }
   }, [selectedId]);
 
   useEffect(() => {
@@ -258,17 +329,30 @@ export function TravelView() {
     setPackView("mine");
     setInviteOpen(false);
     setCapsules([]);
+    setTripLoadError(null);
   };
 
   const createTrip = async () => {
-    const t = await Trips.createTrip({ name: "New trip" }, myIdentity);
-    setTrips((prev) => [t, ...prev]);
-    setCounts((c) => ({ ...c, [t.id]: 0 }));
-    selectTrip(t.id);
-    setTimeout(() => {
-      nameRef.current?.focus();
-      nameRef.current?.select();
-    }, 0);
+    if (creating) return;
+    setCreating(true);
+    try {
+      const t = await Trips.createTrip({ name: "New trip" }, myIdentity);
+      setMeId((prev) => prev ?? t.ownerId);
+      setTrips((prev) => [t, ...prev]);
+      setCounts((c) => ({ ...c, [t.id]: 0 }));
+      selectTrip(t.id);
+      // The list never loaded, so this trip may not be your only one — fetch the rest now
+      // that the server is answering.
+      if (loadError) retryLoad();
+      setTimeout(() => {
+        nameRef.current?.focus();
+        nameRef.current?.select();
+      }, 0);
+    } catch (err) {
+      fail("create", err);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const patchLocal = (patch: Partial<Trips.Trip>) => {
@@ -276,8 +360,17 @@ export function TravelView() {
     setTrips((prev) => prev.map((t) => (t.id === trip.id ? { ...t, ...patch } : t)));
   };
 
+  // Edits stay on screen if the save fails (wiping what you typed is worse); the toast
+  // says it didn't stick.
+  const saveDetails = (tripId: string, patch: Partial<Trips.NewTrip>) => {
+    Trips.updateTrip(tripId, patch).catch((err) => fail("details", err));
+  };
+
   const removeTrip = async (id: string) => {
     setConfirmId(null);
+    const removed = trips.find((t) => t.id === id);
+    const removedCount = counts[id];
+    const wasSelected = selectedId === id;
     const rest = trips.filter((t) => t.id !== id);
     setTrips(rest);
     setCounts((c) => {
@@ -291,29 +384,41 @@ export function TravelView() {
     }
     try {
       await Trips.deleteTrip(id);
-    } catch {
-      await reload();
+    } catch (err) {
+      fail("delete", err);
+      if (!removed) return;
+      // Nothing was deleted, so put it back — newest first, the order listTrips returns.
+      setTrips((cur) =>
+        cur.some((t) => t.id === id)
+          ? cur
+          : [...cur, removed].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+      );
+      setCounts((c) => ({ ...c, [id]: removedCount ?? 0 }));
+      if (wasSelected) setSelectedId(id);
     }
   };
 
   const togglePack = async (itemId: string) => {
     if (!trip) return;
+    const tripId = trip.id;
     const item = ownedById.get(itemId);
     if (!item) return;
     const packed = myRefs.has(itemId);
     setCapsules([]);
     if (packed) {
+      const removed = tripItems.filter((ti) => ti.itemRef === itemId && ti.packerId === meId);
       setTripItems((tis) => tis.filter((ti) => !(ti.itemRef === itemId && ti.packerId === meId)));
-      setCounts((c) => ({ ...c, [trip.id]: Math.max(0, (c[trip.id] ?? 1) - 1) }));
+      setCounts((c) => ({ ...c, [tripId]: Math.max(0, (c[tripId] ?? 1) - 1) }));
       try {
-        await Trips.unpackItem(trip.id, itemId);
-      } catch {
-        setTripItems(await Trips.listTripItems(trip.id));
+        await Trips.unpackItem(tripId, itemId);
+      } catch (err) {
+        fail("unpack", err);
+        revertItems(tripId, removed, []);
       }
     } else {
       const temp: Trips.TripItem = {
         id: `tmp-${itemId}`,
-        tripId: trip.id,
+        tripId,
         packerId: meId ?? "",
         itemRef: itemId,
         itemName: item.name,
@@ -322,11 +427,12 @@ export function TravelView() {
         createdAt: "",
       };
       setTripItems((tis) => [...tis, temp]);
-      setCounts((c) => ({ ...c, [trip.id]: (c[trip.id] ?? 0) + 1 }));
+      setCounts((c) => ({ ...c, [tripId]: (c[tripId] ?? 0) + 1 }));
       try {
-        await Trips.packItem(trip.id, item);
-      } catch {
-        setTripItems(await Trips.listTripItems(trip.id));
+        await Trips.packItem(tripId, item);
+      } catch (err) {
+        fail("pack", err);
+        revertItems(tripId, [], [temp.id]);
       }
     }
   };
@@ -346,12 +452,19 @@ export function TravelView() {
   const openInvite = async () => {
     setInviteOpen((v) => !v);
     if (following === null && meId) {
-      setFollowing(await fetchFollowingUsers(meId));
+      try {
+        setFollowing(await fetchFollowingUsers(meId));
+      } catch (err) {
+        fail("following", err);
+        setInviteOpen(false);
+      }
     }
   };
 
   const invite = async (u: FollowUser) => {
     if (!trip) return;
+    const tripId = trip.id;
+    const wasMember = members.some((m) => m.userId === u.id);
     // optimistic: add as an invited member
     setMembers((prev) =>
       prev.some((m) => m.userId === u.id)
@@ -369,19 +482,33 @@ export function TravelView() {
           ],
     );
     try {
-      await Trips.inviteMember(trip.id, u, myIdentity);
-    } catch {
-      setMembers(await Trips.listMembers(trip.id));
+      await Trips.inviteMember(tripId, u, myIdentity);
+    } catch (err) {
+      fail("invite", err);
+      if (!wasMember && selectedRef.current === tripId) {
+        setMembers((prev) => prev.filter((m) => m.userId !== u.id));
+      }
     }
   };
 
   const respond = async (tripId: string, accept: boolean) => {
+    const answered = invites.find((i) => i.trip.id === tripId);
     setInvites((prev) => prev.filter((i) => i.trip.id !== tripId));
     try {
       await Trips.respondInvite(tripId, accept);
-    } finally {
+    } catch (err) {
+      fail(accept ? "accept" : "decline", err);
+      // Still pending on the server, so keep offering it.
+      if (answered) {
+        setInvites((prev) => (prev.some((i) => i.trip.id === tripId) ? prev : [...prev, answered]));
+      }
+      return;
+    }
+    try {
       await reload();
       if (accept) setSelectedId(tripId);
+    } catch (err) {
+      fail("load", err);
     }
   };
 
@@ -393,9 +520,21 @@ export function TravelView() {
           Pack a capsule from your closet — solo, or with friends on a shared trip.
         </p>
       </div>
-      <Button onClick={createTrip}>
+      <Button onClick={createTrip} disabled={creating}>
         <Plus size={15} /> New trip
       </Button>
+    </div>
+  );
+
+  const noticeToast = notice && (
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 sm:bottom-8">
+      <p
+        key={notice.key}
+        role="alert"
+        className="max-w-sm animate-fade-up rounded-2xl border border-line bg-surface px-4 py-2.5 text-center text-sm shadow-lg"
+      >
+        {notice.text}
+      </p>
     </div>
   );
 
@@ -438,6 +577,7 @@ export function TravelView() {
             <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-2" />
           ))}
         </div>
+        {noticeToast}
       </div>
     );
   }
@@ -447,15 +587,28 @@ export function TravelView() {
       <div className="space-y-6">
         {header}
         {invitesSection}
-        <EmptyState
-          title="No trips yet"
-          subtitle="Plan a trip, pack pieces from your wardrobe, and generate capsule outfits — or accept an invite to pack with friends."
-          action={
-            <Button onClick={createTrip}>
-              <Luggage size={15} /> Plan a trip
-            </Button>
-          }
-        />
+        {loadError ? (
+          <EmptyState
+            title="Trips didn't load"
+            subtitle={loadError}
+            action={
+              <Button variant="outline" onClick={retryLoad}>
+                Try again
+              </Button>
+            }
+          />
+        ) : (
+          <EmptyState
+            title="No trips yet"
+            subtitle="Plan a trip, pack pieces from your wardrobe, and generate capsule outfits — or accept an invite to pack with friends."
+            action={
+              <Button onClick={createTrip} disabled={creating}>
+                <Luggage size={15} /> Plan a trip
+              </Button>
+            }
+          />
+        )}
+        {noticeToast}
       </div>
     );
   }
@@ -553,6 +706,24 @@ export function TravelView() {
 
       {trip && (
         <div className="space-y-6">
+          {tripLoadError && (
+            <div
+              role="alert"
+              className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-3"
+            >
+              <span className="min-w-0 text-sm">{tripLoadError}</span>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setTripLoadError(null);
+                  setTripTick((n) => n + 1);
+                }}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+
           {/* Trip details (owner edits; members see read-only values via inputs). */}
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Field label="Trip name">
@@ -562,7 +733,7 @@ export function TravelView() {
                 value={trip.name}
                 disabled={!isOwner}
                 onChange={(e) => patchLocal({ name: e.target.value })}
-                onBlur={(e) => isOwner && Trips.updateTrip(trip.id, { name: e.target.value })}
+                onBlur={(e) => isOwner && saveDetails(trip.id, { name: e.target.value })}
                 placeholder="Weekend in Paris"
               />
             </Field>
@@ -572,7 +743,7 @@ export function TravelView() {
                 value={trip.destination ?? ""}
                 disabled={!isOwner}
                 onChange={(e) => patchLocal({ destination: e.target.value })}
-                onBlur={(e) => isOwner && Trips.updateTrip(trip.id, { destination: e.target.value })}
+                onBlur={(e) => isOwner && saveDetails(trip.id, { destination: e.target.value })}
                 placeholder="Paris, FR"
               />
             </Field>
@@ -584,7 +755,7 @@ export function TravelView() {
                 disabled={!isOwner}
                 onChange={(e) => {
                   patchLocal({ startDate: e.target.value });
-                  Trips.updateTrip(trip.id, { startDate: e.target.value });
+                  saveDetails(trip.id, { startDate: e.target.value });
                 }}
               />
             </Field>
@@ -596,7 +767,7 @@ export function TravelView() {
                 disabled={!isOwner}
                 onChange={(e) => {
                   patchLocal({ endDate: e.target.value });
-                  Trips.updateTrip(trip.id, { endDate: e.target.value });
+                  saveDetails(trip.id, { endDate: e.target.value });
                 }}
               />
             </Field>
@@ -876,6 +1047,7 @@ export function TravelView() {
           )}
         </div>
       )}
+      {noticeToast}
     </div>
   );
 }
