@@ -69,11 +69,15 @@ insert into storage.buckets (id, name, public)
 values ('wardrobe-images', 'wardrobe-images', true)
 on conflict (id) do nothing;
 
--- Anyone can view images; authenticated users may upload only into their own
--- <user-id>/ folder.
-create policy "Public read wardrobe images"
-  on storage.objects for select
-  using (bucket_id = 'wardrobe-images');
+-- The bucket is public, so anyone can VIEW an image by its URL (/object/public/... skips RLS).
+-- Only owners may LIST/read their own <user-id>/ folder — a public SELECT policy would let anyone
+-- enumerate every user's photos (AJA-298). Authenticated users upload only into their own folder.
+create policy "Users read own wardrobe images"
+  on storage.objects for select to authenticated
+  using (
+    bucket_id = 'wardrobe-images'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
 
 create policy "Users upload own wardrobe images"
   on storage.objects for insert to authenticated

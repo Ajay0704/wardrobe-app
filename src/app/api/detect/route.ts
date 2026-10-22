@@ -1,4 +1,5 @@
 import { requireUser } from "@/lib/auth-server";
+import { safeFetch } from "@/lib/net";
 import { checkLimit, tooMany } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
 import { embedImageBytes, toVectorLiteral } from "@/lib/embed";
@@ -35,7 +36,7 @@ const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
 export async function POST(request: Request) {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Please sign in." }, { status: 401 });
-  const rl = await checkLimit(user, "ai");
+  const rl = await checkLimit(user, "browse");
   if (!rl.ok) return tooMany(rl);
 
   let body: { imageUrl?: string; postId?: string; box?: Box };
@@ -70,7 +71,9 @@ export async function POST(request: Request) {
   // Fetch the source image and crop the box out server-side.
   let cropBuf: Buffer;
   try {
-    const res = await fetch(imageUrl);
+    // AJA-298: imageUrl comes from the request body, so a raw fetch let any (guest) caller make the
+    // server request internal/metadata addresses. safeFetch refuses private targets, incl. redirects.
+    const res = await safeFetch(imageUrl, { signal: AbortSignal.timeout(15_000) });
     if (!res.ok) return Response.json({ error: "Could not load image." }, { status: 502 });
     const src = Buffer.from(await res.arrayBuffer());
     const meta = await sharp(src).metadata();
