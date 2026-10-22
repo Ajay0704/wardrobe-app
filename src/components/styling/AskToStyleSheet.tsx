@@ -47,6 +47,8 @@ export function AskToStyleSheet({
   );
 
   const [friends, setFriends] = useState<FollowUser[] | null>(null);
+  // The follows read failed: say so, rather than "you're not following anyone yet".
+  const [friendsFailed, setFriendsFailed] = useState(false);
   const [picked, setPicked] = useState<string | null>(null);
   const [note, setNote] = useState("");
   const [sending, setSending] = useState(false);
@@ -63,24 +65,25 @@ export function AskToStyleSheet({
       setPicked(null);
       setNote("");
       setError(null);
+      setFriendsFailed(false);
     }
   }
 
-  // Load the people you follow, once, the first time the sheet opens.
+  // Load the people you follow, once, the first time the sheet opens (again after a failure).
   useEffect(() => {
-    if (!open || !myId || friends !== null) return;
+    if (!open || !myId || friends !== null || friendsFailed) return;
     let alive = true;
     void fetchFollowingUsers(myId)
       .then((list) => {
         if (alive) setFriends(list);
       })
       .catch(() => {
-        if (alive) setFriends([]);
+        if (alive) setFriendsFailed(true);
       });
     return () => {
       alive = false;
     };
-  }, [open, myId, friends]);
+  }, [open, myId, friends, friendsFailed]);
 
   const friend = friends?.find((f) => f.id === picked) ?? null;
 
@@ -118,6 +121,17 @@ export function AskToStyleSheet({
         <p className="rounded-2xl border border-line bg-surface-2 px-4 py-5 text-center text-sm text-muted">
           Sign in to ask a friend for help.
         </p>
+      ) : friendsFailed ? (
+        <div className="rounded-2xl border border-line bg-surface-2 px-4 py-5 text-center text-sm text-muted">
+          <p>Your friends didn&apos;t load.</p>
+          <button
+            type="button"
+            onClick={() => setFriendsFailed(false)}
+            className="mt-3 rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-foreground"
+          >
+            Try again
+          </button>
+        </div>
       ) : friends === null ? (
         <p className="py-6 text-center text-xs text-muted">Loading your friends…</p>
       ) : friends.length === 0 ? (

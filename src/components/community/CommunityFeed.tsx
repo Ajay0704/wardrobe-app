@@ -76,11 +76,11 @@ export function CommunityFeed() {
   };
 
   // Load who I follow, then show the "Following" feed (their posts + mine).
-  // With no follows yet, fall back to all recent posts (discovery).
+  // With no follows yet — or if they can't be read — fall back to all recent posts (discovery).
   useEffect(() => {
     let alive = true;
     (async () => {
-      const followIds = myId ? await fetchFollowing(myId) : [];
+      const followIds = myId ? await fetchFollowing(myId).catch(() => []) : [];
       if (!alive) return;
       setFollowing(new Set(followIds));
       const ids = followIds.length && myId ? [...followIds, myId] : undefined;
