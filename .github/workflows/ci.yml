@@ -62,6 +62,7 @@ jobs:
           npm run test:face
           npm run test:item-images
           npm run test:onboarding
+          npm run test:shared-closet-errors
 
       - name: Build
         run: npm run build
