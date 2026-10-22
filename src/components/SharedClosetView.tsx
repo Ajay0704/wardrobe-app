@@ -110,6 +110,30 @@ export function SharedClosetView() {
   const [following, setFollowing] = useState<FollowUser[] | null>(null);
   const [editItem, setEditItem] = useState<SC.SharedClosetItem | null>(null);
   const nameRef = useRef<HTMLInputElement>(null);
+  // Shared closets are server state, so every action here can fail (AJA-303). Loads that fail
+  // say so in place, with a retry; actions that fail are undone on screen and explained in a toast.
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadTick, setLoadTick] = useState(0);
+  const [closetLoadError, setClosetLoadError] = useState<string | null>(null);
+  const [closetTick, setClosetTick] = useState(0);
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<{ text: string; key: number } | null>(null);
+  // Which closet is on screen when a request settles — a late failure mustn't undo into another closet.
+  const selectedRef = useRef(selectedId);
+
+  useEffect(() => {
+    selectedRef.current = selectedId;
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), 4500);
+    return () => window.clearTimeout(t);
+  }, [notice]);
+
+  const fail = useCallback((action: SC.SharedClosetAction, err: unknown) => {
+    setNotice({ text: SC.sharedClosetErrorMessage(action, err), key: Date.now() });
+  }, []);
 
   const closet = closets.find((c) => c.id === selectedId) ?? null;
   const isOwner = closet ? closet.ownerId === meId : false;
@@ -221,6 +245,9 @@ export function SharedClosetView() {
         setClosets(list);
         setCounts(cs);
         setInvites(inv);
+      } catch (err) {
+        // Offline used to land on "No shared closets yet", which reads as if they were gone.
+        if (alive) setLoadError(SC.sharedClosetErrorMessage("load", err));
       } finally {
         if (alive) setLoading(false);
       }
@@ -228,20 +255,33 @@ export function SharedClosetView() {
     return () => {
       alive = false;
     };
+  }, [loadTick]);
+
+  const retryLoad = () => {
+    setLoadError(null);
+    setLoadTick((n) => n + 1);
+  };
+
+  // Background refresh (live sync, or settling an add): applied only while that closet is
+  // still open, and silent on failure — it isn't something the user did, so keep what's on
+  // screen and let the next change event try again rather than toasting on every blip.
+  const refetchCloset = useCallback(async (closetId: string) => {
+    try {
+      const [its, mem] = await Promise.all([
+        SC.listClosetItems(closetId),
+        SC.listMembers(closetId),
+      ]);
+      setCounts((c) => ({ ...c, [closetId]: its.length }));
+      if (selectedRef.current !== closetId) return;
+      setClosetItems(its);
+      setMembers(mem);
+      setClosetLoadError(null);
+    } catch {
+      // See above.
+    }
   }, []);
 
   // Load items + roster for the selected closet.
-  const refetchSelected = useCallback(async () => {
-    if (!selectedId) return;
-    const [its, mem] = await Promise.all([
-      SC.listClosetItems(selectedId),
-      SC.listMembers(selectedId),
-    ]);
-    setClosetItems(its);
-    setMembers(mem);
-    setCounts((c) => ({ ...c, [selectedId]: its.length }));
-  }, [selectedId]);
-
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -250,27 +290,37 @@ export function SharedClosetView() {
         setMembers([]);
         return;
       }
-      const [its, mem] = await Promise.all([
-        SC.listClosetItems(selectedId),
-        SC.listMembers(selectedId),
-      ]);
-      if (alive) {
-        setClosetItems(its);
-        setMembers(mem);
+      try {
+        const [its, mem] = await Promise.all([
+          SC.listClosetItems(selectedId),
+          SC.listMembers(selectedId),
+        ]);
+        if (alive) {
+          setClosetItems(its);
+          setMembers(mem);
+          setClosetLoadError(null);
+        }
+      } catch (err) {
+        // Clear what's there: it's the previously open closet's items, not this one's.
+        if (alive) {
+          setClosetItems([]);
+          setMembers([]);
+          setClosetLoadError(SC.sharedClosetErrorMessage("loadCloset", err));
+        }
       }
     })();
     return () => {
       alive = false;
     };
-  }, [selectedId]);
+  }, [selectedId, closetTick]);
 
   // Live sync: refetch this closet's items + roster whenever the server changes.
   useEffect(() => {
     if (!selectedId) return;
     return SC.subscribeSharedCloset(selectedId, () => {
-      void refetchSelected();
+      void refetchCloset(selectedId);
     });
-  }, [selectedId, refetchSelected]);
+  }, [selectedId, refetchCloset]);
 
   const openCloset = (id: string) => {
     setSelectedId(id);
@@ -278,17 +328,31 @@ export function SharedClosetView() {
     setAddOpen(false);
     setAddSel(new Set());
     setInviteOpen(false);
+    setClosetLoadError(null);
   };
 
   const createCloset = async () => {
-    const c = await SC.createSharedCloset("Shared closet", myIdentity);
-    setClosets((prev) => [c, ...prev]);
-    setCounts((x) => ({ ...x, [c.id]: 0 }));
-    openCloset(c.id);
-    setTimeout(() => {
-      nameRef.current?.focus();
-      nameRef.current?.select();
-    }, 0);
+    if (creating) return;
+    setCreating(true);
+    try {
+      const c = await SC.createSharedCloset("Shared closet", myIdentity);
+      // If the first load failed, meId never arrived, and without it you couldn't name your own closet.
+      setMeId((prev) => prev ?? c.ownerId);
+      setClosets((prev) => [c, ...prev]);
+      setCounts((x) => ({ ...x, [c.id]: 0 }));
+      openCloset(c.id);
+      // The list never loaded, so this closet may not be your only one — fetch the rest now
+      // that the server is answering.
+      if (loadError) retryLoad();
+      setTimeout(() => {
+        nameRef.current?.focus();
+        nameRef.current?.select();
+      }, 0);
+    } catch (err) {
+      fail("create", err);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const patchName = (name: string) => {
@@ -296,15 +360,35 @@ export function SharedClosetView() {
     setClosets((prev) => prev.map((c) => (c.id === closet.id ? { ...c, name } : c)));
   };
 
+  // A rename that fails stays on screen (wiping what you typed is worse); the toast says it
+  // didn't stick, and leaving the field again retries it.
+  const saveName = (closetId: string, name: string) => {
+    SC.renameSharedCloset(closetId, name).catch((err) => fail("rename", err));
+  };
+
+  // Into the list newest first, the order listSharedClosets returns.
+  const insertCloset = (c: SC.SharedCloset) => {
+    setClosets((cur) =>
+      cur.some((x) => x.id === c.id)
+        ? cur
+        : [...cur, c].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    );
+  };
+
   const removeCloset = async (id: string) => {
     setConfirmDeleteId(null);
-    const rest = closets.filter((c) => c.id !== id);
-    setClosets(rest);
-    if (selectedId === id) setSelectedId(null);
+    const removed = closets.find((c) => c.id === id);
+    const wasSelected = selectedId === id;
+    setClosets((prev) => prev.filter((c) => c.id !== id));
+    if (wasSelected) setSelectedId(null);
     try {
       await SC.deleteSharedCloset(id);
-    } catch {
-      await reload();
+    } catch (err) {
+      fail("delete", err);
+      if (!removed) return;
+      // Nothing was deleted, so put it back — and reopen it if nothing else is open now.
+      insertCloset(removed);
+      if (wasSelected && selectedRef.current === null) setSelectedId(id);
     }
   };
 
@@ -319,6 +403,7 @@ export function SharedClosetView() {
 
   const confirmAdd = async () => {
     if (!closet) return;
+    const closetId = closet.id;
     const picks = owned.filter((it) => addSel.has(it.id));
     if (!picks.length) {
       setAddOpen(false);
@@ -329,7 +414,7 @@ export function SharedClosetView() {
       .filter((it) => !myRefs.has(it.id))
       .map((it) => ({
         id: `tmp-${it.id}`,
-        closetId: closet.id,
+        closetId,
         addedBy: meId ?? "",
         itemRef: it.id,
         name: it.name,
@@ -343,19 +428,40 @@ export function SharedClosetView() {
     setAddSel(new Set());
     setAddOpen(false);
     try {
-      await SC.addItemsFromMyCloset(closet.id, picks);
-    } finally {
-      await refetchSelected();
+      await SC.addItemsFromMyCloset(closetId, picks);
+    } catch (err) {
+      fail("add", err);
+      // Nothing was added: take the placeholders back out, and keep the picks selected so
+      // trying again doesn't mean choosing them all over again.
+      if (selectedRef.current === closetId) {
+        const temp = new Set(optimistic.map((o) => o.id));
+        setClosetItems((prev) => prev.filter((it) => !temp.has(it.id)));
+        setAddSel(new Set(picks.map((it) => it.id)));
+      }
+      return;
     }
+    // Swap the placeholders for the saved rows, which have real ids to edit and remove by.
+    await refetchCloset(closetId);
   };
 
   const removeItem = async (item: SC.SharedClosetItem) => {
+    const at = closetItems.findIndex((it) => it.id === item.id);
     setClosetItems((prev) => prev.filter((it) => it.id !== item.id));
     setEditItem(null);
+    if (item.id.startsWith("tmp-")) return;
     try {
-      if (!item.id.startsWith("tmp-")) await SC.removeClosetItem(item.id);
-    } catch {
-      await refetchSelected();
+      await SC.removeClosetItem(item.id);
+    } catch (err) {
+      fail("remove", err);
+      // Undone locally, not by refetching — offline, a refetch fails too and the screen
+      // would keep showing a removal that never happened. Back where it was.
+      if (selectedRef.current !== item.closetId) return;
+      setClosetItems((prev) => {
+        if (prev.some((it) => it.id === item.id)) return prev;
+        const next = [...prev];
+        next.splice(at < 0 ? next.length : Math.min(at, next.length), 0, item);
+        return next;
+      });
     }
   };
 
@@ -366,22 +472,37 @@ export function SharedClosetView() {
       prev.map((it) => (it.id === target.id ? { ...it, ...patch } : it)),
     );
     setEditItem(null);
+    if (target.id.startsWith("tmp-")) return;
     try {
-      if (!target.id.startsWith("tmp-")) await SC.updateClosetItem(target.id, patch);
-    } catch {
-      await refetchSelected();
+      await SC.updateClosetItem(target.id, patch);
+    } catch (err) {
+      fail("edit", err);
+      // The edit didn't save, so show the piece as it still is on the server.
+      if (selectedRef.current !== target.closetId) return;
+      setClosetItems((prev) =>
+        prev.map((it) =>
+          it.id === target.id ? { ...it, name: target.name, category: target.category } : it,
+        ),
+      );
     }
   };
 
   const openInvite = async () => {
     setInviteOpen((v) => !v);
     if (following === null && meId) {
-      setFollowing(await fetchFollowingUsers(meId));
+      try {
+        setFollowing(await fetchFollowingUsers(meId));
+      } catch (err) {
+        fail("following", err);
+        setInviteOpen(false);
+      }
     }
   };
 
   const invite = async (u: FollowUser) => {
     if (!closet) return;
+    const closetId = closet.id;
+    const wasMember = members.some((m) => m.userId === u.id);
     setMembers((prev) =>
       prev.some((m) => m.userId === u.id)
         ? prev
@@ -398,31 +519,66 @@ export function SharedClosetView() {
           ],
     );
     try {
-      await SC.inviteMember(closet.id, u, myIdentity);
-    } catch {
-      setMembers(await SC.listMembers(closet.id));
+      await SC.inviteMember(closetId, u, myIdentity);
+    } catch (err) {
+      fail("invite", err);
+      if (!wasMember && selectedRef.current === closetId) {
+        setMembers((prev) => prev.filter((m) => m.userId !== u.id));
+      }
     }
   };
 
   const respond = async (closetId: string, accept: boolean) => {
+    const answered = invites.find((i) => i.closet.id === closetId);
     setInvites((prev) => prev.filter((i) => i.closet.id !== closetId));
     try {
       await SC.respondInvite(closetId, accept);
-    } finally {
+    } catch (err) {
+      fail(accept ? "accept" : "decline", err);
+      // Still pending on the server, so keep offering it.
+      if (answered) {
+        setInvites((prev) => (prev.some((i) => i.closet.id === closetId) ? prev : [...prev, answered]));
+      }
+      return;
+    }
+    // Joined: show it now, so a failed refresh below can't hide the closet you just accepted.
+    if (accept && answered) {
+      insertCloset(answered.closet);
+      openCloset(closetId);
+    }
+    try {
       await reload();
-      if (accept) setSelectedId(closetId);
+    } catch (err) {
+      fail("load", err);
     }
   };
 
   const leave = async (closetId: string) => {
+    const left = closets.find((c) => c.id === closetId);
     setSelectedId(null);
     setClosets((prev) => prev.filter((c) => c.id !== closetId));
     try {
       await SC.leaveSharedCloset(closetId);
-    } catch {
-      await reload();
+    } catch (err) {
+      fail("leave", err);
+      if (!left) return;
+      // Still a member, so put it back — and reopen it if nothing else is open now.
+      insertCloset(left);
+      if (selectedRef.current === null) setSelectedId(closetId);
     }
   };
+
+  const noticeToast = notice && (
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 z-[60] flex justify-center px-4 sm:bottom-8">
+      <p
+        key={notice.key}
+        role="alert"
+        className="max-w-sm animate-fade-up rounded-2xl border border-line bg-surface px-4 py-2.5 text-center text-sm shadow-lg"
+      >
+        {notice.text}
+      </p>
+    </div>
+  );
 
   const invitesSection = invites.length > 0 && (
     <div className="space-y-2">
@@ -459,6 +615,7 @@ export function SharedClosetView() {
         {[0, 1, 2].map((i) => (
           <div key={i} className="h-16 animate-pulse rounded-2xl bg-surface-2" />
         ))}
+        {noticeToast}
       </div>
     );
   }
@@ -477,6 +634,24 @@ export function SharedClosetView() {
           <ChevronLeft size={18} /> Shared closets
         </button>
 
+        {closetLoadError && (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-surface-2 px-4 py-3"
+          >
+            <span className="min-w-0 text-sm">{closetLoadError}</span>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setClosetLoadError(null);
+                setClosetTick((n) => n + 1);
+              }}
+            >
+              Try again
+            </Button>
+          </div>
+        )}
+
         {/* Name (owner edits; members see it read-only) + owner delete. */}
         <div className="flex items-start gap-2">
           <input
@@ -485,7 +660,7 @@ export function SharedClosetView() {
             value={closet.name}
             disabled={!isOwner}
             onChange={(e) => patchName(e.target.value)}
-            onBlur={(e) => isOwner && SC.renameSharedCloset(closet.id, e.target.value)}
+            onBlur={(e) => isOwner && saveName(closet.id, e.target.value)}
             placeholder="Shared closet"
           />
           {isOwner &&
@@ -755,6 +930,7 @@ export function SharedClosetView() {
             />
           )}
         </BottomSheet>
+        {noticeToast}
       </div>
     );
   }
@@ -766,19 +942,29 @@ export function SharedClosetView() {
         <p className="text-sm text-muted">
           A closet you build together — everyone can add and edit.
         </p>
-        <Button onClick={createCloset}>
+        <Button onClick={createCloset} disabled={creating}>
           <Plus size={15} /> New
         </Button>
       </div>
 
       {invitesSection}
 
-      {closets.length === 0 ? (
+      {closets.length === 0 && loadError ? (
+        <EmptyState
+          title="Shared closets didn't load"
+          subtitle={loadError}
+          action={
+            <Button variant="outline" onClick={retryLoad}>
+              Try again
+            </Button>
+          }
+        />
+      ) : closets.length === 0 ? (
         <EmptyState
           title="No shared closets yet"
           subtitle="Create one and invite people you follow to build a closet together — a couple's wardrobe, a capsule with friends, anything."
           action={
-            <Button onClick={createCloset}>
+            <Button onClick={createCloset} disabled={creating}>
               <Users size={15} /> New shared closet
             </Button>
           }
@@ -813,6 +999,7 @@ export function SharedClosetView() {
           })}
         </div>
       )}
+      {noticeToast}
     </div>
   );
 }

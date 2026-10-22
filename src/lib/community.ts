@@ -5,6 +5,7 @@
  * are computed from poll_votes on read.
  */
 
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
 import { getSupabase } from "./supabase/client";
 
 export type PostKind = "ootd" | "poll" | "style" | "stat" | "tour";
@@ -84,7 +85,10 @@ interface PostRow {
 async function currentUserId(): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data } = await sb.auth.getUser();
+  const { data, error } = await sb.auth.getUser();
+  // getUser asks the auth server, so a dropped connection also comes back as "no user".
+  // That isn't signed out: rethrow it, or posting offline says "Sign in to post" (AJA-304).
+  if (error && isAuthRetryableFetchError(error)) throw error;
   return data.user?.id ?? null;
 }
 
@@ -210,7 +214,9 @@ async function hydrateViewerState(page: CommunityPost[]): Promise<void> {
   const sb = getSupabase();
   if (!sb || !page.length) return;
   const ids = page.map((p) => p.id);
-  const uid = await currentUserId();
+  // Viewer state only decorates the cards: if the auth server can't be reached, show the
+  // posts as a signed-out viewer would rather than failing the whole feed.
+  const uid = await currentUserId().catch(() => null);
   const byId = new Map(page.map((p) => [p.id, p]));
 
   const [likesRes, savesRes, repostsRes, votesRes] = await Promise.all([
@@ -357,11 +363,12 @@ export async function deleteComment(commentId: string): Promise<void> {
 
 /* ------------------------------------------------------------------ follows */
 
-/** Ids of everyone the given user follows. */
+/** Ids of everyone the given user follows. Throws if the read fails, rather than claiming none. */
 export async function fetchFollowing(userId: string): Promise<string[]> {
   const sb = getSupabase();
   if (!sb) return [];
-  const { data } = await sb.from("follows").select("following_id").eq("follower_id", userId);
+  const { data, error } = await sb.from("follows").select("following_id").eq("follower_id", userId);
+  if (error) throw new Error(error.message);
   return (data ?? []).map((r) => (r as { following_id: string }).following_id);
 }
 
@@ -439,10 +446,11 @@ async function fetchProfilesByIds(ids: string[]): Promise<Map<string, ProfileRow
   const out = new Map<string, ProfileRow>();
   const sb = getSupabase();
   if (!sb || !ids.length) return out;
-  const { data } = await sb
+  const { data, error } = await sb
     .from("profiles")
     .select("id,username,display_name,avatar_url")
     .in("id", [...new Set(ids)]);
+  if (error) throw new Error(error.message);
   for (const r of (data ?? []) as ProfileRow[]) out.set(r.id, r);
   return out;
 }
@@ -477,15 +485,16 @@ async function resolveFollowUsers(
   });
 }
 
-/** Users who follow `userId` (denormalized actor_* fields name the follower). */
+/** Users who follow `userId` (denormalized actor_* fields name the follower). Throws if a read fails. */
 export async function fetchFollowers(userId: string): Promise<FollowUser[]> {
   const sb = getSupabase();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("follows")
     .select("follower_id,actor_name,actor_handle,actor_avatar,created_at")
     .eq("following_id", userId)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
   const rows = (data ?? []) as {
     follower_id: string;
     actor_name: string | null;
@@ -502,15 +511,19 @@ export async function fetchFollowers(userId: string): Promise<FollowUser[]> {
   );
 }
 
-/** Users `userId` follows (identity resolved from the profiles directory). */
+/**
+ * Users `userId` follows (identity resolved from the profiles directory). Throws if a
+ * read fails: an empty list would tell the invite panels you follow nobody (AJA-304).
+ */
 export async function fetchFollowingUsers(userId: string): Promise<FollowUser[]> {
   const sb = getSupabase();
   if (!sb) return [];
-  const { data } = await sb
+  const { data, error } = await sb
     .from("follows")
     .select("following_id,created_at")
     .eq("follower_id", userId)
     .order("created_at", { ascending: false });
+  if (error) throw new Error(error.message);
   const rows = (data ?? []) as { following_id: string }[];
   return resolveFollowUsers(rows.map((r) => ({ id: r.following_id })));
 }

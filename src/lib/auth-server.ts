@@ -25,12 +25,14 @@ export type ApiUser = { id: string; isAnonymous: boolean };
 
 export async function requireUser(request: Request): Promise<ApiUser | null> {
   // Dev/local mode: when Supabase isn't configured the whole app runs ungated
-  // (see AppShell `gated`), so don't block the API routes either. In production
-  // Supabase IS configured, so the token check below is always enforced.
+  // (see AppShell `gated`), so don't block the API routes either. Never in a
+  // production build, though: a deploy missing these env vars must fail closed,
+  // not hand every caller a free identity on the paid routes (AJA-298).
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL ||
     !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   ) {
+    if (process.env.NODE_ENV === "production") return null;
     return { id: "local-dev", isAnonymous: false };
   }
 

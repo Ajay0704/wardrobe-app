@@ -5,7 +5,7 @@
  */
 
 import { EMBED_DIM, embedItem } from "./style-embed";
-import type { WardrobeItem } from "./types";
+import { CATEGORIES, type WardrobeItem } from "./types";
 
 const KEY = "wardrobe-taste-v1";
 
@@ -89,13 +89,82 @@ export function recordOutfitFeedback(
   } else {
     t.disliked = blend(t.disliked, t.dislikedCount, sample);
     t.dislikedCount += 1;
-    if (mismatchedPair) {
-      const key = [...mismatchedPair].sort().join("|");
-      if (!t.badPairs.includes(key)) t.badPairs = [...t.badPairs, key].slice(-80);
-    }
+    if (mismatchedPair) t.badPairs = withBadPair(t.badPairs, mismatchedPair);
   }
   writeTaste(t);
   return t;
+}
+
+/** Sorted "idA|idB", the form `badPairs` stores and the engine reads. */
+function pairKey(a: string, b: string): string {
+  return [a, b].sort().join("|");
+}
+
+function withBadPair(pairs: string[], [a, b]: [string, string]): string[] {
+  const key = pairKey(a, b);
+  return pairs.includes(key) ? pairs : [...pairs, key].slice(-80);
+}
+
+/**
+ * "These two don't go" on its own, without disliking the whole look (AJA-299). A
+ * swap that fixes one pairing is engagement with the look, not a rejection of it.
+ */
+export function recordBadPair(a: string, b: string): TasteState {
+  const t = readTaste();
+  t.badPairs = withBadPair(t.badPairs, [a, b]);
+  writeTaste(t);
+  return t;
+}
+
+/**
+ * Un-learn one pair (AJA-300): "actually, these two DO go". `badPairs` is a hard
+ * filter, so a wrong guess from a flag or a swap bans a pairing until this runs. Only
+ * the pair goes — any dislike recorded with it was about the whole look, and it can't
+ * be pulled back out of the running mean anyway.
+ */
+export function removeBadPair(a: string, b: string): TasteState {
+  const t = readTaste();
+  const key = pairKey(a, b);
+  if (!t.badPairs.includes(key)) return t;
+  t.badPairs = t.badPairs.filter((p) => p !== key);
+  writeTaste(t);
+  return t;
+}
+
+/** Forget everything learned on this device (AJA-300): back to the engine's own ranking. */
+export function resetTaste(): TasteState {
+  if (typeof window !== "undefined") {
+    try {
+      localStorage.removeItem(KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  return empty();
+}
+
+/** Garment order within a pair, so it reads "tee with jeans", not by id. */
+const PAIR_ORDER: Record<string, number> = Object.fromEntries(
+  CATEGORIES.map((c, i) => [c.value, i]),
+);
+
+/**
+ * Learned bad pairs resolved to the pieces they name, newest first — the Settings
+ * readout (AJA-300). A pair whose piece has since been deleted is skipped: the engine
+ * can never draw it again, so there's nothing to show or undo.
+ */
+export function learnedBadPairs(
+  taste: TasteState,
+  items: WardrobeItem[],
+): [WardrobeItem, WardrobeItem][] {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const out: [WardrobeItem, WardrobeItem][] = [];
+  for (let k = taste.badPairs.length - 1; k >= 0; k--) {
+    const [a, b] = taste.badPairs[k].split("|").map((id) => byId.get(id));
+    if (!a || !b) continue;
+    out.push((PAIR_ORDER[a.category] ?? 99) <= (PAIR_ORDER[b.category] ?? 99) ? [a, b] : [b, a]);
+  }
+  return out;
 }
 
 /** Cosine-ish affinity of an outfit to the taste vector, 0–1. Neutral when empty. */

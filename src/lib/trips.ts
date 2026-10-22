@@ -10,8 +10,43 @@
  * Phase 1 exercises the solo path (your own trips + your own bag). Members and
  * invites arrive in Phase 2, reusing the same tables.
  */
+import { isAuthRetryableFetchError } from "@supabase/supabase-js";
+import { CloudError, cloudErrorMessage } from "./cloud-errors";
 import { getSupabase } from "./supabase/client";
 import type { WardrobeItem } from "./types";
+
+export type TripAction =
+  | "create"
+  | "details"
+  | "delete"
+  | "pack"
+  | "unpack"
+  | "invite"
+  | "accept"
+  | "decline"
+  | "load"
+  | "loadTrip"
+  | "following";
+
+// Each reads after "Couldn't …" and after "sign in again to …".
+const WHAT: Record<TripAction, string> = {
+  create: "start a new trip",
+  details: "save the trip details",
+  delete: "delete the trip",
+  pack: "pack that piece",
+  unpack: "take that piece out",
+  invite: "send the invite",
+  accept: "join the trip",
+  decline: "decline the invite",
+  load: "load your trips",
+  loadTrip: "load this trip",
+  following: "load the people you follow",
+};
+
+/** What to tell the user when a Travel action fails (AJA-302). */
+export function tripErrorMessage(action: TripAction, err: unknown, online?: boolean): string {
+  return cloudErrorMessage(err, { what: WHAT[action], feature: "Trips", scope: "this trip" }, online);
+}
 
 export interface Trip {
   id: string;
@@ -59,7 +94,10 @@ interface TripItemRow {
 export async function currentUserId(): Promise<string | null> {
   const sb = getSupabase();
   if (!sb) return null;
-  const { data } = await sb.auth.getUser();
+  const { data, error } = await sb.auth.getUser();
+  // getUser asks the auth server, so a dropped connection also comes back as "no user".
+  // That isn't signed out: rethrow it, or the UI tells someone offline to sign in (AJA-302).
+  if (error && isAuthRetryableFetchError(error)) throw error;
   return data.user?.id ?? null;
 }
 
@@ -129,9 +167,9 @@ export interface Identity {
 
 export async function createTrip(input: NewTrip = {}, me?: Identity): Promise<Trip> {
   const sb = getSupabase();
-  if (!sb) throw new Error("Offline");
+  if (!sb) throw new CloudError("unconfigured");
   const owner = await currentUserId();
-  if (!owner) throw new Error("Sign in to plan a trip");
+  if (!owner) throw new CloudError("signed-out");
   const { data, error } = await sb
     .from("trips")
     .insert({
@@ -208,7 +246,7 @@ export async function packItem(tripId: string, item: WardrobeItem): Promise<void
   const sb = getSupabase();
   if (!sb) return;
   const packer = await currentUserId();
-  if (!packer) throw new Error("Sign in to pack");
+  if (!packer) throw new CloudError("signed-out");
   const { error } = await sb.from("trip_items").insert({
     trip_id: tripId,
     packer_id: packer,
@@ -225,7 +263,7 @@ export async function unpackItem(tripId: string, itemRef: string): Promise<void>
   const sb = getSupabase();
   if (!sb) return;
   const packer = await currentUserId();
-  if (!packer) return;
+  if (!packer) throw new CloudError("signed-out");
   const { error } = await sb
     .from("trip_items")
     .delete()
@@ -350,7 +388,7 @@ export async function inviteMember(
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) throw new Error("Sign in");
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb.from("trip_members").insert({
     trip_id: tripId,
     user_id: invitee.id,
@@ -373,7 +411,7 @@ export async function respondInvite(tripId: string, accept: boolean): Promise<vo
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) return;
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb
     .from("trip_members")
     .update({ status: "joined" })
@@ -387,7 +425,7 @@ export async function leaveTrip(tripId: string): Promise<void> {
   const sb = getSupabase();
   if (!sb) return;
   const me = await currentUserId();
-  if (!me) return;
+  if (!me) throw new CloudError("signed-out");
   const { error } = await sb
     .from("trip_members")
     .delete()

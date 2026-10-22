@@ -64,7 +64,8 @@ export function NativeUserProfileView() {
     fetchUserPosts(userId).then((p) => alive && setPosts(p));
     fetchTaggedPosts(userId).then((p) => alive && setTagged(p));
     fetchReposts(userId).then((p) => alive && setShared(p));
-    if (myId) fetchFollowing(myId).then((ids) => alive && setFollowing(ids.includes(userId)));
+    // Can't tell whether I follow them: leave the button on "Follow", as before.
+    if (myId) fetchFollowing(myId).then((ids) => alive && setFollowing(ids.includes(userId)), () => {});
     return () => {
       alive = false;
     };

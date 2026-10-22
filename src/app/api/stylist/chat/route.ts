@@ -8,6 +8,7 @@
  * Mirrors /api/analyze (raw Gemini REST, x-goog-api-key, thought-part filtering).
  */
 import { requireUser } from "@/lib/auth-server";
+import { checkLimit, tooMany } from "@/lib/rate-limit";
 import type { CompactResult, StylistChatRequest } from "@/lib/stylist/types";
 
 export const runtime = "nodejs";
@@ -54,9 +55,12 @@ const SYSTEM =
   "or a general fashion-trivia question, briefly decline and offer to dress them from their closet.";
 
 export async function POST(request: Request) {
-  if (!(await requireUser(request))) {
+  const user = await requireUser(request);
+  if (!user) {
     return Response.json({ error: "Please sign in to use this." }, { status: 401 });
   }
+  const rl = await checkLimit(user, "ai");
+  if (!rl.ok) return tooMany(rl);
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
     return Response.json(

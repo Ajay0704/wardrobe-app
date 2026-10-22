@@ -44,6 +44,7 @@ import { TryOnPhotoRow } from "./TryOnPhotoRow";
 import { Chip, Toggle } from "./ui";
 import { countNeedingBackfill } from "@/lib/backfill-attrs";
 import { runAttributeBackfill } from "@/lib/import-queue";
+import { LearnedTasteRow } from "./you/LearnedTasteRow";
 import { Group, Row } from "./you/settings-ui";
 
 /** AJA-258 — a settings field holding interactive children. `Row` renders a
@@ -265,6 +266,9 @@ export function YouView() {
         <TryOnPhotoRow />
         <Row icon={Ruler} label="Fit & sizes" onClick={() => setView("fitSizes")} chevron />
         <Row icon={Palette} label="Style & taste" onClick={() => setView("styleTaste")} chevron />
+        {/* AJA-300 — what saves, wears, flags and swaps have taught the engine, with an
+            undo for each learned pair, which is otherwise a silent permanent ban. */}
+        <LearnedTasteRow />
       </Group>
 
       <Group label="Closet" right="Product shots">
