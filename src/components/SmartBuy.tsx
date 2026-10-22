@@ -9,6 +9,8 @@ import { DEFAULT_CURRENCY, formatMoney } from "@/lib/currency";
 import { useWardrobe } from "@/lib/store";
 import type { WardrobeItem } from "@/lib/types";
 import { CATEGORY_LABEL } from "@/lib/types";
+import { useVisualIndex } from "@/lib/visual-index";
+import { makeVisualLookup } from "@/lib/visual-similarity";
 
 /**
  * Opt-in Smart Buy. Results open in a fixed overlay sheet so the item editor
@@ -58,7 +60,7 @@ function SmartBuySheet({
   const [decided, setDecided] = useState<DecisionOutcome | null>(null);
   const decide = (outcome: DecisionOutcome) => {
     setDecided(outcome);
-    void logDecision(item, result?.verdict ?? "maybe", outcome);
+    void logDecision(item, result?.verdict ?? "maybe", outcome, { redundantBasis: result?.redundantBasis });
   };
 
   useEffect(() => {
@@ -66,7 +68,10 @@ function SmartBuySheet({
     const id = window.setTimeout(() => {
       startTransition(() => {
         try {
-          setResult(analyzeSmartBuy(item, items, { styleVibes }));
+          // AJA-301 — pictures where the index already has them (a saved wish being
+          // edited); an unsaved candidate has none and keeps the colour heuristic.
+          const visual = makeVisualLookup(useVisualIndex.getState().entries);
+          setResult(analyzeSmartBuy(item, items, { styleVibes, visual }));
         } catch (err) {
           console.warn("[SmartBuy] analyze failed", err);
           setError(true);

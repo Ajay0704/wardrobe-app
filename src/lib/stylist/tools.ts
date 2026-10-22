@@ -18,6 +18,8 @@ import {
 import { primaryStyleVibe, type UserProfile } from "../profile";
 import { forgottenItems, styleWays } from "../rediscover";
 import { analyzeSmartBuy } from "../smart-buy";
+import { useVisualIndex } from "../visual-index";
+import { makeVisualLookup } from "../visual-similarity";
 import { authHeaders } from "../supabase/client";
 import { readTaste } from "../taste";
 import type { SlotKey, WardrobeItem } from "../types";
@@ -451,7 +453,11 @@ export async function runTool(
           compact: { intent, note: "no product provided" },
         };
       }
-      const res = analyzeSmartBuy(product, ctx.items, { styleVibes: ctx.profile.styleVibes });
+      const res = analyzeSmartBuy(product, ctx.items, {
+        styleVibes: ctx.profile.styleVibes,
+        // AJA-301 — pictures for a saved wish; a pasted product has none and keeps the heuristic.
+        visual: makeVisualLookup(useVisualIndex.getState().entries),
+      });
       return {
         blocks: [
           {

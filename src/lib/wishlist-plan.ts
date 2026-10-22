@@ -8,7 +8,7 @@
  * them, so it is computed from the same numbers and unit-tested against that identity.
  */
 import { formatMoney } from "./currency";
-import { analyzeSmartBuy } from "./smart-buy";
+import { analyzeSmartBuy, type SmartBuyOptions } from "./smart-buy";
 import type { WardrobeItem } from "./types";
 
 /** Pair count at or above which a piece counts as "goes with a lot". */
@@ -31,11 +31,13 @@ export function wishVerdict(
   item: WardrobeItem,
   allItems: WardrobeItem[],
   styleVibes?: string[],
+  /** AJA-301 — image vectors, so the card and the Should-I-Buy sheet agree on duplicates. */
+  visual?: SmartBuyOptions["visual"],
 ): WishVerdict {
   let redundantCount = 0;
   let pairCount = 0;
   try {
-    const r = analyzeSmartBuy(item, allItems, { styleVibes });
+    const r = analyzeSmartBuy(item, allItems, { styleVibes, visual });
     redundantCount = r.redundant.length;
     pairCount = r.pairsWith.length;
   } catch {

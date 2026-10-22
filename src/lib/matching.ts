@@ -9,7 +9,7 @@
  */
 
 import { scoreOutfit } from "./color";
-import { type TasteState } from "./taste";
+import { tasteAffinity, type TasteState } from "./taste";
 import {
   explainOutfit,
   lookSimilarity,
@@ -54,14 +54,11 @@ export interface GenerateOptions {
   /** How many top looks to return from suggestLooks (default 1). */
   count?: number;
   /**
-   * Optional taste state (the like/dislike loop, AJA-38).
-   *
-   * WARNING: currently IGNORED. The v2 scorer never reads it, so the like/dislike
-   * feedback recorded by `recordOutfitFeedback` in the stylist affects nothing.
-   * That was already true whenever the v2 toggle was on; removing the old engine
-   * (AJA-259) makes it permanent. Kept in the signature deliberately rather than
-   * deleted, so the disconnect stays visible instead of silently disappearing.
-   * Tracked in AJA-260.
+   * The like/dislike loop (AJA-38; read since AJA-260). Re-ranks, never scores:
+   * a look closer to what you've liked moves at most TASTE_MAX_POINTS, so taste
+   * picks within the top band but can't promote a clearly worse pairing, and the
+   * `score` the UI shows stays pure coherence. `badPairs` is a hard filter unless
+   * both pieces are anchors. No likes or dislikes yet → no effect at all.
    */
   taste?: TasteState;
   /** Randomness source, injectable for tests. */
@@ -84,6 +81,8 @@ export interface ScoredLook {
     antiRepeat: number;
     semantic: number;
     taste: number;
+    /** 0–1 closeness to your likes/dislikes (AJA-260). Absent when there is no feedback. */
+    tasteAffinity?: number;
   };
   /** Short human "why this works" lines. */
   reasons: string[];
@@ -160,6 +159,33 @@ export function lookReasonLine(look: ScoredLook): string {
 }
 
 /**
+ * Taste re-ranks (AJA-260); it never scores.
+ *
+ * Centred on the candidate pool, because the style vectors in style-embed.ts are
+ * non-negative: after a single like, every look's affinity clears 0.5, so the
+ * absolute value mostly says "shares a category with something you liked". Only the
+ * differences between candidates are preference.
+ *
+ * TUNE: measured on the two-style closet in scripts/test-taste-loop.mts, where the
+ * top candidates sit 1–2 points apart and the liked style's best look trails by ~4.
+ * A gain of 20 moved the top pick after one like 2% of the time; 30 moves it every
+ * time while giving up at most 2 points of coherence. The clamp is the promise: two
+ * looks only trade places when their coherence is within 2 × TASTE_MAX_POINTS. Now
+ * that slates log `tasteAffinity`, AJA-255's kept/worn data can retune both.
+ */
+export const TASTE_GAIN = 30;
+export const TASTE_MAX_POINTS = 3;
+
+/** Per-look rank adjustment, in score points, from each look's 0–1 taste affinity. */
+export function tasteNudges(affinities: number[]): number[] {
+  if (!affinities.length) return [];
+  const mean = affinities.reduce((s, a) => s + a, 0) / affinities.length;
+  return affinities.map((a) =>
+    Math.max(-TASTE_MAX_POINTS, Math.min(TASTE_MAX_POINTS, TASTE_GAIN * (a - mean))),
+  );
+}
+
+/**
  * The engine (AJA-248): hard filters, then a pairwise score over every garment
  * pair, then a slate diversified on garment TYPE rather than item id — two
  * different jerseys are the same outfit.
@@ -196,6 +222,22 @@ function suggestLooksV2(
     return list[Math.floor(random() * list.length)];
   };
 
+  // AJA-260: "these two don't go" is a rule the engine has no other way to learn,
+  // so it filters rather than nudges. A pair the user pinned themselves is a fresh
+  // ask, though, and outranks old feedback.
+  const anchorIds = new Set(anchors.map((a) => a.id));
+  const badPairs = new Set(opts.taste?.badPairs ?? []);
+  const breaksBadPair = (picked: WardrobeItem[]): boolean => {
+    if (!badPairs.size) return false;
+    for (let i = 0; i < picked.length; i++) {
+      for (let j = i + 1; j < picked.length; j++) {
+        if (anchorIds.has(picked[i].id) && anchorIds.has(picked[j].id)) continue;
+        if (badPairs.has([picked[i].id, picked[j].id].sort().join("|"))) return true;
+      }
+    }
+    return false;
+  };
+
   /**
    * `candidates` means "accepted candidates to aim for", NOT raw sampling
    * attempts. v1 had no hard filters, so N attempts yielded ~N usable looks and
@@ -207,7 +249,8 @@ function suggestLooksV2(
   const wantPool = Math.max(opts.candidates ?? 60, 24);
   const maxTries = Math.max(wantPool * 25, 800);
   const seen = new Set<string>();
-  const scored: { look: ScoredLook; items: WardrobeItem[] }[] = [];
+  /** `rank` orders the slate; `look.score` stays the coherence the badge shows. */
+  const scored: { look: ScoredLook; items: WardrobeItem[]; rank: number }[] = [];
 
   for (let n = 0; n < maxTries && scored.length < wantPool; n++) {
     const picked: WardrobeItem[] = [];
@@ -272,11 +315,13 @@ function suggestLooksV2(
     if (seen.has(key)) continue;
     seen.add(key);
     if (rejectOutfit(picked, ctx)) continue;
+    if (breaksBadPair(picked)) continue;
 
     const { score, signals } = scoreOutfitV2(picked, ctx);
     const draft = draftFromPicked(picked);
     scored.push({
       items: picked,
+      rank: score,
       look: {
         draft,
         itemIds: draftIds(draft),
@@ -294,6 +339,8 @@ function suggestLooksV2(
           vibe: signals.style,
           antiRepeat: signals.utility,
           semantic: signals.role,
+          // v1 alias for `balance` — NOT the like/dislike loop, which rides as
+          // `tasteAffinity` (AJA-260). Kept for the events already logged under it.
           taste: signals.balance,
         },
         reasons: explainOutfit(picked, signals, ctx),
@@ -301,13 +348,22 @@ function suggestLooksV2(
     });
   }
   if (!scored.length) return [];
-  scored.sort((a, b) => b.look.score - a.look.score);
+  const taste = opts.taste;
+  if (taste && (taste.likedCount > 0 || taste.dislikedCount > 0)) {
+    const affinities = scored.map((s) => tasteAffinity(s.items, taste));
+    const nudges = tasteNudges(affinities);
+    scored.forEach((s, i) => {
+      s.look.signals.tasteAffinity = affinities[i];
+      s.rank += nudges[i];
+    });
+  }
+  scored.sort((a, b) => b.rank - a.rank);
 
   // Slate by MMR at descending lambda: safe / elevated / experimental. Canvas
   // brief p3 — "a random shuffle is not a surprise feature".
   const want = opts.count ?? 1;
   const lambdas = [0.85, 0.55, 0.35];
-  const best = scored[0].look.score || 1;
+  const best = Math.max(scored[0].rank, 1);
   const out: ScoredLook[] = [];
   const takenItems: WardrobeItem[][] = [];
   for (let slot = 0; slot < want; slot++) {
@@ -316,7 +372,7 @@ function suggestLooksV2(
     let bestIdx = -1;
     for (let i = 0; i < scored.length; i++) {
       if (out.includes(scored[i].look)) continue;
-      const rel = scored[i].look.score / best;
+      const rel = scored[i].rank / best;
       const sim = takenItems.length
         ? Math.max(...takenItems.map((t) => lookSimilarity(scored[i].items, t)))
         : 0;

@@ -22,6 +22,7 @@ import { suggestLooks } from "@/lib/matching";
 import { readCachedWeather } from "@/lib/weather";
 import { primaryStyleVibe } from "@/lib/profile";
 import { readTaste } from "@/lib/taste";
+import { learnFromColourSwap, learnFromFlag } from "@/lib/taste-feed";
 import { resolveStyleContext } from "@/lib/style-context";
 import {
   FLAG_REASONS,
@@ -375,13 +376,22 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     updateNode(id, patch);
   };
 
+  /**
+   * AJA-299 — the removal a swap pairs with, kept so a swap read as "colour" can name
+   * the piece it clashed with. pieceRemoved buffers the same thing inside
+   * engine-feedback; this copy stays out of that module's telemetry contract.
+   */
+  const lastRemovalRef = useRef<{ item: WardrobeItem; rest: WardrobeItem[] } | null>(null);
+
   const deletePiece = (id: string) => {
     // Buffer the removal before the node goes: if a piece of the same category
     // follows, that pair is a swap and the diff names the term that misfired.
     const node = nodes.find((x) => x.id === id);
     const item = node?.itemId ? trayItems.find((it) => it.id === node.itemId) : undefined;
-    if (item) pieceRemoved(item, boardItems());
-    else boardTouched();
+    if (item) {
+      pieceRemoved(item, boardItems());
+      lastRemovalRef.current = { item, rest: boardItems().filter((r) => r.id !== item.id) };
+    } else boardTouched();
     removeNode(id);
     if (selectedId === id) setSelectedId(null);
   };
@@ -428,7 +438,24 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
     // on device that the inference is wrong, and "read as" says it's a guess.
     const item = trayItems.find((it) => it.id === itemId);
     const reason = item ? pieceAdded(item) : null;
-    flash(reason ? `Swapped · read as ${REASON_LABEL[reason]}` : "Added to your look");
+    // AJA-299 — a colour swap says "these two don't go". Only on your own board: a
+    // shared one may be built from someone else's closet. Named in the toast because
+    // the engine stops suggesting the pair, and a ban you can't see can't be questioned.
+    // Consumed only when pieceAdded paired it, exactly as engine-feedback consumes its
+    // own buffer — an add in another category leaves both waiting for the real swap.
+    const removal = reason ? lastRemovalRef.current : null;
+    if (reason) lastRemovalRef.current = null;
+    const clashed =
+      reason === "colour" && item && removal && !collab
+        ? learnFromColourSwap(removal.item, item, removal.rest)
+        : null;
+    flash(
+      clashed && removal
+        ? `Swapped · no more ${removal.item.name} with ${clashed.name}`
+        : reason
+          ? `Swapped · read as ${REASON_LABEL[reason]}`
+          : "Added to your look",
+    );
   };
 
   // Surprise me — ask the matching engine for a look, then lay it out head-to-toe
@@ -1148,8 +1175,15 @@ export function CanvasBuilderView({ collab }: { collab?: CollabCanvas } = {}) {
                       type="button"
                       onClick={() => {
                         lookFlagged(r.key);
+                        // AJA-299 — and a dislike for taste (not "weather": that's the
+                        // day, not you). A "Colours" flag may name the pair it blames.
+                        const pair = collab ? null : learnFromFlag(boardItems(), r.key);
                         setFlagOpen(false);
-                        flash(`Flagged — ${REASON_LABEL[r.key] ?? r.label}`);
+                        flash(
+                          pair
+                            ? `Flagged — no more ${pair[0].name} with ${pair[1].name}`
+                            : `Flagged — ${REASON_LABEL[r.key] ?? r.label}`,
+                        );
                       }}
                       className="rounded-full border border-line px-2.5 py-1 text-[11.5px] font-medium text-muted transition-transform active:scale-95"
                     >
