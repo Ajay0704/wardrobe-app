@@ -30,6 +30,13 @@ const flag = (name) => {
 };
 const onlySlugs = flag("--only")?.split(",");
 const onlyViewport = flag("--viewport");
+// --figma <captures.json>: instead of PNG/HTML, submit each scene to Figma as editable layers.
+// captures.json maps output name (e.g. "06-closet-mobile") → a capture id from the Figma MCP
+// `generate_figma_design` tool. Ids are single-use; scenes without one are skipped.
+const figmaIds = flag("--figma") ? JSON.parse(await readFile(flag("--figma"), "utf8")) : null;
+const captureJs = figmaIds
+  ? await (await fetch("https://mcp.figma.com/mcp/html-to-design/capture.js")).text()
+  : null;
 
 const VIEWPORTS = [
   { name: "desktop", context: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 } },
@@ -49,7 +56,9 @@ if (!existsSync(harnessDir)) {
   copyFileSync(join(ROOT, "scripts/harness-page.tsx.txt"), join(harnessDir, "page.tsx"));
   const cleanup = () => rmSync(harnessDir, { recursive: true, force: true });
   process.on("exit", cleanup);
+  // `exit` handlers don't run on signals by default — route them through exit.
   process.on("SIGINT", () => process.exit(130));
+  process.on("SIGTERM", () => process.exit(143));
 }
 
 const serialize = (await readFile(join(ROOT, "scripts/serialize.browser.js"), "utf8")).trim().replace(/;$/, "");
@@ -140,6 +149,7 @@ for (const vp of VIEWPORTS) {
     for (const scene of group) {
       const n = String(scenes.indexOf(scene) + 1).padStart(2, "0");
       const name = `${n}-${scene.slug}-${vp.name}`;
+      if (figmaIds && !figmaIds[name]) continue;
       const page = await context.newPage();
       const diag = { consoleErrors: [], failedRequests: [] };
       page.on("console", (m) => m.type() === "error" && diag.consoleErrors.push(m.text().slice(0, 300)));
@@ -178,6 +188,38 @@ for (const vp of VIEWPORTS) {
       await growToContent(page, vp.context.viewport);
       await settle(page);
 
+      if (figmaIds) {
+        const id = figmaIds[name];
+        await page.evaluate((s) => {
+          const el = document.createElement("script");
+          el.textContent = s;
+          document.head.appendChild(el);
+        }, captureJs);
+        await page.waitForTimeout(500);
+        // captureForDesign's promise doesn't settle after a successful submit, so wait for the
+        // submit request itself (2xx) and move on; poll generate_figma_design to confirm.
+        const submitted = page.waitForResponse((r) => r.url().includes(`/capture/${id}/submit`), { timeout: 90_000 });
+        try {
+          page
+            .evaluate(
+              ({ id }) =>
+                window.figma.captureForDesign({
+                  captureId: id,
+                  endpoint: `https://mcp.figma.com/mcp/capture/${id}/submit?bindVariables=true`,
+                  selector: "body",
+                }),
+              { id },
+            )
+            .catch(() => {});
+          const res = await submitted;
+          console.log(`${name.padEnd(42)} → figma ${id.slice(0, 8)} HTTP ${res.status()}`);
+        } catch (e) {
+          console.log(`${name.padEnd(42)} → figma FAILED ${String(e).slice(0, 160)}`);
+        }
+        await page.close();
+        continue;
+      }
+
       await page.screenshot({ path: join(ROOT, "screens", `${name}.png`), fullPage: true, animations: "disabled" });
       let htmlBytes = 0;
       try {
@@ -200,6 +242,8 @@ for (const vp of VIEWPORTS) {
 }
 
 await browser.close();
+// A Figma run writes no PNG/HTML, so it must not touch the capture manifest.
+if (figmaIds) process.exit(0);
 manifest.screens.sort((a, b) => a.file.localeCompare(b.file));
 const prev = onlySlugs || onlyViewport
   ? JSON.parse(await readFile(join(ROOT, "manifest.json"), "utf8").catch(() => '{"screens":[]}'))
