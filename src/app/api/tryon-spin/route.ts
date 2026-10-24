@@ -10,6 +10,11 @@ export const maxDuration = 60;
 /** The prototype's clip took 27.5s. Leave room to return a real error inside maxDuration. */
 const RENDER_TIMEOUT_MS = 50_000;
 
+const GOOGLE_HOST = "generativelanguage.googleapis.com";
+const FILM_FAILED = "Couldn't film this look. Try again, or try a different photo.";
+/** Held back from maxDuration when downloading a clip by uri: time to store it, retry once and reply. */
+const DOWNLOAD_MARGIN_MS = 8_000;
+
 /**
  * AJA-305 — make a 360° spin video from the caller's OWN saved try-on render.
  *
@@ -19,6 +24,7 @@ const RENDER_TIMEOUT_MS = 50_000;
  * leaves a saved clip rather than a paid one that was thrown away.
  */
 export async function POST(request: Request) {
+  const routeStart = Date.now();
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Sign in to make a 360° spin." }, { status: 401 });
 
@@ -60,7 +66,7 @@ export async function POST(request: Request) {
   const started = Date.now();
   let resp: Response;
   try {
-    resp = await fetch("https://generativelanguage.googleapis.com/v1beta/interactions", {
+    resp = await fetch(`https://${GOOGLE_HOST}/v1beta/interactions`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": key },
       body: JSON.stringify(buildSpinRequest(front)),
@@ -75,18 +81,35 @@ export async function POST(request: Request) {
       : Response.json({ error: "Couldn't reach the video service." }, { status: 502 });
   }
 
+  // The 50s signal stays live while the body streams, so reading it can time out or break too.
+  // Same mapping as the fetch above: timeout → 504, anything else → 502, both logged.
+  const bodyFailure = (e: unknown, what: string) => {
+    const timedOut = e instanceof Error && e.name === "TimeoutError";
+    console.log(`[tryon-spin] ${timedOut ? "timeout" : "error"} ${what} after ${Date.now() - started}ms: ${String(e)}`);
+    return timedOut
+      ? Response.json({ error: "That took too long. Try again." }, { status: 504 })
+      : Response.json({ error: FILM_FAILED }, { status: 502 });
+  };
+
   if (!resp.ok) {
-    const detail = (await resp.text()).slice(0, 400);
-    return Response.json(
-      { error: "Couldn't film this look. Try again, or try a different photo.", detail },
-      { status: 502 },
-    );
+    let detail: string;
+    try {
+      detail = (await resp.text()).slice(0, 400);
+    } catch (e) {
+      return bodyFailure(e, "reading error body");
+    }
+    return Response.json({ error: FILM_FAILED, detail }, { status: 502 });
   }
 
-  const json = (await resp.json()) as {
+  let json: {
     usage?: { total_output_tokens?: number };
     steps?: Array<{ content?: Array<{ type?: string; data?: string; uri?: string }> }>;
   };
+  try {
+    json = await resp.json();
+  } catch (e) {
+    return bodyFailure(e, "reading response body");
+  }
   console.log(
     `[tryon-spin] ${SPIN_MODEL} ${Date.now() - started}ms, ${json.usage?.total_output_tokens ?? "?"} output tokens`,
   );
@@ -95,23 +118,53 @@ export async function POST(request: Request) {
   let bytes: Buffer | null = null;
   if (video?.data) bytes = Buffer.from(video.data, "base64");
   else if (video?.uri) {
-    const v = await fetch(video.uri, { headers: { "x-goog-api-key": key } });
-    if (v.ok) bytes = Buffer.from(await v.arrayBuffer());
+    // The key is attached only to Google's own host, never to whatever URL a response names.
+    let uri: URL | null = null;
+    try {
+      uri = new URL(video.uri);
+    } catch {
+      uri = null;
+    }
+    if (!uri || uri.protocol !== "https:" || uri.hostname !== GOOGLE_HOST) {
+      console.log(`[tryon-spin] refused video uri host ${uri?.hostname ?? "(unparseable)"}`);
+      return Response.json({ error: FILM_FAILED }, { status: 502 });
+    }
+    // What's left of maxDuration, measured from the route's start, less room to store the clip.
+    const remaining = maxDuration * 1000 - (Date.now() - routeStart) - DOWNLOAD_MARGIN_MS;
+    if (remaining < 1_000) {
+      console.log(`[tryon-spin] no time left to download the clip (${remaining}ms)`);
+      return Response.json({ error: "That took too long. Try again." }, { status: 504 });
+    }
+    try {
+      const v = await fetch(uri, {
+        headers: { "x-goog-api-key": key },
+        signal: AbortSignal.timeout(remaining),
+      });
+      if (v.ok) bytes = Buffer.from(await v.arrayBuffer());
+      else console.log(`[tryon-spin] video download failed: ${v.status}`);
+    } catch (e) {
+      return bodyFailure(e, "downloading video");
+    }
   }
   if (!bytes) {
-    return Response.json(
-      { error: "Couldn't film this look. Try again, or try a different photo." },
-      { status: 502 },
-    );
+    return Response.json({ error: FILM_FAILED }, { status: 502 });
   }
 
-  // Flat `<userId>/<uuid>.mp4`: `isRenderPath` allows exactly one slash.
-  const path = `${user.id}/${crypto.randomUUID()}.mp4`;
-  const { error: upError } = await admin.storage
-    .from(RENDERS_BUCKET)
-    .upload(path, bytes, { contentType: "video/mp4", upsert: false });
-  if (upError) {
-    return Response.json({ error: "Made the spin but couldn't save it. Try again." }, { status: 502 });
+  // Flat `<userId>/<uuid>.mp4`: `isRenderPath` allows exactly one slash. The bucket has no
+  // update policy and upsert is off, so a retry must use a NEW path. The clip is already paid
+  // for, so try twice before giving it up, and say so in the log.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const path = `${user.id}/${crypto.randomUUID()}.mp4`;
+    let upError: unknown = null;
+    try {
+      ({ error: upError } = await admin.storage
+        .from(RENDERS_BUCKET)
+        .upload(path, bytes, { contentType: "video/mp4", upsert: false }));
+    } catch (e) {
+      upError = e;
+    }
+    if (!upError) return Response.json({ path });
+    console.log(`[tryon-spin] upload attempt ${attempt} failed (${bytes.length} bytes): ${upError instanceof Error ? upError.message : JSON.stringify(upError)}`);
   }
-  return Response.json({ path });
+  return Response.json({ error: "Made the spin but couldn't save it. Try again." }, { status: 502 });
 }
