@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import { getSessionUser } from "@/lib/supabase/auth";
 import { ensureProfile } from "@/lib/chat";
+import { clearGuestOwner, readGuestOwner, seedForEmptyAccount } from "@/lib/guest-link";
 import {
   absorbWishlistClips,
   fetchWishlistInbox,
@@ -106,18 +107,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // whatever is local — that could leak a previous signed-out user's items into this
         // account). No sample seeding since AJA-279: the demo is a screen inside onboarding, so
         // a new account never starts out holding clothes it does not own.
-        const { profile, theme, draft } = useWardrobe.getState();
-        const seeded = {
-          items: [],
-          outfits: [],
-          calendar: [],
-          profile,
-          theme,
-          draft,
-        };
+        // The one exception (AJA-309): this account IS the guest who captured the local closet,
+        // upgraded in place by a Google / Apple link. Nobody pushed for a guest, so the server is
+        // empty, but every local piece is theirs — keep it rather than wiping it.
+        const { profile, theme, draft, items, outfits, calendar } = useWardrobe.getState();
+        const { keptGuest, ...closet } = seedForEmptyAccount(uid, readGuestOwner(), {
+          items,
+          outfits,
+          calendar,
+        });
+        const seeded = { ...closet, profile, theme, draft };
         hydrateFromRemote(seeded);
         const result = await pushSnapshot(uid, seeded);
         if (!result.ok) throw new Error(result.error);
+        if (keptGuest) clearGuestOwner();
       };
 
       try {

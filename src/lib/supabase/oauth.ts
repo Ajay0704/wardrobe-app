@@ -1,6 +1,8 @@
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
+import { rememberPendingLink } from "@/lib/guest-link";
 import { isNativeApp } from "@/lib/platform";
+import { isGuestSession } from "./auth";
 import { getSupabase } from "./client";
 
 export type OAuthProvider = "google" | "apple";
@@ -61,16 +63,25 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<void>
   if (!supabase) throw new Error("Cloud sign-in is not configured.");
 
   if (isNativeApp()) {
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: NATIVE_OAUTH_REDIRECT,
-        skipBrowserRedirect: true,
-      },
-    });
-    if (error) throw error;
-    if (!data?.url) throw new Error("Couldn't start sign-in. Please try again.");
-    await Browser.open({ url: data.url });
+    // AJA-309: a guest who chooses Google / Apple must keep the closet they just photographed.
+    // Link the provider to the SAME anonymous user rather than signing in as a new one, which
+    // used to land them in an empty account. Guests only exist in the app (the website has no
+    // guest journey), so the web path below is unchanged.
+    if (await isGuestSession()) {
+      const { data, error } = await supabase.auth.linkIdentity({
+        provider,
+        options: { redirectTo: NATIVE_OAUTH_REDIRECT, skipBrowserRedirect: true },
+      });
+      if (!error && data?.url) {
+        rememberPendingLink(provider);
+        await Browser.open({ url: data.url });
+        return;
+      }
+      // Refused before any browser opened — typically "Allow manual linking" is off in
+      // Supabase. A plain sign-in still works; it just can't carry the guest's pieces.
+      console.warn("[oauth] couldn't link the guest, signing in instead:", error?.message);
+    }
+    await openNativeSignIn(provider);
     return;
   }
 
@@ -79,4 +90,32 @@ export async function signInWithProvider(provider: OAuthProvider): Promise<void>
     options: { redirectTo: window.location.origin },
   });
   if (error) throw error;
+}
+
+/** Plain native OAuth sign-in: provider page in the system browser, back via the deep link. */
+async function openNativeSignIn(provider: OAuthProvider): Promise<void> {
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("Cloud sign-in is not configured.");
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: NATIVE_OAUTH_REDIRECT,
+      skipBrowserRedirect: true,
+    },
+  });
+  if (error) throw error;
+  if (!data?.url) throw new Error("Couldn't start sign-in. Please try again.");
+  await Browser.open({ url: data.url });
+}
+
+/**
+ * The guest link came back with `identity_already_exists`: that Google / Apple account already
+ * has a closet. Sign into it instead (the guest's pieces merge in on the first pull, as before).
+ * Returns whether a new sign-in was started, so the caller leaves the browser to it.
+ */
+export async function signInAfterFailedLink(provider: OAuthProvider | null): Promise<boolean> {
+  if (!provider) return false;
+  await Browser.close().catch(() => {});
+  await openNativeSignIn(provider);
+  return true;
 }

@@ -30,6 +30,7 @@
     "test:image-refs": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-image-refs.mts",
     "test:aging": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-aging-wishlist.mts",
     "test:onboarding": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-onboarding-flow.mts",
+    "test:guest-link": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-guest-link.mts",
     "test:trip-errors": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-trip-errors.mts",
     "test:shared-closet-errors": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-shared-closet-errors.mts",
     "test:follow-errors": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-follow-errors.mts"
