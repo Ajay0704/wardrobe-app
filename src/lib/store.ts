@@ -249,6 +249,8 @@ interface WardrobeState {
    * PATH — pass the result of `uploadPrivateImage`, never a signed URL.
    */
   setOutfitRender: (id: string, path: string | null) => void;
+  /** AJA-305 — attach (or clear with null) a look's 360° spin. Validated as a path. */
+  setOutfitSpin: (id: string, path: string | null) => void;
   /** Deep-copy a look (new ids, wear history reset). Returns the new id. */
   duplicateOutfit: (id: string) => string | null;
   /** Open the outfit detail screen for a look. */
@@ -535,6 +537,9 @@ function normalizeOutfit(raw: Partial<Outfit> | null | undefined): Outfit {
     // which is how the snapshot size budget gets blown) and signed URLs (which
     // expire, and which no scrubber catches because they only test `^data:`).
     tryOnRenderPath: isRenderPath(o.tryOnRenderPath) ? o.tryOnRenderPath : undefined,
+    // AJA-305 — whitelist or it's stripped on every reload/pull. Same path-shape
+    // validator as the render, for the same reasons.
+    spinPath: isRenderPath(o.spinPath) ? o.spinPath : undefined,
     wearCount: typeof o.wearCount === "number" ? o.wearCount : undefined,
     lastWornAt: typeof o.lastWornAt === "string" ? o.lastWornAt : undefined,
     createdAt: typeof o.createdAt === "number" ? o.createdAt : Date.now(),
@@ -781,8 +786,19 @@ export const useWardrobe = create<WardrobeState>()(
             // would reach `partialize` and count against the snapshot budget before
             // any normalizer saw it.
             const next = path !== null && isRenderPath(path) ? path : undefined;
-            return { ...o, tryOnRenderPath: next };
+            // AJA-305 — a spin is filmed FROM this render. A different render (or none)
+            // would leave a spin of a different outfit on the look, so drop it. The
+            // caller deletes the blob; the store does no IO.
+            const spinPath = next !== undefined && next === o.tryOnRenderPath ? o.spinPath : undefined;
+            return { ...o, tryOnRenderPath: next, spinPath };
           }),
+        })),
+
+      setOutfitSpin: (id, path) =>
+        set((s) => ({
+          outfits: s.outfits.map((o) =>
+            o.id !== id ? o : { ...o, spinPath: path !== null && isRenderPath(path) ? path : undefined },
+          ),
         })),
 
       duplicateOutfit: (id) => {
@@ -804,6 +820,8 @@ export const useWardrobe = create<WardrobeState>()(
           // synchronous and the store does no IO. A duplicate simply hasn't been
           // tried on yet.
           tryOnRenderPath: undefined,
+          // AJA-305 — same one-blob-one-owner rule as the render.
+          spinPath: undefined,
           createdAt: Date.now(),
         };
         set((s) => ({ outfits: [copy, ...s.outfits] }));

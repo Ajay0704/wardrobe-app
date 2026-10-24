@@ -341,6 +341,13 @@ export interface Outfit {
    * `normalizeOutfit` or it's stripped on every reload/pull (cf. AJA-223/239/245).
    */
   tryOnRenderPath?: string;
+  /**
+   * Saved 360° spin (AJA-305) — a PATH in `renders-private`, e.g. `<userId>/<uuid>.mp4`.
+   * Same invariant as `tryOnRenderPath`: never a URL, never inline data. Made FROM
+   * `tryOnRenderPath`, so `setOutfitRender` clears it whenever that changes.
+   * Whitelist in `normalizeOutfit` or it's stripped on every reload/pull.
+   */
+  spinPath?: string;
   wearCount?: number;
   lastWornAt?: string;
   createdAt: number;
