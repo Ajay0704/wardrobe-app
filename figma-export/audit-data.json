@@ -1,0 +1,4923 @@
+{
+  "filesScanned": 265,
+  "tokenClassUses": 1937,
+  "hexRogue": [
+    {
+      "value": "#a8a29e",
+      "count": 7,
+      "files": [
+        "src/components/SmartBuy.tsx:133,183",
+        "src/components/BulkImport.tsx:120",
+        "src/components/ItemForm.tsx:181",
+        "src/components/OutfitSplitImport.tsx:133",
+        "src/components/styling/StyleSessionView.tsx:160",
+        "src/components/wishlist/AddToWishlistSheet.tsx:175"
+      ]
+    },
+    {
+      "value": "#0b0d11",
+      "count": 4,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:26,66",
+        "src/app/how-it-works/page.tsx:6",
+        "src/components/AppShell.tsx:70"
+      ]
+    },
+    {
+      "value": "#f59e0b",
+      "count": 4,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:110,110,110,110"
+      ]
+    },
+    {
+      "value": "#d4537e",
+      "count": 4,
+      "files": [
+        "src/components/PhotoDetailView.tsx:337,337,474,474"
+      ]
+    },
+    {
+      "value": "#f6e9e2",
+      "count": 3,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112,115,117"
+      ]
+    },
+    {
+      "value": "#e4eef3",
+      "count": 3,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112,115,118"
+      ]
+    },
+    {
+      "value": "#7c8a6f",
+      "count": 2,
+      "files": [
+        "src/components/CalendarView.tsx:45",
+        "src/components/explore/ExploreForYouHeader.tsx:96"
+      ]
+    },
+    {
+      "value": "#ef4444",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105",
+        "src/components/CanvasPiece.tsx:76"
+      ]
+    },
+    {
+      "value": "#e6ece2",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112,116"
+      ]
+    },
+    {
+      "value": "#141310",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:295,305"
+      ]
+    },
+    {
+      "value": "#465a3b",
+      "count": 1,
+      "files": [
+        "src/components/CalendarView.tsx:426"
+      ]
+    },
+    {
+      "value": "#b05e3c",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105"
+      ]
+    },
+    {
+      "value": "#3b82f6",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105"
+      ]
+    },
+    {
+      "value": "#22c55e",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105"
+      ]
+    },
+    {
+      "value": "#eab308",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105"
+      ]
+    },
+    {
+      "value": "#ec4899",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105"
+      ]
+    },
+    {
+      "value": "#ece4d4",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112"
+      ]
+    },
+    {
+      "value": "#57534e",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:119"
+      ]
+    },
+    {
+      "value": "#9ec5fe",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:14"
+      ]
+    },
+    {
+      "value": "#b197fc",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:15"
+      ]
+    },
+    {
+      "value": "#f7a8c4",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:16"
+      ]
+    },
+    {
+      "value": "#8ce99a",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:17"
+      ]
+    },
+    {
+      "value": "#63e6be",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:18"
+      ]
+    },
+    {
+      "value": "#ffd43b",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:19"
+      ]
+    },
+    {
+      "value": "#66d9e8",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:20"
+      ]
+    },
+    {
+      "value": "#ffc107",
+      "count": 1,
+      "files": [
+        "src/components/OAuthButtons.tsx:15"
+      ]
+    },
+    {
+      "value": "#ff3d00",
+      "count": 1,
+      "files": [
+        "src/components/OAuthButtons.tsx:16"
+      ]
+    },
+    {
+      "value": "#4caf50",
+      "count": 1,
+      "files": [
+        "src/components/OAuthButtons.tsx:17"
+      ]
+    },
+    {
+      "value": "#1976d2",
+      "count": 1,
+      "files": [
+        "src/components/OAuthButtons.tsx:18"
+      ]
+    },
+    {
+      "value": "#9c988e",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:182"
+      ]
+    },
+    {
+      "value": "#e6f1fb",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:453"
+      ]
+    },
+    {
+      "value": "#185fa5",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:453"
+      ]
+    },
+    {
+      "value": "#4c5a41",
+      "count": 1,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:519"
+      ]
+    },
+    {
+      "value": "#111318",
+      "count": 1,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:53"
+      ]
+    },
+    {
+      "value": "#808080",
+      "count": 1,
+      "files": [
+        "src/components/onboarding/FirstSixCapture.tsx:242"
+      ]
+    },
+    {
+      "value": "#e4dccf",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:435"
+      ]
+    },
+    {
+      "value": "#b8ad9c",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:435"
+      ]
+    },
+    {
+      "value": "#d8cebd",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:435"
+      ]
+    },
+    {
+      "value": "#a99f8d",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:435"
+      ]
+    },
+    {
+      "value": "#cfe0c6",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:488"
+      ]
+    }
+  ],
+  "hexData": [
+    {
+      "value": "#a8a29e",
+      "count": 6,
+      "files": [
+        "src/app/api/clip/route.ts:208",
+        "src/app/api/import/accept/route.ts:75",
+        "src/lib/detect-garments.ts:273",
+        "src/lib/smart-buy.ts:84",
+        "src/lib/store.ts:470",
+        "src/lib/supabase/sync.ts:362"
+      ]
+    },
+    {
+      "value": "#eeeeee",
+      "count": 3,
+      "files": [
+        "src/lib/demo-data.ts:111,155",
+        "src/lib/explore.ts:269"
+      ]
+    },
+    {
+      "value": "#6f4a2c",
+      "count": 2,
+      "files": [
+        "src/lib/color.ts:252",
+        "src/lib/demo-data.ts:106"
+      ]
+    },
+    {
+      "value": "#f2f1ec",
+      "count": 2,
+      "files": [
+        "src/lib/demo-data.ts:76,120"
+      ]
+    },
+    {
+      "value": "#c9ad8f",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:219,248"
+      ]
+    },
+    {
+      "value": "#a5603f",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:296,299"
+      ]
+    },
+    {
+      "value": "#8b8b5a",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:312,315"
+      ]
+    },
+    {
+      "value": "#7d5b6f",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:328,331"
+      ]
+    },
+    {
+      "value": "#b08968",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:343,346"
+      ]
+    },
+    {
+      "value": "#4b4f54",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:359,362"
+      ]
+    },
+    {
+      "value": "#e3ddd2",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:375,379"
+      ]
+    },
+    {
+      "value": "#9aa7a0",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:391,394"
+      ]
+    },
+    {
+      "value": "#c2ab84",
+      "count": 2,
+      "files": [
+        "src/lib/explore.ts:423,426"
+      ]
+    },
+    {
+      "value": "#141414",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:250"
+      ]
+    },
+    {
+      "value": "#3f3f46",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:250"
+      ]
+    },
+    {
+      "value": "#8a8a80",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:250"
+      ]
+    },
+    {
+      "value": "#c0c0c4",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:250"
+      ]
+    },
+    {
+      "value": "#f6f6f3",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:251"
+      ]
+    },
+    {
+      "value": "#f2ede1",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:251"
+      ]
+    },
+    {
+      "value": "#efe6d3",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:251"
+      ]
+    },
+    {
+      "value": "#ddd0b8",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:251"
+      ]
+    },
+    {
+      "value": "#c8a678",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:252"
+      ]
+    },
+    {
+      "value": "#b7a475",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:252"
+      ]
+    },
+    {
+      "value": "#6d2836",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:252"
+      ]
+    },
+    {
+      "value": "#b4342c",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:253"
+      ]
+    },
+    {
+      "value": "#e2705c",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:253"
+      ]
+    },
+    {
+      "value": "#d2782f",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:253"
+      ]
+    },
+    {
+      "value": "#f0b79a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:253"
+      ]
+    },
+    {
+      "value": "#d8b234",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:254"
+      ]
+    },
+    {
+      "value": "#c2a14a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:254"
+      ]
+    },
+    {
+      "value": "#5f7a3a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:254"
+      ]
+    },
+    {
+      "value": "#2f8f4a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:254"
+      ]
+    },
+    {
+      "value": "#2f6f6b",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:255"
+      ]
+    },
+    {
+      "value": "#3a5f9a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:255"
+      ]
+    },
+    {
+      "value": "#22314f",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:255"
+      ]
+    },
+    {
+      "value": "#33417a",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:255"
+      ]
+    },
+    {
+      "value": "#6d8bb5",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:256"
+      ]
+    },
+    {
+      "value": "#5f4785",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:256"
+      ]
+    },
+    {
+      "value": "#dd8fa6",
+      "count": 1,
+      "files": [
+        "src/lib/color.ts:256"
+      ]
+    },
+    {
+      "value": "#b8894e",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:81"
+      ]
+    },
+    {
+      "value": "#93b1d4",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:86"
+      ]
+    },
+    {
+      "value": "#8f877a",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:91"
+      ]
+    },
+    {
+      "value": "#c8b393",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:96"
+      ]
+    },
+    {
+      "value": "#1a1a1a",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:101"
+      ]
+    },
+    {
+      "value": "#1f2a44",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:125"
+      ]
+    },
+    {
+      "value": "#8a9199",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:130"
+      ]
+    },
+    {
+      "value": "#6f6a53",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:135"
+      ]
+    },
+    {
+      "value": "#2b3b52",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:140"
+      ]
+    },
+    {
+      "value": "#d9d2c4",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:145"
+      ]
+    },
+    {
+      "value": "#2a2320",
+      "count": 1,
+      "files": [
+        "src/lib/demo-data.ts:150"
+      ]
+    },
+    {
+      "value": "#e7ddc9",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:251"
+      ]
+    },
+    {
+      "value": "#d8c7a6",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:252"
+      ]
+    },
+    {
+      "value": "#8a6b4f",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:253"
+      ]
+    },
+    {
+      "value": "#6b83a3",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:264"
+      ]
+    },
+    {
+      "value": "#5b7396",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:267"
+      ]
+    },
+    {
+      "value": "#4a6079",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:268"
+      ]
+    },
+    {
+      "value": "#6f6a66",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:280"
+      ]
+    },
+    {
+      "value": "#3a3a3c",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:283"
+      ]
+    },
+    {
+      "value": "#33333a",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:284"
+      ]
+    },
+    {
+      "value": "#6f6a5a",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:300"
+      ]
+    },
+    {
+      "value": "#7a5233",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:301"
+      ]
+    },
+    {
+      "value": "#4a4a44",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:316"
+      ]
+    },
+    {
+      "value": "#dcdcdc",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:317"
+      ]
+    },
+    {
+      "value": "#20191c",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:332"
+      ]
+    },
+    {
+      "value": "#5c5148",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:347"
+      ]
+    },
+    {
+      "value": "#3a2a20",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:348"
+      ]
+    },
+    {
+      "value": "#3a3d33",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:363"
+      ]
+    },
+    {
+      "value": "#e8e8e8",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:364"
+      ]
+    },
+    {
+      "value": "#f2efe9",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:378"
+      ]
+    },
+    {
+      "value": "#c9b48a",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:380"
+      ]
+    },
+    {
+      "value": "#5f5a52",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:395"
+      ]
+    },
+    {
+      "value": "#c9b9a5",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:396"
+      ]
+    },
+    {
+      "value": "#3f4a5a",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:407"
+      ]
+    },
+    {
+      "value": "#2f3a4a",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:410"
+      ]
+    },
+    {
+      "value": "#3f5066",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:411"
+      ]
+    },
+    {
+      "value": "#4a3324",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:412"
+      ]
+    },
+    {
+      "value": "#2b2b30",
+      "count": 1,
+      "files": [
+        "src/lib/explore.ts:428"
+      ]
+    },
+    {
+      "value": "#9ca3af",
+      "count": 1,
+      "files": [
+        "src/lib/stylist/narrate.ts:57"
+      ]
+    }
+  ],
+  "hexTokenDuplicates": [
+    {
+      "value": "#ffffff",
+      "count": 8,
+      "files": [
+        "src/app/api/beautify/route.ts:34,133,136,146",
+        "src/components/CanvasBuilderView.tsx:105,112,890",
+        "src/lib/visual-embed-server.ts:83"
+      ]
+    },
+    {
+      "value": "#faf9f7",
+      "count": 7,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112,114,116,117…",
+        "src/app/layout.tsx:40",
+        "src/app/manifest.ts:11"
+      ]
+    },
+    {
+      "value": "#1c1917",
+      "count": 6,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:105,112,119,921",
+        "src/lib/explore.ts:285,427"
+      ]
+    },
+    {
+      "value": "#131211",
+      "count": 1,
+      "files": [
+        "src/app/layout.tsx:41"
+      ]
+    },
+    {
+      "value": "#567a4a",
+      "count": 1,
+      "files": [
+        "src/app/manifest.ts:12"
+      ]
+    },
+    {
+      "value": "#f3f1ed",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:112"
+      ]
+    },
+    {
+      "value": "#e7e4de",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:114"
+      ]
+    }
+  ],
+  "rgba": [
+    {
+      "value": "rgba(239,68,68,0.10)",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1010",
+        "src/components/CanvasPiece.tsx:75"
+      ]
+    },
+    {
+      "value": "rgba(248,113,113,0.6)",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1011",
+        "src/components/CanvasPiece.tsx:76"
+      ]
+    },
+    {
+      "value": "rgba(28, 25, 23, 0.14)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:273"
+      ]
+    },
+    {
+      "value": "rgba(0, 0, 0, 0.22)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:314"
+      ]
+    },
+    {
+      "value": "rgba(0, 0, 0, 0.4)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:334"
+      ]
+    },
+    {
+      "value": "rgba(0, 0, 0, 0.25)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:351"
+      ]
+    },
+    {
+      "value": "rgba(0, 0, 0, 0.55)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:379"
+      ]
+    },
+    {
+      "value": "rgba(239,68,68,0.26)",
+      "count": 1,
+      "files": [
+        "src/components/CanvasPiece.tsx:75"
+      ]
+    },
+    {
+      "value": "rgba(0,0,0,0.30)",
+      "count": 1,
+      "files": [
+        "src/components/CanvasPiece.tsx:158"
+      ]
+    },
+    {
+      "value": "rgba(0,0,0,0.18)",
+      "count": 1,
+      "files": [
+        "src/components/CanvasPiece.tsx:159"
+      ]
+    },
+    {
+      "value": "rgba(0,0,0,.45)",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:1036"
+      ]
+    },
+    {
+      "value": "rgba(194,87,51,.14)",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:240"
+      ]
+    },
+    {
+      "value": "rgba(0,0,0,.18)",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:241"
+      ]
+    },
+    {
+      "value": "rgba(20,19,16,.2)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:300"
+      ]
+    },
+    {
+      "value": "rgba(20,19,16,.86)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:300"
+      ]
+    },
+    {
+      "value": "rgba(86,122,74,.18)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:641"
+      ]
+    },
+    {
+      "value": "rgba(255,255,255,.85)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:643"
+      ]
+    },
+    {
+      "value": "rgba(255,255,255,.5)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:643"
+      ]
+    }
+  ],
+  "paletteClasses": [
+    {
+      "value": "text-white",
+      "count": 48,
+      "files": [
+        "src/components/ItemForm.tsx:897,979,1021,1034",
+        "src/components/landing/FirstLookHero.tsx:46,72,87,127",
+        "src/components/proto/FirstRunJourney.tsx:301,306,396,444",
+        "src/components/BeautifyCompare.tsx:25,30,72",
+        "src/components/BulkImport.tsx:177,233,272",
+        "src/components/CanvasBuilderView.tsx:985,993,1254",
+        "src/components/OutfitSplitImport.tsx:289,345,375",
+        "src/components/explore/ExploreForYouHeader.tsx:478,510,528",
+        "src/components/ImportReviewSheet.tsx:97,111",
+        "src/components/ItemCard.tsx:176,295",
+        "src/components/OutfitDetailView.tsx:196,294",
+        "src/app/how-it-works/page.tsx:6",
+        "src/components/AppShell.tsx:70",
+        "src/components/CalendarView.tsx:420",
+        "src/components/ClosetScanImport.tsx:186",
+        "src/components/DeleteAccountDialog.tsx:113",
+        "src/components/ImportProgress.tsx:114",
+        "src/components/OAuthButtons.tsx:89",
+        "src/components/OutfitsView.tsx:250",
+        "src/components/PhotoLightbox.tsx:31",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/SharedClosetView.tsx:907",
+        "src/components/TryOnPhotoRow.tsx:234",
+        "src/components/explore/TryOnView.tsx:278",
+        "src/components/landing/HowItWorksSection.tsx:26",
+        "src/components/you/LearnedTasteRow.tsx:148"
+      ]
+    },
+    {
+      "value": "text-red-600",
+      "count": 35,
+      "files": [
+        "src/components/AuthModal.tsx:270,355,435",
+        "src/components/TravelView.tsx:635,693,694",
+        "src/components/CanvasBuilderView.tsx:826,872",
+        "src/components/SharedClosetView.tsx:676,711",
+        "src/components/ui.tsx:32,194",
+        "src/components/you/settings-ui.tsx:63,69",
+        "src/app/share/closet/[id]/page.tsx:174",
+        "src/components/DeleteAccountDialog.tsx:61",
+        "src/components/OAuthButtons.tsx:96",
+        "src/components/OutfitDetailView.tsx:426",
+        "src/components/ProfileAvatar.tsx:110",
+        "src/components/ProfileMenu.tsx:114",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/SettingsView.tsx:633",
+        "src/components/SmartBuy.tsx:279",
+        "src/components/TryOnPhotoRow.tsx:244",
+        "src/components/YouView.tsx:441",
+        "src/components/chat/ChatView.tsx:190",
+        "src/components/chat/NewMessageSheet.tsx:175",
+        "src/components/community/CommunityFeed.tsx:334",
+        "src/components/community/CreatePost.tsx:407",
+        "src/components/onboarding/FirstSixCapture.tsx:399",
+        "src/components/onboarding/MorningAsk.tsx:111",
+        "src/components/proto/FirstRunJourney.tsx:412",
+        "src/components/styling/AskToStyleSheet.tsx:193",
+        "src/components/you/AccountPage.tsx:127",
+        "src/components/you/LearnedTasteRow.tsx:158"
+      ]
+    },
+    {
+      "value": "text-red-400",
+      "count": 21,
+      "files": [
+        "src/components/AuthModal.tsx:270,355,435",
+        "src/components/SettingsView.tsx:325,633,690",
+        "src/components/TravelView.tsx:635,693,694",
+        "src/components/ui.tsx:32,194",
+        "src/app/share/closet/[id]/page.tsx:174",
+        "src/components/OAuthButtons.tsx:96",
+        "src/components/ProfileAvatar.tsx:110",
+        "src/components/ProfileMenu.tsx:114",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/SyncBadge.tsx:43",
+        "src/components/chat/ChatView.tsx:190",
+        "src/components/chat/NewMessageSheet.tsx:175",
+        "src/components/stylist/StylistBlocks.tsx:177",
+        "src/components/you/AccountPage.tsx:127"
+      ]
+    },
+    {
+      "value": "bg-red-500/10",
+      "count": 15,
+      "files": [
+        "src/components/AuthModal.tsx:270,355,435",
+        "src/components/DeleteAccountDialog.tsx:61",
+        "src/components/OAuthButtons.tsx:96",
+        "src/components/ProfileAvatar.tsx:110",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/SettingsView.tsx:633",
+        "src/components/SmartBuy.tsx:279",
+        "src/components/SyncBadge.tsx:43",
+        "src/components/TryOnPhotoRow.tsx:244",
+        "src/components/ui.tsx:32",
+        "src/components/you/AccountPage.tsx:127",
+        "src/components/you/LearnedTasteRow.tsx:158",
+        "src/components/you/settings-ui.tsx:63"
+      ]
+    },
+    {
+      "value": "bg-white",
+      "count": 15,
+      "files": [
+        "src/components/BeautifyCompare.tsx:54,79",
+        "src/components/ItemCard.tsx:163,296",
+        "src/components/ItemForm.tsx:994,1661",
+        "src/components/proto/FirstRunJourney.tsx:305,504",
+        "src/components/CalendarView.tsx:426",
+        "src/components/CanvasBuilderView.tsx:1279",
+        "src/components/explore/ExploreForYouHeader.tsx:518",
+        "src/components/landing/FirstLookHero.tsx:72",
+        "src/components/onboarding/FirstLookGame.tsx:251",
+        "src/components/onboarding/FirstOutfit.tsx:136",
+        "src/components/ui.tsx:232"
+      ]
+    },
+    {
+      "value": "text-red-500",
+      "count": 11,
+      "files": [
+        "src/components/HandleField.tsx:106,110",
+        "src/components/ItemCard.tsx:140,194",
+        "src/components/BulkImport.tsx:246",
+        "src/components/CanvasBuilderView.tsx:1015",
+        "src/components/ClosetScanImport.tsx:198",
+        "src/components/DeleteAccountDialog.tsx:98",
+        "src/components/OutfitSplitImport.tsx:306",
+        "src/components/TryOnPhotoRow.tsx:184",
+        "src/components/explore/TryOnView.tsx:317"
+      ]
+    },
+    {
+      "value": "text-amber-600",
+      "count": 11,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:54,192,214",
+        "src/components/ItemForm.tsx:1503",
+        "src/components/SmartBuy.tsx:211",
+        "src/components/explore/TryOnView.tsx:318",
+        "src/components/shop/ShopSearchView.tsx:93",
+        "src/components/styling/StylingSessions.tsx:265",
+        "src/components/ui.tsx:193",
+        "src/components/wishlist/PlanHeader.tsx:149",
+        "src/components/wishlist/ShouldIBuySheet.tsx:293"
+      ]
+    },
+    {
+      "value": "text-emerald-600",
+      "count": 9,
+      "files": [
+        "src/components/HandleField.tsx:104,110",
+        "src/components/shop/ProductFitOverlay.tsx:53,190",
+        "src/components/SettingsView.tsx:592",
+        "src/components/SmartBuy.tsx:205",
+        "src/components/shop/ShopSearchView.tsx:91",
+        "src/components/ui.tsx:191",
+        "src/components/you/AccountPage.tsx:88"
+      ]
+    },
+    {
+      "value": "text-white/70",
+      "count": 8,
+      "files": [
+        "src/components/AppShell.tsx:88,103",
+        "src/components/BeautifyCompare.tsx:49,62",
+        "src/components/explore/ExploreForYouHeader.tsx:484",
+        "src/components/landing/FirstLookHero.tsx:57",
+        "src/components/landing/HowItWorksSection.tsx:35",
+        "src/components/proto/FirstRunJourney.tsx:302"
+      ]
+    },
+    {
+      "value": "shadow-black/10",
+      "count": 8,
+      "files": [
+        "src/components/ItemForm.tsx:939,1009",
+        "src/components/BrandPicker.tsx:77",
+        "src/components/OutfitPreview.tsx:73",
+        "src/components/ProfileMenu.tsx:66",
+        "src/components/chat/ChatView.tsx:179",
+        "src/components/community/CommunityFeed.tsx:330",
+        "src/components/stylist/StylistView.tsx:241"
+      ]
+    },
+    {
+      "value": "text-amber-400",
+      "count": 8,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:54,192,214",
+        "src/components/TodayView.tsx:255",
+        "src/components/TravelView.tsx:948",
+        "src/components/shop/ShopSearchView.tsx:93",
+        "src/components/stylist/StylistBlocks.tsx:176",
+        "src/components/ui.tsx:193"
+      ]
+    },
+    {
+      "value": "text-emerald-400",
+      "count": 7,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:53,190",
+        "src/app/share/closet/[id]/page.tsx:177",
+        "src/components/SettingsView.tsx:592",
+        "src/components/shop/ShopSearchView.tsx:91",
+        "src/components/ui.tsx:191",
+        "src/components/you/AccountPage.tsx:88"
+      ]
+    },
+    {
+      "value": "bg-white/10",
+      "count": 7,
+      "files": [
+        "src/components/BeautifyCompare.tsx:30,72",
+        "src/components/explore/ExploreForYouHeader.tsx:493,501",
+        "src/components/landing/FirstLookHero.tsx:46,64",
+        "src/components/PhotoLightbox.tsx:31"
+      ]
+    },
+    {
+      "value": "text-white/60",
+      "count": 6,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:82,122",
+        "src/components/AppShell.tsx:97",
+        "src/components/BeautifyCompare.tsx:35",
+        "src/components/ItemForm.tsx:1034",
+        "src/components/landing/HowItWorksSection.tsx:48"
+      ]
+    },
+    {
+      "value": "bg-white/20",
+      "count": 6,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:55,56,57",
+        "src/components/BeautifyCompare.tsx:30",
+        "src/components/ItemForm.tsx:1021",
+        "src/components/PhotoLightbox.tsx:31"
+      ]
+    },
+    {
+      "value": "border-red-200",
+      "count": 6,
+      "files": [
+        "src/components/OutfitDetailView.tsx:271,426",
+        "src/components/CanvasBuilderView.tsx:826",
+        "src/components/TryOnPhotoRow.tsx:215",
+        "src/components/styling/AskToStyleSheet.tsx:193",
+        "src/components/you/LearnedTasteRow.tsx:128"
+      ]
+    },
+    {
+      "value": "text-amber-700",
+      "count": 6,
+      "files": [
+        "src/components/SmartBuy.tsx:278",
+        "src/components/TodayView.tsx:255",
+        "src/components/TravelView.tsx:948",
+        "src/components/YouView.tsx:392",
+        "src/components/stylist/StylistBlocks.tsx:176",
+        "src/components/wishlist/AddToWishlistSheet.tsx:281"
+      ]
+    },
+    {
+      "value": "bg-amber-500/10",
+      "count": 5,
+      "files": [
+        "src/components/SettingsView.tsx:488,494",
+        "src/app/extension/connect/page.tsx:115",
+        "src/components/import/EmailImportSheet.tsx:168",
+        "src/components/wishlist/AddToWishlistSheet.tsx:281"
+      ]
+    },
+    {
+      "value": "bg-red-500",
+      "count": 5,
+      "files": [
+        "src/components/OutfitDetailView.tsx:196,294",
+        "src/components/ItemCard.tsx:295",
+        "src/components/TryOnPhotoRow.tsx:234",
+        "src/components/you/LearnedTasteRow.tsx:148"
+      ]
+    },
+    {
+      "value": "bg-amber-500/15",
+      "count": 5,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:54,214",
+        "src/components/SmartBuy.tsx:278",
+        "src/components/stylist/StylistBlocks.tsx:176",
+        "src/components/ui.tsx:193"
+      ]
+    },
+    {
+      "value": "bg-black/30",
+      "count": 4,
+      "files": [
+        "src/components/BulkImport.tsx:232",
+        "src/components/CanvasBuilderView.tsx:1363",
+        "src/components/OutfitSplitImport.tsx:344",
+        "src/components/PhotoDetailView.tsx:276"
+      ]
+    },
+    {
+      "value": "bg-white/15",
+      "count": 4,
+      "files": [
+        "src/components/CalendarView.tsx:386,423",
+        "src/components/explore/ExploreForYouHeader.tsx:510,528"
+      ]
+    },
+    {
+      "value": "bg-white/95",
+      "count": 4,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:855,872,1031,1058"
+      ]
+    },
+    {
+      "value": "bg-amber-500",
+      "count": 4,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,993",
+        "src/components/TravelView.tsx:1001",
+        "src/components/wishlist/PlanHeader.tsx:172"
+      ]
+    },
+    {
+      "value": "bg-black/45",
+      "count": 4,
+      "files": [
+        "src/components/ItemCard.tsx:193",
+        "src/components/ItemForm.tsx:897",
+        "src/components/OnboardingModal.tsx:198",
+        "src/components/SharedClosetView.tsx:907"
+      ]
+    },
+    {
+      "value": "bg-black/40",
+      "count": 4,
+      "files": [
+        "src/components/ItemForm.tsx:979",
+        "src/components/YouView.tsx:450",
+        "src/components/stylist/StylistAttachSheet.tsx:36",
+        "src/components/ui.tsx:100"
+      ]
+    },
+    {
+      "value": "text-red-700",
+      "count": 4,
+      "files": [
+        "src/components/SettingsView.tsx:325,690",
+        "src/components/SyncBadge.tsx:43",
+        "src/components/stylist/StylistBlocks.tsx:177"
+      ]
+    },
+    {
+      "value": "border-red-300/50",
+      "count": 4,
+      "files": [
+        "src/components/TravelView.tsx:633,693,694",
+        "src/components/ui.tsx:32"
+      ]
+    },
+    {
+      "value": "border-amber-500/30",
+      "count": 3,
+      "files": [
+        "src/components/SettingsView.tsx:488,494",
+        "src/app/extension/connect/page.tsx:115"
+      ]
+    },
+    {
+      "value": "bg-white/90",
+      "count": 3,
+      "files": [
+        "src/components/BeautifyCompare.tsx:79",
+        "src/components/ItemCard.tsx:163",
+        "src/components/ItemForm.tsx:994"
+      ]
+    },
+    {
+      "value": "border-white/30",
+      "count": 3,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:510,528",
+        "src/components/CalendarView.tsx:423"
+      ]
+    },
+    {
+      "value": "text-amber-800",
+      "count": 3,
+      "files": [
+        "src/components/SettingsView.tsx:488,494",
+        "src/components/ItemCard.tsx:216"
+      ]
+    },
+    {
+      "value": "border-white/20",
+      "count": 3,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:46,64",
+        "src/components/landing/HowItWorksSection.tsx:44"
+      ]
+    },
+    {
+      "value": "border-white/10",
+      "count": 3,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:53,54,66"
+      ]
+    },
+    {
+      "value": "border-amber-200",
+      "count": 3,
+      "files": [
+        "src/components/styling/StylingSessions.tsx:229",
+        "src/components/wishlist/PlanHeader.tsx:145",
+        "src/components/wishlist/ShouldIBuySheet.tsx:289"
+      ]
+    },
+    {
+      "value": "bg-amber-50/70",
+      "count": 3,
+      "files": [
+        "src/components/styling/StylingSessions.tsx:229",
+        "src/components/wishlist/PlanHeader.tsx:145",
+        "src/components/wishlist/ShouldIBuySheet.tsx:289"
+      ]
+    },
+    {
+      "value": "bg-black/95",
+      "count": 2,
+      "files": [
+        "src/components/BeautifyCompare.tsx:23",
+        "src/components/PhotoLightbox.tsx:25"
+      ]
+    },
+    {
+      "value": "border-white/25",
+      "count": 2,
+      "files": [
+        "src/components/BeautifyCompare.tsx:72",
+        "src/components/proto/FirstRunJourney.tsx:397"
+      ]
+    },
+    {
+      "value": "text-neutral-900",
+      "count": 2,
+      "files": [
+        "src/components/BeautifyCompare.tsx:79",
+        "src/components/landing/FirstLookHero.tsx:72"
+      ]
+    },
+    {
+      "value": "text-white/90",
+      "count": 2,
+      "files": [
+        "src/components/CalendarView.tsx:430",
+        "src/components/landing/FirstLookHero.tsx:59"
+      ]
+    },
+    {
+      "value": "text-amber-700/80",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1098",
+        "src/components/OutfitsView.tsx:265"
+      ]
+    },
+    {
+      "value": "bg-amber-500/90",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1254",
+        "src/components/OutfitsView.tsx:250"
+      ]
+    },
+    {
+      "value": "bg-black/50",
+      "count": 2,
+      "files": [
+        "src/components/DeleteAccountDialog.tsx:49",
+        "src/components/ItemCard.tsx:176"
+      ]
+    },
+    {
+      "value": "text-amber-300",
+      "count": 2,
+      "files": [
+        "src/components/ImportProgress.tsx:81",
+        "src/components/wishlist/AddToWishlistSheet.tsx:281"
+      ]
+    },
+    {
+      "value": "border-amber-400",
+      "count": 2,
+      "files": [
+        "src/components/ImportReviewSheet.tsx:111",
+        "src/components/TravelView.tsx:986"
+      ]
+    },
+    {
+      "value": "fill-red-500",
+      "count": 2,
+      "files": [
+        "src/components/ItemCard.tsx:140,194"
+      ]
+    },
+    {
+      "value": "text-neutral-800",
+      "count": 2,
+      "files": [
+        "src/components/ItemCard.tsx:163,296"
+      ]
+    },
+    {
+      "value": "text-white/50",
+      "count": 2,
+      "files": [
+        "src/components/PhotoLightbox.tsx:61",
+        "src/components/landing/HowItWorksSection.tsx:79"
+      ]
+    },
+    {
+      "value": "border-red-200/60",
+      "count": 2,
+      "files": [
+        "src/components/SettingsView.tsx:323,689"
+      ]
+    },
+    {
+      "value": "bg-red-500/5",
+      "count": 2,
+      "files": [
+        "src/components/SettingsView.tsx:323",
+        "src/components/TravelView.tsx:633"
+      ]
+    },
+    {
+      "value": "border-red-900/40",
+      "count": 2,
+      "files": [
+        "src/components/SettingsView.tsx:323,689"
+      ]
+    },
+    {
+      "value": "text-amber-200",
+      "count": 2,
+      "files": [
+        "src/components/SettingsView.tsx:488,494"
+      ]
+    },
+    {
+      "value": "border-red-300/60",
+      "count": 2,
+      "files": [
+        "src/components/SharedClosetView.tsx:676",
+        "src/components/SyncBadge.tsx:43"
+      ]
+    },
+    {
+      "value": "text-white/80",
+      "count": 2,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:479,501"
+      ]
+    },
+    {
+      "value": "text-white/75",
+      "count": 2,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:72",
+        "src/components/proto/FirstRunJourney.tsx:304"
+      ]
+    },
+    {
+      "value": "bg-emerald-500/15",
+      "count": 2,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:53",
+        "src/components/ui.tsx:191"
+      ]
+    },
+    {
+      "value": "bg-red-500/15",
+      "count": 2,
+      "files": [
+        "src/components/stylist/StylistBlocks.tsx:177",
+        "src/components/ui.tsx:194"
+      ]
+    },
+    {
+      "value": "text-emerald-700",
+      "count": 1,
+      "files": [
+        "src/app/share/closet/[id]/page.tsx:177"
+      ]
+    },
+    {
+      "value": "bg-white/5",
+      "count": 1,
+      "files": [
+        "src/components/BeautifyCompare.tsx:41"
+      ]
+    },
+    {
+      "value": "border-amber-500",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:992"
+      ]
+    },
+    {
+      "value": "border-red-500",
+      "count": 1,
+      "files": [
+        "src/components/DeleteAccountDialog.tsx:95"
+      ]
+    },
+    {
+      "value": "bg-red-600",
+      "count": 1,
+      "files": [
+        "src/components/DeleteAccountDialog.tsx:113"
+      ]
+    },
+    {
+      "value": "shadow-black/25",
+      "count": 1,
+      "files": [
+        "src/components/ImportProgress.tsx:42"
+      ]
+    },
+    {
+      "value": "bg-emerald-500",
+      "count": 1,
+      "files": [
+        "src/components/ImportProgress.tsx:114"
+      ]
+    },
+    {
+      "value": "bg-amber-400",
+      "count": 1,
+      "files": [
+        "src/components/ImportReviewSheet.tsx:111"
+      ]
+    },
+    {
+      "value": "shadow-black/5",
+      "count": 1,
+      "files": [
+        "src/components/ItemCard.tsx:89"
+      ]
+    },
+    {
+      "value": "from-black/50",
+      "count": 1,
+      "files": [
+        "src/components/ItemCard.tsx:112"
+      ]
+    },
+    {
+      "value": "bg-amber-50",
+      "count": 1,
+      "files": [
+        "src/components/ItemCard.tsx:216"
+      ]
+    },
+    {
+      "value": "bg-white/85",
+      "count": 1,
+      "files": [
+        "src/components/ItemCard.tsx:296"
+      ]
+    },
+    {
+      "value": "from-black/75",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:984"
+      ]
+    },
+    {
+      "value": "via-black/25",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:984"
+      ]
+    },
+    {
+      "value": "bg-white/30",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:1021"
+      ]
+    },
+    {
+      "value": "border-black/10",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:1778"
+      ]
+    },
+    {
+      "value": "bg-black",
+      "count": 1,
+      "files": [
+        "src/components/OAuthButtons.tsx:89"
+      ]
+    },
+    {
+      "value": "text-amber-500",
+      "count": 1,
+      "files": [
+        "src/components/OutfitsView.tsx:276"
+      ]
+    },
+    {
+      "value": "border-white",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:234"
+      ]
+    },
+    {
+      "value": "border-emerald-500/30",
+      "count": 1,
+      "files": [
+        "src/components/SettingsView.tsx:499"
+      ]
+    },
+    {
+      "value": "bg-emerald-500/10",
+      "count": 1,
+      "files": [
+        "src/components/SettingsView.tsx:499"
+      ]
+    },
+    {
+      "value": "text-emerald-800",
+      "count": 1,
+      "files": [
+        "src/components/SettingsView.tsx:499"
+      ]
+    },
+    {
+      "value": "text-emerald-200",
+      "count": 1,
+      "files": [
+        "src/components/SettingsView.tsx:499"
+      ]
+    },
+    {
+      "value": "ring-white/90",
+      "count": 1,
+      "files": [
+        "src/components/SharedClosetView.tsx:881"
+      ]
+    },
+    {
+      "value": "bg-black/65",
+      "count": 1,
+      "files": [
+        "src/components/SharedClosetView.tsx:907"
+      ]
+    },
+    {
+      "value": "border-red-900/50",
+      "count": 1,
+      "files": [
+        "src/components/SyncBadge.tsx:43"
+      ]
+    },
+    {
+      "value": "text-emerald-500",
+      "count": 1,
+      "files": [
+        "src/components/SyncBadge.tsx:50"
+      ]
+    },
+    {
+      "value": "border-amber-400/50",
+      "count": 1,
+      "files": [
+        "src/components/TravelView.tsx:945"
+      ]
+    },
+    {
+      "value": "bg-amber-500/5",
+      "count": 1,
+      "files": [
+        "src/components/TravelView.tsx:945"
+      ]
+    },
+    {
+      "value": "ring-amber-400/40",
+      "count": 1,
+      "files": [
+        "src/components/TravelView.tsx:986"
+      ]
+    },
+    {
+      "value": "from-black/55",
+      "count": 1,
+      "files": [
+        "src/components/explore/TryOnView.tsx:277"
+      ]
+    },
+    {
+      "value": "border-amber-300/60",
+      "count": 1,
+      "files": [
+        "src/components/import/EmailImportSheet.tsx:168"
+      ]
+    },
+    {
+      "value": "bg-amber-50/60",
+      "count": 1,
+      "files": [
+        "src/components/import/EmailImportSheet.tsx:168"
+      ]
+    },
+    {
+      "value": "ring-white/10",
+      "count": 1,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:105"
+      ]
+    },
+    {
+      "value": "text-white/40",
+      "count": 1,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:58"
+      ]
+    },
+    {
+      "value": "shadow-black/20",
+      "count": 1,
+      "files": [
+        "src/components/native/NativeShell.tsx:294"
+      ]
+    },
+    {
+      "value": "text-white/55",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:306"
+      ]
+    },
+    {
+      "value": "bg-black/35",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:396"
+      ]
+    },
+    {
+      "value": "text-blue-600",
+      "count": 1,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:133"
+      ]
+    },
+    {
+      "value": "text-blue-400",
+      "count": 1,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:133"
+      ]
+    },
+    {
+      "value": "bg-green-500/15",
+      "count": 1,
+      "files": [
+        "src/components/stylist/StylistBlocks.tsx:175"
+      ]
+    },
+    {
+      "value": "text-green-700",
+      "count": 1,
+      "files": [
+        "src/components/stylist/StylistBlocks.tsx:175"
+      ]
+    },
+    {
+      "value": "text-green-400",
+      "count": 1,
+      "files": [
+        "src/components/stylist/StylistBlocks.tsx:175"
+      ]
+    },
+    {
+      "value": "ring-black/10",
+      "count": 1,
+      "files": [
+        "src/components/ui.tsx:181"
+      ]
+    },
+    {
+      "value": "ring-white/20",
+      "count": 1,
+      "files": [
+        "src/components/ui.tsx:181"
+      ]
+    }
+  ],
+  "fontSizes": [
+    {
+      "value": 9,
+      "count": 5,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,1254",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/SmartBuy.tsx:185",
+        "src/components/WardrobeView.tsx:321"
+      ]
+    },
+    {
+      "value": 9.5,
+      "count": 2,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:578,641"
+      ]
+    },
+    {
+      "value": 10,
+      "count": 23,
+      "files": [
+        "src/components/shop/ShopSearchView.tsx:83,97,157",
+        "src/components/CalendarView.tsx:295,448",
+        "src/components/ItemCard.tsx:176,185",
+        "src/components/SharedClosetView.tsx:811,987",
+        "src/components/TravelView.tsx:669,928",
+        "src/components/explore/ExploreForYouHeader.tsx:561,829",
+        "src/app/share/closet/[id]/page.tsx:148",
+        "src/components/CanvasBuilderView.tsx:993",
+        "src/components/OutfitsView.tsx:250",
+        "src/components/PhotoDetailView.tsx:452",
+        "src/components/ShareClosetSheet.tsx:271",
+        "src/components/chat/ShareCard.tsx:59",
+        "src/components/native/NativeShell.tsx:195",
+        "src/components/profile/ProfileScreen.tsx:119",
+        "src/components/shop/ProductFitOverlay.tsx:209",
+        "src/components/stylist/StylistBlocks.tsx:150"
+      ]
+    },
+    {
+      "value": 10.5,
+      "count": 3,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444,610,631"
+      ]
+    },
+    {
+      "value": 11,
+      "count": 83,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:172,353,479,596…",
+        "src/components/ItemForm.tsx:809,947,1021,1045…",
+        "src/components/proto/FirstRunJourney.tsx:302,366,407,454…",
+        "src/components/stylist/StylistBlocks.tsx:63,68,145,161…",
+        "src/components/CalendarView.tsx:251,286,397,417",
+        "src/components/CanvasBuilderView.tsx:749,785,796,1259",
+        "src/components/PhotoDetailView.tsx:245,336,459,464",
+        "src/components/ItemCard.tsx:214,254,261",
+        "src/components/SharedClosetView.tsx:585,686,1030",
+        "src/components/import/EmailImportSheet.tsx:210,236,243",
+        "src/components/OutfitDetailView.tsx:321,400",
+        "src/components/TravelView.tsx:543,779",
+        "src/components/chat/AttachSheet.tsx:116,137",
+        "src/components/chat/MessagesView.tsx:64,100",
+        "src/components/explore/ResaleView.tsx:47,107",
+        "src/components/explore/TryOnView.tsx:278,460",
+        "src/components/onboarding/FirstLookGame.tsx:240,281",
+        "src/components/shop/ShopSearchView.tsx:43,153",
+        "src/components/InsightsView.tsx:259",
+        "src/components/SettingsView.tsx:301",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/TryOnPhotoRow.tsx:209",
+        "src/components/chat/ChatView.tsx:212",
+        "src/components/community/CommunityFeed.tsx:385",
+        "src/components/community/CreatePost.tsx:347",
+        "src/components/landing/HowItWorksSection.tsx:79",
+        "src/components/native/NativeShell.tsx:299",
+        "src/components/onboarding/FirstOutfit.tsx:125",
+        "src/components/onboarding/FirstSixCapture.tsx:313",
+        "src/components/stylist/StylistAttachSheet.tsx:78",
+        "src/components/ui.tsx:199"
+      ]
+    },
+    {
+      "value": 11.2,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:99"
+      ]
+    },
+    {
+      "value": 11.5,
+      "count": 7,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1141,1171,1188",
+        "src/components/YouView.tsx:311,392",
+        "src/components/onboarding/MorningAsk.tsx:80",
+        "src/components/you/LearnedTasteRow.tsx:120"
+      ]
+    },
+    {
+      "value": 12,
+      "count": 225,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:343,360,422,484…",
+        "src/components/SettingsView.tsx:95,128,280,298…",
+        "src/components/TodayView.tsx:197,214,234,238…",
+        "src/components/community/CreatePost.tsx:90,257,266,350…",
+        "src/components/SmartBuy.tsx:140,149,170,191…",
+        "src/components/ItemForm.tsx:902,921,994,1083…",
+        "src/components/PhotoDetailView.tsx:270,289,316,344…",
+        "src/components/TravelView.tsx:555,674,819,951…",
+        "src/components/community/CommunityFeed.tsx:196,199,308,379…",
+        "src/components/InsightsView.tsx:63,67,71,107…",
+        "src/components/wishlist/PlanHeader.tsx:63,73,119,154…",
+        "src/components/AppShell.tsx:57,82,97,307…",
+        "src/components/OutfitDetailView.tsx:171,181,273,339…",
+        "src/components/SharedClosetView.tsx:597,737,992,1032…",
+        "src/components/explore/TryOnView.tsx:305,317,318,368…",
+        "src/components/import/EmailImportSheet.tsx:144,146,156,172…",
+        "src/components/stylist/StylistBlocks.tsx:76,188,197,223…",
+        "src/components/ItemCard.tsx:94,204,231,241",
+        "src/components/NotificationsView.tsx:152,162,204,211",
+        "src/components/styling/AskToStyleSheet.tsx:130,136,165,184",
+        "src/app/share/closet/[id]/page.tsx:98,115,146",
+        "src/components/AuthModal.tsx:25,264,445",
+        "src/components/BeautifyCompare.tsx:35,49,62",
+        "src/components/CalendarView.tsx:234,355,430",
+        "src/components/CanvasBuilderView.tsx:826,839,1279",
+        "src/components/OnboardingModal.tsx:212,366,452",
+        "src/components/OutfitsView.tsx:158,265,290",
+        "src/components/TryOnPhotoRow.tsx:163,173,217",
+        "src/components/community/ConnectionsPage.tsx:197,218,225",
+        "src/components/explore/ResaleView.tsx:61,92,99",
+        "src/components/landing/HowItWorksSection.tsx:29,58,78",
+        "src/components/shop/ProductFitOverlay.tsx:165,201,214",
+        "src/components/shop/ShopSearchView.tsx:35,281,345",
+        "src/components/ui.tsx:65,138,142",
+        "src/components/you/settings-ui.tsx:21,22,142",
+        "src/app/i/[id]/page.tsx:49,84",
+        "src/components/DeleteAccountDialog.tsx:83,98",
+        "src/components/ProfileAvatar.tsx:124,144",
+        "src/components/ProfileFields.tsx:39,51",
+        "src/components/chat/NewMessageSheet.tsx:120,159",
+        "src/components/native/NativeShell.tsx:267,274",
+        "src/components/profile/ProfileScreen.tsx:95,146",
+        "src/components/proto/FirstRunJourney.tsx:501,541",
+        "src/components/styling/StylingSessions.tsx:183,260",
+        "src/components/stylist/StylistView.tsx:227,291",
+        "src/components/wishlist/AddToWishlistSheet.tsx:226,381",
+        "src/components/you/LearnedTasteRow.tsx:87,130",
+        "src/app/extension/connect/page.tsx:127",
+        "src/app/u/[handle]/page.tsx:55",
+        "src/components/BulkImport.tsx:246",
+        "src/components/ClosetScanImport.tsx:145",
+        "src/components/FindProductSheet.tsx:102",
+        "src/components/HandleField.tsx:110",
+        "src/components/ImportReviewSheet.tsx:90",
+        "src/components/OAuthButtons.tsx:102",
+        "src/components/OutfitSplitImport.tsx:301",
+        "src/components/PhotoLightbox.tsx:61",
+        "src/components/ProfileMenu.tsx:71",
+        "src/components/RediscoverModal.tsx:79",
+        "src/components/ShareClosetSheet.tsx:299",
+        "src/components/WishlistView.tsx:155",
+        "src/components/chat/ChatView.tsx:164",
+        "src/components/explore/TryOnLoading.tsx:85",
+        "src/components/wishlist/ShouldIBuySheet.tsx:299",
+        "src/components/you/AccountPage.tsx:88"
+      ]
+    },
+    {
+      "value": 12.5,
+      "count": 9,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:306,345,370,586…",
+        "src/components/CanvasBuilderView.tsx:1104",
+        "src/components/SharedClosetView.tsx:898",
+        "src/components/WardrobeView.tsx:330",
+        "src/components/onboarding/FirstOutfit.tsx:167"
+      ]
+    },
+    {
+      "value": 13,
+      "count": 21,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:902,906,1095,1203…",
+        "src/components/onboarding/FirstSixCapture.tsx:318,399,406",
+        "src/components/proto/FirstRunJourney.tsx:398,412,489",
+        "src/components/onboarding/MorningAsk.tsx:105,111",
+        "src/components/ItemForm.tsx:1457",
+        "src/components/PhotoDetailView.tsx:253",
+        "src/components/YouView.tsx:55",
+        "src/components/import/EmailImportSheet.tsx:234",
+        "src/components/landing/FirstLookHero.tsx:71",
+        "src/components/onboarding/FirstLookGame.tsx:317",
+        "src/components/you/LearnedTasteRow.tsx:106"
+      ]
+    },
+    {
+      "value": 13.5,
+      "count": 7,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:363,414,459,480…"
+      ]
+    },
+    {
+      "value": 14,
+      "count": 459,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:349,419,430,440…",
+        "src/components/TravelView.tsx:519,534,552,635…",
+        "src/components/community/CommunityFeed.tsx:168,178,213,299…",
+        "src/components/community/CreatePost.tsx:89,217,238,249…",
+        "src/components/OutfitDetailView.tsx:90,94,131,180…",
+        "src/components/SettingsView.tsx:72,94,180,229…",
+        "src/components/SharedClosetView.tsx:576,594,632,642…",
+        "src/components/CalendarView.tsx:229,252,313,315…",
+        "src/components/ShareClosetSheet.tsx:227,228,240,279…",
+        "src/components/TryOnPhotoRow.tsx:162,172,179,184…",
+        "src/app/share/closet/[id]/page.tsx:105,107,121,159…",
+        "src/components/OnboardingModal.tsx:218,254,272,300…",
+        "src/components/explore/TryOnView.tsx:287,293,295,301…",
+        "src/components/shop/ProductFitOverlay.tsx:149,154,156,170…",
+        "src/components/shop/ShopSearchView.tsx:31,48,154,155…",
+        "src/components/AuthModal.tsx:161,197,211,270…",
+        "src/components/CanvasBuilderView.tsx:804,1238,1303,1318…",
+        "src/components/ClosetSheets.tsx:55,66,144,169…",
+        "src/components/InsightsView.tsx:51,74,100,137…",
+        "src/components/OutfitSplitImport.tsx:275,281,289,296…",
+        "src/components/OutfitsView.tsx:91,99,113,120…",
+        "src/components/styling/AskToStyleSheet.tsx:113,121,125,138…",
+        "src/components/ItemForm.tsx:1061,1490,1652,1676…",
+        "src/components/chat/NewMessageSheet.tsx:106,131,140,142…",
+        "src/components/styling/StylingSessions.tsx:133,140,163,179…",
+        "src/components/wishlist/AddToWishlistSheet.tsx:202,238,254,272…",
+        "src/components/you/LearnedTasteRow.tsx:79,99,114,129…",
+        "src/components/BulkImport.tsx:172,177,192,204…",
+        "src/components/SmartBuy.tsx:31,120,126,137…",
+        "src/components/YouView.tsx:251,253,441,453…",
+        "src/components/chat/ChatView.tsx:183,190,204,216…",
+        "src/components/community/ConnectionsPage.tsx:160,173,187,190…",
+        "src/components/wishlist/PlanHeader.tsx:58,70,81,89…",
+        "src/app/extension/connect/page.tsx:102,110,115,122…",
+        "src/components/ClosetScanImport.tsx:137,156,175,186…",
+        "src/components/profile/ProfileScreen.tsx:66,84,93,128…",
+        "src/components/stylist/StylistView.tsx:245,260,274,324…",
+        "src/components/wishlist/ShouldIBuySheet.tsx:143,250,257,264…",
+        "src/components/DeleteAccountDialog.tsx:66,95,105,113",
+        "src/components/FindProductSheet.tsx:68,74,101,106",
+        "src/components/ProfileAvatar.tsx:93,110,123,143",
+        "src/components/RediscoverModal.tsx:50,62,70,111",
+        "src/components/TodayView.tsx:209,233,246,282",
+        "src/components/WishlistView.tsx:123,148,173,197",
+        "src/components/chat/MessagesView.tsx:66,73,81,102",
+        "src/components/chat/ShareToChatSheet.tsx:92,103,107,117",
+        "src/components/explore/ResaleView.tsx:42,54,68,91",
+        "src/components/import/EmailImportSheet.tsx:169,189,264,271",
+        "src/components/stylist/StylistBlocks.tsx:165,166,187,236",
+        "src/app/i/[id]/page.tsx:66,71,79",
+        "src/components/AppShell.tsx:111,300,375",
+        "src/components/BeautifyCompare.tsx:25,72,79",
+        "src/components/NotificationsView.tsx:161,189,201",
+        "src/components/PhotoDetailView.tsx:213,327,467",
+        "src/components/ResetPasswordModal.tsx:52,73,103",
+        "src/components/chat/AttachSheet.tsx:95,128,161",
+        "src/components/landing/FirstLookHero.tsx:46,82,122",
+        "src/components/landing/HowItWorksSection.tsx:44,48,92",
+        "src/components/landing/LandingNav.tsx:6,8,10",
+        "src/components/native/NativeProfileView.tsx:159,166,224",
+        "src/components/native/NativeUserProfileView.tsx:89,118,130",
+        "src/components/styling/StyleSessionView.tsx:278,318,322",
+        "src/components/ui.tsx:40,148,162",
+        "src/app/u/[handle]/page.tsx:61,69",
+        "src/components/BrandPicker.tsx:83,94",
+        "src/components/ImportReviewSheet.tsx:55,60",
+        "src/components/OAuthButtons.tsx:68,96",
+        "src/components/ProfileMenu.tsx:68,113",
+        "src/components/WardrobeView.tsx:148,259",
+        "src/components/stylist/StylistAttachSheet.tsx:56,65",
+        "src/components/you/StyleTastePage.tsx:126,147",
+        "src/components/you/settings-ui.tsx:72,82",
+        "src/app/globals.css:368",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ExploreView.tsx:35",
+        "src/components/HandleField.tsx:98",
+        "src/components/ImportProgress.tsx:42",
+        "src/components/ItemCard.tsx:201",
+        "src/components/OutfitPreview.tsx:30",
+        "src/components/chat/ShareCard.tsx:60",
+        "src/components/native/NativeShell.tsx:282",
+        "src/components/you/AccountPage.tsx:127",
+        "src/components/you/FitSizesPage.tsx:215"
+      ]
+    },
+    {
+      "value": 14.5,
+      "count": 6,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:315,336,514,531…",
+        "src/components/onboarding/FirstSixCapture.tsx:366"
+      ]
+    },
+    {
+      "value": 15,
+      "count": 28,
+      "files": [
+        "src/components/ItemForm.tsx:1248,1261,1306,1325…",
+        "src/components/PhotoDetailView.tsx:266,288,299,315",
+        "src/components/proto/FirstRunJourney.tsx:304,345,594",
+        "src/components/CanvasBuilderView.tsx:782,901",
+        "src/components/YouView.tsx:375,436",
+        "src/components/onboarding/FirstOutfit.tsx:174,186",
+        "src/components/onboarding/MorningAsk.tsx:74,90",
+        "src/components/AppShell.tsx:375",
+        "src/components/landing/FirstLookHero.tsx:57",
+        "src/components/onboarding/FirstLookGame.tsx:244",
+        "src/components/onboarding/FirstSixCapture.tsx:324",
+        "src/components/wishlist/AddToWishlistSheet.tsx:380",
+        "src/components/you/settings-ui.tsx:69"
+      ]
+    },
+    {
+      "value": 15.2,
+      "count": 3,
+      "files": [
+        "src/app/globals.css:391,494,586"
+      ]
+    },
+    {
+      "value": 16,
+      "count": 21,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:305,327,419,421…",
+        "src/components/explore/ExploreForYouHeader.tsx:340,615,699,730…",
+        "src/app/globals.css:418",
+        "src/components/CanvasBuilderView.tsx:1088",
+        "src/components/ClosetSheets.tsx:216",
+        "src/components/explore/ResaleView.tsx:41",
+        "src/components/landing/FirstLookHero.tsx:57"
+      ]
+    },
+    {
+      "value": 16.8,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:501,593"
+      ]
+    },
+    {
+      "value": 18,
+      "count": 40,
+      "files": [
+        "src/components/InsightsView.tsx:62,66,70,129",
+        "src/components/community/CreatePost.tsx:78,211,349",
+        "src/app/i/[id]/page.tsx:52,70",
+        "src/components/CalendarView.tsx:310,353",
+        "src/components/SharedClosetView.tsx:659,752",
+        "src/components/TravelView.tsx:834,1017",
+        "src/components/community/CommunityFeed.tsx:387,545",
+        "src/components/proto/FirstRunJourney.tsx:479,554",
+        "src/app/share/closet/[id]/page.tsx:101",
+        "src/app/u/[handle]/page.tsx:56",
+        "src/components/ClosetSheets.tsx:153",
+        "src/components/DeleteAccountDialog.tsx:65",
+        "src/components/OutfitsView.tsx:112",
+        "src/components/SettingsView.tsx:534",
+        "src/components/ShareClosetSheet.tsx:395",
+        "src/components/SmartBuy.tsx:286",
+        "src/components/YouView.tsx:452",
+        "src/components/chat/AttachSheet.tsx:68",
+        "src/components/chat/NewMessageSheet.tsx:96",
+        "src/components/chat/ShareToChatSheet.tsx:81",
+        "src/components/explore/ExploreForYouHeader.tsx:483",
+        "src/components/explore/ResaleView.tsx:50",
+        "src/components/import/EmailImportSheet.tsx:135",
+        "src/components/landing/HowItWorksSection.tsx:47",
+        "src/components/profile/ProfileScreen.tsx:145",
+        "src/components/styling/StyleSessionView.tsx:317",
+        "src/components/wishlist/PlanHeader.tsx:150",
+        "src/components/you/AppRegionPage.tsx:87",
+        "src/components/you/settings-ui.tsx:103"
+      ]
+    },
+    {
+      "value": 19,
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:362"
+      ]
+    },
+    {
+      "value": 20,
+      "count": 15,
+      "files": [
+        "src/components/wishlist/AddToWishlistSheet.tsx:201,237,279",
+        "src/components/ui.tsx:112,161",
+        "src/components/CanvasBuilderView.tsx:1365",
+        "src/components/OnboardingModal.tsx:369",
+        "src/components/ShareClosetSheet.tsx:208",
+        "src/components/landing/LandingNav.tsx:30",
+        "src/components/native/NativeShell.tsx:175",
+        "src/components/profile/ProfileScreen.tsx:83",
+        "src/components/shop/ProductFitOverlay.tsx:167",
+        "src/components/styling/AskToStyleSheet.tsx:112",
+        "src/components/wishlist/PlanHeader.tsx:55",
+        "src/components/wishlist/ShouldIBuySheet.tsx:142"
+      ]
+    },
+    {
+      "value": 21,
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:1033"
+      ]
+    },
+    {
+      "value": 22,
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:593,623"
+      ]
+    },
+    {
+      "value": 24,
+      "count": 24,
+      "files": [
+        "src/components/OnboardingModal.tsx:251,269,297,319…",
+        "src/components/InsightsView.tsx:50,271",
+        "src/components/TodayView.tsx:204,245",
+        "src/app/extension/connect/page.tsx:109",
+        "src/app/share/closet/[id]/page.tsx:120",
+        "src/components/ExploreView.tsx:33",
+        "src/components/OutfitDetailView.tsx:208",
+        "src/components/ProfileAvatar.tsx:84",
+        "src/components/SettingsView.tsx:71",
+        "src/components/TravelView.tsx:518",
+        "src/components/WishlistView.tsx:122",
+        "src/components/onboarding/FirstLookGame.tsx:243",
+        "src/components/onboarding/FirstOutfit.tsx:126",
+        "src/components/onboarding/FirstSixCapture.tsx:323",
+        "src/components/onboarding/MorningAsk.tsx:73",
+        "src/components/proto/FirstRunJourney.tsx:584",
+        "src/components/wishlist/PlanHeader.tsx:161"
+      ]
+    },
+    {
+      "value": 25,
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:314,335"
+      ]
+    },
+    {
+      "value": 26,
+      "count": 1,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:54"
+      ]
+    },
+    {
+      "value": 28,
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:361"
+      ]
+    },
+    {
+      "value": 30,
+      "count": 10,
+      "files": [
+        "src/components/AppShell.tsx:56,85,100",
+        "src/components/TodayView.tsx:204,245",
+        "src/components/CanvasBuilderView.tsx:1350",
+        "src/components/InsightsView.tsx:50",
+        "src/components/SettingsView.tsx:71",
+        "src/components/landing/HowItWorksSection.tsx:32",
+        "src/components/shop/ProductFitOverlay.tsx:188"
+      ]
+    },
+    {
+      "value": 34,
+      "count": 2,
+      "files": [
+        "src/components/InsightsView.tsx:250",
+        "src/components/proto/FirstRunJourney.tsx:303"
+      ]
+    },
+    {
+      "value": 36,
+      "count": 1,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:54"
+      ]
+    },
+    {
+      "value": 48,
+      "count": 4,
+      "files": [
+        "src/components/AppShell.tsx:85,100",
+        "src/components/landing/FirstLookHero.tsx:54",
+        "src/components/landing/HowItWorksSection.tsx:32"
+      ]
+    }
+  ],
+  "arbitraryFontSizes": [
+    {
+      "value": "11px",
+      "count": 82,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:172,353,479,596…",
+        "src/components/ItemForm.tsx:809,947,1021,1045…",
+        "src/components/proto/FirstRunJourney.tsx:302,366,407,454…",
+        "src/components/stylist/StylistBlocks.tsx:63,68,145,161…",
+        "src/components/CalendarView.tsx:251,286,397,417",
+        "src/components/CanvasBuilderView.tsx:749,785,796,1259",
+        "src/components/PhotoDetailView.tsx:245,336,459,464",
+        "src/components/ItemCard.tsx:214,254,261",
+        "src/components/SharedClosetView.tsx:585,686,1030",
+        "src/components/import/EmailImportSheet.tsx:210,236,243",
+        "src/components/OutfitDetailView.tsx:321,400",
+        "src/components/TravelView.tsx:543,779",
+        "src/components/chat/AttachSheet.tsx:116,137",
+        "src/components/chat/MessagesView.tsx:64,100",
+        "src/components/explore/ResaleView.tsx:47,107",
+        "src/components/explore/TryOnView.tsx:278,460",
+        "src/components/onboarding/FirstLookGame.tsx:240,281",
+        "src/components/shop/ShopSearchView.tsx:43,153",
+        "src/components/SettingsView.tsx:301",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/TryOnPhotoRow.tsx:209",
+        "src/components/chat/ChatView.tsx:212",
+        "src/components/community/CommunityFeed.tsx:385",
+        "src/components/community/CreatePost.tsx:347",
+        "src/components/landing/HowItWorksSection.tsx:79",
+        "src/components/native/NativeShell.tsx:299",
+        "src/components/onboarding/FirstOutfit.tsx:125",
+        "src/components/onboarding/FirstSixCapture.tsx:313",
+        "src/components/stylist/StylistAttachSheet.tsx:78",
+        "src/components/ui.tsx:199"
+      ]
+    },
+    {
+      "value": "15px",
+      "count": 28,
+      "files": [
+        "src/components/ItemForm.tsx:1248,1261,1306,1325…",
+        "src/components/PhotoDetailView.tsx:266,288,299,315",
+        "src/components/proto/FirstRunJourney.tsx:304,345,594",
+        "src/components/CanvasBuilderView.tsx:782,901",
+        "src/components/YouView.tsx:375,436",
+        "src/components/onboarding/FirstOutfit.tsx:174,186",
+        "src/components/onboarding/MorningAsk.tsx:74,90",
+        "src/components/AppShell.tsx:375",
+        "src/components/landing/FirstLookHero.tsx:57",
+        "src/components/onboarding/FirstLookGame.tsx:244",
+        "src/components/onboarding/FirstSixCapture.tsx:324",
+        "src/components/wishlist/AddToWishlistSheet.tsx:380",
+        "src/components/you/settings-ui.tsx:69"
+      ]
+    },
+    {
+      "value": "10px",
+      "count": 23,
+      "files": [
+        "src/components/shop/ShopSearchView.tsx:83,97,157",
+        "src/components/CalendarView.tsx:295,448",
+        "src/components/ItemCard.tsx:176,185",
+        "src/components/SharedClosetView.tsx:811,987",
+        "src/components/TravelView.tsx:669,928",
+        "src/components/explore/ExploreForYouHeader.tsx:561,829",
+        "src/app/share/closet/[id]/page.tsx:148",
+        "src/components/CanvasBuilderView.tsx:993",
+        "src/components/OutfitsView.tsx:250",
+        "src/components/PhotoDetailView.tsx:452",
+        "src/components/ShareClosetSheet.tsx:271",
+        "src/components/chat/ShareCard.tsx:59",
+        "src/components/native/NativeShell.tsx:195",
+        "src/components/profile/ProfileScreen.tsx:119",
+        "src/components/shop/ProductFitOverlay.tsx:209",
+        "src/components/stylist/StylistBlocks.tsx:150"
+      ]
+    },
+    {
+      "value": "13px",
+      "count": 21,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:902,906,1095,1203…",
+        "src/components/onboarding/FirstSixCapture.tsx:318,399,406",
+        "src/components/proto/FirstRunJourney.tsx:398,412,489",
+        "src/components/onboarding/MorningAsk.tsx:105,111",
+        "src/components/ItemForm.tsx:1457",
+        "src/components/PhotoDetailView.tsx:253",
+        "src/components/YouView.tsx:55",
+        "src/components/import/EmailImportSheet.tsx:234",
+        "src/components/landing/FirstLookHero.tsx:71",
+        "src/components/onboarding/FirstLookGame.tsx:317",
+        "src/components/you/LearnedTasteRow.tsx:106"
+      ]
+    },
+    {
+      "value": "12px",
+      "count": 12,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:826,839",
+        "src/components/TryOnPhotoRow.tsx:163,173",
+        "src/components/explore/ExploreForYouHeader.tsx:565,824",
+        "src/components/proto/FirstRunJourney.tsx:501,541",
+        "src/components/PhotoDetailView.tsx:465",
+        "src/components/explore/TryOnLoading.tsx:85",
+        "src/components/explore/TryOnView.tsx:305",
+        "src/components/import/EmailImportSheet.tsx:146"
+      ]
+    },
+    {
+      "value": "12.5px",
+      "count": 9,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:306,345,370,586…",
+        "src/components/CanvasBuilderView.tsx:1104",
+        "src/components/SharedClosetView.tsx:898",
+        "src/components/WardrobeView.tsx:330",
+        "src/components/onboarding/FirstOutfit.tsx:167"
+      ]
+    },
+    {
+      "value": "16px",
+      "count": 9,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:305,327,419,421…"
+      ]
+    },
+    {
+      "value": "11.5px",
+      "count": 7,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1141,1171,1188",
+        "src/components/YouView.tsx:311,392",
+        "src/components/onboarding/MorningAsk.tsx:80",
+        "src/components/you/LearnedTasteRow.tsx:120"
+      ]
+    },
+    {
+      "value": "13.5px",
+      "count": 7,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:363,414,459,480…"
+      ]
+    },
+    {
+      "value": "14.5px",
+      "count": 6,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:315,336,514,531…",
+        "src/components/onboarding/FirstSixCapture.tsx:366"
+      ]
+    },
+    {
+      "value": "9px",
+      "count": 5,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,1254",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/SmartBuy.tsx:185",
+        "src/components/WardrobeView.tsx:321"
+      ]
+    },
+    {
+      "value": "10.5px",
+      "count": 3,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444,610,631"
+      ]
+    },
+    {
+      "value": "9.5px",
+      "count": 2,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:578,641"
+      ]
+    },
+    {
+      "value": "25px",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:314,335"
+      ]
+    },
+    {
+      "value": "18px",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:479,554"
+      ]
+    },
+    {
+      "value": "22px",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:593,623"
+      ]
+    },
+    {
+      "value": "style fontSize 34px",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:250"
+      ]
+    },
+    {
+      "value": "style fontSize 11px",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:259"
+      ]
+    },
+    {
+      "value": "21px",
+      "count": 1,
+      "files": [
+        "src/components/ItemForm.tsx:1033"
+      ]
+    },
+    {
+      "value": "14px",
+      "count": 1,
+      "files": [
+        "src/components/PhotoDetailView.tsx:467"
+      ]
+    },
+    {
+      "value": "26px",
+      "count": 1,
+      "files": [
+        "src/components/landing/FirstLookHero.tsx:54"
+      ]
+    },
+    {
+      "value": "style fontSize 1.25rem",
+      "count": 1,
+      "files": [
+        "src/components/landing/LandingNav.tsx:30"
+      ]
+    },
+    {
+      "value": "34px",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:303"
+      ]
+    },
+    {
+      "value": "28px",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:361"
+      ]
+    },
+    {
+      "value": "19px",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:362"
+      ]
+    },
+    {
+      "value": "24px",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:584"
+      ]
+    }
+  ],
+  "spacing": [
+    {
+      "value": -5.6,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:492,584"
+      ]
+    },
+    {
+      "value": 0,
+      "count": 65,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:768,897,985,985…",
+        "src/components/PhotoDetailView.tsx:245,275,276,278…",
+        "src/components/ItemForm.tsx:968,984,1009,1017",
+        "src/components/community/CommunityFeed.tsx:329,330,367,370",
+        "src/components/proto/FirstRunJourney.tsx:297,300,301,396",
+        "src/components/chat/ChatView.tsx:150,178,179",
+        "src/components/explore/TryOnLoading.tsx:63,65,84",
+        "src/components/stylist/StylistView.tsx:211,240,241",
+        "src/app/globals.css:281,626",
+        "src/components/CanvasPiece.tsx:143,143",
+        "src/components/OnboardingModal.tsx:198,198",
+        "src/components/VideoPanel.tsx:70,75",
+        "src/components/explore/TryOnView.tsx:277,283",
+        "src/components/ui.tsx:100,100",
+        "src/components/AppShell.tsx:272",
+        "src/components/AuthModal.tsx:190",
+        "src/components/BeautifyCompare.tsx:23",
+        "src/components/BulkImport.tsx:232",
+        "src/components/ClosetSheets.tsx:183",
+        "src/components/DeleteAccountDialog.tsx:49",
+        "src/components/ItemCard.tsx:112",
+        "src/components/OutfitPreview.tsx:52",
+        "src/components/OutfitSplitImport.tsx:344",
+        "src/components/PhotoLightbox.tsx:25",
+        "src/components/ProfileMenu.tsx:66",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/WishlistView.tsx:119",
+        "src/components/YouView.tsx:450",
+        "src/components/landing/FirstLookHero.tsx:57",
+        "src/components/landing/LandingNav.tsx:26",
+        "src/components/onboarding/FirstLookGame.tsx:260",
+        "src/components/shop/ProductFitOverlay.tsx:139",
+        "src/components/stylist/StylistAttachSheet.tsx:36"
+      ]
+    },
+    {
+      "value": 1,
+      "count": 10,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,1219,1242,1254",
+        "src/components/SharedClosetView.tsx:771,849",
+        "src/components/ExploreView.tsx:41",
+        "src/components/TravelView.tsx:888",
+        "src/components/chat/AttachSheet.tsx:110",
+        "src/components/chat/ShareCard.tsx:47"
+      ]
+    },
+    {
+      "value": 1.6,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:490,582"
+      ]
+    },
+    {
+      "value": 2,
+      "count": 93,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:422,484,561,578…",
+        "src/components/SettingsView.tsx:298,310,328,435…",
+        "src/components/TravelView.tsx:669,674,839,928…",
+        "src/components/proto/FirstRunJourney.tsx:345,444,541,584…",
+        "src/components/PhotoDetailView.tsx:245,452,459,466",
+        "src/components/wishlist/AddToWishlistSheet.tsx:202,225,238,381",
+        "src/components/CanvasBuilderView.tsx:744,993,1048",
+        "src/components/ItemCard.tsx:176,185,254",
+        "src/components/OutfitDetailView.tsx:131,156,211",
+        "src/components/OutfitsView.tsx:250,265,275",
+        "src/components/SharedClosetView.tsx:811,987,992",
+        "src/components/SmartBuy.tsx:185,185,286",
+        "src/components/TodayView.tsx:200,237,307",
+        "src/components/shop/ShopSearchView.tsx:83,97,157",
+        "src/components/NotificationsView.tsx:197,197",
+        "src/components/TryOnPhotoRow.tsx:163,173",
+        "src/components/community/CreatePost.tsx:388,388",
+        "src/components/native/NativeShell.tsx:299,299",
+        "src/components/stylist/StylistBlocks.tsx:63,189",
+        "src/components/wishlist/ShouldIBuySheet.tsx:293,299",
+        "src/components/AppShell.tsx:296",
+        "src/components/ClosetSheets.tsx:47",
+        "src/components/FindProductSheet.tsx:102",
+        "src/components/ImportReviewSheet.tsx:63",
+        "src/components/InsightsView.tsx:271",
+        "src/components/ItemForm.tsx:1656",
+        "src/components/OnboardingModal.tsx:452",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/ShareClosetSheet.tsx:228",
+        "src/components/WardrobeView.tsx:321",
+        "src/components/chat/ChatView.tsx:212",
+        "src/components/community/CommunityFeed.tsx:392",
+        "src/components/explore/ResaleView.tsx:54",
+        "src/components/explore/TryOnView.tsx:406",
+        "src/components/landing/FirstLookHero.tsx:64",
+        "src/components/onboarding/FirstLookGame.tsx:327",
+        "src/components/profile/ProfileScreen.tsx:113",
+        "src/components/styling/AskToStyleSheet.tsx:185",
+        "src/components/styling/StylingSessions.tsx:260",
+        "src/components/ui.tsx:199",
+        "src/components/you/LearnedTasteRow.tsx:178"
+      ]
+    },
+    {
+      "value": 3,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:281"
+      ]
+    },
+    {
+      "value": 3.2,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:105"
+      ]
+    },
+    {
+      "value": 4,
+      "count": 306,
+      "files": [
+        "src/components/ItemForm.tsx:841,939,939,1009…",
+        "src/components/explore/ExploreForYouHeader.tsx:343,449,449,455…",
+        "src/components/CanvasBuilderView.tsx:826,839,857,881…",
+        "src/components/community/CommunityFeed.tsx:308,323,330,371…",
+        "src/components/CalendarView.tsx:225,255,295,309…",
+        "src/components/SharedClosetView.tsx:632,632,762,811…",
+        "src/components/community/CreatePost.tsx:223,266,270,349…",
+        "src/components/native/NativeShell.tsx:195,267,267,267…",
+        "src/components/profile/ProfileScreen.tsx:73,73,76,87…",
+        "src/components/proto/FirstRunJourney.tsx:341,364,366,403…",
+        "src/components/styling/AskToStyleSheet.tsx:112,113,113,130…",
+        "src/components/wishlist/PlanHeader.tsx:55,58,58,63…",
+        "src/components/OutfitDetailView.tsx:127,181,273,303…",
+        "src/components/TravelView.tsx:519,843,852,879…",
+        "src/components/chat/AttachSheet.tsx:62,64,72,78…",
+        "src/components/shop/ShopSearchView.tsx:42,83,97,152…",
+        "src/components/NotificationsView.tsx:170,170,204,211…",
+        "src/components/community/ConnectionsPage.tsx:167,185,197,209…",
+        "src/components/import/EmailImportSheet.tsx:136,156,172,233…",
+        "src/components/shop/ProductFitOverlay.tsx:168,201,205,205…",
+        "src/components/PhotoDetailView.tsx:266,336,452,459",
+        "src/components/WardrobeView.tsx:142,328,328,328",
+        "src/components/chat/NewMessageSheet.tsx:97,120,138,151",
+        "src/components/stylist/StylistView.tsx:241,268,291,291",
+        "src/components/you/FitSizesPage.tsx:96,124,202,215",
+        "src/components/you/LearnedTasteRow.tsx:75,87,120,130",
+        "src/components/you/settings-ui.tsx:20,104,127,142",
+        "src/components/BulkImport.tsx:172,177,216",
+        "src/components/ClosetScanImport.tsx:137,156,175",
+        "src/components/ImportProgress.tsx:39,75,79",
+        "src/components/InsightsView.tsx:51,178,192",
+        "src/components/ItemCard.tsx:199,214,254",
+        "src/components/ShareClosetSheet.tsx:204,271,333",
+        "src/components/WishlistView.tsx:123,139,197",
+        "src/components/chat/ShareToChatSheet.tsx:82,98,114",
+        "src/components/onboarding/FirstLookGame.tsx:317,327,361",
+        "src/components/onboarding/FirstOutfit.tsx:172,197,202",
+        "src/components/stylist/StylistBlocks.tsx:150,189,195",
+        "src/components/ui.tsx:65,142,199",
+        "src/components/wishlist/AddToWishlistSheet.tsx:340,393,393",
+        "src/components/wishlist/ShouldIBuySheet.tsx:142,143,143",
+        "src/app/globals.css:358,390",
+        "src/app/share/closet/[id]/page.tsx:120,199",
+        "src/components/BeautifyCompare.tsx:24,68",
+        "src/components/DeleteAccountDialog.tsx:66,77",
+        "src/components/OutfitSplitImport.tsx:281,332",
+        "src/components/OutfitsView.tsx:130,141",
+        "src/components/ProfileFields.tsx:39,51",
+        "src/components/ProfileMenu.tsx:73,87",
+        "src/components/SettingsView.tsx:72,80",
+        "src/components/SyncBadge.tsx:41,41",
+        "src/components/TodayView.tsx:238,246",
+        "src/components/TryOnPhotoRow.tsx:147,217",
+        "src/components/chat/ChatView.tsx:179,212",
+        "src/components/chat/MessagesView.tsx:88,94",
+        "src/components/explore/ResaleView.tsx:42,50",
+        "src/app/i/[id]/page.tsx:69",
+        "src/components/BrandPicker.tsx:77",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/FindProductSheet.tsx:106",
+        "src/components/OAuthButtons.tsx:102",
+        "src/components/OutfitPreview.tsx:58",
+        "src/components/RediscoverModal.tsx:85",
+        "src/components/SmartBuy.tsx:149",
+        "src/components/YouView.tsx:453",
+        "src/components/explore/TryOnLoading.tsx:69",
+        "src/components/explore/TryOnView.tsx:413",
+        "src/components/onboarding/FirstSixCapture.tsx:388",
+        "src/components/onboarding/MorningAsk.tsx:121",
+        "src/components/you/AccountPage.tsx:83",
+        "src/components/you/StyleTastePage.tsx:147"
+      ]
+    },
+    {
+      "value": 5,
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:501,586"
+      ]
+    },
+    {
+      "value": 5.6,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:493,585"
+      ]
+    },
+    {
+      "value": 6,
+      "count": 206,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:172,349,419,430…",
+        "src/components/ItemForm.tsx:897,921,979,994…",
+        "src/components/CalendarView.tsx:234,234,252,355…",
+        "src/components/CanvasBuilderView.tsx:796,906,985,993…",
+        "src/components/SharedClosetView.tsx:703,703,711,711…",
+        "src/components/proto/FirstRunJourney.tsx:284,364,370,405…",
+        "src/components/PhotoDetailView.tsx:344,452,452,452…",
+        "src/components/community/CreatePost.tsx:217,257,258,367…",
+        "src/components/BulkImport.tsx:177,194,198,238…",
+        "src/components/OutfitSplitImport.tsx:289,296,322,350…",
+        "src/components/community/CommunityFeed.tsx:159,159,379,386…",
+        "src/components/stylist/StylistBlocks.tsx:72,76,164,203…",
+        "src/components/ItemCard.tsx:163,193,214,224…",
+        "src/components/OutfitsView.tsx:113,150,256,282…",
+        "src/components/explore/TryOnView.tsx:349,361,406,429…",
+        "src/components/YouView.tsx:253,320,338,351",
+        "src/components/import/EmailImportSheet.tsx:145,146,169,180",
+        "src/components/native/NativeShell.tsx:164,170,195,195",
+        "src/components/wishlist/ShouldIBuySheet.tsx:167,197,199,264",
+        "src/components/OutfitDetailView.tsx:131,171,306",
+        "src/components/TodayView.tsx:315,322,329",
+        "src/components/TravelView.tsx:793,793,928",
+        "src/components/WardrobeView.tsx:321,321,321",
+        "src/components/shop/ShopSearchView.tsx:48,152,298",
+        "src/components/AppShell.tsx:307,318",
+        "src/components/ClosetScanImport.tsx:162,186",
+        "src/components/HandleField.tsx:84,110",
+        "src/components/ImportProgress.tsx:75,75",
+        "src/components/ImportReviewSheet.tsx:86,89",
+        "src/components/RediscoverModal.tsx:50,62",
+        "src/components/ShareClosetSheet.tsx:226,271",
+        "src/components/TryOnPhotoRow.tsx:191,200",
+        "src/components/explore/ResaleView.tsx:47,99",
+        "src/components/landing/FirstLookHero.tsx:46,71",
+        "src/components/native/NativeUserProfileView.tsx:118,130",
+        "src/components/onboarding/FirstLookGame.tsx:305,338",
+        "src/components/ui.tsx:40,138",
+        "src/components/you/StyleTastePage.tsx:126,126",
+        "src/components/DeleteAccountDialog.tsx:95",
+        "src/components/WishlistView.tsx:148",
+        "src/components/chat/NewMessageSheet.tsx:120",
+        "src/components/native/NativeProfileView.tsx:166",
+        "src/components/profile/ProfileScreen.tsx:168",
+        "src/components/shop/ProductFitOverlay.tsx:214",
+        "src/components/styling/AskToStyleSheet.tsx:152",
+        "src/components/styling/StyleSessionView.tsx:318",
+        "src/components/styling/StylingSessions.tsx:192",
+        "src/components/stylist/StylistAttachSheet.tsx:78",
+        "src/components/stylist/StylistView.tsx:291",
+        "src/components/wishlist/PlanHeader.tsx:160",
+        "src/components/you/LearnedTasteRow.tsx:86",
+        "src/components/you/settings-ui.tsx:18"
+      ]
+    },
+    {
+      "value": 6.4,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:493,585"
+      ]
+    },
+    {
+      "value": 7,
+      "count": 3,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444,610",
+        "src/components/onboarding/FirstLookGame.tsx:327"
+      ]
+    },
+    {
+      "value": 8,
+      "count": 486,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:340,349,360,426…",
+        "src/components/ItemForm.tsx:897,897,921,939…",
+        "src/components/stylist/StylistBlocks.tsx:59,63,68,72…",
+        "src/components/ItemCard.tsx:112,163,163,170…",
+        "src/components/SharedClosetView.tsx:584,601,656,689…",
+        "src/components/import/EmailImportSheet.tsx:134,145,146,180…",
+        "src/components/proto/FirstRunJourney.tsx:303,315,336,403…",
+        "src/components/shop/ShopSearchView.tsx:31,40,48,83…",
+        "src/components/OutfitDetailView.tsx:94,127,131,155…",
+        "src/components/TravelView.tsx:542,560,638,669…",
+        "src/components/community/CreatePost.tsx:78,212,231,290…",
+        "src/components/CanvasBuilderView.tsx:781,826,833,857…",
+        "src/components/stylist/StylistView.tsx:213,213,213,260…",
+        "src/components/OutfitsView.tsx:91,99,99,120…",
+        "src/components/SettingsView.tsx:174,240,488,494…",
+        "src/components/TodayView.tsx:218,246,255,260…",
+        "src/components/community/CommunityFeed.tsx:213,334,346,348…",
+        "src/components/shop/ProductFitOverlay.tsx:140,140,140,186…",
+        "src/components/InsightsView.tsx:100,127,137,154…",
+        "src/components/SmartBuy.tsx:31,155,170,174…",
+        "src/components/OnboardingModal.tsx:276,303,325,346…",
+        "src/components/chat/ChatView.tsx:152,152,152,202…",
+        "src/components/explore/ResaleView.tsx:41,61,62,68…",
+        "src/app/globals.css:247,274,352,358…",
+        "src/components/CalendarView.tsx:317,368,384,397…",
+        "src/components/ImportReviewSheet.tsx:89,95,95,109…",
+        "src/components/PhotoDetailView.tsx:245,258,299,310…",
+        "src/components/ProfileAvatar.tsx:92,93,110,122…",
+        "src/components/onboarding/FirstSixCapture.tsx:323,324,375,399…",
+        "src/components/styling/AskToStyleSheet.tsx:143,152,184,193…",
+        "src/components/stylist/StylistAttachSheet.tsx:41,53,53,67…",
+        "src/components/you/StyleTastePage.tsx:74,84,94,104…",
+        "src/components/ImportProgress.tsx:48,48,79,111…",
+        "src/components/RediscoverModal.tsx:78,78,85,111…",
+        "src/components/TryOnPhotoRow.tsx:162,172,186,209…",
+        "src/components/chat/NewMessageSheet.tsx:95,102,114,151…",
+        "src/app/share/closet/[id]/page.tsx:121,145,145,191",
+        "src/components/ClosetSheets.tsx:144,151,158,168",
+        "src/components/OutfitSplitImport.tsx:285,289,296,389",
+        "src/components/ShareClosetSheet.tsx:204,251,303,396",
+        "src/components/YouView.tsx:55,434,467,477",
+        "src/components/chat/AttachSheet.tsx:61,97,130,161",
+        "src/components/community/ConnectionsPage.tsx:156,173,173,209",
+        "src/components/explore/TryOnView.tsx:283,324,344,460",
+        "src/components/landing/HowItWorksSection.tsx:48,54,58,77",
+        "src/components/styling/StylingSessions.tsx:128,140,187,206",
+        "src/components/ui.tsx:40,116,163,199",
+        "src/components/wishlist/AddToWishlistSheet.tsx:241,281,281,393",
+        "src/components/wishlist/ShouldIBuySheet.tsx:149,167,197,246",
+        "src/components/AppShell.tsx:55,288,296",
+        "src/components/AuthModal.tsx:270,355,435",
+        "src/components/BrandPicker.tsx:83,83,94",
+        "src/components/DeleteAccountDialog.tsx:98,100,113",
+        "src/components/WardrobeView.tsx:141,148,195",
+        "src/components/chat/MessagesView.tsx:62,73,98",
+        "src/components/native/NativeProfileView.tsx:159,166,224",
+        "src/components/onboarding/FirstLookGame.tsx:243,244,356",
+        "src/components/onboarding/FirstOutfit.tsx:126,167,172",
+        "src/components/profile/ProfileScreen.tsx:100,117,143",
+        "src/components/wishlist/PlanHeader.tsx:84,148,160",
+        "src/components/you/AccountPage.tsx:83,127,131",
+        "src/components/BeautifyCompare.tsx:40,53",
+        "src/components/BulkImport.tsx:177,286",
+        "src/components/ClosetScanImport.tsx:160,186",
+        "src/components/PhotoLightbox.tsx:26,61",
+        "src/components/ProfileMenu.tsx:66,113",
+        "src/components/WishlistView.tsx:139,197",
+        "src/components/native/NativeUserProfileView.tsx:118,130",
+        "src/components/onboarding/MorningAsk.tsx:74,83",
+        "src/components/you/FitSizesPage.tsx:96,124",
+        "src/components/you/LearnedTasteRow.tsx:95,134",
+        "src/app/extension/connect/page.tsx:115",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ExploreView.tsx:41",
+        "src/components/OAuthButtons.tsx:96",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/chat/ShareCard.tsx:58",
+        "src/components/landing/FirstLookHero.tsx:46",
+        "src/components/landing/LandingNav.tsx:10",
+        "src/components/native/NativeShell.tsx:282",
+        "src/components/styling/StyleSessionView.tsx:322",
+        "src/components/you/settings-ui.tsx:102"
+      ]
+    },
+    {
+      "value": 8.8,
+      "count": 2,
+      "files": [
+        "src/app/globals.css:483,575"
+      ]
+    },
+    {
+      "value": 9,
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:405,452"
+      ]
+    },
+    {
+      "value": 10,
+      "count": 134,
+      "files": [
+        "src/components/community/CommunityFeed.tsx:159,292,292,296…",
+        "src/components/CalendarView.tsx:287,287,319,369…",
+        "src/components/CanvasBuilderView.tsx:796,804,857,1188…",
+        "src/components/proto/FirstRunJourney.tsx:316,337,366,490…",
+        "src/components/OutfitDetailView.tsx:155,189,196,280…",
+        "src/components/TravelView.tsx:534,627,814,965…",
+        "src/components/ItemForm.tsx:882,1021,1083,1859…",
+        "src/components/PhotoDetailView.tsx:253,258,292,292…",
+        "src/components/explore/TryOnView.tsx:277,349,361,429…",
+        "src/components/OutfitsView.tsx:120,256,282,282",
+        "src/components/SharedClosetView.tsx:576,732,897,973",
+        "src/components/SmartBuy.tsx:199,201,268,284",
+        "src/components/community/CreatePost.tsx:266,294,330,452",
+        "src/components/styling/StylingSessions.tsx:112,179,179,183",
+        "src/components/you/LearnedTasteRow.tsx:93,138,148,158",
+        "src/components/TryOnPhotoRow.tsx:224,234,244",
+        "src/components/explore/ExploreForYouHeader.tsx:569,616,823",
+        "src/components/DeleteAccountDialog.tsx:105,113",
+        "src/components/WardrobeView.tsx:259,328",
+        "src/components/chat/MessagesView.tsx:56,94",
+        "src/components/chat/NewMessageSheet.tsx:102,131",
+        "src/components/chat/ShareToChatSheet.tsx:98,114",
+        "src/components/wishlist/AddToWishlistSheet.tsx:203,224",
+        "src/components/wishlist/PlanHeader.tsx:169,178",
+        "src/app/u/[handle]/page.tsx:69",
+        "src/components/BulkImport.tsx:220",
+        "src/components/ImportProgress.tsx:48",
+        "src/components/InsightsView.tsx:98",
+        "src/components/OAuthButtons.tsx:68",
+        "src/components/OutfitSplitImport.tsx:336",
+        "src/components/ProfileMenu.tsx:113",
+        "src/components/RediscoverModal.tsx:113",
+        "src/components/SettingsView.tsx:88",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/chat/ChatView.tsx:245",
+        "src/components/chat/ShareCard.tsx:58",
+        "src/components/community/ConnectionsPage.tsx:156",
+        "src/components/explore/ResaleView.tsx:84",
+        "src/components/explore/TryOnLoading.tsx:89",
+        "src/components/import/EmailImportSheet.tsx:156",
+        "src/components/onboarding/FirstLookGame.tsx:304",
+        "src/components/profile/ProfileScreen.tsx:168",
+        "src/components/shop/ShopSearchView.tsx:267",
+        "src/components/stylist/StylistView.tsx:324",
+        "src/components/ui.tsx:148"
+      ]
+    },
+    {
+      "value": 11,
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444"
+      ]
+    },
+    {
+      "value": 11.2,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:526"
+      ]
+    },
+    {
+      "value": 12,
+      "count": 491,
+      "files": [
+        "src/components/ItemForm.tsx:921,979,979,987…",
+        "src/components/TravelView.tsx:516,549,549,575…",
+        "src/components/CanvasBuilderView.tsx:772,796,826,839…",
+        "src/components/SharedClosetView.tsx:591,591,614,640…",
+        "src/components/community/CreatePost.tsx:85,85,210,249…",
+        "src/components/explore/ExploreForYouHeader.tsx:353,412,426,455…",
+        "src/components/proto/FirstRunJourney.tsx:304,306,316,337…",
+        "src/components/community/CommunityFeed.tsx:157,157,292,308…",
+        "src/components/InsightsView.tsx:59,60,61,61…",
+        "src/components/ClosetSheets.tsx:45,45,60,60…",
+        "src/components/SettingsView.tsx:88,180,229,315…",
+        "src/components/stylist/StylistBlocks.tsx:59,68,144,160…",
+        "src/components/OutfitDetailView.tsx:127,185,216,216…",
+        "src/components/SmartBuy.tsx:31,31,130,149…",
+        "src/components/shop/ProductFitOverlay.tsx:177,177,177,205…",
+        "src/components/TryOnPhotoRow.tsx:152,179,184,191…",
+        "src/components/wishlist/AddToWishlistSheet.tsx:224,224,270,281…",
+        "src/components/chat/NewMessageSheet.tsx:102,114,120,131…",
+        "src/components/community/ConnectionsPage.tsx:154,156,197,197…",
+        "src/components/styling/AskToStyleSheet.tsx:130,130,143,181…",
+        "src/components/AppShell.tsx:82,97,111,288…",
+        "src/components/AuthModal.tsx:197,211,270,333…",
+        "src/components/CalendarView.tsx:234,313,319,366…",
+        "src/components/NotificationsView.tsx:157,179,179,179…",
+        "src/components/YouView.tsx:54,246,364,392…",
+        "src/components/chat/ChatView.tsx:183,183,190,190…",
+        "src/components/import/EmailImportSheet.tsx:143,143,168,180…",
+        "src/components/shop/ShopSearchView.tsx:27,40,146,260…",
+        "src/components/styling/StylingSessions.tsx:112,128,163,179…",
+        "src/components/stylist/StylistView.tsx:245,245,256,268…",
+        "src/app/share/closet/[id]/page.tsx:107,127,158,196…",
+        "src/components/FindProductSheet.tsx:67,74,74,84…",
+        "src/components/PhotoDetailView.tsx:281,282,310,310…",
+        "src/components/ShareClosetSheet.tsx:299,299,326,330…",
+        "src/components/TodayView.tsx:196,203,233,282…",
+        "src/app/globals.css:243,366,483,575",
+        "src/components/BeautifyCompare.tsx:39,68,72,79",
+        "src/components/BulkImport.tsx:168,191,216,220",
+        "src/components/DeleteAccountDialog.tsx:60,60,95,95",
+        "src/components/OAuthButtons.tsx:68,75,96,102",
+        "src/components/chat/ShareToChatSheet.tsx:80,87,98,114",
+        "src/components/landing/HowItWorksSection.tsx:29,54,62,92",
+        "src/components/landing/LandingNav.tsx:10,27,27,35",
+        "src/components/onboarding/FirstSixCapture.tsx:311,333,333,340",
+        "src/components/onboarding/MorningAsk.tsx:83,90,90,117",
+        "src/components/wishlist/PlanHeader.tsx:70,112,112,144",
+        "src/components/you/LearnedTasteRow.tsx:93,93,114,134",
+        "src/components/you/settings-ui.tsx:58,58,82,127",
+        "src/components/OutfitsView.tsx:127,141,169",
+        "src/components/WishlistView.tsx:120,123,139",
+        "src/components/chat/MessagesView.tsx:56,56,94",
+        "src/components/explore/TryOnView.tsx:277,368,413",
+        "src/components/onboarding/FirstLookGame.tsx:239,247,317",
+        "src/components/onboarding/FirstOutfit.tsx:124,133,192",
+        "src/components/stylist/StylistAttachSheet.tsx:41,52,53",
+        "src/components/BrandPicker.tsx:83,94",
+        "src/components/HandleField.tsx:84,84",
+        "src/components/ImportReviewSheet.tsx:63,122",
+        "src/components/ItemCard.tsx:112,199",
+        "src/components/OutfitPreview.tsx:40,40",
+        "src/components/OutfitSplitImport.tsx:332,336",
+        "src/components/ProfileAvatar.tsx:137,138",
+        "src/components/RediscoverModal.tsx:49,77",
+        "src/components/chat/AttachSheet.tsx:161,161",
+        "src/components/explore/ResaleView.tsx:68,84",
+        "src/components/ui.tsx:65,160",
+        "src/components/you/StyleTastePage.tsx:126,144",
+        "src/app/extension/connect/page.tsx:115",
+        "src/app/u/[handle]/page.tsx:61",
+        "src/components/OnboardingModal.tsx:211",
+        "src/components/ProfileMenu.tsx:67",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/WardrobeView.tsx:148",
+        "src/components/landing/FirstLookHero.tsx:57",
+        "src/components/native/NativeShell.tsx:282",
+        "src/components/profile/ProfileScreen.tsx:76",
+        "src/components/styling/StyleSessionView.tsx:314",
+        "src/components/wishlist/ShouldIBuySheet.tsx:288",
+        "src/components/you/AccountPage.tsx:127"
+      ]
+    },
+    {
+      "value": 12.8,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:390"
+      ]
+    },
+    {
+      "value": 13.6,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:388"
+      ]
+    },
+    {
+      "value": 14,
+      "count": 51,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:314,335,340,340…",
+        "src/components/CalendarView.tsx:368,400,420",
+        "src/components/ItemForm.tsx:1082,1650,1770",
+        "src/components/stylist/StylistView.tsx:260,268,274",
+        "src/components/wishlist/PlanHeader.tsx:70,81,112",
+        "src/components/you/settings-ui.tsx:58,82,127",
+        "src/components/CanvasBuilderView.tsx:901,906",
+        "src/components/SettingsView.tsx:229,433",
+        "src/components/YouView.tsx:54,392",
+        "src/components/wishlist/AddToWishlistSheet.tsx:366,366",
+        "src/components/you/LearnedTasteRow.tsx:106,114",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/app/i/[id]/page.tsx:79",
+        "src/components/ClosetSheets.tsx:105",
+        "src/components/OnboardingModal.tsx:444",
+        "src/components/OutfitDetailView.tsx:329",
+        "src/components/OutfitsView.tsx:130",
+        "src/components/chat/ChatView.tsx:216",
+        "src/components/native/NativeShell.tsx:181",
+        "src/components/shop/ShopSearchView.tsx:281",
+        "src/components/styling/AskToStyleSheet.tsx:181",
+        "src/components/ui.tsx:148",
+        "src/components/wishlist/ShouldIBuySheet.tsx:288",
+        "src/components/you/FitSizesPage.tsx:215",
+        "src/components/you/StyleTastePage.tsx:147"
+      ]
+    },
+    {
+      "value": 15,
+      "count": 9,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:305,327,419,421…"
+      ]
+    },
+    {
+      "value": 16,
+      "count": 326,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:349,415,430,440…",
+        "src/components/CanvasBuilderView.tsx:772,906,1024,1094…",
+        "src/components/OutfitDetailView.tsx:94,94,127,179…",
+        "src/components/PhotoDetailView.tsx:217,253,258,266…",
+        "src/components/TravelView.tsx:530,534,549,633…",
+        "src/components/SettingsView.tsx:180,295,295,307…",
+        "src/components/SharedClosetView.tsx:572,576,591,640…",
+        "src/components/AppShell.tsx:88,103,273,273…",
+        "src/components/OnboardingModal.tsx:250,268,296,318…",
+        "src/components/ItemForm.tsx:902,960,1017,1059…",
+        "src/components/WardrobeView.tsx:139,180,180,195…",
+        "src/components/YouView.tsx:241,241,246,253…",
+        "src/components/chat/ChatView.tsx:183,190,202,202…",
+        "src/app/i/[id]/page.tsx:48,48,55,69…",
+        "src/components/AuthModal.tsx:227,287,304,344…",
+        "src/components/OutfitsView.tsx:120,137,141,141…",
+        "src/components/stylist/StylistView.tsx:245,256,256,324…",
+        "src/components/wishlist/AddToWishlistSheet.tsx:203,241,254,260…",
+        "src/app/share/closet/[id]/page.tsx:97,97,104,107…",
+        "src/components/BeautifyCompare.tsx:24,35,39,39…",
+        "src/components/CalendarView.tsx:222,244,287,287…",
+        "src/components/OutfitSplitImport.tsx:270,289,296,319…",
+        "src/components/ShareClosetSheet.tsx:201,208,322,390…",
+        "src/components/WishlistView.tsx:139,139,148,175…",
+        "src/components/community/CommunityFeed.tsx:199,212,213,430…",
+        "src/components/proto/FirstRunJourney.tsx:340,478,490,553…",
+        "src/components/shop/ProductFitOverlay.tsx:161,161,185,224…",
+        "src/components/styling/AskToStyleSheet.tsx:113,121,125,138…",
+        "src/app/globals.css:247,517,526,615",
+        "src/app/u/[handle]/page.tsx:54,54,59,61",
+        "src/components/TodayView.tsx:196,233,243,303",
+        "src/components/landing/FirstLookHero.tsx:46,57,64,71",
+        "src/components/landing/HowItWorksSection.tsx:35,47,54,62",
+        "src/components/native/NativeShell.tsx:221,274,282,294",
+        "src/components/shop/ShopSearchView.tsx:289,289,365,366",
+        "src/components/stylist/StylistBlocks.tsx:234,242,260,260",
+        "src/components/wishlist/PlanHeader.tsx:58,84,112,144",
+        "src/components/BulkImport.tsx:177,190,286",
+        "src/components/ImportProgress.tsx:48,75,111",
+        "src/components/ProfileAvatar.tsx:93,110,120",
+        "src/components/RediscoverModal.tsx:49,70,75",
+        "src/components/explore/ResaleView.tsx:37,46,99",
+        "src/components/onboarding/MorningAsk.tsx:79,105,111",
+        "src/components/profile/ProfileScreen.tsx:72,104,111",
+        "src/components/stylist/StylistAttachSheet.tsx:41,52,63",
+        "src/components/ClosetScanImport.tsx:131,186",
+        "src/components/ClosetSheets.tsx:144,210",
+        "src/components/DeleteAccountDialog.tsx:49,100",
+        "src/components/InsightsView.tsx:98,269",
+        "src/components/OutfitPreview.tsx:27,58",
+        "src/components/ProfileMenu.tsx:67,113",
+        "src/components/ResetPasswordModal.tsx:51,67",
+        "src/components/import/EmailImportSheet.tsx:168,271",
+        "src/components/landing/LandingNav.tsx:10,27",
+        "src/components/native/NativeProfileView.tsx:223,224",
+        "src/components/styling/StyleSessionView.tsx:322,322",
+        "src/components/wishlist/ShouldIBuySheet.tsx:143,246",
+        "src/components/you/AccountPage.tsx:96,96",
+        "src/components/you/LearnedTasteRow.tsx:75,128",
+        "src/app/extension/connect/page.tsx:108",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ExploreView.tsx:32",
+        "src/components/ImportReviewSheet.tsx:59",
+        "src/components/ItemCard.tsx:94",
+        "src/components/PhotoLightbox.tsx:26",
+        "src/components/ProfileView.tsx:27",
+        "src/components/SmartBuy.tsx:129",
+        "src/components/TryOnPhotoRow.tsx:215",
+        "src/components/chat/MessagesView.tsx:50",
+        "src/components/chat/NewMessageSheet.tsx:131",
+        "src/components/community/CreatePost.tsx:217",
+        "src/components/explore/TryOnLoading.tsx:84",
+        "src/components/explore/TryOnView.tsx:249",
+        "src/components/styling/StylingSessions.tsx:235",
+        "src/components/ui.tsx:40",
+        "src/components/you/FitSizesPage.tsx:220"
+      ]
+    },
+    {
+      "value": 20,
+      "count": 62,
+      "files": [
+        "src/components/InsightsView.tsx:58,86,126,146…",
+        "src/components/CanvasBuilderView.tsx:804,826,833,1225…",
+        "src/components/OnboardingModal.tsx:211,243,246,365…",
+        "src/components/SharedClosetView.tsx:628,762,840,940…",
+        "src/app/globals.css:352,517,615,643",
+        "src/components/landing/FirstLookHero.tsx:46,64,104,122",
+        "src/components/ItemForm.tsx:960,1622,1747",
+        "src/components/ShareClosetSheet.tsx:198,210,210",
+        "src/components/styling/AskToStyleSheet.tsx:121,125,138",
+        "src/components/ProfileFields.tsx:55,81",
+        "src/components/TravelView.tsx:879,939",
+        "src/app/i/[id]/page.tsx:55",
+        "src/components/AppShell.tsx:273",
+        "src/components/CalendarView.tsx:262",
+        "src/components/DeleteAccountDialog.tsx:54",
+        "src/components/ExploreView.tsx:35",
+        "src/components/OutfitsView.tsx:120",
+        "src/components/PhotoDetailView.tsx:217",
+        "src/components/ProfileAvatar.tsx:120",
+        "src/components/SettingsView.tsx:535",
+        "src/components/YouView.tsx:467",
+        "src/components/community/CommunityFeed.tsx:384",
+        "src/components/explore/ExploreForYouHeader.tsx:349",
+        "src/components/native/NativeShell.tsx:221",
+        "src/components/onboarding/MorningAsk.tsx:79",
+        "src/components/profile/ProfileScreen.tsx:76",
+        "src/components/ui.tsx:111",
+        "src/components/wishlist/AddToWishlistSheet.tsx:337",
+        "src/components/you/settings-ui.tsx:137"
+      ]
+    },
+    {
+      "value": 22.4,
+      "count": 1,
+      "files": [
+        "src/components/ShareClosetSheet.tsx:226"
+      ]
+    },
+    {
+      "value": 24,
+      "count": 86,
+      "files": [
+        "src/components/AuthModal.tsx:190,190,221,280…",
+        "src/components/AppShell.tsx:111,273,276,331…",
+        "src/components/proto/FirstRunJourney.tsx:284,305,488,488…",
+        "src/components/TravelView.tsx:573,587,622,708",
+        "src/components/OutfitsView.tsx:85,111,111",
+        "src/components/TodayView.tsx:194,194,296",
+        "src/components/community/CommunityFeed.tsx:196,553,555",
+        "src/components/community/ConnectionsPage.tsx:187,189,203",
+        "src/app/extension/connect/page.tsx:101,108",
+        "src/app/globals.css:517,615",
+        "src/app/share/closet/[id]/page.tsx:104,104",
+        "src/components/CalendarView.tsx:315,366",
+        "src/components/OnboardingModal.tsx:198,243",
+        "src/components/PhotoDetailView.tsx:245,436",
+        "src/components/ProfileAvatar.tsx:120,138",
+        "src/components/SettingsView.tsx:70,533",
+        "src/components/TryOnPhotoRow.tsx:160,170",
+        "src/components/chat/NewMessageSheet.tsx:140,142",
+        "src/components/chat/ShareToChatSheet.tsx:92,107",
+        "src/components/explore/ExploreForYouHeader.tsx:336,501",
+        "src/components/landing/HowItWorksSection.tsx:27,92",
+        "src/components/ui.tsx:100,107",
+        "src/app/u/[handle]/page.tsx:59",
+        "src/components/BeautifyCompare.tsx:35",
+        "src/components/BulkImport.tsx:168",
+        "src/components/CanvasBuilderView.tsx:993",
+        "src/components/ClosetScanImport.tsx:131",
+        "src/components/InsightsView.tsx:87",
+        "src/components/ItemForm.tsx:1059",
+        "src/components/OAuthButtons.tsx:68",
+        "src/components/OutfitDetailView.tsx:400",
+        "src/components/OutfitSplitImport.tsx:270",
+        "src/components/ShareClosetSheet.tsx:322",
+        "src/components/VideoPanel.tsx:79",
+        "src/components/WardrobeView.tsx:180",
+        "src/components/WishlistView.tsx:119",
+        "src/components/YouView.tsx:451",
+        "src/components/community/CreatePost.tsx:346",
+        "src/components/explore/ResaleView.tsx:39",
+        "src/components/explore/TryOnView.tsx:283",
+        "src/components/landing/LandingNav.tsx:27",
+        "src/components/onboarding/FirstLookGame.tsx:356",
+        "src/components/onboarding/FirstOutfit.tsx:192",
+        "src/components/onboarding/FirstSixCapture.tsx:404",
+        "src/components/onboarding/MorningAsk.tsx:117",
+        "src/components/shop/ShopSearchView.tsx:345",
+        "src/components/styling/AskToStyleSheet.tsx:136",
+        "src/components/you/settings-ui.tsx:137"
+      ]
+    },
+    {
+      "value": 28,
+      "count": 5,
+      "files": [
+        "src/components/AppShell.tsx:278",
+        "src/components/CalendarView.tsx:285",
+        "src/components/landing/FirstLookHero.tsx:82",
+        "src/components/landing/LandingNav.tsx:35",
+        "src/components/proto/FirstRunJourney.tsx:301"
+      ]
+    },
+    {
+      "value": 32,
+      "count": 31,
+      "files": [
+        "src/components/PhotoDetailView.tsx:270,278,319,426",
+        "src/components/AppShell.tsx:107,273,331",
+        "src/components/CanvasBuilderView.tsx:897,1238",
+        "src/components/InsightsView.tsx:48,87",
+        "src/components/SettingsView.tsx:70,77",
+        "src/components/chat/AttachSheet.tsx:95,128",
+        "src/app/i/[id]/page.tsx:55",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ImportReviewSheet.tsx:55",
+        "src/components/OutfitDetailView.tsx:126",
+        "src/components/OutfitPreview.tsx:27",
+        "src/components/ProfileView.tsx:27",
+        "src/components/ShareClosetSheet.tsx:391",
+        "src/components/SharedClosetView.tsx:572",
+        "src/components/TodayView.tsx:232",
+        "src/components/TravelView.tsx:530",
+        "src/components/VideoPanel.tsx:82",
+        "src/components/WishlistView.tsx:197",
+        "src/components/YouView.tsx:450",
+        "src/components/explore/TryOnView.tsx:277",
+        "src/components/landing/HowItWorksSection.tsx:41",
+        "src/components/proto/FirstRunJourney.tsx:360"
+      ]
+    },
+    {
+      "value": 36,
+      "count": 3,
+      "files": [
+        "src/components/ItemCard.tsx:177,186",
+        "src/components/landing/FirstLookHero.tsx:43"
+      ]
+    },
+    {
+      "value": 40,
+      "count": 13,
+      "files": [
+        "src/components/OutfitsView.tsx:137,165",
+        "src/components/TravelView.tsx:977,979",
+        "src/components/AppShell.tsx:331",
+        "src/components/NotificationsView.tsx:152",
+        "src/components/RediscoverModal.tsx:70",
+        "src/components/WishlistView.tsx:173",
+        "src/components/chat/ChatView.tsx:204",
+        "src/components/chat/MessagesView.tsx:81",
+        "src/components/import/EmailImportSheet.tsx:189",
+        "src/components/stylist/StylistAttachSheet.tsx:65",
+        "src/components/wishlist/AddToWishlistSheet.tsx:270"
+      ]
+    },
+    {
+      "value": 48,
+      "count": 3,
+      "files": [
+        "src/components/ClosetScanImport.tsx:131",
+        "src/components/OutfitSplitImport.tsx:270",
+        "src/components/SettingsView.tsx:77"
+      ]
+    },
+    {
+      "value": 56,
+      "count": 5,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:41,88",
+        "src/components/BulkImport.tsx:168",
+        "src/components/landing/FirstLookHero.tsx:43",
+        "src/components/profile/ProfileScreen.tsx:128"
+      ]
+    },
+    {
+      "value": 64,
+      "count": 9,
+      "files": [
+        "src/components/shop/ShopSearchView.tsx:311,316",
+        "src/components/styling/StyleSessionView.tsx:278,313",
+        "src/components/OutfitDetailView.tsx:89",
+        "src/components/community/CommunityFeed.tsx:178",
+        "src/components/landing/HowItWorksSection.tsx:53",
+        "src/components/native/NativeUserProfileView.tsx:89",
+        "src/components/profile/ProfileScreen.tsx:66"
+      ]
+    },
+    {
+      "value": 80,
+      "count": 6,
+      "files": [
+        "src/components/shop/ProductFitOverlay.tsx:154,156",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/NotificationsView.tsx:157",
+        "src/components/PhotoDetailView.tsx:213",
+        "src/components/ui.tsx:160"
+      ]
+    },
+    {
+      "value": 96,
+      "count": 14,
+      "files": [
+        "src/components/VideoPanel.tsx:82,82",
+        "src/components/PhotoDetailView.tsx:326",
+        "src/components/SharedClosetView.tsx:572",
+        "src/components/TravelView.tsx:530",
+        "src/components/WishlistView.tsx:197",
+        "src/components/YouView.tsx:476",
+        "src/components/chat/ChatView.tsx:271",
+        "src/components/community/CommunityFeed.tsx:212",
+        "src/components/explore/ExploreForYouHeader.tsx:852",
+        "src/components/landing/HowItWorksSection.tsx:27",
+        "src/components/native/NativeProfileView.tsx:223",
+        "src/components/shop/ShopSearchView.tsx:365",
+        "src/components/stylist/StylistView.tsx:363"
+      ]
+    },
+    {
+      "value": 128,
+      "count": 1,
+      "files": [
+        "src/components/landing/HowItWorksSection.tsx:27"
+      ]
+    }
+  ],
+  "offGridSpacing": [
+    {
+      "value": "gap-1.5 (6px)",
+      "count": 94,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:172,349,430,440…",
+        "src/components/ItemForm.tsx:921,994,1083,1137…",
+        "src/components/CalendarView.tsx:234,355,369,372…",
+        "src/components/explore/TryOnView.tsx:349,361,406,429…",
+        "src/components/CanvasBuilderView.tsx:796,906,1104,1170",
+        "src/components/BulkImport.tsx:177,194,198",
+        "src/components/OutfitSplitImport.tsx:289,296,322",
+        "src/components/OutfitsView.tsx:150,256,290",
+        "src/components/SharedClosetView.tsx:703,711,1045",
+        "src/components/YouView.tsx:320,338,351",
+        "src/components/community/CreatePost.tsx:258,373,469",
+        "src/components/stylist/StylistBlocks.tsx:72,76,242",
+        "src/components/wishlist/ShouldIBuySheet.tsx:167,199,264",
+        "src/components/ClosetScanImport.tsx:162,186",
+        "src/components/RediscoverModal.tsx:50,62",
+        "src/components/TryOnPhotoRow.tsx:191,200",
+        "src/components/community/CommunityFeed.tsx:410,418",
+        "src/components/explore/ResaleView.tsx:47,99",
+        "src/components/native/NativeUserProfileView.tsx:118,130",
+        "src/components/proto/FirstRunJourney.tsx:284,364",
+        "src/components/HandleField.tsx:84",
+        "src/components/ItemCard.tsx:224",
+        "src/components/PhotoDetailView.tsx:344",
+        "src/components/TravelView.tsx:793",
+        "src/components/WishlistView.tsx:148",
+        "src/components/chat/NewMessageSheet.tsx:120",
+        "src/components/import/EmailImportSheet.tsx:169",
+        "src/components/native/NativeProfileView.tsx:166",
+        "src/components/native/NativeShell.tsx:164",
+        "src/components/onboarding/FirstLookGame.tsx:305",
+        "src/components/profile/ProfileScreen.tsx:168",
+        "src/components/shop/ProductFitOverlay.tsx:214",
+        "src/components/styling/AskToStyleSheet.tsx:152",
+        "src/components/styling/StylingSessions.tsx:192",
+        "src/components/stylist/StylistView.tsx:291",
+        "src/components/ui.tsx:40",
+        "src/components/wishlist/PlanHeader.tsx:160",
+        "src/components/you/StyleTastePage.tsx:126"
+      ]
+    },
+    {
+      "value": "py-2.5 (10px)",
+      "count": 54,
+      "files": [
+        "src/components/CalendarView.tsx:369,372,423,426",
+        "src/components/OutfitDetailView.tsx:189,196,280,294",
+        "src/components/community/CommunityFeed.tsx:292,334,358,430",
+        "src/components/explore/TryOnView.tsx:349,361,429,452",
+        "src/components/you/LearnedTasteRow.tsx:93,138,148,158",
+        "src/components/TryOnPhotoRow.tsx:224,234,244",
+        "src/components/CanvasBuilderView.tsx:796,804",
+        "src/components/DeleteAccountDialog.tsx:105,113",
+        "src/components/SharedClosetView.tsx:576,732",
+        "src/components/SmartBuy.tsx:268,284",
+        "src/components/TravelView.tsx:534,814",
+        "src/components/chat/MessagesView.tsx:56,94",
+        "src/components/chat/NewMessageSheet.tsx:102,131",
+        "src/components/chat/ShareToChatSheet.tsx:98,114",
+        "src/components/community/CreatePost.tsx:330,452",
+        "src/app/u/[handle]/page.tsx:69",
+        "src/components/ItemForm.tsx:1859",
+        "src/components/OutfitsView.tsx:120",
+        "src/components/PhotoDetailView.tsx:258",
+        "src/components/SettingsView.tsx:88",
+        "src/components/chat/ChatView.tsx:245",
+        "src/components/community/ConnectionsPage.tsx:156",
+        "src/components/profile/ProfileScreen.tsx:168",
+        "src/components/proto/FirstRunJourney.tsx:490",
+        "src/components/shop/ShopSearchView.tsx:267",
+        "src/components/styling/StylingSessions.tsx:179",
+        "src/components/stylist/StylistView.tsx:324",
+        "src/components/ui.tsx:148"
+      ]
+    },
+    {
+      "value": "py-1.5 (6px)",
+      "count": 33,
+      "files": [
+        "src/components/TodayView.tsx:315,322,329",
+        "src/components/explore/ExploreForYouHeader.tsx:430,440,455",
+        "src/components/BulkImport.tsx:240,249",
+        "src/components/OutfitDetailView.tsx:131,171",
+        "src/components/OutfitSplitImport.tsx:352,357",
+        "src/components/SharedClosetView.tsx:703,711",
+        "src/components/import/EmailImportSheet.tsx:146,180",
+        "src/components/landing/FirstLookHero.tsx:46,71",
+        "src/components/shop/ShopSearchView.tsx:48,298",
+        "src/components/stylist/StylistBlocks.tsx:164,223",
+        "src/components/AppShell.tsx:307",
+        "src/components/CalendarView.tsx:234",
+        "src/components/CanvasBuilderView.tsx:1104",
+        "src/components/ImportProgress.tsx:75",
+        "src/components/ImportReviewSheet.tsx:89",
+        "src/components/ItemForm.tsx:994",
+        "src/components/TravelView.tsx:793",
+        "src/components/YouView.tsx:253",
+        "src/components/community/CreatePost.tsx:217",
+        "src/components/stylist/StylistAttachSheet.tsx:78",
+        "src/components/you/StyleTastePage.tsx:126"
+      ]
+    },
+    {
+      "value": "gap-2.5 (10px)",
+      "count": 22,
+      "files": [
+        "src/components/community/CommunityFeed.tsx:159,292,296,558",
+        "src/components/CanvasBuilderView.tsx:1305,1328,1373",
+        "src/components/TravelView.tsx:627,965,979",
+        "src/components/CalendarView.tsx:287",
+        "src/components/ImportProgress.tsx:48",
+        "src/components/ItemForm.tsx:1859",
+        "src/components/OAuthButtons.tsx:68",
+        "src/components/OutfitDetailView.tsx:303",
+        "src/components/PhotoDetailView.tsx:292",
+        "src/components/ProfileMenu.tsx:113",
+        "src/components/SharedClosetView.tsx:973",
+        "src/components/SmartBuy.tsx:201",
+        "src/components/onboarding/FirstLookGame.tsx:304",
+        "src/components/proto/FirstRunJourney.tsx:600",
+        "src/components/wishlist/AddToWishlistSheet.tsx:224"
+      ]
+    },
+    {
+      "value": "mt-1.5 (6px)",
+      "count": 19,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:419,565,596,662…",
+        "src/components/proto/FirstRunJourney.tsx:480,555,632",
+        "src/components/ItemCard.tsx:214,224",
+        "src/components/community/CommunityFeed.tsx:379,386",
+        "src/components/CalendarView.tsx:252",
+        "src/components/DeleteAccountDialog.tsx:95",
+        "src/components/HandleField.tsx:110",
+        "src/components/ItemForm.tsx:1126",
+        "src/components/OutfitsView.tsx:113",
+        "src/components/import/EmailImportSheet.tsx:145",
+        "src/components/styling/StyleSessionView.tsx:318"
+      ]
+    },
+    {
+      "value": "px-2.5 (10px)",
+      "count": 18,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:366,586,622",
+        "src/components/CalendarView.tsx:397,417",
+        "src/components/CanvasBuilderView.tsx:1188,1249",
+        "src/components/OutfitsView.tsx:256,282",
+        "src/components/explore/ExploreForYouHeader.tsx:616,823",
+        "src/components/ItemForm.tsx:1021",
+        "src/components/SharedClosetView.tsx:897",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/chat/ShareCard.tsx:58",
+        "src/components/community/CommunityFeed.tsx:420",
+        "src/components/community/CreatePost.tsx:266",
+        "src/components/import/EmailImportSheet.tsx:156"
+      ]
+    },
+    {
+      "value": "px-3.5 (14px)",
+      "count": 18,
+      "files": [
+        "src/components/stylist/StylistView.tsx:260,268,274",
+        "src/components/YouView.tsx:54,392",
+        "src/components/proto/FirstRunJourney.tsx:501,632",
+        "src/components/wishlist/PlanHeader.tsx:70,81",
+        "src/components/you/LearnedTasteRow.tsx:106,114",
+        "src/components/you/settings-ui.tsx:58,82",
+        "src/components/SettingsView.tsx:229",
+        "src/components/chat/ChatView.tsx:216",
+        "src/components/shop/ShopSearchView.tsx:281",
+        "src/components/styling/AskToStyleSheet.tsx:181",
+        "src/components/ui.tsx:148"
+      ]
+    },
+    {
+      "value": "p-1.5 (6px)",
+      "count": 13,
+      "files": [
+        "src/components/CalendarView.tsx:406,476",
+        "src/components/CanvasBuilderView.tsx:1157,1405",
+        "src/components/ItemCard.tsx:163,193",
+        "src/components/ItemForm.tsx:897,979",
+        "src/components/AppShell.tsx:318",
+        "src/components/ImportReviewSheet.tsx:86",
+        "src/components/OutfitDetailView.tsx:306",
+        "src/components/community/CommunityFeed.tsx:159",
+        "src/components/onboarding/FirstLookGame.tsx:338"
+      ]
+    },
+    {
+      "value": "px-1.5 (6px)",
+      "count": 13,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,993,1254",
+        "src/components/proto/FirstRunJourney.tsx:370,405,452",
+        "src/components/PhotoDetailView.tsx:452,459",
+        "src/components/ShareClosetSheet.tsx:271",
+        "src/components/SharedClosetView.tsx:811",
+        "src/components/TravelView.tsx:928",
+        "src/components/WardrobeView.tsx:321",
+        "src/components/explore/ExploreForYouHeader.tsx:561"
+      ]
+    },
+    {
+      "value": "py-3.5 (14px)",
+      "count": 12,
+      "files": [
+        "src/components/ItemForm.tsx:1650,1770",
+        "src/components/proto/FirstRunJourney.tsx:340,592",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/app/i/[id]/page.tsx:79",
+        "src/components/ClosetSheets.tsx:105",
+        "src/components/OnboardingModal.tsx:444",
+        "src/components/OutfitDetailView.tsx:329",
+        "src/components/SettingsView.tsx:433",
+        "src/components/wishlist/PlanHeader.tsx:112",
+        "src/components/you/settings-ui.tsx:127"
+      ]
+    },
+    {
+      "value": "mt-2.5 (10px)",
+      "count": 12,
+      "files": [
+        "src/components/CalendarView.tsx:287,400,420,430",
+        "src/components/styling/StylingSessions.tsx:179,183",
+        "src/components/wishlist/PlanHeader.tsx:169,178",
+        "src/components/OutfitDetailView.tsx:155",
+        "src/components/explore/ExploreForYouHeader.tsx:569",
+        "src/components/explore/TryOnLoading.tsx:89",
+        "src/components/proto/FirstRunJourney.tsx:630"
+      ]
+    },
+    {
+      "value": "py-[15px] (15px)",
+      "count": 9,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:305,327,419,421…"
+      ]
+    },
+    {
+      "value": "mt-3.5 (14px)",
+      "count": 7,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:314,335,360,526",
+        "src/components/CanvasBuilderView.tsx:901,906",
+        "src/components/CalendarView.tsx:368"
+      ]
+    },
+    {
+      "value": "pt-2.5 (10px)",
+      "count": 6,
+      "files": [
+        "src/components/community/CommunityFeed.tsx:400,406,415",
+        "src/components/CanvasBuilderView.tsx:1249",
+        "src/components/PhotoDetailView.tsx:253",
+        "src/components/RediscoverModal.tsx:113"
+      ]
+    },
+    {
+      "value": "space-y-2.5 (10px)",
+      "count": 6,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:316,337",
+        "src/components/ItemForm.tsx:882",
+        "src/components/SmartBuy.tsx:199",
+        "src/components/styling/StylingSessions.tsx:112",
+        "src/components/wishlist/AddToWishlistSheet.tsx:203"
+      ]
+    },
+    {
+      "value": "top-1.5 (6px)",
+      "count": 6,
+      "files": [
+        "src/components/SharedClosetView.tsx:881,907",
+        "src/components/PhotoDetailView.tsx:452",
+        "src/components/ShareClosetSheet.tsx:226",
+        "src/components/WardrobeView.tsx:321",
+        "src/components/native/NativeShell.tsx:195"
+      ]
+    },
+    {
+      "value": "p-2.5 (10px)",
+      "count": 5,
+      "files": [
+        "src/components/BulkImport.tsx:220",
+        "src/components/CalendarView.tsx:319",
+        "src/components/OutfitSplitImport.tsx:336",
+        "src/components/community/CreatePost.tsx:294",
+        "src/components/explore/ResaleView.tsx:84"
+      ]
+    },
+    {
+      "value": "space-y-1.5 (6px)",
+      "count": 5,
+      "files": [
+        "src/components/BulkImport.tsx:238",
+        "src/components/OutfitSplitImport.tsx:350",
+        "src/components/wishlist/ShouldIBuySheet.tsx:197",
+        "src/components/you/LearnedTasteRow.tsx:86",
+        "src/components/you/settings-ui.tsx:18"
+      ]
+    },
+    {
+      "value": "p-3.5 (14px)",
+      "count": 5,
+      "files": [
+        "src/components/CalendarView.tsx:400,420",
+        "src/components/ItemForm.tsx:1082",
+        "src/components/wishlist/AddToWishlistSheet.tsx:366",
+        "src/components/wishlist/ShouldIBuySheet.tsx:288"
+      ]
+    },
+    {
+      "value": "mb-2.5 (10px)",
+      "count": 5,
+      "files": [
+        "src/components/PhotoDetailView.tsx:292,447",
+        "src/components/ItemForm.tsx:1083",
+        "src/components/TravelView.tsx:965",
+        "src/components/community/CommunityFeed.tsx:347"
+      ]
+    },
+    {
+      "value": "mb-1.5 (6px)",
+      "count": 5,
+      "files": [
+        "src/components/community/CreatePost.tsx:257,367,402",
+        "src/components/stylist/StylistBlocks.tsx:203",
+        "src/components/ui.tsx:138"
+      ]
+    },
+    {
+      "value": "gap-3.5 (14px)",
+      "count": 5,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:340,360,592",
+        "src/components/native/NativeShell.tsx:181",
+        "src/components/wishlist/AddToWishlistSheet.tsx:366"
+      ]
+    },
+    {
+      "value": "left-1.5 (6px)",
+      "count": 4,
+      "files": [
+        "src/components/PhotoDetailView.tsx:452",
+        "src/components/SharedClosetView.tsx:881",
+        "src/components/WardrobeView.tsx:321",
+        "src/components/explore/ExploreForYouHeader.tsx:561"
+      ]
+    },
+    {
+      "value": "bottom-1.5 (6px)",
+      "count": 3,
+      "files": [
+        "src/components/CalendarView.tsx:462",
+        "src/components/PhotoDetailView.tsx:459",
+        "src/components/explore/ExploreForYouHeader.tsx:561"
+      ]
+    },
+    {
+      "value": "pb-2.5 (10px)",
+      "count": 3,
+      "files": [
+        "src/components/OutfitsView.tsx:282",
+        "src/components/WardrobeView.tsx:259",
+        "src/components/explore/TryOnView.tsx:277"
+      ]
+    },
+    {
+      "value": "pt-1.5 (6px)",
+      "count": 3,
+      "files": [
+        "src/components/OutfitsView.tsx:282",
+        "src/components/proto/FirstRunJourney.tsx:499",
+        "src/components/shop/ShopSearchView.tsx:152"
+      ]
+    },
+    {
+      "value": "right-1.5 (6px)",
+      "count": 3,
+      "files": [
+        "src/components/PhotoDetailView.tsx:459",
+        "src/components/SharedClosetView.tsx:907",
+        "src/components/native/NativeShell.tsx:195"
+      ]
+    },
+    {
+      "value": "padding: 0.55rem (8.8px)",
+      "count": 2,
+      "files": [
+        "src/app/globals.css:483,575"
+      ]
+    },
+    {
+      "value": "padding: 0.35rem (5.6px)",
+      "count": 2,
+      "files": [
+        "src/app/globals.css:493,585"
+      ]
+    },
+    {
+      "value": "padding: 0.4rem (6.4px)",
+      "count": 2,
+      "files": [
+        "src/app/globals.css:493,585"
+      ]
+    },
+    {
+      "value": "gap-[6px] (6px)",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1203,1207"
+      ]
+    },
+    {
+      "value": "left-3.5 (14px)",
+      "count": 2,
+      "files": [
+        "src/components/OutfitsView.tsx:130",
+        "src/components/you/StyleTastePage.tsx:147"
+      ]
+    },
+    {
+      "value": "pb-[9px] (9px)",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:405,452"
+      ]
+    },
+    {
+      "value": "py-[5px] (5px)",
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:501,586"
+      ]
+    },
+    {
+      "value": "margin: 0.2rem (3.2px)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:105"
+      ]
+    },
+    {
+      "value": "padding: 3px (3px)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:281"
+      ]
+    },
+    {
+      "value": "gap: 0.85rem (13.6px)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:388"
+      ]
+    },
+    {
+      "value": "padding: 0.8rem (12.8px)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:390"
+      ]
+    },
+    {
+      "value": "padding: 0.7rem (11.2px)",
+      "count": 1,
+      "files": [
+        "src/app/globals.css:526"
+      ]
+    },
+    {
+      "value": "right-2.5 (10px)",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:857"
+      ]
+    },
+    {
+      "value": "pr-1.5 (6px)",
+      "count": 1,
+      "files": [
+        "src/components/ImportProgress.tsx:75"
+      ]
+    },
+    {
+      "value": "gap-y-2.5 (10px)",
+      "count": 1,
+      "files": [
+        "src/components/InsightsView.tsx:98"
+      ]
+    },
+    {
+      "value": "left-[1.4rem] (22.4px)",
+      "count": 1,
+      "files": [
+        "src/components/ShareClosetSheet.tsx:226"
+      ]
+    },
+    {
+      "value": "pl-2.5 (10px)",
+      "count": 1,
+      "files": [
+        "src/components/WardrobeView.tsx:328"
+      ]
+    },
+    {
+      "value": "pl-1.5 (6px)",
+      "count": 1,
+      "files": [
+        "src/components/community/CommunityFeed.tsx:159"
+      ]
+    },
+    {
+      "value": "ml-1.5 (6px)",
+      "count": 1,
+      "files": [
+        "src/components/native/NativeShell.tsx:170"
+      ]
+    },
+    {
+      "value": "gap-[7px] (7px)",
+      "count": 1,
+      "files": [
+        "src/components/onboarding/FirstLookGame.tsx:327"
+      ]
+    },
+    {
+      "value": "top-[11px] (11px)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444"
+      ]
+    },
+    {
+      "value": "px-[7px] (7px)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:444"
+      ]
+    },
+    {
+      "value": "pt-3.5 (14px)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:488"
+      ]
+    },
+    {
+      "value": "top-[7px] (7px)",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:610"
+      ]
+    },
+    {
+      "value": "right-3.5 (14px)",
+      "count": 1,
+      "files": [
+        "src/components/you/FitSizesPage.tsx:215"
+      ]
+    }
+  ],
+  "radii": [
+    {
+      "value": 6,
+      "count": 9,
+      "files": [
+        "src/components/PhotoDetailView.tsx:245,452,459",
+        "src/components/wishlist/ShouldIBuySheet.tsx:175,207",
+        "src/components/CalendarView.tsx:322",
+        "src/components/CanvasBuilderView.tsx:993",
+        "src/components/explore/ExploreForYouHeader.tsx:561",
+        "src/components/proto/FirstRunJourney.tsx:444"
+      ]
+    },
+    {
+      "value": 8,
+      "count": 59,
+      "files": [
+        "src/components/stylist/StylistBlocks.tsx:31,76,84,92…",
+        "src/components/SettingsView.tsx:88,488,494,499…",
+        "src/components/AuthModal.tsx:270,355,435",
+        "src/components/OutfitDetailView.tsx:131,171,316",
+        "src/components/import/EmailImportSheet.tsx:146,156,243",
+        "src/components/native/NativeProfileView.tsx:159,166,174",
+        "src/components/SmartBuy.tsx:179,191",
+        "src/components/TravelView.tsx:985,1032",
+        "src/components/chat/AttachSheet.tsx:110,133",
+        "src/components/landing/HowItWorksSection.tsx:66,92",
+        "src/components/native/NativeUserProfileView.tsx:118,130",
+        "src/app/u/[handle]/page.tsx:69",
+        "src/components/AppShell.tsx:111",
+        "src/components/BulkImport.tsx:224",
+        "src/components/CalendarView.tsx:406",
+        "src/components/CanvasBuilderView.tsx:1251",
+        "src/components/FindProductSheet.tsx:86",
+        "src/components/InsightsView.tsx:300",
+        "src/components/ItemCard.tsx:214",
+        "src/components/ItemForm.tsx:1488",
+        "src/components/OAuthButtons.tsx:96",
+        "src/components/OutfitBoardThumb.tsx:150",
+        "src/components/OutfitSplitImport.tsx:340",
+        "src/components/OutfitsView.tsx:290",
+        "src/components/PhotoDetailView.tsx:234",
+        "src/components/RediscoverModal.tsx:89",
+        "src/components/ResetPasswordModal.tsx:103",
+        "src/components/TodayView.tsx:282",
+        "src/components/WardrobeView.tsx:148",
+        "src/components/community/ConnectionsPage.tsx:173",
+        "src/components/community/CreatePost.tsx:381",
+        "src/components/explore/ResaleView.tsx:86",
+        "src/components/explore/TryOnView.tsx:329",
+        "src/components/landing/LandingNav.tsx:10",
+        "src/components/shop/ShopSearchView.tsx:48",
+        "src/components/wishlist/AddToWishlistSheet.tsx:281",
+        "src/components/you/AccountPage.tsx:127"
+      ]
+    },
+    {
+      "value": 10,
+      "count": 6,
+      "files": [
+        "src/components/TryOnPhotoRow.tsx:66,75,83",
+        "src/components/proto/FirstRunJourney.tsx:442",
+        "src/components/you/LearnedTasteRow.tsx:171",
+        "src/components/you/settings-ui.tsx:62"
+      ]
+    },
+    {
+      "value": 12,
+      "count": 161,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:493,501,510,518…",
+        "src/components/CanvasBuilderView.tsx:796,804,992,1279…",
+        "src/components/community/CreatePost.tsx:249,284,294,320…",
+        "src/components/CalendarView.tsx:292,319,369,372…",
+        "src/components/OutfitDetailView.tsx:94,189,196,216…",
+        "src/components/SettingsView.tsx:180,229,295,307…",
+        "src/components/styling/StylingSessions.tsx:133,140,163,179…",
+        "src/components/PhotoDetailView.tsx:283,299,311,344…",
+        "src/components/SmartBuy.tsx:31,132,225,268…",
+        "src/components/TryOnPhotoRow.tsx:191,200,224,234…",
+        "src/components/InsightsView.tsx:61,65,69,269",
+        "src/components/ShareClosetSheet.tsx:259,299,322,330",
+        "src/components/explore/TryOnView.tsx:349,361,429,452",
+        "src/components/wishlist/AddToWishlistSheet.tsx:224,254,291,373",
+        "src/components/wishlist/PlanHeader.tsx:70,81,89,98",
+        "src/components/ClosetSheets.tsx:47,61,71",
+        "src/components/ItemForm.tsx:939,1009,1109",
+        "src/components/OutfitsView.tsx:91,99,120",
+        "src/components/chat/NewMessageSheet.tsx:102,131,182",
+        "src/components/community/CommunityFeed.tsx:330,358,365",
+        "src/components/styling/AskToStyleSheet.tsx:193,202,210",
+        "src/components/wishlist/ShouldIBuySheet.tsx:250,257,264",
+        "src/components/you/LearnedTasteRow.tsx:138,148,158",
+        "src/app/share/closet/[id]/page.tsx:107,196",
+        "src/components/FindProductSheet.tsx:74,84",
+        "src/components/ItemCard.tsx:231,241",
+        "src/components/SharedClosetView.tsx:676,803",
+        "src/components/WardrobeView.tsx:142,163",
+        "src/components/chat/ShareCard.tsx:33,41",
+        "src/components/community/ConnectionsPage.tsx:156,167",
+        "src/components/shop/ProductFitOverlay.tsx:208,214",
+        "src/app/extension/connect/page.tsx:115",
+        "src/app/u/[handle]/page.tsx:61",
+        "src/components/BrandPicker.tsx:77",
+        "src/components/DeleteAccountDialog.tsx:95",
+        "src/components/HandleField.tsx:84",
+        "src/components/OutfitPreview.tsx:73",
+        "src/components/ProfileMenu.tsx:66",
+        "src/components/TravelView.tsx:918",
+        "src/components/chat/AttachSheet.tsx:161",
+        "src/components/chat/MessagesView.tsx:73",
+        "src/components/explore/ResaleView.tsx:68",
+        "src/components/import/EmailImportSheet.tsx:264",
+        "src/components/proto/FirstRunJourney.tsx:632",
+        "src/components/styling/StyleSessionView.tsx:322",
+        "src/components/stylist/StylistAttachSheet.tsx:73",
+        "src/components/ui.tsx:148",
+        "src/components/you/settings-ui.tsx:82"
+      ]
+    },
+    {
+      "value": 14,
+      "count": 4,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:405,452,622",
+        "src/components/onboarding/FirstSixCapture.tsx:380"
+      ]
+    },
+    {
+      "value": 16,
+      "count": 146,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:336,415,471,478…",
+        "src/components/TravelView.tsx:534,549,577,633…",
+        "src/components/SharedClosetView.tsx:576,591,616,640…",
+        "src/components/InsightsView.tsx:58,86,126,146…",
+        "src/components/ItemForm.tsx:883,1059,1082,1152…",
+        "src/components/shop/ProductFitOverlay.tsx:177,185,224,239…",
+        "src/components/styling/AskToStyleSheet.tsx:121,125,138,152…",
+        "src/components/stylist/StylistBlocks.tsx:58,144,160,183…",
+        "src/components/BeautifyCompare.tsx:41,54,72,79",
+        "src/components/OutfitDetailView.tsx:179,271,327,348",
+        "src/components/community/CreatePost.tsx:231,234,346,492",
+        "src/components/onboarding/FirstLookGame.tsx:250,260,278,338",
+        "src/components/stylist/StylistView.tsx:241,260,268,274",
+        "src/components/CalendarView.tsx:366,400,420",
+        "src/components/CanvasBuilderView.tsx:744,1034,1048",
+        "src/components/TodayView.tsx:196,233,300",
+        "src/components/explore/ResaleView.tsx:39,46,84",
+        "src/components/import/EmailImportSheet.tsx:143,168,199",
+        "src/components/proto/FirstRunJourney.tsx:340,592,605",
+        "src/components/shop/ShopSearchView.tsx:27,148,267",
+        "src/components/you/LearnedTasteRow.tsx:89,114,128",
+        "src/app/share/closet/[id]/page.tsx:135,158",
+        "src/components/BulkImport.tsx:168,220",
+        "src/components/OnboardingModal.tsx:365,444",
+        "src/components/OutfitSplitImport.tsx:270,336",
+        "src/components/OutfitsView.tsx:111,222",
+        "src/components/RediscoverModal.tsx:70,77",
+        "src/components/TryOnPhotoRow.tsx:152,215",
+        "src/components/chat/ChatView.tsx:179,216",
+        "src/components/chat/MessagesView.tsx:56,94",
+        "src/components/chat/ShareToChatSheet.tsx:98,114",
+        "src/components/community/CommunityFeed.tsx:291,384",
+        "src/components/onboarding/MorningAsk.tsx:79,90",
+        "src/components/wishlist/AddToWishlistSheet.tsx:286,366",
+        "src/components/wishlist/PlanHeader.tsx:112,144",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/app/i/[id]/page.tsx:79",
+        "src/components/ClosetScanImport.tsx:131",
+        "src/components/DeleteAccountDialog.tsx:54",
+        "src/components/ImportReviewSheet.tsx:71",
+        "src/components/ItemCard.tsx:89",
+        "src/components/NotificationsView.tsx:179",
+        "src/components/ProfileAvatar.tsx:120",
+        "src/components/YouView.tsx:246",
+        "src/components/chat/NewMessageSheet.tsx:151",
+        "src/components/explore/TryOnView.tsx:252",
+        "src/components/landing/HowItWorksSection.tsx:53",
+        "src/components/onboarding/FirstOutfit.tsx:135",
+        "src/components/styling/StylingSessions.tsx:235",
+        "src/components/wishlist/ShouldIBuySheet.tsx:288",
+        "src/components/you/AccountPage.tsx:96",
+        "src/components/you/settings-ui.tsx:25"
+      ]
+    },
+    {
+      "value": 18,
+      "count": 2,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:361,504"
+      ]
+    },
+    {
+      "value": 20,
+      "count": 3,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:393,434",
+        "src/app/globals.css:350"
+      ]
+    },
+    {
+      "value": 22,
+      "count": 3,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1031",
+        "src/components/onboarding/FirstSixCapture.tsx:334",
+        "src/components/proto/FirstRunJourney.tsx:360"
+      ]
+    },
+    {
+      "value": 24,
+      "count": 17,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:886,1070,1364",
+        "src/components/ui.tsx:107,107,160",
+        "src/components/OnboardingModal.tsx:205,205",
+        "src/components/OutfitDetailView.tsx:144,150",
+        "src/components/OutfitPreview.tsx:26,46",
+        "src/app/i/[id]/page.tsx:56",
+        "src/components/PhotoDetailView.tsx:278",
+        "src/components/YouView.tsx:451",
+        "src/components/landing/FirstLookHero.tsx:104",
+        "src/components/stylist/StylistAttachSheet.tsx:38"
+      ]
+    },
+    {
+      "value": 30,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:271"
+      ]
+    },
+    {
+      "value": 999,
+      "count": 1,
+      "files": [
+        "src/app/globals.css:361"
+      ]
+    },
+    {
+      "value": 9999,
+      "count": 234,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:777,826,833,855…",
+        "src/components/TravelView.tsx:59,63,669,691…",
+        "src/components/explore/ExploreForYouHeader.tsx:349,430,440,455…",
+        "src/components/stylist/StylistView.tsx:218,222,234,291…",
+        "src/components/CalendarView.tsx:226,230,234,252…",
+        "src/components/ItemForm.tsx:897,921,979,994…",
+        "src/components/SharedClosetView.tsx:59,66,703,711…",
+        "src/components/proto/FirstRunJourney.tsx:286,287,305,366…",
+        "src/components/ui.tsx:40,65,116,181…",
+        "src/components/community/CommunityFeed.tsx:159,213,308,420…",
+        "src/components/chat/ChatView.tsx:157,172,240,245…",
+        "src/components/native/NativeShell.tsx:170,195,257,282…",
+        "src/components/shop/ShopSearchView.tsx:83,97,157,281…",
+        "src/components/ClosetSheets.tsx:108,112,144,184…",
+        "src/components/ItemCard.tsx:163,176,185,193…",
+        "src/components/NotificationsView.tsx:158,189,197,211…",
+        "src/components/YouView.tsx:253,456,458,467…",
+        "src/components/community/CreatePost.tsx:217,266,388,469…",
+        "src/components/ImportProgress.tsx:42,62,90,114",
+        "src/components/ProfileAvatar.tsx:29,75,93,110",
+        "src/components/ShareClosetSheet.tsx:202,204,226,392",
+        "src/components/import/EmailImportSheet.tsx:180,215,228,271",
+        "src/components/landing/HowItWorksSection.tsx:44,55,56,57",
+        "src/components/stylist/StylistBlocks.tsx:63,189,223,242",
+        "src/components/DeleteAccountDialog.tsx:61,105,113",
+        "src/components/InsightsView.tsx:102,131,133",
+        "src/components/OutfitSplitImport.tsx:289,296,373",
+        "src/components/OutfitsView.tsx:137,150,250",
+        "src/components/PhotoDetailView.tsx:281,327,472",
+        "src/components/landing/FirstLookHero.tsx:46,64,71",
+        "src/components/wishlist/PlanHeader.tsx:114,169,171",
+        "src/components/BulkImport.tsx:177,270",
+        "src/components/ImportReviewSheet.tsx:95,109",
+        "src/components/OutfitDetailView.tsx:156,389",
+        "src/components/WardrobeView.tsx:321,341",
+        "src/components/WishlistView.tsx:148,197",
+        "src/components/chat/MessagesView.tsx:58,106",
+        "src/components/chat/NewMessageSheet.tsx:120,162",
+        "src/components/community/ConnectionsPage.tsx:197,225",
+        "src/components/native/NativeProfileView.tsx:224,247",
+        "src/components/onboarding/FirstLookGame.tsx:309,317",
+        "src/components/onboarding/FirstSixCapture.tsx:354,359",
+        "src/components/shop/ProductFitOverlay.tsx:145,178",
+        "src/components/styling/AskToStyleSheet.tsx:130,157",
+        "src/components/stylist/StylistAttachSheet.tsx:47,53",
+        "src/app/globals.css:605",
+        "src/components/AppShell.tsx:307",
+        "src/components/BeautifyCompare.tsx:30",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ClosetScanImport.tsx:186",
+        "src/components/OAuthButtons.tsx:68",
+        "src/components/PhotoLightbox.tsx:31",
+        "src/components/SmartBuy.tsx:149",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/chat/AttachSheet.tsx:163",
+        "src/components/chat/ShareToChatSheet.tsx:100",
+        "src/components/explore/ResaleView.tsx:99",
+        "src/components/explore/TryOnLoading.tsx:89",
+        "src/components/explore/TryOnView.tsx:413",
+        "src/components/onboarding/FirstOutfit.tsx:173",
+        "src/components/styling/StyleSessionView.tsx:314",
+        "src/components/styling/StylingSessions.tsx:263",
+        "src/components/you/LearnedTasteRow.tsx:106",
+        "src/components/you/StyleTastePage.tsx:126"
+      ]
+    }
+  ],
+  "shadows": [
+    {
+      "value": "lg",
+      "count": 26,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1031,1058,1387",
+        "src/components/ItemForm.tsx:939,1009",
+        "src/components/chat/ChatView.tsx:179,272",
+        "src/components/community/CommunityFeed.tsx:213,330",
+        "src/components/stylist/StylistView.tsx:241,364",
+        "src/components/BrandPicker.tsx:77",
+        "src/components/ClipLinkLoader.tsx:134",
+        "src/components/ImportProgress.tsx:42",
+        "src/components/ItemCard.tsx:89",
+        "src/components/OutfitPreview.tsx:73",
+        "src/components/PhotoDetailView.tsx:327",
+        "src/components/ProfileMenu.tsx:66",
+        "src/components/SharedClosetView.tsx:576",
+        "src/components/TravelView.tsx:534",
+        "src/components/WishlistView.tsx:197",
+        "src/components/YouView.tsx:477",
+        "src/components/explore/ExploreForYouHeader.tsx:853",
+        "src/components/native/NativeProfileView.tsx:224",
+        "src/components/native/NativeShell.tsx:294",
+        "src/components/shop/ShopSearchView.tsx:366"
+      ]
+    },
+    {
+      "value": "sm",
+      "count": 7,
+      "files": [
+        "src/components/TravelView.tsx:844,853",
+        "src/components/CanvasBuilderView.tsx:985",
+        "src/components/ItemCard.tsx:163",
+        "src/components/ItemForm.tsx:994",
+        "src/components/SharedClosetView.tsx:881",
+        "src/components/ui.tsx:27"
+      ]
+    },
+    {
+      "value": "DEFAULT",
+      "count": 3,
+      "files": [
+        "src/app/api/beautify/route.ts:34",
+        "src/components/ItemForm.tsx:1661",
+        "src/components/ui.tsx:232"
+      ]
+    },
+    {
+      "value": "2xl",
+      "count": 3,
+      "files": [
+        "src/components/OnboardingModal.tsx:205",
+        "src/components/landing/FirstLookHero.tsx:105",
+        "src/components/ui.tsx:107"
+      ]
+    },
+    {
+      "value": "md",
+      "count": 2,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:855,872"
+      ]
+    },
+    {
+      "value": "xl",
+      "count": 2,
+      "files": [
+        "src/components/DeleteAccountDialog.tsx:54",
+        "src/components/PhotoDetailView.tsx:278"
+      ]
+    },
+    {
+      "value": "[0_-8px_30px_rgba(28,25,23,0.08)]",
+      "count": 1,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:1070"
+      ]
+    },
+    {
+      "value": "[0_2px_8px_rgba(0,0,0,0.10)]",
+      "count": 1,
+      "files": [
+        "src/components/explore/TryOnView.tsx:331"
+      ]
+    }
+  ],
+  "tracking": [
+    {
+      "value": "wide",
+      "count": 26,
+      "files": [
+        "src/components/ItemForm.tsx:1021,1083,1670",
+        "src/components/stylist/StylistBlocks.tsx:145,161,203",
+        "src/components/OnboardingModal.tsx:212,366",
+        "src/components/SharedClosetView.tsx:1032,1042",
+        "src/components/TodayView.tsx:197,234",
+        "src/components/explore/ExploreForYouHeader.tsx:578,641",
+        "src/components/native/NativeShell.tsx:267,274",
+        "src/components/wishlist/PlanHeader.tsx:63,73",
+        "src/app/share/closet/[id]/page.tsx:115",
+        "src/components/InsightsView.tsx:154",
+        "src/components/RediscoverModal.tsx:103",
+        "src/components/WardrobeView.tsx:321",
+        "src/components/chat/ShareCard.tsx:59",
+        "src/components/community/CommunityFeed.tsx:385",
+        "src/components/community/CreatePost.tsx:347",
+        "src/components/shop/ProductFitOverlay.tsx:165"
+      ]
+    },
+    {
+      "value": "wider",
+      "count": 9,
+      "files": [
+        "src/components/CanvasBuilderView.tsx:985,1254",
+        "src/components/ItemCard.tsx:176,185",
+        "src/components/AuthModal.tsx:25",
+        "src/components/CalendarView.tsx:448",
+        "src/components/OutfitsView.tsx:250",
+        "src/components/RediscoverModal.tsx:79",
+        "src/components/ui.tsx:138"
+      ]
+    },
+    {
+      "value": "[0.12em]",
+      "count": 8,
+      "files": [
+        "src/components/SharedClosetView.tsx:585,686",
+        "src/components/TravelView.tsx:543,779",
+        "src/components/explore/ExploreForYouHeader.tsx:172,479",
+        "src/components/OutfitDetailView.tsx:400",
+        "src/components/explore/ResaleView.tsx:47"
+      ]
+    },
+    {
+      "value": "tight",
+      "count": 6,
+      "files": [
+        "src/components/AppShell.tsx:85,100",
+        "src/components/ItemForm.tsx:1033",
+        "src/components/landing/FirstLookHero.tsx:54",
+        "src/components/landing/HowItWorksSection.tsx:32",
+        "src/components/wishlist/PlanHeader.tsx:161"
+      ]
+    },
+    {
+      "value": "[0.19em]",
+      "count": 5,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:500,583",
+        "src/components/onboarding/FirstLookGame.tsx:240",
+        "src/components/onboarding/FirstOutfit.tsx:125",
+        "src/components/onboarding/FirstSixCapture.tsx:313"
+      ]
+    },
+    {
+      "value": "[0.2em]",
+      "count": 3,
+      "files": [
+        "src/components/AppShell.tsx:82,97",
+        "src/components/landing/HowItWorksSection.tsx:29"
+      ]
+    },
+    {
+      "value": "[0.14em]",
+      "count": 2,
+      "files": [
+        "src/components/onboarding/FirstLookGame.tsx:281",
+        "src/components/onboarding/MorningAsk.tsx:80"
+      ]
+    },
+    {
+      "value": "[0.11em]",
+      "count": 1,
+      "files": [
+        "src/components/CalendarView.tsx:286"
+      ]
+    },
+    {
+      "value": "[0.24em]",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:302"
+      ]
+    },
+    {
+      "value": "[0.06em]",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:501"
+      ]
+    },
+    {
+      "value": "[0.08em]",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:624"
+      ]
+    },
+    {
+      "value": "[0.13em]",
+      "count": 1,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:631"
+      ]
+    }
+  ],
+  "fontWeights": [
+    {
+      "value": "medium",
+      "count": 248,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:349,353,360,430…",
+        "src/components/InsightsView.tsx:59,62,66,70…",
+        "src/components/CalendarView.tsx:229,325,369,372…",
+        "src/components/TravelView.tsx:635,669,793,818…",
+        "src/components/CanvasBuilderView.tsx:749,839,1188,1215…",
+        "src/components/SettingsView.tsx:90,180,297,309…",
+        "src/components/SharedClosetView.tsx:632,703,711,736…",
+        "src/components/SmartBuy.tsx:31,137,149,226…",
+        "src/components/community/CommunityFeed.tsx:300,308,347,372…",
+        "src/components/AppShell.tsx:82,97,111,300…",
+        "src/components/ItemForm.tsx:921,994,1137,1469…",
+        "src/components/OutfitDetailView.tsx:180,196,272,294…",
+        "src/components/OutfitsView.tsx:91,99,120,152…",
+        "src/components/ProfileAvatar.tsx:26,84,93,110…",
+        "src/components/explore/TryOnView.tsx:278,349,361,413…",
+        "src/components/AuthModal.tsx:197,211,264,398…",
+        "src/components/ClosetScanImport.tsx:136,145,153,172…",
+        "src/components/TryOnPhotoRow.tsx:191,200,216,234…",
+        "src/components/landing/HowItWorksSection.tsx:29,44,47,78…",
+        "src/components/you/LearnedTasteRow.tsx:87,106,129,148…",
+        "src/components/NotificationsView.tsx:161,189,202,211",
+        "src/components/OutfitSplitImport.tsx:274,280,289,296",
+        "src/components/TodayView.tsx:197,200,234,306",
+        "src/components/YouView.tsx:55,253,436,467",
+        "src/components/community/ConnectionsPage.tsx:175,197,217,225",
+        "src/components/community/CreatePost.tsx:89,217,348,499",
+        "src/components/explore/ResaleView.tsx:61,68,91,99",
+        "src/components/import/EmailImportSheet.tsx:169,180,234,264",
+        "src/components/stylist/StylistBlocks.tsx:63,166,187,223",
+        "src/app/share/closet/[id]/page.tsx:115,146,198",
+        "src/components/BulkImport.tsx:171,177,204",
+        "src/components/OnboardingModal.tsx:212,366,450",
+        "src/components/chat/MessagesView.tsx:64,73,99",
+        "src/components/landing/FirstLookHero.tsx:71,87,127",
+        "src/components/shop/ProductFitOverlay.tsx:149,168,239",
+        "src/components/shop/ShopSearchView.tsx:34,157,281",
+        "src/components/wishlist/PlanHeader.tsx:63,73,98",
+        "src/components/BeautifyCompare.tsx:49,62",
+        "src/components/ClosetSheets.tsx:184,187",
+        "src/components/DeleteAccountDialog.tsx:83,105",
+        "src/components/ItemCard.tsx:201,254",
+        "src/components/chat/NewMessageSheet.tsx:158,182",
+        "src/components/chat/ShareToChatSheet.tsx:103,117",
+        "src/components/native/NativeShell.tsx:267,274",
+        "src/components/styling/AskToStyleSheet.tsx:130,210",
+        "src/components/styling/StylingSessions.tsx:140,206",
+        "src/components/ui.tsx:40,65",
+        "src/components/wishlist/AddToWishlistSheet.tsx:227,254",
+        "src/app/i/[id]/page.tsx:79",
+        "src/components/ExploreView.tsx:41",
+        "src/components/FindProductSheet.tsx:101",
+        "src/components/ImportProgress.tsx:42",
+        "src/components/OAuthButtons.tsx:68",
+        "src/components/OutfitBoardThumb.tsx:132",
+        "src/components/PhotoDetailView.tsx:344",
+        "src/components/ProfileMenu.tsx:68",
+        "src/components/RediscoverModal.tsx:62",
+        "src/components/ShareClosetSheet.tsx:332",
+        "src/components/SyncBadge.tsx:41",
+        "src/components/WardrobeView.tsx:150",
+        "src/components/WishlistView.tsx:150",
+        "src/components/chat/ShareCard.tsx:60",
+        "src/components/explore/TryOnLoading.tsx:85",
+        "src/components/landing/LandingNav.tsx:10",
+        "src/components/stylist/StylistAttachSheet.tsx:78",
+        "src/components/wishlist/ShouldIBuySheet.tsx:264",
+        "src/components/you/settings-ui.tsx:21"
+      ]
+    },
+    {
+      "value": "semibold",
+      "count": 139,
+      "files": [
+        "src/components/explore/ExploreForYouHeader.tsx:172,340,419,479…",
+        "src/components/proto/FirstRunJourney.tsx:305,345,414,444…",
+        "src/components/CanvasBuilderView.tsx:782,804,826,901…",
+        "src/components/SharedClosetView.tsx:66,585,594,659…",
+        "src/components/PhotoDetailView.tsx:245,266,288,299…",
+        "src/components/TravelView.tsx:63,543,552,666…",
+        "src/components/ClosetSheets.tsx:54,65,74,114…",
+        "src/components/ItemCard.tsx:176,185,231,241",
+        "src/components/ItemForm.tsx:1021,1033,1120,1457",
+        "src/components/BeautifyCompare.tsx:25,72,79",
+        "src/components/explore/ResaleView.tsx:41,47,50",
+        "src/components/shop/ShopSearchView.tsx:83,97,155",
+        "src/components/stylist/StylistBlocks.tsx:76,189,242",
+        "src/components/wishlist/PlanHeader.tsx:118,154,161",
+        "src/app/share/closet/[id]/page.tsx:159,192",
+        "src/components/CalendarView.tsx:286,353",
+        "src/components/DeleteAccountDialog.tsx:84,113",
+        "src/components/RediscoverModal.tsx:79,103",
+        "src/components/WardrobeView.tsx:261,321",
+        "src/components/chat/MessagesView.tsx:63,99",
+        "src/components/community/CommunityFeed.tsx:387,649",
+        "src/components/native/NativeProfileView.tsx:159,166",
+        "src/components/native/NativeShell.tsx:195,299",
+        "src/components/native/NativeUserProfileView.tsx:118,130",
+        "src/components/onboarding/FirstLookGame.tsx:240,317",
+        "src/components/onboarding/FirstOutfit.tsx:125,174",
+        "src/components/onboarding/FirstSixCapture.tsx:313,318",
+        "src/components/onboarding/MorningAsk.tsx:80,91",
+        "src/components/shop/ProductFitOverlay.tsx:225,250",
+        "src/components/ui.tsx:138,199",
+        "src/app/i/[id]/OpenInAppButton.tsx:20",
+        "src/app/i/[id]/page.tsx:70",
+        "src/app/u/[handle]/page.tsx:69",
+        "src/components/AuthModal.tsx:25",
+        "src/components/OutfitDetailView.tsx:400",
+        "src/components/OutfitsView.tsx:250",
+        "src/components/ShareClosetSheet.tsx:227",
+        "src/components/YouView.tsx:250",
+        "src/components/chat/ChatView.tsx:163",
+        "src/components/community/CreatePost.tsx:349",
+        "src/components/profile/ProfileScreen.tsx:145",
+        "src/components/styling/AskToStyleSheet.tsx:165",
+        "src/components/styling/StylingSessions.tsx:259",
+        "src/components/stylist/StylistAttachSheet.tsx:42",
+        "src/components/stylist/StylistView.tsx:226",
+        "src/components/wishlist/AddToWishlistSheet.tsx:380",
+        "src/components/wishlist/ShouldIBuySheet.tsx:298"
+      ]
+    },
+    {
+      "value": "bold",
+      "count": 11,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:302,610,631",
+        "src/components/AppShell.tsx:85,100",
+        "src/components/CanvasBuilderView.tsx:985,1254",
+        "src/components/ItemForm.tsx:1083",
+        "src/components/landing/FirstLookHero.tsx:54",
+        "src/components/landing/HowItWorksSection.tsx:32",
+        "src/components/shop/ProductFitOverlay.tsx:188"
+      ]
+    },
+    {
+      "value": "normal",
+      "count": 6,
+      "files": [
+        "src/components/proto/FirstRunJourney.tsx:303,362,584",
+        "src/components/SharedClosetView.tsx:753",
+        "src/components/TravelView.tsx:836",
+        "src/components/explore/ExploreForYouHeader.tsx:709"
+      ]
+    }
+  ],
+  "cssShadows": [
+    "inset 0 0 0 0 transparent",
+    "inset 0 0 0 3px color-mix(in srgb, var(--accent) 85%, transparent)",
+    "inset 0 0 0 0 transparent",
+    "0 6px 20px rgba(28, 25, 23, 0.14)",
+    "0 4px 12px rgba(0, 0, 0, 0.22)",
+    "0 -10px 40px rgba(0, 0, 0, 0.25)"
+  ],
+  "motion": [
+    {
+      "cls": "animate-fade-up",
+      "animation": "fade-up 260ms ease both"
+    },
+    {
+      "cls": "animate-canvas-pop",
+      "animation": "canvas-pop 420ms cubic-bezier(0.34, 1.5, 0.5, 1) both"
+    },
+    {
+      "cls": "animate-canvas-pop",
+      "animation": "fade-up 200ms ease both"
+    },
+    {
+      "cls": "animate-board-win",
+      "animation": "board-win 900ms cubic-bezier(0.32, 0.72, 0, 1) both"
+    },
+    {
+      "cls": "animate-board-win",
+      "animation": "none"
+    },
+    {
+      "cls": "animate-pop",
+      "animation": "pop-in 150ms cubic-bezier(0.22, 1, 0.36, 1) both"
+    },
+    {
+      "cls": "native-page-in",
+      "animation": "page-in 260ms cubic-bezier(0.22, 1, 0.36, 1) both"
+    },
+    {
+      "cls": "animate-tryon-drift",
+      "animation": "tryon-drift 7000ms cubic-bezier(0.45, 0, 0.55, 1) infinite"
+    },
+    {
+      "cls": "animate-tryon-reveal",
+      "animation": "tryon-reveal 460ms cubic-bezier(0.22, 1, 0.36, 1) both"
+    },
+    {
+      "cls": "animate-tryon-drift",
+      "animation": "none"
+    },
+    {
+      "cls": "animate-tryon-reveal",
+      "animation": "fade-up 200ms ease both"
+    }
+  ]
+}

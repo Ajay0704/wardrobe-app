@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "-p", "3200"],
       "port": 3200
+    },
+    {
+      "name": "figma-export-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "-p", "3217"],
+      "port": 3217
     }
   ]
 }

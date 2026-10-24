@@ -1,0 +1,4 @@
+node_modules/
+# Generated (~145 MB) — regenerate with `npm run export`.
+screens/
+html/
