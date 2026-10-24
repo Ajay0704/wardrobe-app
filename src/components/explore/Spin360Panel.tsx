@@ -31,6 +31,8 @@ export function Spin360Panel({
         <p className="flex items-center justify-center gap-1.5 text-sm text-muted">
           <Check size={15} /> Saved to this look
         </p>
+        {/* A failed "Make a new spin" leaves the good spin up; the route's message goes here. */}
+        {spin.error && <p className="text-center text-xs text-muted">{spin.error}</p>}
         <button type="button" onClick={spin.make} className="mx-auto block text-xs text-muted active:scale-95">
           Make a new spin
         </button>

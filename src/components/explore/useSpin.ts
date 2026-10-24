@@ -39,7 +39,10 @@ export function useSpin(outfitId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [makingSince, setMakingSince] = useState<number | null>(null);
-  const loadedFor = useRef<string | null>(null);
+  /** The spin path the held frames were loaded from. Frames only count while this matches
+   *  the look's current spinPath — replacing the render clears spinPath, and a spin of the
+   *  old render must never show on top of the new one. State, not a ref: it's read in render. */
+  const [framesPath, setFramesPath] = useState<string | null>(null);
   const framesRef = useRef<SpinFrames | null>(null);
   /** False once the screen has unmounted — a late load must release, not store. */
   const alive = useRef(true);
@@ -82,8 +85,8 @@ export function useSpin(outfitId?: string) {
       // Swap first, release the old set after: nothing renders from a released set.
       const old = framesRef.current;
       framesRef.current = next;
-      loadedFor.current = path;
       setFrames(next);
+      setFramesPath(path);
       old?.release();
       setStatus("ready");
     } catch {
@@ -93,10 +96,15 @@ export function useSpin(outfitId?: string) {
     }
   }, []);
 
-  /** Switching to 360°: show an existing spin, free. Never generates. */
+  /** Frames are live only for the spin the look currently points at. */
+  const live = !!frames && framesPath === spinPath;
+
+  /** Switching to 360° (or "Try loading it again"): show an existing spin, free. Never
+   *  generates. Reloads whenever the held frames aren't live, whatever failed before. */
   const open = useCallback(() => {
-    if (spinPath && loadedFor.current !== spinPath) void load(spinPath);
-  }, [spinPath, load]);
+    if (!spinPath || live || status === "loading") return;
+    void load(spinPath);
+  }, [spinPath, live, status, load]);
 
   const make = useCallback(async () => {
     if (!outfitId || !renderPath) return;
@@ -106,10 +114,20 @@ export function useSpin(outfitId?: string) {
     setMakingSince(Date.now());
     try {
       const path = await makeSpin(renderPath);
-      const previous = spinPath;
+      // Read the look as it is NOW, not as it was at the tap: the render can be replaced
+      // (or the look deleted) during the ~30s make.
+      const cur = useWardrobe.getState().outfits.find((o) => o.id === outfitId);
+      setMakingSince(null);
+      if (!cur || cur.tryOnRenderPath !== renderPath) {
+        // Filmed from a render that's gone — attaching it would show the old render's spin
+        // on the new one. Drop the clip.
+        void deletePrivateImage(path);
+        setStatus("idle");
+        return;
+      }
+      const previous = cur.spinPath;
       setOutfitSpin(outfitId, path);
       if (previous && previous !== path) void deletePrivateImage(previous);
-      setMakingSince(null);
       await load(path);
     } catch (e) {
       setMakingSince(null);
@@ -118,13 +136,20 @@ export function useSpin(outfitId?: string) {
       setError(msg);
       setStatus("error");
     }
-  }, [outfitId, renderPath, spinPath, setOutfitSpin, load]);
+  }, [outfitId, renderPath, setOutfitSpin, load]);
+
+  // What the panel sees. Busy states pass through. With live frames, a failed make (or any
+  // error) leaves the good turntable up and the message under it; without them, a stale or
+  // cleared spin falls back to the front-only canvas by itself ("idle", or "error" if
+  // there's a current error). No state is reset in an effect.
+  const busy = status === "making" || status === "loading";
+  const exposedStatus: Status = busy ? status : live ? "ready" : error ? "error" : "idle";
 
   return {
     available,
-    status,
+    status: exposedStatus,
     progress,
-    frames,
+    frames: live ? frames : null,
     error,
     hasSpin: !!spinPath,
     open,
