@@ -17,6 +17,9 @@ import { authHeaders } from "./supabase/client";
 import { trimAndCenter } from "./trim-center";
 import { AppleVision } from "./native/apple-vision";
 
+// Bumping imgly? package.json overrides its `zod ^3` dependency to zod 4 (AJA-306: GHSA-mrhx-c7xc-m3w5
+// has no 3.x fix). That is safe only because 1.7.0's dist inlines its own zod and never imports the
+// package, which leaves the installed copy feeding nothing but `.d.ts` types. Re-check a new dist for `from "zod"`.
 const IMGLY_VERSION = "1.7.0";
 
 export interface CutoutResult {
