@@ -28,6 +28,12 @@ export async function POST(request: Request) {
   const user = await requireUser(request);
   if (!user) return Response.json({ error: "Sign in to make a 360° spin." }, { status: 401 });
 
+  // AJA-305 — the flag is the server's switch too, not only the client's: with it off, a
+  // merged route must not be callable. Same 501 wording, so the client hides the switch.
+  if (process.env.NEXT_PUBLIC_TRYON_SPIN !== "1") {
+    return Response.json({ error: "360° isn't configured yet." }, { status: 501 });
+  }
+
   const key = process.env.GEMINI_API_KEY;
   const admin = adminClient();
   if (!key || !admin) {
@@ -45,6 +51,17 @@ export async function POST(request: Request) {
     return Response.json({ error: "That isn't one of your try-on photos." }, { status: 400 });
   }
 
+  // The download is a free, own-path-only read, so it comes BEFORE the limit: a missing
+  // render, a storage hiccup or a non-image path must not burn one of the day's spins.
+  const { data: file, error: dlError } = await admin.storage.from(RENDERS_BUCKET).download(renderPath);
+  if (dlError || !file) {
+    return Response.json({ error: "This look's photo is gone — make a new try-on first." }, { status: 404 });
+  }
+  // `isRenderPath` also admits the user's own .mp4 spins; only a photo can be filmed.
+  if (!file.type.startsWith("image/")) {
+    return Response.json({ error: "That isn't one of your try-on photos." }, { status: 400 });
+  }
+
   // Spend the budget only for a request that can actually be made.
   const rl = await checkLimit(user, "spin");
   if (!rl.ok) {
@@ -54,13 +71,9 @@ export async function POST(request: Request) {
     );
   }
 
-  const { data: file, error: dlError } = await admin.storage.from(RENDERS_BUCKET).download(renderPath);
-  if (dlError || !file) {
-    return Response.json({ error: "This look's photo is gone — make a new try-on first." }, { status: 404 });
-  }
   const front = {
     data: Buffer.from(await file.arrayBuffer()).toString("base64"),
-    mimeType: file.type || "image/jpeg",
+    mimeType: file.type,
   };
 
   const started = Date.now();

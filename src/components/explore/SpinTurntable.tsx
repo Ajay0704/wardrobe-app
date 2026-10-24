@@ -48,7 +48,7 @@ export function SpinTurntable({ frames }: { frames: SpinFrames }) {
   const [dragging, setDragging] = useState(false);
   const [turned, setTurned] = useState(false);
   const angleRef = useRef(0);
-  const drag = useRef<{ x: number; at: number; vel: number } | null>(null);
+  const drag = useRef<{ id: number; x: number; at: number; vel: number } | null>(null);
   const raf = useRef<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
@@ -126,14 +126,17 @@ export function SpinTurntable({ frames }: { frames: SpinFrames }) {
   );
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    // AJA-305 — one finger drives the drag: a second touch, a non-primary pointer or a
+    // right-click must not overwrite it (the angle would jump between the two).
+    if (drag.current || !e.isPrimary || e.button !== 0) return;
     if (raf.current !== null) cancelAnimationFrame(raf.current);
-    drag.current = { x: e.clientX, at: performance.now(), vel: 0 };
+    drag.current = { id: e.pointerId, x: e.clientX, at: performance.now(), vel: 0 };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);
   };
   const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
-    if (!d) return;
+    if (!d || e.pointerId !== d.id) return;
     const now = performance.now();
     const dx = e.clientX - d.x;
     const dDeg = dx * DRAG_DEG_PER_PX;
@@ -143,9 +146,9 @@ export function SpinTurntable({ frames }: { frames: SpinFrames }) {
     setBoth(angleRef.current + dDeg);
     if (!turned && dx !== 0) setTurned(true);
   };
-  const onPointerUp = () => {
+  const onPointerUp = (e: PointerEvent<HTMLDivElement>) => {
     const d = drag.current;
-    if (!d) return;
+    if (!d || e.pointerId !== d.id) return;
     drag.current = null;
     setDragging(false);
     coast(performance.now() - d.at > STILL_MS ? 0 : d.vel);

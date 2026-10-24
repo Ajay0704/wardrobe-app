@@ -21,7 +21,7 @@ export function Spin360Panel({
   const [nudge, setNudge] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [triedEarly, setTriedEarly] = useState(false);
-  const startX = useRef<number | null>(null);
+  const startX = useRef<{ id: number; x: number } | null>(null);
   const busy = spin.status === "making" || spin.status === "loading";
 
   if (spin.status === "ready" && spin.frames) {
@@ -41,17 +41,19 @@ export function Spin360Panel({
   }
 
   const onDown = (e: PointerEvent<HTMLDivElement>) => {
-    startX.current = e.clientX;
+    // AJA-305 — one pointer owns the nudge; a second finger or right-click is ignored.
+    if (startX.current || !e.isPrimary || e.button !== 0) return;
+    startX.current = { id: e.pointerId, x: e.clientX };
     e.currentTarget.setPointerCapture(e.pointerId);
     setDragging(true);
   };
   const onMove = (e: PointerEvent<HTMLDivElement>) => {
-    if (startX.current === null) return;
-    const total = e.clientX - startX.current;
+    if (!startX.current || e.pointerId !== startX.current.id) return;
+    const total = e.clientX - startX.current.x;
     setNudge(Math.sign(total) * 28 * (1 - Math.exp(-Math.abs(total) / 120)));
   };
-  const onUp = () => {
-    if (startX.current === null) return;
+  const onUp = (e: PointerEvent<HTMLDivElement>) => {
+    if (!startX.current || e.pointerId !== startX.current.id) return;
     startX.current = null;
     setDragging(false);
     if (Math.abs(nudge) > 4) setTriedEarly(true);

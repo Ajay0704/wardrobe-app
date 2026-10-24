@@ -61,16 +61,12 @@ export function TryOnView({
   const savedPath = useWardrobe((s) =>
     outfitId ? s.outfits.find((o) => o.id === outfitId)?.tryOnRenderPath : undefined,
   );
-  const savedSpinPath = useWardrobe((s) =>
-    outfitId ? s.outfits.find((o) => o.id === outfitId)?.spinPath : undefined,
-  );
   const { path: photoPath, save, remove, saveError } = useTryOnPhoto();
 
   // AJA-305 — 360° spin. Offered only for a saved look with a saved render (see useSpin).
   const spin = useSpin(outfitId);
   const [mode, setMode] = useState<"photo" | "360">("photo");
   const spinBusy = spin.status === "making" || spin.status === "loading";
-  const in360 = mode === "360" && spin.available;
 
   /** Photo chosen in THIS session. */
   const [picked, setPicked] = useState<string | null>(null);
@@ -87,6 +83,11 @@ export function TryOnView({
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  // AJA-305 — the 360° half films the SAVED render, so it is offered only while the render
+  // on screen IS that one. A fresh, unsaved render hides the switch and (derived, no effect)
+  // drops back to the photo view; saving it would otherwise clear a spin made meanwhile.
+  const spinOffered = spin.available && saveState === "saved";
+  const in360 = mode === "360" && spinOffered;
   /** 501 = provider not configured; a retry can never succeed, so stop offering one. */
   const [unavailable, setUnavailable] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -108,6 +109,9 @@ export function TryOnView({
       setError(null);
       // A new render is not the saved one — re-arm the button.
       setSaveState("idle");
+      // AJA-305 — and not the one the spin was filmed from: back to the photo view, so
+      // saving it later doesn't land the user on a 360° panel that's now front-only.
+      setMode("photo");
       try {
         setResult(await tryOnOutfit({ garments, personImage: subject, scene: withScene }));
       } catch (e) {
@@ -231,7 +235,9 @@ export function TryOnView({
         : await (await fetch(result)).blob();
       const path = await uploadPrivateImage(blob, authUser.id);
       const previous = savedPath;
-      const previousSpin = savedSpinPath;
+      // AJA-305 — read the spin NOW, right before the store clears it: the closure's value
+      // predates the upload await, and deleting a stale path would orphan the real clip.
+      const previousSpin = useWardrobe.getState().outfits.find((o) => o.id === outfitId)?.spinPath;
       setOutfitRender(outfitId, path);
       // Replacing: drop the old blob, or it lingers unreferenced until the account
       // is deleted. Best-effort — the look already points at the new render.
@@ -262,7 +268,7 @@ export function TryOnView({
       </div>
 
       <div className="native-item-page-body space-y-4">
-        {spin.available && (
+        {spinOffered && (
           <div className="mx-auto flex w-full max-w-xs rounded-full border border-line bg-surface-2 p-0.5">
             {(["photo", "360"] as const).map((m) => (
               <button

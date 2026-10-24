@@ -46,6 +46,9 @@ export function useSpin(outfitId?: string) {
   const framesRef = useRef<SpinFrames | null>(null);
   /** False once the screen has unmounted — a late load must release, not store. */
   const alive = useRef(true);
+  /** AJA-305 — in-hook guard on the $0.61 action: a second `make()` while one is in flight
+   *  is dropped here, whatever the UI above does. Read in the callback only, never in render. */
+  const makingRef = useRef(false);
 
   const available =
     process.env.NEXT_PUBLIC_TRYON_SPIN === "1" && !!outfitId && !!renderPath && !!authUser && !unavailable;
@@ -107,7 +110,8 @@ export function useSpin(outfitId?: string) {
   }, [spinPath, live, status, load]);
 
   const make = useCallback(async () => {
-    if (!outfitId || !renderPath) return;
+    if (!outfitId || !renderPath || makingRef.current) return;
+    makingRef.current = true;
     setStatus("making");
     setError(null);
     setProgress(0);
@@ -135,6 +139,9 @@ export function useSpin(outfitId?: string) {
       if (/isn't configured/i.test(msg)) setUnavailable(true);
       setError(msg);
       setStatus("error");
+    } finally {
+      // Every exit — success, stale-drop, failure — frees the guard.
+      makingRef.current = false;
     }
   }, [outfitId, renderPath, setOutfitSpin, load]);
 
