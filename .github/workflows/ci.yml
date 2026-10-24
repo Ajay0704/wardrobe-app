@@ -66,6 +66,9 @@ jobs:
           npm run test:shared-closet-errors
           npm run test:follow-errors
           npm run test:aging
+          npm run test:outfit-spin
+          npm run test:spin-request
+          npm run test:spin-pacing
 
       - name: Build
         run: npm run build
