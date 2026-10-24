@@ -14,7 +14,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { loadSpinFrames, type SpinFrames } from "@/lib/spin-frames";
 import { useWardrobe } from "@/lib/store";
-import { deletePrivateImage, signedPrivateUrl } from "@/lib/supabase/private-storage";
+import {
+  deletePrivateImage,
+  privateObjectExists,
+  signedPrivateUrl,
+  spinPathFor,
+} from "@/lib/supabase/private-storage";
 import { makeSpin } from "@/lib/tryon-spin";
 
 /** Median measured make. The bar approaches 99 asymptotically and never claims 100 early. */
@@ -22,6 +27,10 @@ const TYPICAL_MS = 28_000;
 const TAU = TYPICAL_MS / 2.4;
 
 type Status = "idle" | "making" | "loading" | "ready" | "error";
+
+/** AJA-308 — messages that mean "a spin may still be on its way" (from `makeSpin`, the
+ *  route's 409, and the not-found reply below), as opposed to a failure that's final. */
+const STILL_COMING = /Lost the connection|Still filming|Not there yet/;
 
 export function useSpin(outfitId?: string) {
   const authUser = useWardrobe((s) => s.authUser);
@@ -49,6 +58,8 @@ export function useSpin(outfitId?: string) {
   /** AJA-305 — in-hook guard on the $0.61 action: a second `make()` while one is in flight
    *  is dropped here, whatever the UI above does. Read in the callback only, never in render. */
   const makingRef = useRef(false);
+  /** AJA-308 — one look-up at a time for a spin whose request died. Callback-only, like the above. */
+  const probingRef = useRef(false);
 
   const available =
     process.env.NEXT_PUBLIC_TRYON_SPIN === "1" && !!outfitId && !!renderPath && !!authUser && !unavailable;
@@ -102,22 +113,58 @@ export function useSpin(outfitId?: string) {
   /** Frames are live only for the spin the look currently points at. */
   const live = !!frames && framesPath === spinPath;
 
+  /** AJA-308 — the look has a render but no spin: maybe a make finished on the server after
+   *  the phone lost the request. Its clip sits under the render's own name; attach it if so.
+   *  A free storage HEAD, own folder only. Re-reads the look after the await: if the render
+   *  changed or a spin got attached meanwhile, the find is stale and ignored. */
+  const recover = useCallback(async () => {
+    if (!outfitId || !renderPath || probingRef.current || makingRef.current) return;
+    const candidate = spinPathFor(renderPath);
+    if (!candidate) return;
+    probingRef.current = true;
+    try {
+      const found = await privateObjectExists(candidate);
+      if (!alive.current) return;
+      if (!found) {
+        // Only answers a question someone asked: after a lost connection (or a "still
+        // filming" 409) the message on screen says "reopen 360°", and without this it would
+        // just sit there as if the check never ran. Any OTHER message — the day's limit, a
+        // missing photo, a failed film — is left alone: nothing is filming in those cases.
+        setError((shown) =>
+          shown && STILL_COMING.test(shown) ? "Not there yet — it may still be filming. Try again in a moment." : shown,
+        );
+        return;
+      }
+      const cur = useWardrobe.getState().outfits.find((o) => o.id === outfitId);
+      if (!cur || cur.tryOnRenderPath !== renderPath || cur.spinPath || makingRef.current) return;
+      setOutfitSpin(outfitId, candidate);
+      await load(candidate);
+    } finally {
+      probingRef.current = false;
+    }
+  }, [outfitId, renderPath, setOutfitSpin, load]);
+
   /** Switching to 360° (or "Try loading it again"): show an existing spin, free. Never
-   *  generates. Reloads whenever the held frames aren't live, whatever failed before. */
+   *  generates. Reloads whenever the held frames aren't live, whatever failed before. With
+   *  no spin on the look, looks for one a lost request left behind. */
   const open = useCallback(() => {
-    if (!spinPath || live || status === "loading") return;
-    void load(spinPath);
-  }, [spinPath, live, status, load]);
+    if (live || status === "loading" || status === "making") return;
+    if (spinPath) void load(spinPath);
+    else void recover();
+  }, [spinPath, live, status, load, recover]);
 
   const make = useCallback(async () => {
     if (!outfitId || !renderPath || makingRef.current) return;
     makingRef.current = true;
+    // AJA-308 — a look that already has a spin is asking for a NEW one ("Make a new spin");
+    // without one, the route may answer with a clip a lost request left behind, free.
+    const fresh = !!useWardrobe.getState().outfits.find((o) => o.id === outfitId)?.spinPath;
     setStatus("making");
     setError(null);
     setProgress(0);
     setMakingSince(Date.now());
     try {
-      const path = await makeSpin(renderPath);
+      const path = await makeSpin(renderPath, { fresh });
       // Read the look as it is NOW, not as it was at the tap: the render can be replaced
       // (or the look deleted) during the ~30s make.
       const cur = useWardrobe.getState().outfits.find((o) => o.id === outfitId);

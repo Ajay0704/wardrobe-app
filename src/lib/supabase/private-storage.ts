@@ -78,6 +78,46 @@ export function isOwnPrivatePath(path: unknown, userId: string): path is string 
 }
 
 /**
+ * AJA-308 — the one name a render's FIRST 360° spin is stored under:
+ * `<uid>/<renderStem>.spin.mp4`.
+ *
+ * Deterministic on purpose. iOS kills the request when the app is backgrounded during the
+ * ~30s make, but the route still finishes and stores the clip — and under a random name
+ * nothing could ever find it again, so the customer would pay twice. A name derived from the
+ * render lets the route answer a repeat request with the clip it already made, and lets the
+ * client look for it. Still flat (one slash), so `isRenderPath` accepts it. Null for
+ * anything that isn't a render path.
+ *
+ * Only the first spin: "Make a new spin" keeps a random name, so it never collides with the
+ * clip the look is showing.
+ */
+export function spinPathFor(renderPath: unknown): string | null {
+  if (!isRenderPath(renderPath)) return null;
+  const slash = renderPath.indexOf("/");
+  const file = renderPath.slice(slash + 1);
+  const dot = file.lastIndexOf(".");
+  const stem = dot > 0 ? file.slice(0, dot) : file;
+  return `${renderPath.slice(0, slash)}/${stem}.spin.mp4`;
+}
+
+/**
+ * True when the object is there and this user can read it (RLS: own folder only). Any
+ * failure is `false` — callers use it to LOOK for something, and a missed find just means
+ * "not there yet", never an error to show.
+ */
+export async function privateObjectExists(path: string): Promise<boolean> {
+  if (!isRenderPath(path)) return false;
+  const supabase = getSupabase();
+  if (!supabase) return false;
+  try {
+    const { data } = await supabase.storage.from(RENDERS_BUCKET).exists(path);
+    return data === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Upload an image and return its PATH. Throws on failure.
  *
  * Deliberately no data-URL fallback: `resolveImageSource` has one, and it is what

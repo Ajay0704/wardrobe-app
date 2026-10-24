@@ -2,9 +2,15 @@
  * AJA-305 — the 360° spin request, as a pure function, so the test checks the REAL body
  * the route sends (the `tryon-prompt.ts` pattern).
  *
- * Measured on the prototype (2026-10-24): this exact prompt with the front render as both
- * first and last frame produced one clean full turn on the first try — 6.0s, 144 frames,
- * 34,752 output tokens (~$0.61), 27.5s wall clock.
+ * Measured on the prototype (2026-10-24): the front render as both first and last frame
+ * produced one clean full turn on the first try — 6.0s, 144 frames, 34,752 output tokens
+ * (~$0.61), 27.5s wall clock.
+ *
+ * AJA-308 — the prompt no longer names a backdrop. That test render was a studio shot and
+ * the prompt said "studio… seamless light-grey backdrop", but a saved render is whatever
+ * scene the customer picked, Street by default: naming a backdrop contradicts the very
+ * frames the clip has to start and end on. It now defers to the first frame. This wording
+ * is UNMEASURED until the paid smoke test on a Street render (AJA-308).
  */
 
 export const SPIN_MODEL = "gemini-omni-1.1-flash";
@@ -12,12 +18,13 @@ export const SPIN_MODEL = "gemini-omni-1.1-flash";
 export const SPIN_SECONDS = 6;
 
 export const SPIN_PROMPT =
-  "A full-length studio photograph of a person comes to life. The person slowly turns on the spot through ONE complete " +
+  "A full-length photograph of a person comes to life. The person slowly turns on the spot through ONE complete " +
   "360-degree rotation at a steady, even speed: first turning to show the camera their right side, then their back, then " +
   "their left side, and finally back to face the camera, ending exactly as in the last frame. The camera is locked off: no " +
-  "camera movement, no zoom, no cuts. The same person, the same outfit, the same soft studio lighting and the same seamless " +
-  "light-grey backdrop throughout. Arms stay relaxed at the sides, hands empty, feet stay in place — no walking, no posing, " +
-  "no other motion. Photorealistic. No text, no music.";
+  "camera movement, no zoom, no cuts. The same person and the same outfit throughout, in exactly the same setting, " +
+  "background and lighting as the first frame — the surroundings stay still and unchanged while only the person turns. " +
+  "Arms stay relaxed at the sides, hands empty, feet stay in place — no walking, no posing, no other motion. " +
+  "Photorealistic. No text, no music.";
 
 type ImagePart = { type: "image"; data: string; mime_type: string };
 type TextPart = { type: "text"; text: string };

@@ -25,6 +25,10 @@ ok(fmt.aspect_ratio === "9:16" && fmt.resolution === "720p" && fmt.type === "vid
 ok(body.generation_config.video_config.task === "image_to_video", "task is image_to_video");
 ok(/360-degree/.test(SPIN_PROMPT) && /locked off/.test(SPIN_PROMPT), "prompt asks for one full turn, camera locked");
 ok(/feet stay in place/.test(SPIN_PROMPT), "prompt forbids walking");
+// AJA-308 — the first and last frames ARE the saved render, whatever its scene (Street by
+// default). A backdrop named in the prompt contradicts that picture on a paid call.
+ok(!/studio|light-grey|backdrop/i.test(SPIN_PROMPT), "prompt names no backdrop of its own");
+ok(/same setting, background and lighting as the first frame/.test(SPIN_PROMPT), "prompt keeps the first frame's background");
 
 console.log(fails === 0 ? "\nSPIN-REQUEST CHECKS PASSED" : `\n${fails} SPIN-REQUEST CHECK(S) FAILED`);
 if (fails) process.exit(1);

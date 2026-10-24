@@ -49,7 +49,7 @@ The Photo / 360° switch appears only when the screen has an `outfitId` **and** 
 
 **A spin belongs to one front render.** Replacing or removing the look's render (`setOutfitRender` with a different path) clears `spinPath`, and the caller deletes the old clip. A spin of the old render on top of a new one would show two different outfits.
 
-Scene chips: in 360° only Studio is enabled, with the line "360° is filmed in the studio so every angle matches." The disclaimer adds: "The back is partly inferred, since your photos only show the front."
+Scene chips are hidden in 360°: the spin is filmed from the saved render, whatever its scene. The disclaimer adds: "The back is partly inferred, since your photos only show the front." (AJA-308 replaced the original Studio-only idea. The prompt now keeps the first frame's own background instead of naming one.)
 
 ## Architecture
 
@@ -66,7 +66,7 @@ export function buildSpinRequest(front: { data: string; mimeType: string }): Spi
 ```
 
 The body:
-- `input` is the front image twice (first and last frame, so the clip loops), then the prompt text from the test.
+- `input` is the front image twice (first and last frame, so the clip loops), then the prompt. The prompt names no backdrop and keeps "the same setting, background and lighting as the first frame" (AJA-308). The paid test used a studio wording, so this wording is unmeasured until the smoke test on a Street render.
 - `response_format: [{ type: "video", aspect_ratio: "9:16", resolution: "720p", duration: "6s" }]`.
 - `generation_config: { video_config: { task: "image_to_video" } }`.
 
@@ -84,7 +84,14 @@ The duration is always explicit. Billing is per output second and the Gemini API
    - Only then `checkLimit(user, "spin")`, else 429 with the spin message. An invalid request never uses up a spin.
 3. **Fetch the front render:** download it from `renders-private` with `adminClient()`. Failure → 404 "That render is no longer in storage." No call is made, so nothing is charged.
 4. **Generate:** POST `https://generativelanguage.googleapis.com/v1beta/interactions` with `x-goog-api-key` and `AbortSignal.timeout(50_000)`, under `maxDuration = 60`. Read the first `steps[].content[]` item with `type === "video"`, either `data` or `uri`.
-5. **Store:** upload the MP4 with `adminClient()` to `renders-private` at `<userId>/<uuid>.mp4`. Return `{ path }`.
+5. **Store:** upload the MP4 with `adminClient()` to `renders-private`. Return `{ path }`.
+   - **First spin:** stored at the render's own name, `spinPathFor(renderPath)` = `<userId>/<renderStem>.spin.mp4` (AJA-308). A repeat request for the same render, from a retry after iOS killed the request mid-make, a double tap or a second device, never films twice:
+     - **Once the clip is stored:** the request is answered from that name, before the download and the limit, free.
+     - **While it's still filming:** the first request holds a claim, an empty `<userId>/<renderStem>.spin.pending` marker written with upsert off. A second request gets 409 "Still filming your spin — reopen 360° in a moment.", free.
+     - **Releasing the claim:** it's removed however the first request ends. A marker older than `maxDuration` + 15 s was left by a dead function, and is cleared and re-claimed.
+     - **A failed upload:** both attempts use the same name, and "already exists" counts as success, so a timed-out write that actually landed stays findable.
+   - **Opening 360°:** on a look with a render but no spin, the client checks that name and attaches what it finds.
+   - **`fresh: true` ("Make a new spin"):** a random `<userId>/<uuid>.mp4` instead. An interrupted fresh spin isn't recoverable, and the look keeps its old spin.
 6. **Log:** `usage.total_output_tokens` and the elapsed time, so real cost and latency can be checked against $0.61 / 28 s.
 
 The route stores the clip itself, rather than returning ~3.4 MB of base64 for the client to re-upload. That halves the transfer and means a client that closes mid-flight still leaves a stored clip, not a paid one that was thrown away.

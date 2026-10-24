@@ -114,5 +114,20 @@ ok(scrubbed.outfits[0].spinPath === SPIN, "the scrubber keeps a genuine path");
 ok(!("spinPath" in scrubbed.outfits[1]), "the scrubber deletes a signed URL");
 ok(scrubbed.outfits[1].tryOnRenderPath === RENDER, "…without touching a good render on the same look");
 
+console.log("\n=== 6. a render's spin has one findable name (AJA-308) ===");
+// The route stores a render's first spin here and answers a repeat request with it, and
+// the client looks here for a spin whose request died on the phone. Both only work if the
+// name is derived from the render alone, and is a path every validator accepts.
+const { spinPathFor, isRenderPath } = await import("@/lib/supabase/private-storage");
+const renderId = crypto.randomUUID();
+const derived = spinPathFor(`${USER}/${renderId}.jpg`);
+ok(derived === `${USER}/${renderId}.spin.mp4`, "a .jpg render's spin is <uid>/<stem>.spin.mp4", String(derived));
+ok(spinPathFor(`${USER}/${renderId}.png`) === derived, "the extension doesn't change the name");
+ok(spinPathFor(`${USER}/${renderId}.jpg`) === derived, "the same render always gives the same name");
+ok(isRenderPath(derived) && derived!.split("/").length === 2, "it passes isRenderPath (one slash)");
+ok(spinPathFor(SIGNED) === null, "a signed URL has no spin name");
+ok(spinPathFor(`${USER}/sub/x.jpg`) === null, "a nested path has no spin name");
+ok(spinPathFor(undefined) === null, "nothing has no spin name");
+
 console.log(fails === 0 ? "\nOUTFIT-SPIN CHECKS PASSED" : `\n${fails} OUTFIT-SPIN CHECK(S) FAILED`);
 if (fails) process.exit(1);

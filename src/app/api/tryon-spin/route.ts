@@ -1,7 +1,8 @@
-import { requireUser } from "@/lib/auth-server";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { type ApiUser, requireUser } from "@/lib/auth-server";
 import { checkLimit } from "@/lib/rate-limit";
 import { adminClient } from "@/lib/supabase/admin";
-import { isOwnPrivatePath, RENDERS_BUCKET } from "@/lib/supabase/private-storage";
+import { isOwnPrivatePath, RENDERS_BUCKET, spinPathFor } from "@/lib/supabase/private-storage";
 import { buildSpinRequest, SPIN_MODEL } from "@/lib/tryon-spin-prompt";
 
 export const runtime = "nodejs";
@@ -15,13 +16,70 @@ const FILM_FAILED = "Couldn't film this look. Try again, or try a different phot
 /** Held back from maxDuration when downloading a clip by uri: time to store it, retry once and reply. */
 const DOWNLOAD_MARGIN_MS = 8_000;
 
+/** Storage refused the upload because the object is already there (bucket has upsert off). */
+const alreadyExists = (e: unknown) => {
+  const err = e as { status?: number; statusCode?: string; message?: string } | null;
+  return err?.status === 409 || err?.statusCode === "409" || /already exists|duplicate/i.test(err?.message ?? "");
+};
+
+const STILL_FILMING = "Still filming your spin — reopen 360° in a moment.";
+/** A "filming" marker outlives any real make (maxDuration) plus slack. One older than this
+ *  was left by a function that died, and is cleared rather than blocking the render forever. */
+const CLAIM_TTL_MS = (maxDuration + 15) * 1000;
+
+/**
+ * AJA-308 — claim a render's first spin before spending on it, with an empty marker object
+ * next to the clip's name. The bucket has upsert off, so only one request can write it:
+ *  - "claimed": this request films; it removes the marker when it's done, however it ends.
+ *  - "busy": another request is filming this render right now — a retry after the phone
+ *    dropped the connection, a double tap, a second device. Without this it would pass the
+ *    "already made?" check (nothing is stored until the first one finishes) and pay again.
+ *  - "unguarded": storage wouldn't take the marker for some other reason. Film anyway: a
+ *    flaky marker must not block a spin the customer asked for.
+ */
+async function claimFilming(admin: SupabaseClient, marker: string): Promise<"claimed" | "busy" | "unguarded"> {
+  const bucket = admin.storage.from(RENDERS_BUCKET);
+  const put = () =>
+    bucket
+      .upload(marker, Buffer.from("filming"), { contentType: "text/plain", upsert: false })
+      .then((r) => r.error as unknown, (e: unknown) => e ?? new Error("upload failed"));
+  const unguarded = (why: string) => {
+    // Logged, because otherwise the guard could switch itself off unseen — e.g. if the bucket
+    // were ever given allowed MIME types that refuse the text/plain marker.
+    console.log(`[tryon-spin] filming without a claim: ${why}`);
+    return "unguarded" as const;
+  };
+  const err = await put();
+  if (!err) return "claimed";
+  if (!alreadyExists(err)) return unguarded(`marker refused (${String((err as { message?: string }).message ?? err)})`);
+  const info = await bucket.info(marker).then((r) => r.data, () => null);
+  const born = Date.parse((info as { createdAt?: string } | null)?.createdAt ?? "");
+  if (Number.isFinite(born) && Date.now() - born < CLAIM_TTL_MS) return "busy";
+  if (Number.isFinite(born)) {
+    // Stale: the request that wrote it is long gone. Clear it and claim afresh.
+    await bucket.remove([marker]).then(() => {}, () => {});
+  }
+  // Stale and cleared, or its age unreadable (most often: the filming request removed it
+  // between our upload and our info() — it just finished). Try once more. An age we can't
+  // read must never mean "busy": that would block this render's spin for good.
+  const retry = await put();
+  if (!retry) return "claimed";
+  return Number.isFinite(born) && alreadyExists(retry) ? "busy" : unguarded("marker age unreadable");
+}
+
 /**
  * AJA-305 — make a 360° spin video from the caller's OWN saved try-on render.
  *
  * Takes a PATH, not image bytes: the spin can only start from a render already in this
  * user's `renders-private` folder, so the route can't be used to animate arbitrary images.
- * Stores the MP4 itself and returns its path, so a client that closes mid-flight still
- * leaves a saved clip rather than a paid one that was thrown away.
+ * Stores the MP4 itself and returns its path.
+ *
+ * AJA-308 — and stores a render's first spin under ONE name derived from it
+ * (`spinPathFor`), so a client that died mid-flight — iOS backgrounding the app during the
+ * ~30s make — can get it back: once that clip is stored, a repeat request is answered with
+ * it, free, and the client looks for it there too; while it's still being filmed, a repeat
+ * request is told so (409), also free. `fresh: true` ("Make a new spin") films again under a
+ * random name instead.
  */
 export async function POST(request: Request) {
   const routeStart = Date.now();
@@ -42,13 +100,31 @@ export async function POST(request: Request) {
   }
 
   let renderPath: unknown;
+  let fresh = false;
   try {
-    renderPath = ((await request.json()) as { renderPath?: unknown }).renderPath;
+    const body = (await request.json()) as { renderPath?: unknown; fresh?: unknown };
+    renderPath = body.renderPath;
+    fresh = body.fresh === true;
   } catch {
     return Response.json({ error: "Invalid request." }, { status: 400 });
   }
   if (!isOwnPrivatePath(renderPath, user.id)) {
     return Response.json({ error: "That isn't one of your try-on photos." }, { status: 400 });
+  }
+
+  // AJA-308 — a repeat request for a render's first spin, once that spin is stored, gets the
+  // clip that's already paid for. Before the download and the limit: answering it costs
+  // nothing. A failed lookup just means "film it" (the claim below still guards that).
+  const firstSpinPath = spinPathFor(renderPath)!; // non-null: isOwnPrivatePath implies a render path
+  if (!fresh) {
+    const found = await admin.storage
+      .from(RENDERS_BUCKET)
+      .exists(firstSpinPath)
+      .then((r) => r.data === true, () => false);
+    if (found) {
+      console.log("[tryon-spin] returned the render's existing spin; nothing filmed");
+      return Response.json({ path: firstSpinPath });
+    }
   }
 
   // The download is a free, own-path-only read, so it comes BEFORE the limit: a missing
@@ -62,6 +138,52 @@ export async function POST(request: Request) {
     return Response.json({ error: "That isn't one of your try-on photos." }, { status: 400 });
   }
 
+  // AJA-308 — a first spin claims its render before anything is spent, so a second request
+  // while it's filming is turned away free instead of filming the same spin again.
+  const marker = `${firstSpinPath.slice(0, -".mp4".length)}.pending`;
+  const claim = fresh ? "unguarded" : await claimFilming(admin, marker);
+  if (claim === "busy") {
+    console.log("[tryon-spin] this render's spin is already being filmed; nothing filmed");
+    return Response.json({ error: STILL_FILMING }, { status: 409 });
+  }
+  try {
+    if (claim === "claimed") {
+      // The request this one waited behind may have stored its clip and dropped its marker
+      // during our download, after the "already made?" check above. Look once more before
+      // paying; the finally still removes our marker.
+      const landed = await admin.storage
+        .from(RENDERS_BUCKET)
+        .exists(firstSpinPath)
+        .then((r) => r.data === true, () => false);
+      if (landed) {
+        console.log("[tryon-spin] the render's spin landed while claiming; nothing filmed");
+        return Response.json({ path: firstSpinPath });
+      }
+    }
+    return await filmAndStore({ user, key, admin, file, fresh, firstSpinPath, routeStart });
+  } finally {
+    if (claim === "claimed") await admin.storage.from(RENDERS_BUCKET).remove([marker]).then(() => {}, () => {});
+  }
+}
+
+/** The limit, the paid call and the upload: everything that spends, behind the claim above. */
+async function filmAndStore({
+  user,
+  key,
+  admin,
+  file,
+  fresh,
+  firstSpinPath,
+  routeStart,
+}: {
+  user: ApiUser;
+  key: string;
+  admin: SupabaseClient;
+  file: Blob;
+  fresh: boolean;
+  firstSpinPath: string;
+  routeStart: number;
+}): Promise<Response> {
   // Spend the budget only for a request that can actually be made.
   const rl = await checkLimit(user, "spin");
   if (!rl.ok) {
@@ -163,11 +285,16 @@ export async function POST(request: Request) {
     return Response.json({ error: FILM_FAILED }, { status: 502 });
   }
 
-  // Flat `<userId>/<uuid>.mp4`: `isRenderPath` allows exactly one slash. The bucket has no
-  // update policy and upsert is off, so a retry must use a NEW path. The clip is already paid
-  // for, so try twice before giving it up, and say so in the log.
+  // Flat paths only: `isRenderPath` allows exactly one slash. A first spin goes to the
+  // render's own name (AJA-308) so it can be found again — on BOTH attempts: if attempt 1
+  // timed out after the object was actually written, a random name on attempt 2 would leave
+  // the findable clip orphaned and attach a copy; retrying the name turns that into
+  // "already exists", which is success. A fresh spin goes to a random `<userId>/<uuid>.mp4`,
+  // new on each attempt (no update policy, upsert off). The clip is already paid for, so try
+  // twice before giving it up, and say so in the log.
   for (let attempt = 1; attempt <= 2; attempt++) {
-    const path = `${user.id}/${crypto.randomUUID()}.mp4`;
+    const named = !fresh;
+    const path = named ? firstSpinPath : `${user.id}/${crypto.randomUUID()}.mp4`;
     let upError: unknown = null;
     try {
       ({ error: upError } = await admin.storage
@@ -177,6 +304,13 @@ export async function POST(request: Request) {
       upError = e;
     }
     if (!upError) return Response.json({ path });
+    // The render's clip is already there — this request's own attempt 1 landed after all, or
+    // (if the claim was "unguarded") another request stored it first. Either way it's a spin
+    // of this very render, so it's the answer.
+    if (named && alreadyExists(upError)) {
+      console.log("[tryon-spin] the render's spin is already stored; returning it");
+      return Response.json({ path: firstSpinPath });
+    }
     console.log(`[tryon-spin] upload attempt ${attempt} failed (${bytes.length} bytes): ${upError instanceof Error ? upError.message : JSON.stringify(upError)}`);
   }
   return Response.json({ error: "Made the spin but couldn't save it. Try again." }, { status: 502 });
