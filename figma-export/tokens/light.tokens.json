@@ -1,0 +1,49 @@
+{
+  "color": {
+    "background": {
+      "$type": "color",
+      "$value": "#faf9f7",
+      "$description": "App canvas behind everything · Tailwind: bg-background / text-background · CSS: var(--background)"
+    },
+    "surface": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "Cards, sheets, tab dock · Tailwind: bg-surface / text-surface · CSS: var(--surface)"
+    },
+    "surface-2": {
+      "$type": "color",
+      "$value": "#f3f1ed",
+      "$description": "Recessed fills: segmented controls, chips, inputs · Tailwind: bg-surface-2 / text-surface-2 · CSS: var(--surface-2)"
+    },
+    "line": {
+      "$type": "color",
+      "$value": "#e7e4de",
+      "$description": "Hairline borders and dividers (Tailwind `line`, CSS var --border) · Tailwind: bg-line / text-line · CSS: var(--border)"
+    },
+    "foreground": {
+      "$type": "color",
+      "$value": "#1c1917",
+      "$description": "Primary text and icons; also the Create FAB fill · Tailwind: bg-foreground / text-foreground · CSS: var(--foreground)"
+    },
+    "muted": {
+      "$type": "color",
+      "$value": "#79716b",
+      "$description": "Secondary text, inactive tab icons · Tailwind: bg-muted / text-muted · CSS: var(--muted)"
+    },
+    "accent": {
+      "$type": "color",
+      "$value": "#567a4a",
+      "$description": "Brand green — primary buttons, active states, links · Tailwind: bg-accent / text-accent · CSS: var(--accent)"
+    },
+    "accent-soft": {
+      "$type": "color",
+      "$value": "#e8efe2",
+      "$description": "Tinted accent fill — active tab pill, selected chips · Tailwind: bg-accent-soft / text-accent-soft · CSS: var(--accent-soft)"
+    },
+    "accent-foreground": {
+      "$type": "color",
+      "$value": "#ffffff",
+      "$description": "Text/icons on accent fills · Tailwind: bg-accent-foreground / text-accent-foreground · CSS: var(--accent-foreground)"
+    }
+  }
+}

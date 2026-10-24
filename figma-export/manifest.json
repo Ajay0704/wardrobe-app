@@ -1,0 +1,1256 @@
+{
+  "base": "http://localhost:3217",
+  "generatedAt": "2026-10-24T07:44:22.997Z",
+  "screens": [
+    {
+      "file": "01-first-run-desktop",
+      "slug": "first-run",
+      "title": "First-run journey (signed-out native)",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/first-run-preview",
+      "state": null,
+      "htmlBytes": 622330,
+      "textSample": "YOUR PERSONAL WARDROBE Get dressed in seconds. Buy less. Wear more. A minute to set up. No account until you want to keep it. Let's build your closet Already ha",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "01-first-run-mobile",
+      "slug": "first-run",
+      "title": "First-run journey (signed-out native)",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/first-run-preview",
+      "state": null,
+      "htmlBytes": 622236,
+      "textSample": "YOUR PERSONAL WARDROBE Get dressed in seconds. Buy less. Wear more. A minute to set up. No account until you want to keep it. Let's build your closet Already ha",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "02-how-it-works-desktop",
+      "slug": "how-it-works",
+      "title": "How it works (marketing)",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/how-it-works",
+      "state": null,
+      "htmlBytes": 731395,
+      "textSample": "YOUR PERSONAL Wardrobe How it works Log in Create account HOW IT WORKS Your closet, digitized in minutes Add pieces, build outfits, and get matched — here's wha",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "02-how-it-works-mobile",
+      "slug": "how-it-works",
+      "title": "How it works (marketing)",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/how-it-works",
+      "state": null,
+      "htmlBytes": 728805,
+      "textSample": "YOUR PERSONAL Wardrobe Log in Create account HOW IT WORKS Your closet, digitized in minutes Add pieces, build outfits, and get matched — here's what it looks li",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "03-home-today-desktop",
+      "slug": "home-today",
+      "title": "Home / Today",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "today"
+      },
+      "htmlBytes": 1426446,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC THIS WEEK 1 day back Coming back weekly is the goal — open Today, save a ",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "04-explore-desktop",
+      "slug": "explore",
+      "title": "Explore feed",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "explore"
+      },
+      "htmlBytes": 1923315,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Explore For you Following Shop Dress me for… Work Date Event Trip Ask you",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "04-explore-mobile",
+      "slug": "explore",
+      "title": "Explore feed",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "explore"
+      },
+      "htmlBytes": 1975834,
+      "textSample": "Explore For you Following Shop Dress me for… Work Date Event Trip Ask your stylist anything… TODAY · 33°F Bundle up today white with taupe — neutral pair Shuffl",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "05-photo-detail-desktop",
+      "slug": "photo-detail",
+      "title": "Explore photo detail",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "photoDetail",
+        "photoCard": {
+          "id": "fx-photo",
+          "image": "/hero-poster.jpg",
+          "title": "Soft tailoring for fall"
+        }
+      },
+      "htmlBytes": 740920,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Drag across any item to grab it — like a screenshot Like Comment Share Sa",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "failedRequests": [
+        "500 /api/detect",
+        "500 /api/detect"
+      ]
+    },
+    {
+      "file": "05-photo-detail-mobile",
+      "slug": "photo-detail",
+      "title": "Explore photo detail",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "photoDetail",
+        "photoCard": {
+          "id": "fx-photo",
+          "image": "/hero-poster.jpg",
+          "title": "Soft tailoring for fall"
+        }
+      },
+      "htmlBytes": 758859,
+      "textSample": "Drag across any item to grab it — like a screenshot Like Comment Share Save More to explore Finding related pieces… MC",
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "failedRequests": [
+        "500 /api/detect",
+        "500 /api/detect"
+      ]
+    },
+    {
+      "file": "06-closet-desktop",
+      "slug": "closet",
+      "title": "Closet grid",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "wardrobeTab": "items"
+      },
+      "htmlBytes": 2301409,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "06-closet-mobile",
+      "slug": "closet",
+      "title": "Closet grid",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "wardrobeTab": "items"
+      },
+      "htmlBytes": 1852884,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "07-closet-item-detail-desktop",
+      "slug": "closet-item-detail",
+      "title": "Closet item detail",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "pendingOpenItemId": "fx-camel-sweater"
+      },
+      "htmlBytes": 2647291,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "07-closet-item-detail-mobile",
+      "slug": "closet-item-detail",
+      "title": "Closet item detail",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "pendingOpenItemId": "fx-camel-sweater"
+      },
+      "htmlBytes": 2145934,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "08-closet-wishlist-tab-desktop",
+      "slug": "closet-wishlist-tab",
+      "title": "Closet · Wishlist tab",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "wardrobeTab": "wishlist"
+      },
+      "htmlBytes": 1118973,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared Wishlist Pieces you're considering — see what they ",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "08-closet-wishlist-tab-mobile",
+      "slug": "closet-wishlist-tab",
+      "title": "Closet · Wishlist tab",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "wardrobeTab": "wishlist"
+      },
+      "htmlBytes": 1018933,
+      "textSample": "Closet Items Wishlist Shared Pieces you're considering — see what they go with before you buy. Set a shopping plan Give this list a budget — it's $724 so far Ev",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "09-create-sheet-mobile",
+      "slug": "create-sheet",
+      "title": "Create (+) sheet",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "addSheetOpen": true
+      },
+      "htmlBytes": 1927879,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "10-add-item-desktop",
+      "slug": "add-item",
+      "title": "Add item modal",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "addOpen": true,
+        "addIntent": null
+      },
+      "htmlBytes": 2520943,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "10-add-item-mobile",
+      "slug": "add-item",
+      "title": "Add item modal",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "addOpen": true,
+        "addIntent": null
+      },
+      "htmlBytes": 2035423,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "11-add-item-link-desktop",
+      "slug": "add-item-link",
+      "title": "Add item · paste link",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "addOpen": true,
+        "addIntent": "link"
+      },
+      "htmlBytes": 2546157,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "11-add-item-link-mobile",
+      "slug": "add-item-link",
+      "title": "Add item · paste link",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "addOpen": true,
+        "addIntent": "link"
+      },
+      "htmlBytes": 2060664,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "12-bulk-import-desktop",
+      "slug": "bulk-import",
+      "title": "Bulk import",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "bulkOpen": true
+      },
+      "htmlBytes": 2337300,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "12-bulk-import-mobile",
+      "slug": "bulk-import",
+      "title": "Bulk import",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "bulkOpen": true
+      },
+      "htmlBytes": 1888963,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "13-shared-closets-desktop",
+      "slug": "shared-closets",
+      "title": "Shared closets sheet",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "closetsOpen": true
+      },
+      "htmlBytes": 2666941,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "13-shared-closets-mobile",
+      "slug": "shared-closets",
+      "title": "Shared closets sheet",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe",
+        "closetsOpen": true
+      },
+      "htmlBytes": 2218290,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "14-builder-desktop",
+      "slug": "builder",
+      "title": "Outfit builder canvas",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "builder"
+      },
+      "htmlBytes": 1994643,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC New look No pieces yet Next 3:4 1:1 Build your look Tap pieces below — th",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "14-builder-mobile",
+      "slug": "builder",
+      "title": "Outfit builder canvas",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "builder"
+      },
+      "htmlBytes": 2016500,
+      "textSample": "Build an outfit New look No pieces yet Next 3:4 1:1 Build your look Tap pieces below — they drop in here Surprise me Items Board Text Stickers Add pieces Your c",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "15-outfits-desktop",
+      "slug": "outfits",
+      "title": "Outfits library",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfits"
+      },
+      "htmlBytes": 2552801,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC New look Ask a friend to style me All 7 Favourites 2 Work 6 Casual 7 Warm",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "15-outfits-mobile",
+      "slug": "outfits",
+      "title": "Outfits library",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfits"
+      },
+      "htmlBytes": 2605110,
+      "textSample": "Outfits New look Ask a friend to style me All 7 Favourites 2 Work 6 Casual 7 Warm 6 Cold 7 Recently worn 5 Never worn 1 3 TO BUY Next Season 3 pieces to buy Try",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "16-outfit-detail-desktop",
+      "slug": "outfit-detail",
+      "title": "Outfit detail",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfitDetail",
+        "selectedOutfitId": "fx-o-weekend"
+      },
+      "htmlBytes": 1238058,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Looks 3 pieces · Worn 6× · yesterday Wore it today Try it on me Plan a da",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "16-outfit-detail-mobile",
+      "slug": "outfit-detail",
+      "title": "Outfit detail",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfitDetail",
+        "selectedOutfitId": "fx-o-weekend"
+      },
+      "htmlBytes": 1257640,
+      "textSample": "Looks 3 pieces · Worn 6× · yesterday Wore it today Try it on me Plan a date Edit board Duplicate Favourited Share Delete PIECES Slim Jeans Camel Wool Sweater Le",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "17-stylist-desktop",
+      "slug": "stylist",
+      "title": "AI stylist",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "stylist"
+      },
+      "htmlBytes": 713641,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Stylist Dresses you from your closet Hi — I'm your Stylist. I dress you f",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "17-stylist-mobile",
+      "slug": "stylist",
+      "title": "AI stylist",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "stylist"
+      },
+      "htmlBytes": 732163,
+      "textSample": "Stylist Dresses you from your closet Hi — I'm your Stylist. I dress you from your own closet. What's the occasion? Dress me today For work What am I not wearing",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "18-calendar-desktop",
+      "slug": "calendar",
+      "title": "Calendar / wear log",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "calendar"
+      },
+      "htmlBytes": 1667818,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC October 2026 Month Mon 19 Tue 20 Wed 21 Thu 22 Fri 23 Sat 24 Sun 25 Today",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "18-calendar-mobile",
+      "slug": "calendar",
+      "title": "Calendar / wear log",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "calendar"
+      },
+      "htmlBytes": 1688981,
+      "textSample": "Calendar October 2026 Month Mon 19 Tue 20 Wed 21 Thu 22 Fri 23 Sat 24 Sun 25 Today 33°F · clear Planned · Soft Layers Shuffle Wear this Swap a piece RECENTLY WO",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "19-travel-desktop",
+      "slug": "travel",
+      "title": "Travel / packing",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "travel"
+      },
+      "htmlBytes": 676719,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Travel Pack a capsule from your closet — solo, or with friends on a share",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "19-travel-mobile",
+      "slug": "travel",
+      "title": "Travel / packing",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "travel"
+      },
+      "htmlBytes": 694538,
+      "textSample": "Packing Travel Pack a capsule from your closet — solo, or with friends on a shared trip. New trip No trips yet Plan a trip, pack pieces from your wardrobe, and ",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "20-wishlist-desktop",
+      "slug": "wishlist",
+      "title": "Wishlist",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist"
+      },
+      "htmlBytes": 1101821,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Wishlist Pieces you're considering — see what they go with before you buy",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "20-wishlist-mobile",
+      "slug": "wishlist",
+      "title": "Wishlist",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist"
+      },
+      "htmlBytes": 970907,
+      "textSample": "Wishlist Pieces you're considering — see what they go with before you buy. Set a shopping plan Give this list a budget — it's $724 so far Everything 4 Goes with",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "21-wishlist-should-i-buy-desktop",
+      "slug": "wishlist-should-i-buy",
+      "title": "Wishlist · Should I buy?",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist",
+        "pendingDecideItemId": "fx-white-oxford"
+      },
+      "htmlBytes": 1249292,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Wishlist Pieces you're considering — see what they go with before you buy",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "21-wishlist-should-i-buy-mobile",
+      "slug": "wishlist-should-i-buy",
+      "title": "Wishlist · Should I buy?",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist",
+        "pendingDecideItemId": "fx-white-oxford"
+      },
+      "htmlBytes": 1118221,
+      "textSample": "Wishlist Pieces you're considering — see what they go with before you buy. Set a shopping plan Give this list a budget — it's $724 so far Everything 4 Goes with",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "22-add-to-wishlist-desktop",
+      "slug": "add-to-wishlist",
+      "title": "Add to wishlist sheet",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist",
+        "wishlistAddOpen": true
+      },
+      "htmlBytes": 1193635,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Wishlist Pieces you're considering — see what they go with before you buy",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "22-add-to-wishlist-mobile",
+      "slug": "add-to-wishlist",
+      "title": "Add to wishlist sheet",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wishlist",
+        "wishlistAddOpen": true
+      },
+      "htmlBytes": 1062595,
+      "textSample": "Wishlist Pieces you're considering — see what they go with before you buy. Set a shopping plan Give this list a budget — it's $724 so far Everything 4 Goes with",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "23-insights-desktop",
+      "slug": "insights",
+      "title": "Insights",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "insights"
+      },
+      "htmlBytes": 1862917,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Insights How your wardrobe breaks down — free, all of it. 12 pieces · 5 c",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "23-insights-mobile",
+      "slug": "insights",
+      "title": "Insights",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "insights"
+      },
+      "htmlBytes": 1883332,
+      "textSample": "Insights Insights How your wardrobe breaks down — free, all of it. 12 pieces · 5 categories Tops 4 33% Bottoms 3 25% Outerwear 2 17% Shoes 2 17% Dresses 1 8% Wa",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "24-you-desktop",
+      "slug": "you",
+      "title": "You hub",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "you"
+      },
+      "htmlBytes": 1040111,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC MC Maya Chen @mayachen Edit Account Account details Export your data You ",
+      "consoleErrors": [
+        "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <button> button \n\n  ...\n    <SegmentViewNode type=\"page\" pagePath=\"navtest-fi...\">\n      <SegmentTrieNode>\n      <ClientPageRoot Component={function NavtestFigma} serverProvidedParams={{...}}>\n        <NavtestFigma para",
+        "<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. button <button>"
+      ],
+      "failedRequests": []
+    },
+    {
+      "file": "24-you-mobile",
+      "slug": "you",
+      "title": "You hub",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "you"
+      },
+      "htmlBytes": 1064390,
+      "textSample": "Settings MC Maya Chen @mayachen Edit Account Account details Export your data You Try-on photo Add Fit & sizes Style & taste What I've learned Nothing yet Close",
+      "consoleErrors": [
+        "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <button> button \n\n  ...\n    <ClientPageRoot Component={function NavtestFigma} serverProvidedParams={{...}}>\n      <NavtestFigma params={Promise} searchParams={Promise}>\n        <AppShell>\n          <AuthProvider>\n      ",
+        "<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. button <button>"
+      ],
+      "failedRequests": []
+    },
+    {
+      "file": "25-profile-desktop",
+      "slug": "profile",
+      "title": "Profile",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "profile"
+      },
+      "htmlBytes": 696780,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC MC Profile photo JPG, PNG or GIF. Square images look best. Upload photo D",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "25-profile-mobile",
+      "slug": "profile",
+      "title": "Profile",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "profile"
+      },
+      "htmlBytes": 715220,
+      "textSample": "Profile MC Profile photo JPG, PNG or GIF. Square images look best. Upload photo DISPLAY NAME USERNAME @ Available Your public @handle — how friends find and add",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "26-social-profile-mobile",
+      "slug": "social-profile",
+      "title": "Social profile (native tab)",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "social"
+      },
+      "htmlBytes": 769893,
+      "textSample": "Profile MC Maya Chen @mayachen 0 Posts 0 Followers 0 Following Minimal wardrobe, maximum outfits. Boston ↔ Lisbon. Boston, MA Edit profile Share No posts yet MC",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "27-notifications-desktop",
+      "slug": "notifications",
+      "title": "Notifications",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "notifications"
+      },
+      "htmlBytes": 655780,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC No notifications yet When someone likes, comments on, or follows you, it’",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "27-notifications-mobile",
+      "slug": "notifications",
+      "title": "Notifications",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "notifications"
+      },
+      "htmlBytes": 673378,
+      "textSample": "Notifications No notifications yet When someone likes, comments on, or follows you, it’ll show up here. MC",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "28-messages-desktop",
+      "slug": "messages",
+      "title": "Messages",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "messages"
+      },
+      "htmlBytes": 676697,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Stylist AI Ask me what to wear. New message No messages yet Start a conve",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "28-messages-mobile",
+      "slug": "messages",
+      "title": "Messages",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "messages"
+      },
+      "htmlBytes": 694608,
+      "textSample": "Messages Stylist AI Ask me what to wear. New message No messages yet Start a conversation — search someone by username. MC",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "29-fit-sizes-desktop",
+      "slug": "fit-sizes",
+      "title": "Fit & sizes",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "fitSizes"
+      },
+      "htmlBytes": 721770,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Womenswear · S top · 27 bottom Used for size hints on Shop and on-body tr",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "29-fit-sizes-mobile",
+      "slug": "fit-sizes",
+      "title": "Fit & sizes",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "fitSizes"
+      },
+      "htmlBytes": 740362,
+      "textSample": "Fit & sizes Womenswear · S top · 27 bottom Used for size hints on Shop and on-body try-on. Private to your account — never shown on your profile. How you shop W",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "30-style-taste-desktop",
+      "slug": "style-taste",
+      "title": "Style & taste",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "styleTaste"
+      },
+      "htmlBytes": 779661,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Tunes your Today suggestions, Generate outfit, and Shop picks. STYLE VIBE",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "30-style-taste-mobile",
+      "slug": "style-taste",
+      "title": "Style & taste",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "styleTaste"
+      },
+      "htmlBytes": 799438,
+      "textSample": "Style & taste Tunes your Today suggestions, Generate outfit, and Shop picks. STYLE VIBES Casual Minimal Work Streetwear Cozy Formal Athleisure Party Up to three",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "31-settings-app-desktop",
+      "slug": "settings-app",
+      "title": "App & region settings",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settingsApp"
+      },
+      "htmlBytes": 697363,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC App Opens to Explore Region Currency USD Country United States Language E",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "31-settings-app-mobile",
+      "slug": "settings-app",
+      "title": "App & region settings",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settingsApp"
+      },
+      "htmlBytes": 715601,
+      "textSample": "App & region App Opens to Explore Region Currency USD Country United States Language English Temperature °F MC",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "32-settings-account-desktop",
+      "slug": "settings-account",
+      "title": "Account settings",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settingsAccount"
+      },
+      "htmlBytes": 666770,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC EMAIL Email is managed by your login account. PHONE (OPTIONAL) DATE OF BI",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "32-settings-account-mobile",
+      "slug": "settings-account",
+      "title": "Account settings",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settingsAccount"
+      },
+      "htmlBytes": 684614,
+      "textSample": "Account EMAIL Email is managed by your login account. PHONE (OPTIONAL) DATE OF BIRTH (OPTIONAL) Used for style recommendations only — never shared. Change passw",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "33-settings-desktop",
+      "slug": "settings",
+      "title": "Settings · Profile",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "profile"
+      },
+      "htmlBytes": 737929,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Settings Manage your profile, account, and preferences. Profile Photo, na",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "33-settings-mobile",
+      "slug": "settings",
+      "title": "Settings · Profile",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "profile"
+      },
+      "htmlBytes": 748818,
+      "textSample": "Settings Settings Manage your profile, account, and preferences. Profile Notifications Account Preferences Support Data & privacy Public profile MC Profile phot",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "34-settings-preferences-desktop",
+      "slug": "settings-preferences",
+      "title": "Settings · Preferences",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "preferences"
+      },
+      "htmlBytes": 779725,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Settings Manage your profile, account, and preferences. Profile Photo, na",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "34-settings-preferences-mobile",
+      "slug": "settings-preferences",
+      "title": "Settings · Preferences",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "preferences"
+      },
+      "htmlBytes": 790612,
+      "textSample": "Settings Settings Manage your profile, account, and preferences. Profile Notifications Account Preferences Support Data & privacy Preferences APPEARANCE Light M",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "35-settings-notifications-desktop",
+      "slug": "settings-notifications",
+      "title": "Settings · Notifications",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "notifications"
+      },
+      "htmlBytes": 697240,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Settings Manage your profile, account, and preferences. Profile Photo, na",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "35-settings-notifications-mobile",
+      "slug": "settings-notifications",
+      "title": "Settings · Notifications",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "settings",
+        "settingsSection": "notifications"
+      },
+      "htmlBytes": 707065,
+      "textSample": "Settings Settings Manage your profile, account, and preferences. Profile Notifications Account Preferences Support Data & privacy Notifications Get a 7am \"here'",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "36-closet-dark-desktop",
+      "slug": "closet-dark",
+      "title": "Closet grid (dark)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe"
+      },
+      "htmlBytes": 2316154,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Acces",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "36-closet-dark-mobile",
+      "slug": "closet-dark",
+      "title": "Closet grid (dark)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "wardrobe"
+      },
+      "htmlBytes": 1854649,
+      "textSample": "Closet Items Wishlist Shared All Tops Bottoms Dresses Outerwear Shoes Bags Accessories J.Crew Levi's & Other Stories Mango Aritzia COS Everlane Everlane COS Sam",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "37-outfits-dark-desktop",
+      "slug": "outfits-dark",
+      "title": "Outfits library (dark)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfits"
+      },
+      "htmlBytes": 2570296,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC New look Ask a friend to style me All 7 Favourites 2 Work 6 Casual 7 Warm",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "37-outfits-dark-mobile",
+      "slug": "outfits-dark",
+      "title": "Outfits library (dark)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "outfits"
+      },
+      "htmlBytes": 2611593,
+      "textSample": "Outfits New look Ask a friend to style me All 7 Favourites 2 Work 6 Casual 7 Warm 6 Cold 7 Recently worn 5 Never worn 1 3 TO BUY Next Season 3 pieces to buy Try",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "38-explore-dark-desktop",
+      "slug": "explore-dark",
+      "title": "Explore feed (dark)",
+      "viewport": "desktop",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "explore"
+      },
+      "htmlBytes": 1842214,
+      "textSample": "YOUR PERSONAL Wardrobe Home Closet Builder Outfits Calendar Wishlist Travel Explore MC Explore For you Following Shop Dress me for… Work Date Event Trip Ask you",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "38-explore-dark-mobile",
+      "slug": "explore-dark",
+      "title": "Explore feed (dark)",
+      "viewport": "mobile",
+      "theme": "dark",
+      "url": "/navtest-figma",
+      "state": {
+        "view": "explore"
+      },
+      "htmlBytes": 1978153,
+      "textSample": "Explore For you Following Shop Dress me for… Work Date Event Trip Ask your stylist anything… TODAY · 33°F Bundle up today white with taupe — neutral pair Shuffl",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "39-public-profile-desktop",
+      "slug": "public-profile",
+      "title": "Public profile /u/[handle]",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/u/mayachen",
+      "state": null,
+      "htmlBytes": 1090565,
+      "textSample": "YOUR PERSONAL Wardrobe MC Maya Chen @mayachen 6 Posts 1.3k Followers 312 Following Minimal wardrobe, maximum outfits. Boston ↔ Lisbon. Get the app to follow",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "39-public-profile-mobile",
+      "slug": "public-profile",
+      "title": "Public profile /u/[handle]",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/u/mayachen",
+      "state": null,
+      "htmlBytes": 1090409,
+      "textSample": "YOUR PERSONAL Wardrobe MC Maya Chen @mayachen 6 Posts 1.3k Followers 312 Following Minimal wardrobe, maximum outfits. Boston ↔ Lisbon. Get the app to follow",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "40-share-closet-desktop",
+      "slug": "share-closet",
+      "title": "Shared closet /share/closet/[id]",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/share/closet/fx-share",
+      "state": null,
+      "htmlBytes": 1065862,
+      "textSample": "YOUR PERSONAL Wardrobe MAYA CHEN ASKED Which of these should I wear to a rooftop dinner on Friday? Tap pieces you’d recommend, leave a note, and send — no app i",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "40-share-closet-mobile",
+      "slug": "share-closet",
+      "title": "Shared closet /share/closet/[id]",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/share/closet/fx-share",
+      "state": null,
+      "htmlBytes": 1065952,
+      "textSample": "YOUR PERSONAL Wardrobe MAYA CHEN ASKED Which of these should I wear to a rooftop dinner on Friday? Tap pieces you’d recommend, leave a note, and send — no app i",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "41-item-share-desktop",
+      "slug": "item-share",
+      "title": "Shared item /i/[id]",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/i/fx-trench-coat?d=eyJuIjoiQmVsdGVkIFRyZW5jaCBDb2F0IiwiYiI6Ik1hbmdvIiwiaSI6Ii9zYW1wbGVzL3dvbWVuL3RyZW5jaC1jb2F0LXdoaXRlLnBuZyJ9",
+      "state": null,
+      "htmlBytes": 470053,
+      "textSample": "YOUR PERSONAL Wardrobe Belted Trench Coat Mango Open in Wardrobe Get the app Shared from Wardrobe",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "41-item-share-mobile",
+      "slug": "item-share",
+      "title": "Shared item /i/[id]",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/i/fx-trench-coat?d=eyJuIjoiQmVsdGVkIFRyZW5jaCBDb2F0IiwiYiI6Ik1hbmdvIiwiaSI6Ii9zYW1wbGVzL3dvbWVuL3RyZW5jaC1jb2F0LXdoaXRlLnBuZyJ9",
+      "state": null,
+      "htmlBytes": 470030,
+      "textSample": "YOUR PERSONAL Wardrobe Belted Trench Coat Mango Open in Wardrobe Get the app Shared from Wardrobe",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "42-extension-connect-desktop",
+      "slug": "extension-connect",
+      "title": "Browser extension connect",
+      "viewport": "desktop",
+      "theme": "light",
+      "url": "/extension/connect?ext=fxextension",
+      "state": null,
+      "htmlBytes": 612759,
+      "textSample": "Connect wishlist clipper Link the browser extension so Save to Wardrobe can add shop pages to your wishlist while you're signed in. Sign in to Wardrobe first, t",
+      "consoleErrors": [],
+      "failedRequests": []
+    },
+    {
+      "file": "42-extension-connect-mobile",
+      "slug": "extension-connect",
+      "title": "Browser extension connect",
+      "viewport": "mobile",
+      "theme": "light",
+      "url": "/extension/connect?ext=fxextension",
+      "state": null,
+      "htmlBytes": 612685,
+      "textSample": "Connect wishlist clipper Link the browser extension so Save to Wardrobe can add shop pages to your wishlist while you're signed in. Sign in to Wardrobe first, t",
+      "consoleErrors": [],
+      "failedRequests": []
+    }
+  ]
+}
