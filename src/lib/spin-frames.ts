@@ -144,7 +144,12 @@ export async function loadSpinFrames(
 
   try {
     document.body.appendChild(video);
-    const loaded = waitFor(video, "loadeddata", LOAD_TIMEOUT_MS);
+    // `loadedmetadata`, NOT `loadeddata`. Measured in iOS WebKit (simulator Safari, the
+    // WKWebView engine): a preload=auto video stops at metadata (readyState 1) and suspends;
+    // `loadeddata` only fires once play() is called. Waiting for it here — before the play()
+    // below — hung every extraction until the 10s timeout. Duration and size, all this
+    // needs, are known at metadata; the frames arrive with play().
+    const loaded = waitFor(video, "loadedmetadata", LOAD_TIMEOUT_MS);
     video.src = videoUrl;
     await loaded;
     if (!(video.duration > 0) || !Number.isFinite(video.duration)) throw new Error(FAIL);
