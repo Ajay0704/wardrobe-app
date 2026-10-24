@@ -10,6 +10,8 @@ import {
 import { App } from "@capacitor/app";
 import { Browser } from "@capacitor/browser";
 import { getSupabase } from "@/lib/supabase/client";
+import { signInAfterFailedLink } from "@/lib/supabase/oauth";
+import { linkFallbackProvider, parseAuthCallback, takePendingLink } from "@/lib/guest-link";
 import { useWardrobe } from "@/lib/store";
 import { SharedInbox } from "@/lib/native/shared-inbox";
 import { useEffect, useLayoutEffect, useSyncExternalStore } from "react";
@@ -162,25 +164,25 @@ export function NativeAppClass() {
       if (!url.includes("login-callback")) return;
       const supabase = getSupabase();
       if (!supabase) return;
-      const hashIndex = url.indexOf("#");
-      const queryIndex = url.indexOf("?");
-      const raw =
-        hashIndex >= 0
-          ? url.slice(hashIndex + 1)
-          : queryIndex >= 0
-            ? url.slice(queryIndex + 1)
-            : "";
-      const params = new URLSearchParams(raw);
-      const access_token = params.get("access_token");
-      const refresh_token = params.get("refresh_token");
+      const { accessToken, refreshToken, errorCode } = parseAuthCallback(url);
+      // A guest's Google / Apple link (AJA-309) returns here too: on success the tokens are the
+      // same user, now with an email. Taken either way so a stale one never steers a later sign-in.
+      const pendingLink = takePendingLink();
+      let reopened = false;
       try {
-        if (access_token && refresh_token) {
-          await supabase.auth.setSession({ access_token, refresh_token });
+        if (accessToken && refreshToken) {
+          await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+        } else {
+          reopened = await signInAfterFailedLink(linkFallbackProvider(errorCode, pendingLink));
         }
       } catch {
         /* leave the user on the gate to retry */
       } finally {
-        void Browser.close().catch(() => {});
+        // A retried sign-in owns the browser now; closing here would dismiss it.
+        if (!reopened) void Browser.close().catch(() => {});
       }
     }).then((handle) => {
       authSub = handle;

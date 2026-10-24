@@ -8,6 +8,7 @@ import type { ThemeMode } from "../store";
 import type { CalendarEntry, Outfit, SlotKey, WardrobeItem } from "../types";
 import { APP_SHARE_URL } from "../support";
 import { getSupabase } from "./client";
+import { clearGuestOwner, rememberGuestOwner } from "../guest-link";
 import { clearVisualIndex } from "../visual-index";
 import { pullSnapshot, pushSnapshot } from "./sync";
 
@@ -178,7 +179,13 @@ export async function startGuestSession(): Promise<GuestStart> {
 
   // Reuse an existing session (guest or real) rather than minting a second guest.
   const existing = (await supabase.auth.getSession()).data.session?.user;
-  if (existing?.id) return { ok: true, userId: existing.id };
+  if (existing?.id) {
+    // Only a guest owns the local closet; a real user's session must not be marked as one.
+    if ((existing as { is_anonymous?: boolean }).is_anonymous || !existing.email) {
+      rememberGuestOwner(existing.id);
+    }
+    return { ok: true, userId: existing.id };
+  }
 
   const { data, error } = await supabase.auth.signInAnonymously();
   if (error) {
@@ -186,7 +193,10 @@ export async function startGuestSession(): Promise<GuestStart> {
     return { ok: false, disabled, error: error.message };
   }
   const id = data.user?.id;
-  return id ? { ok: true, userId: id } : { ok: false, disabled: false, error: "No guest user returned." };
+  if (!id) return { ok: false, disabled: false, error: "No guest user returned." };
+  // Lets a Google / Apple upgrade of this same user keep what it captures (AJA-309).
+  rememberGuestOwner(id);
+  return { ok: true, userId: id };
 }
 
 /** True when the current session is an anonymous guest (signed in, but no email yet). */
@@ -242,6 +252,7 @@ export async function convertGuest(
     profile: profileForSync,
   });
   if (!ok.ok) throw new Error(ok.error || "Account created but wardrobe save failed.");
+  clearGuestOwner(); // the closet is in the cloud now; nothing left to carry over
 
   return { id: user.id, email };
 }
