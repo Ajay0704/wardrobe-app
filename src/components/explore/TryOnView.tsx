@@ -1,7 +1,7 @@
 "use client";
 
 import { Capacitor } from "@capacitor/core";
-import { Check, ChevronLeft, ImagePlus, Loader2, RefreshCw, ScanFace, User } from "lucide-react";
+import { Check, ChevronLeft, ImagePlus, Loader2, RefreshCw, Rotate3d, ScanFace, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { captureNativePhoto, pickNativePhoto } from "@/lib/native-camera";
 import { useWardrobe } from "@/lib/store";
@@ -13,7 +13,9 @@ import {
 } from "@/lib/supabase/private-storage";
 import { dataUrlToFile } from "@/lib/supabase/storage";
 import { tryOnOutfit, TRYON_SCENES, type TryOnGarment, type TryOnScene } from "@/lib/tryon";
+import { Spin360Panel } from "./Spin360Panel";
 import { TryOnLoading } from "./TryOnLoading";
+import { useSpin } from "./useSpin";
 import { useTryOnProgress } from "./useTryOnProgress";
 import { useTryOnPhoto } from "../useTryOnPhoto";
 
@@ -59,7 +61,16 @@ export function TryOnView({
   const savedPath = useWardrobe((s) =>
     outfitId ? s.outfits.find((o) => o.id === outfitId)?.tryOnRenderPath : undefined,
   );
+  const savedSpinPath = useWardrobe((s) =>
+    outfitId ? s.outfits.find((o) => o.id === outfitId)?.spinPath : undefined,
+  );
   const { path: photoPath, save, remove, saveError } = useTryOnPhoto();
+
+  // AJA-305 — 360° spin. Offered only for a saved look with a saved render (see useSpin).
+  const spin = useSpin(outfitId);
+  const [mode, setMode] = useState<"photo" | "360">("photo");
+  const spinBusy = spin.status === "making" || spin.status === "loading";
+  const in360 = mode === "360" && spin.available;
 
   /** Photo chosen in THIS session. */
   const [picked, setPicked] = useState<string | null>(null);
@@ -220,10 +231,14 @@ export function TryOnView({
         : await (await fetch(result)).blob();
       const path = await uploadPrivateImage(blob, authUser.id);
       const previous = savedPath;
+      const previousSpin = savedSpinPath;
       setOutfitRender(outfitId, path);
       // Replacing: drop the old blob, or it lingers unreferenced until the account
       // is deleted. Best-effort — the look already points at the new render.
       if (previous && previous !== path) void deletePrivateImage(previous);
+      // AJA-305 — setOutfitRender just cleared the spin (it was filmed from the old
+      // render); delete its clip too.
+      if (previousSpin && previous !== path) void deletePrivateImage(previousSpin);
       setSaveState("saved");
     } catch (e) {
       setSaveState("idle");
@@ -247,6 +262,33 @@ export function TryOnView({
       </div>
 
       <div className="native-item-page-body space-y-4">
+        {spin.available && (
+          <div className="mx-auto flex w-full max-w-xs rounded-full border border-line bg-surface-2 p-0.5">
+            {(["photo", "360"] as const).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => {
+                  setMode(m);
+                  if (m === "360") spin.open();
+                }}
+                disabled={loading || spinBusy}
+                aria-pressed={mode === m}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-full py-1.5 text-xs font-medium transition-[background-color,color,box-shadow] duration-150 ${
+                  mode === m ? "bg-surface text-foreground shadow-sm" : "text-muted"
+                }`}
+              >
+                {m === "photo" ? <ScanFace size={13} /> : <Rotate3d size={13} />}
+                {m === "photo" ? "Photo" : "360°"}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {in360 && <Spin360Panel spin={spin} frontSrc={result} />}
+
+        {!in360 && (
+          <>
         {/* Result canvas. object-contain, not object-cover: the render's aspect is the
             model's to choose, and cover silently sliced the head off a square one. */}
         <div className="relative mx-auto aspect-[3/4] w-full max-w-xs overflow-hidden rounded-2xl border border-line bg-surface-2">
@@ -316,6 +358,8 @@ export function TryOnView({
 
         {error && result && <p className="text-center text-xs text-red-500">{error}</p>}
         {saveError && <p className="text-center text-xs text-amber-600">{saveError}</p>}
+          </>
+        )}
 
         {/* Garment strip. The loading canvas deliberately shows nothing, so while a
             render is running this is the only place the per-piece story is told: each
@@ -339,6 +383,8 @@ export function TryOnView({
           })}
         </div>
 
+        {!in360 && (
+          <>
         {/* Subject. Two buttons only — this row measured 343/343 and the scene chips
             below already overflowed once, so extra verbs go in the text row. */}
         <div className="flex gap-2">
@@ -454,11 +500,14 @@ export function TryOnView({
             <RefreshCw size={15} /> {loading ? "Working…" : "Try again"}
           </button>
         )}
+          </>
+        )}
 
         {/* Composed from the real state. No single sentence is true across all of
             them: the photo may be stored, held for one render, or absent. */}
         <p className="pb-2 text-center text-[11px] text-muted">
           AI try-on is experimental — the fit is an approximation, not a measurement.{" "}
+          {in360 && "The back is partly inferred, since your photos only show the front. "}
           {photoPath
             ? "Your photo is saved privately to your account so try-on stops asking for it — only you can see it, and Forget photo deletes it. "
             : havePhoto
