@@ -24,6 +24,7 @@
     "test:storage": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-private-storage.mts",
     "test:render": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-outfit-render.mts",
     "test:outfit-spin": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-outfit-spin.mts",
+    "test:spin-pacing": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-spin-pacing.mts",
     "test:spin-request": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-spin-request.mts",
     "test:tryon-photo": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-tryon-photo.mts",
     "test:samples": "node --experimental-strip-types --experimental-loader ./scripts/reshook.mjs scripts/test-sample-clear.mts",
