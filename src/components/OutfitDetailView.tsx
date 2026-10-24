@@ -117,8 +117,12 @@ export function OutfitDetailView() {
     // Clear the pointer FIRST. If the delete fails we're left with an orphaned
     // blob (swept on account deletion) rather than a look still showing an image
     // the user asked to be rid of.
+    // AJA-305 — clearing the render also clears spinPath in the store; the clip is a video
+    // of the user's body, so it goes with the render rather than lingering in the bucket.
+    const spin = outfit.spinPath;
     setOutfitRender(outfit.id, null);
     if (savedPath) void deletePrivateImage(savedPath);
+    if (spin) void deletePrivateImage(spin);
     flash("Render removed");
   };
 
@@ -287,8 +291,12 @@ export function OutfitDetailView() {
                 // Take the path before the look goes — deleting the look is the
                 // other way a render stops being referenced, and without this the
                 // blob sits in the bucket until the account is deleted.
+                const spin = outfit.spinPath;
                 deleteOutfit(outfit.id);
                 if (savedPath) void deletePrivateImage(savedPath);
+                // AJA-305 — its 360° spin goes with it: a video of the user's body that
+                // nothing references any more, same as the render.
+                if (spin) void deletePrivateImage(spin);
                 back();
               }}
               className="flex-1 rounded-xl bg-red-500 py-2.5 text-sm font-medium text-white"

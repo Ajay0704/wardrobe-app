@@ -95,9 +95,13 @@ export function scrubSnapshotImages<
    */
   const outfits = Array.isArray(data.outfits)
     ? data.outfits.map((o) => {
-        if (o.tryOnRenderPath === undefined || isRenderPath(o.tryOnRenderPath)) return o;
+        // AJA-305 — `spinPath` is the same class of value and needs the same inverted test.
+        const badRender = o.tryOnRenderPath !== undefined && !isRenderPath(o.tryOnRenderPath);
+        const badSpin = o.spinPath !== undefined && !isRenderPath(o.spinPath);
+        if (!badRender && !badSpin) return o;
         const next = { ...o };
-        delete next.tryOnRenderPath;
+        if (badRender) delete next.tryOnRenderPath;
+        if (badSpin) delete next.spinPath;
         return next;
       })
     : data.outfits;

@@ -96,6 +96,9 @@ const TIERS = {
   enhance: { ns: "enh", windowMs: 5 * 60_000, anon: 20, user: 150 },
   // Gemini image generation — the costliest call in the app.
   tryon: { ns: "tryon", windowMs: 60 * 60_000, anon: 3, user: 30 },
+  // AJA-305 — 360° spin video, ~$0.61 each. A day window, not an hour: the point is a
+  // ceiling on spend per account (5 × $0.61 ≈ $3/day). Guests can't make spins.
+  spin: { ns: "spin", windowMs: 24 * 60 * 60_000, anon: 0, user: 5 },
   // Stylist chat/assemble, link extract/clip.
   ai: { ns: "ai", windowMs: 10 * 60_000, anon: 30, user: 120 },
   // Photo-detail browsing (detect, similar, goes-with) — cheap DB/embedding calls, its own bucket so
